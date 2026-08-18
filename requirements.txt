@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+aiogram>=3.30
+sqlalchemy[asyncio]>=2.0
+asyncpg
+alembic
+pydantic-settings
+google-genai
+pillow
+numpy
+python-docx
