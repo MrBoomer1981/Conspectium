@@ -6,6 +6,7 @@ from typing import Any
 from aiogram import BaseMiddleware
 from aiogram.types import Message
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.events import log_event
 from app.db.models import User
@@ -31,7 +32,7 @@ class DbSessionMiddleware(BaseMiddleware):
             return result
 
     @staticmethod
-    async def _get_or_create_user(session, event: Message) -> User:
+    async def _get_or_create_user(session: AsyncSession, event: Message) -> User:
         tg_user = event.from_user
         result = await session.execute(select(User).where(User.tg_id == tg_user.id))
         user = result.scalar_one_or_none()
