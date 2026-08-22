@@ -1,145 +1,177 @@
 # CLAUDE.md
 
-Контекст проекта. Читается в каждой сессии.
-**Обновляй этот файл при каждом архитектурном решении.**
+Project context. Read at the start of every session.
+**Update this file with every architectural decision.**
 
 ---
 
-## Что это
+## What this is
 
-Telegram-бот для студентов. Пользователь фотографирует конспект — получает
-структурированную запись, которая накапливается в его личном корпусе.
-Позже из записей делаются карточки для интервального повторения.
+A Telegram bot for students. The user photographs a lecture note and gets
+back a structured record, which accumulates in their personal corpus.
+Later, the records are turned into spaced-repetition flashcards.
 
-**Главная ценность — накопленный корпус, а не карточки.** Карточки дают
-повод регулярно закидывать конспекты, корпус даёт повод не уходить.
-При выборе между «улучшить карточки» и «улучшить работу с корпусом»
-выбирай корпус.
+**The core value is the accumulated corpus, not the flashcards.** Flashcards
+give a reason to keep feeding in notes regularly; the corpus gives a reason
+not to leave. When choosing between "improve the flashcards" and "improve
+work with the corpus," choose the corpus.
 
-**Стадия:** первая неделя, один пользователь — автор. Цель — проверить,
-станет ли автор пользоваться этим сам ежедневно. Не запуск, не рост,
-не выручка, не масштаб.
+**Stage:** first week, one user — the author. The goal is to check whether
+the author will actually use this daily. Not launch, not growth, not
+revenue, not scale.
 
 ---
 
-## Стек
+## Stack
 
 - Python 3.12
-- FastAPI — вебхук бота и место под будущий API Mini App, один процесс
-- aiogram 3.x — бот, только вебхук, не polling
-- SQLAlchemy 2.x (async) + Alembic + PostgreSQL (аддон Railway)
-- Google Gemini 2.5 Flash Lite — распознавание
-- Pillow + numpy — обработка изображений
-- Railway — хостинг
+- FastAPI — bot webhook and the future home of the Mini App API, single process
+- aiogram 3.x — bot, webhook only, no polling
+- SQLAlchemy 2.x (async) + Alembic + PostgreSQL (Railway addon)
+- Google Gemini 2.5 Flash Lite — recognition
+- Pillow + numpy — image processing
+- Railway — hosting
 
-Не добавляй зависимостей без явной необходимости. Не вводи Redis, очереди,
-воркеры, Docker, CI — пользователь один.
-
----
-
-## Нерушимые правила
-
-1. **Вызов LLM только с сервера.** Ключ не попадает на клиент.
-   Дополнительно: Gemini API недоступен из России напрямую, вызовы уходят
-   с Railway.
-
-2. **Сжимай изображение перед отправкой в модель.** Длинная сторона
-   до 1500 px, JPEG качества 85. Полноразмерное фото с телефона стоит
-   в разы дороже без выигрыша в точности.
-
-3. **Не храни оригиналы фотографий.** Только распознанный текст.
-
-4. **Каждый вызов модели пишется в `ai_calls`** — модель, токены,
-   стоимость, задержка, успех, ошибка. Без исключений.
-
-5. **Каждое значимое действие пишется в `events`.** Удержание невозможно
-   посчитать задним числом.
-
-6. **Лимиты проверяются до вызова модели, а не после.**
-
-7. **Никогда не доверяй JSON от модели.** Всегда валидируй схему, всегда
-   обрабатывай мусор на входе. Функция разбора никогда не бросает
-   исключение — возвращает `None`.
+Don't add dependencies without an explicit need. Don't introduce Redis,
+queues, workers, Docker, or CI — there's a single user.
 
 ---
 
-## Что установлено экспериментально
+## Development commands
 
-Эти выводы получены на реальных прогонах. Не пересматривай их без новых
-данных — за каждым стоит воспроизведённый провал.
+Install (locally, for running tests):
 
-**Короткий промпт лучше длинного.** Версия промпта на 1500 слов починила
-одно и сломала три места, которые версия на 250 слов читала верно.
-Каждое дополнительное правило отнимает внимание у основной задачи.
-**Не удлиняй `TRANSCRIBE_PROMPT`.**
+    pip install -r requirements-dev.txt
 
-**Проверочный вызов модели не работает.** Запрос «сравни транскрипцию
-с фотографией и найди расхождения» выдумал несуществующее расхождение,
-продублировал его трижды и не нашёл ни одного настоящего.
-**Не добавляй проверочный проход моделью.**
+Run tests:
 
-**Работает согласие независимых прогонов.** Три прогона одного короткого
-промпта, сравнение результатов кодом. Где сошлись — доверяем, где
-разошлись — помечаем. Это единственный сигнал неопределённости, который
-оказался верным.
+    pytest
 
-**Самооценка модели бесполезна.** Поле `confidence` давало 0,95 на
-странице с тремя ошибками. Поэтому его в схеме нет. `unreadable_count: 0`
-тоже не признак качества.
+Create a new migration:
 
-**Арифметику проверяет код, а не модель.** Модель ошибается в вычислениях
-и молча «чинит» несходящееся. `mathcheck` нашёл ошибку в константе
-и разошедшуюся цепочку, которых модель не увидела за четыре прогона.
+    alembic revision -m "description"
 
-**Модель приписывает свои ошибки автору.** Прочитав точку с запятой как
-букву, она написала в `uncertain`: «возможно, это опечатка автора».
-В промпте есть прямой запрет на такую трактовку.
+Apply migrations:
 
-**Плохой кадр опаснее сложного текста.** На снятом издалека развороте
-модель узнала тему по заголовку и выдала связный учебниковый пересказ
-с `unreadable_count: 0`. Ни одна проверка постфактум это не ловит.
-Поэтому `photoguard` вызывается **до** модели и его нельзя обходить.
+    alembic upgrade head
+
+Run locally (needs a process with a public URL for the webhook, e.g. ngrok):
+
+    uvicorn app.main:app --reload
+
+Production (Railway, see `Procfile`):
+
+    alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+No linter is configured yet — don't add one without an explicit request.
 
 ---
 
-## Готовые модули
+## Inviolable rules
 
-В `app/services/` лежат три модуля, написанные и протестированные заранее:
+1. **The LLM is called only from the server.** The key never reaches the
+   client. Also: the Gemini API isn't reachable directly from Russia, so
+   calls go out from Railway.
 
-| Модуль | Что даёт |
+2. **Compress the image before sending it to the model.** Long side capped
+   at 1500 px, JPEG quality 85. A full-size phone photo costs several times
+   more with no gain in accuracy.
+
+3. **Never store the original photos.** Only the recognized text.
+
+4. **Every model call is written to `ai_calls`** — model, tokens, cost,
+   latency, success, error. No exceptions.
+
+5. **Every significant action is written to `events`.** Retention can't be
+   computed after the fact.
+
+6. **Limits are checked before the model call, not after.**
+
+7. **Never trust JSON from the model.** Always validate the schema, always
+   handle garbage input. The parsing function never raises — it returns
+   `None`.
+
+---
+
+## Established experimentally
+
+These conclusions come from real runs. Don't revisit them without new
+data — each one stands on a reproduced failure.
+
+**A short prompt beats a long one.** A 1500-word version of the prompt
+fixed one thing and broke three that the 250-word version read correctly.
+Every extra rule steals attention from the main task.
+**Don't lengthen `TRANSCRIBE_PROMPT`.**
+
+**A verification model call doesn't work.** The request "compare the
+transcription with the photo and find discrepancies" invented a
+discrepancy that didn't exist, duplicated it three times, and found none
+of the real ones. **Don't add a verification pass with the model.**
+
+**Agreement between independent runs works.** Three runs of the same short
+prompt, results compared by code. Where they agree, trust it; where they
+diverge, flag it. This is the only uncertainty signal that has turned out
+to be reliable.
+
+**The model's self-assessment is useless.** The `confidence` field gave
+0.95 on a page with three errors. That's why it's not in the schema.
+`unreadable_count: 0` is likewise not a sign of quality.
+
+**Arithmetic is checked by code, not by the model.** The model makes
+calculation errors and silently "fixes" things that don't add up.
+`mathcheck` found an error in a constant and a diverging chain that the
+model missed across four runs.
+
+**The model attributes its own errors to the author.** Having misread a
+semicolon as a letter, it wrote in `uncertain`: "possibly a typo by the
+author." The prompt now explicitly forbids this kind of interpretation.
+
+**A bad shot is more dangerous than difficult text.** On a spread
+photographed from a distance, the model recognized the topic from the
+heading and produced a coherent textbook-style retelling with
+`unreadable_count: 0`. No after-the-fact check catches this. That's why
+`photoguard` is called **before** the model and must never be bypassed.
+
+---
+
+## Ready-made modules
+
+`app/services/` contains three modules written and tested in advance:
+
+| Module | What it provides |
 |---|---|
 | `photoguard.py` | `check_photo_bytes(data) -> PhotoVerdict` |
 | `consensus.py` | `compare`, `compare_text`, `pick_representative` |
 | `mathcheck.py` | `check(markdown) -> Report` |
 
-**Их не переписывать и не «улучшать».** Только импортировать и вызывать.
-Нашёл в них ошибку — сообщи, не правь молча.
+**Don't rewrite or "improve" them.** Only import and call. Found a bug in
+one — report it, don't fix it silently.
 
 ---
 
-## Структура
+## Structure
 
 ```
 app/
-  main.py             FastAPI, вебхук, /health
+  main.py             FastAPI, webhook, /health
   bot/
-    handlers.py       хендлеры aiogram
-    texts.py          все сообщения пользователю
-    middlewares.py    сессия БД и пользователь в хендлеры
+    handlers.py       aiogram handlers
+    texts.py          all user-facing messages
+    middlewares.py    DB session and user injected into handlers
   services/
-    vision.py         Gemini: промпт, разбор ответа, три прогона
-    images.py         сжатие
-    limits.py         лимиты расходов
-    photoguard.py     готовый
-    consensus.py      готовый
-    mathcheck.py      готовый
+    vision.py         Gemini: prompt, response parsing, three runs
+    images.py         compression
+    limits.py         spend limits
+    photoguard.py     ready-made
+    consensus.py      ready-made
+    mathcheck.py      ready-made
   db/
     models.py
     session.py
     migrations/
   core/
-    config.py         настройки из окружения
-    events.py         логирование событий
+    config.py         settings from the environment
+    events.py         event logging
 tests/
 CLAUDE.md
 PLAN.md
@@ -147,67 +179,71 @@ PLAN.md
 
 ---
 
-## Переменные окружения
+## Environment variables
 
 ```
-BOT_TOKEN                обязательна
-DATABASE_URL             обязательна
-GEMINI_API_KEY           обязательна
-WEBHOOK_URL              обязательна
-WEBHOOK_SECRET           обязательна
-AI_ENABLED=true          аварийный выключатель всех вызовов модели
+BOT_TOKEN                required
+DATABASE_URL             required
+GEMINI_API_KEY           required
+WEBHOOK_URL              required
+WEBHOOK_SECRET           required
+AI_ENABLED=true          kill switch for all model calls
 DAILY_PAGES_PER_USER=30
 DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3
 VISION_MODEL=gemini-2.5-flash-lite
+MIN_MARKDOWN_LEN=40
+MAX_ALBUM_PAGES=10
 LOG_LEVEL=INFO
 ```
 
-Отсутствие обязательной переменной — падение на старте, а не при первом
-запросе.
+A missing required variable must crash the app at startup, not on the
+first request.
 
 ---
 
-## Тесты
+## Tests
 
-Обязательны только для трёх мест, остальное пока без тестов:
+Required only for three places, everything else has no tests yet:
 
-1. Разбор ответа модели, включая мусор, обёртку ```json, отсутствующие
-   поля и неверные типы
-2. Проверка лимитов расходов
-3. Расчёт расписания FSRS (третья неделя, ещё не начата)
-
----
-
-## Как работать в этом проекте
-
-- **Сначала опиши план изменений, дождись подтверждения, потом пиши код.**
-- Одна задача из `PLAN.md` — одна сессия — один коммит.
-- Ничего сверх текущей задачи. Появилась идея — в бэклог `PLAN.md`.
-- Пиши код, который можно объяснить вслух. Неочевидное решение —
-  комментарий о том, **почему**, а не что.
-- Русский язык в сообщениях пользователю, английский в коде и логах.
-- Все строки для пользователя — в `bot/texts.py`, не в хендлерах.
-- Не создавай абстракций на будущее. Дублирование сейчас дешевле
-  преждевременной архитектуры.
-- Ни одного трейсбека пользователю. Любая необработанная ошибка →
-  понятное сообщение, подробности в лог.
+1. Parsing the model's response, including garbage, the ```json wrapper,
+   missing fields, and wrong types
+2. Spend limit checks
+3. FSRS schedule calculation (third week, not started yet)
 
 ---
 
-## Чего НЕ делать на этом этапе
+## How to work in this project
 
-Всё перечисленное отложено осознанно. Не предлагай и не реализуй:
+- **Describe the plan of changes first, wait for confirmation, then write
+  code.**
+- One task from `PLAN.md` — one session — one commit.
+- Nothing beyond the current task. Got an idea — put it in the `PLAN.md`
+  backlog.
+- Write code that can be explained out loud. A non-obvious decision gets
+  a comment about **why**, not what.
+- Russian in user-facing messages, English in code and logs.
+- All user-facing strings live in `bot/texts.py`, not in the handlers.
+- Don't create abstractions for the future. Duplication now is cheaper
+  than premature architecture.
+- Not a single traceback reaches the user. Any unhandled error →
+  a clear message to the user, details to the log.
 
-- Mini App и любой интерфейс, кроме бота
-- Карточки и интервальное повторение (третья неделя)
-- Поиск по корпусу и редактирование записей (вторая неделя)
-- Видео и расшифровку лекций
-- Платежи, подписки, тарифы
-- Собственную регистрацию и пароли — идентификация уже есть в Telegram
-- Админ-панель
-- Экспорт в Anki и любые другие форматы
-- Языковой тренажёр, переписывание текстов, любую вторую функцию
-- Визуальный дизайн и оформление ответов бота
-- Соцфункции, шаринг, друзей
-- Кэширование, очереди, микросервисы, Docker, CI
+---
+
+## What NOT to do at this stage
+
+Everything below is deliberately postponed. Don't suggest or implement:
+
+- A Mini App or any interface other than the bot
+- Flashcards and spaced repetition (third week)
+- Search across the corpus and editing records (second week)
+- Video and lecture transcription
+- Payments, subscriptions, pricing tiers
+- Custom registration and passwords — identity already comes from Telegram
+- An admin panel
+- Export to Anki or any other format
+- A language trainer, text rewriting, or any second feature
+- Visual design and styling of bot responses
+- Social features, sharing, friends
+- Caching, queues, microservices, Docker, CI
