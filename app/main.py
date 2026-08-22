@@ -8,6 +8,7 @@ from aiogram.types import Update
 from fastapi import FastAPI, Header, HTTPException, Request
 
 from app.bot.handlers import router
+from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
 
 logging.basicConfig(
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Created once per process, never inside a request handler.
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
+dp.message.outer_middleware(DbSessionMiddleware())
 dp.include_router(router)
 
 WEBHOOK_PATH = f"/webhook/{settings.WEBHOOK_SECRET}"
