@@ -21,7 +21,7 @@ engine = create_async_engine(
 
 # Also used directly, outside FastAPI dependencies: ai_calls and note_failed
 # are written in their own session so they survive the main transaction's
-# rollback. See "Транзакционная модель" in PLAN.md.
+# rollback. See "Transaction model" in PLAN.md.
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
 
