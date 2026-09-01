@@ -7,6 +7,7 @@ which uses its own session on purpose — see CLAUDE.md -> Sessions and transact
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -20,6 +21,7 @@ from google.genai import types
 from app.core.config import PRICE_PER_MTOK, settings
 from app.db.models import AiCall
 from app.db.session import async_session_maker
+from app.services import consensus
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +64,17 @@ class CallStats:
     latency_ms: int
     success: bool
     error: str | None
+
+
+@dataclass
+class TranscriptionResult:
+    """Outcome of settings.VISION_RUNS runs compared against each other.
+    Not frozen: task 7 may downgrade `verdict` after the arithmetic check."""
+
+    best: Transcription
+    text_agreement: float  # 0..1
+    numeric_divergences: list  # consensus.Divergence objects
+    verdict: str  # "clean" | "needs_review" | "rejected"
 
 
 # ── Parsing ──────────────────────────────────────────────────────────────────
@@ -190,7 +203,7 @@ def _response_text(response: object) -> str:
         return ""
 
 
-def _short_error(exc: Exception) -> str:
+def _short_error(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {exc}"[:500]
 
 
@@ -236,6 +249,65 @@ async def transcribe(
         error=None if result is not None else "unparseable model response",
     )
     return result, [stats]
+
+
+def _verdict(text_agreement: float) -> str:
+    """Non-overlapping bands from PLAN.md task 6."""
+    if text_agreement >= 0.90:
+        return "clean"
+    if text_agreement >= 0.70:
+        return "needs_review"
+    return "rejected"
+
+
+async def transcribe_consensus(
+    image_bytes: bytes,
+) -> tuple[TranscriptionResult | None, list[CallStats]]:
+    """settings.VISION_RUNS independent transcribe() calls in parallel, then
+    compared by code. Never touches the database: every run's stats are
+    collected into one flat list for the handler to log. Fewer than two
+    successful runs → first element None, stats list still non-empty."""
+    outcomes = await asyncio.gather(
+        *(transcribe(image_bytes) for _ in range(settings.VISION_RUNS)),
+        return_exceptions=True,
+    )
+
+    all_stats: list[CallStats] = []
+    ok_runs: list[Transcription] = []
+    for outcome in outcomes:
+        if isinstance(outcome, BaseException):
+            # transcribe() swallows its own errors, so this only fires on
+            # cancellation or something genuinely unforeseen.
+            logger.warning("transcribe run crashed: %s", outcome)
+            all_stats.append(
+                CallStats(None, None, None, 0, False, _short_error(outcome))
+            )
+            continue
+        transcription, stats = outcome
+        all_stats.extend(stats)
+        if transcription is not None:
+            ok_runs.append(transcription)
+
+    if len(ok_runs) < 2:
+        return None, all_stats
+
+    markdowns = [t.markdown for t in ok_runs]
+    text_agreement = consensus.compare_text(markdowns).similarity
+    numeric_divergences = consensus.compare(markdowns).divergences
+    best = ok_runs[consensus.pick_representative(markdowns)]
+
+    verdict = _verdict(text_agreement)
+    logger.info(
+        "consensus: %d/%d runs ok, text_agreement=%.3f, verdict=%s",
+        len(ok_runs),
+        settings.VISION_RUNS,
+        text_agreement,
+        verdict,
+    )
+    return (
+        TranscriptionResult(best, text_agreement, numeric_divergences, verdict),
+        all_stats,
+    )
 
 
 # ── Spend logging ────────────────────────────────────────────────────────────

@@ -90,15 +90,33 @@ async def handle_photo(
 
     await message.answer(texts.PROCESSING)
 
-    result, stats = await vision.transcribe(compressed)
+    result, stats = await vision.transcribe_consensus(compressed)
     await vision.log_ai_calls(user.id, stats)  # always — the tokens were spent
 
     if result is None:
         await message.answer(texts.ERROR_GENERIC)
         return
-    if len(result.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
+    if result.verdict == "rejected":
+        await message.answer(texts.REJECTED_QUALITY)
+        return
+    if len(result.best.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
         await message.answer(texts.NO_TEXT_FOUND)
         return
 
-    for chunk in _split_message(f"{result.title}\n\n{result.markdown}"):
+    for chunk in _split_message(f"{result.best.title}\n\n{result.best.markdown}"):
         await message.answer(chunk)
+
+    # Items 2–5 of the final reply go in one message after the main text; task 6
+    # fills in the needs-review flag and the numeric divergences.
+    flags: list[str] = []
+    if result.verdict == "needs_review":
+        flags.append(texts.NEEDS_REVIEW)
+    if result.numeric_divergences:
+        lines = [texts.DIVERGENCES_HEADER]
+        lines += [
+            texts.divergence_line(d.context, d.variants)
+            for d in result.numeric_divergences
+        ]
+        flags.append("\n".join(lines))
+    if flags:
+        await message.answer("\n\n".join(flags))

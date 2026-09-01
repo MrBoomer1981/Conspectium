@@ -17,7 +17,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 
-from mathcheck import eval_numeric
+from app.services.mathcheck import eval_numeric
 
 # Числовой литерал: 4,42·10⁻¹⁹ / 4,42 \cdot 10^{-19} / 0,02 / 960
 NUM_RE = re.compile(

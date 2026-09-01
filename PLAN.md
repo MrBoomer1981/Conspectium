@@ -26,7 +26,7 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 3. Receiving a photo
 - [x] 4. Frame check
 - [x] 5. Recognition
-- [ ] 6. Three runs and comparison
+- [x] 6. Three runs and comparison
 - [ ] 7. Calculation check
 - [ ] 8. Saving and limits
 - [ ] 9. Word documents and albums
@@ -37,9 +37,9 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1, 2, 3, 4, 5
-Current task: 6
-Next task: 7
+Done: 1, 2, 3, 4, 5, 6
+Current task: 7
+Next task: 8
 Blockers: none
 ```
 
