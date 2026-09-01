@@ -24,7 +24,7 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 1. Skeleton and deployment
 - [x] 2. Users and events
 - [x] 3. Receiving a photo
-- [ ] 4. Frame check
+- [x] 4. Frame check
 - [ ] 5. Recognition
 - [ ] 6. Three runs and comparison
 - [ ] 7. Calculation check
@@ -37,9 +37,9 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1, 2, 3
-Current task: 4
-Next task: 5
+Done: 1, 2, 3, 4
+Current task: 5
+Next task: 6
 Blockers: none
 ```
 
