@@ -4,8 +4,10 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -41,6 +43,24 @@ class Event(Base):
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
     type: Mapped[str] = mapped_column(String, index=True)
     payload: Mapped[dict] = mapped_column(JSONB, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class AiCall(Base):
+    __tablename__ = "ai_calls"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String)  # "transcribe"
+    model: Mapped[str] = mapped_column(String)
+    tokens_in: Mapped[int | None] = mapped_column(Integer)
+    tokens_out: Mapped[int | None] = mapped_column(Integer)
+    cost_usd: Mapped[float | None] = mapped_column(Float)
+    latency_ms: Mapped[int] = mapped_column(Integer)
+    success: Mapped[bool] = mapped_column(Boolean)
+    error: Mapped[str | None] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )

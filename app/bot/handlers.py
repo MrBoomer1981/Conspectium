@@ -6,9 +6,10 @@ from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
+from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import User
-from app.services import images, photoguard
+from app.services import images, photoguard, vision
 
 router = Router()
 
@@ -16,6 +17,33 @@ router = Router()
 @router.message(CommandStart())
 async def cmd_start(message: Message, session: AsyncSession, user: User) -> None:
     await message.answer(texts.START)
+
+
+# Telegram rejects messages over 4096 characters. Split on blank lines; hard-cut
+# only a single paragraph that is itself longer than the limit.
+_MESSAGE_LIMIT = 4000
+
+
+def _split_message(text: str, limit: int = _MESSAGE_LIMIT) -> list[str]:
+    if len(text) <= limit:
+        return [text]
+    chunks: list[str] = []
+    current = ""
+    for para in text.split("\n\n"):
+        candidate = f"{current}\n\n{para}" if current else para
+        if len(candidate) <= limit:
+            current = candidate
+            continue
+        if current:
+            chunks.append(current)
+            current = ""
+        while len(para) > limit:
+            chunks.append(para[:limit])
+            para = para[limit:]
+        current = para
+    if current:
+        chunks.append(current)
+    return chunks
 
 
 @router.message(F.photo)
@@ -61,3 +89,16 @@ async def handle_photo(
         return
 
     await message.answer(texts.PROCESSING)
+
+    result, stats = await vision.transcribe(compressed)
+    await vision.log_ai_calls(user.id, stats)  # always — the tokens were spent
+
+    if result is None:
+        await message.answer(texts.ERROR_GENERIC)
+        return
+    if len(result.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
+        await message.answer(texts.NO_TEXT_FOUND)
+        return
+
+    for chunk in _split_message(f"{result.title}\n\n{result.markdown}"):
+        await message.answer(chunk)
