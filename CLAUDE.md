@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 Project context. Read at the start of every session.
 **Update this file with every architectural decision.**
 
@@ -43,9 +45,19 @@ Install (locally, for running tests):
 
     pip install -r requirements-dev.txt
 
+Both `alembic` and — once tests import `app.*` — `pytest` import
+`app.core.config.settings`, which is built from the environment at import
+time. Copy `.env.example` to `.env` and fill the five required variables
+first, or these commands crash with a validation error before they ever
+reach the database.
+
 Run tests:
 
     pytest
+
+Run a single test:
+
+    pytest tests/test_parse_response.py::test_name
 
 Create a new migration:
 
@@ -134,6 +146,41 @@ heading and produced a coherent textbook-style retelling with
 
 ---
 
+## Sessions and transactions
+
+The full reasoning and a worked example are in `PLAN.md` → "Transaction
+model". The essentials, because this shapes every handler:
+
+1. **One session per update, opened by the middleware.** It lives in
+   `data["session"]`, commits after the handler, and rolls back on any
+   exception. `notes`, `users`, and `events` all go through it.
+
+2. **`events` are transactional and disappear on rollback — deliberately.**
+   An event describes something that, in the end, didn't happen. `log_event`
+   wraps its insert in a SAVEPOINT (`begin_nested`) not to survive a
+   rollback but so that a failed insert can't poison the surrounding
+   transaction and bring down the next request.
+
+3. **`ai_calls` are written in their own session and committed
+   immediately.** Money was spent regardless of how processing ended, so the
+   spend row must outlive a rollback of the main transaction — otherwise the
+   daily cap is understated and the circuit breaker stops working.
+   `log_ai_calls` takes no session; it opens its own. Consequence:
+   `ai_calls` rows with no matching `Note` are a normal outcome, not a bug
+   to fix.
+
+4. **`note_failed` is the only event written standalone**
+   (`log_event_standalone`), because the global error handler runs while the
+   main transaction is already rolling back. Every other event uses
+   `log_event`.
+
+5. **Anything that calls the model never touches the database.** In tasks 6
+   and 9 the runs and album pages go through `asyncio.gather`, and a single
+   `AsyncSession` cannot be used concurrently. Model-calling functions
+   return their stats upward; the handler performs the writes.
+
+---
+
 ## Ready-made modules
 
 `app/services/` contains three modules written and tested in advance:
@@ -151,6 +198,9 @@ one — report it, don't fix it silently.
 
 ## Structure
 
+Some entries below don't exist yet — they arrive with their `PLAN.md` task.
+The tree is the target; `(task N)` marks what isn't on disk.
+
 ```
 app/
   main.py             FastAPI, webhook, /health
@@ -158,10 +208,11 @@ app/
     handlers.py       aiogram handlers
     texts.py          all user-facing messages
     middlewares.py    DB session and user injected into handlers
+    albums.py         album buffer and assembly (task 9)
   services/
-    vision.py         Gemini: prompt, response parsing, three runs
+    vision.py         Gemini: prompt, response parsing, three runs (task 5)
     images.py         compression
-    limits.py         spend limits
+    limits.py         spend limits (task 8)
     photoguard.py     ready-made
     consensus.py      ready-made
     mathcheck.py      ready-made
@@ -171,11 +222,16 @@ app/
     migrations/
   core/
     config.py         settings from the environment
-    events.py         event logging
+    events.py         event logging (log_event + log_event_standalone)
 tests/
 CLAUDE.md
 PLAN.md
+prompts-v3.md        TRANSCRIBE_PROMPT verbatim source (task 5)
 ```
+
+`prompts-v3.md` holds the recognition prompt as plain text; `vision.py`
+copies it into `TRANSCRIBE_PROMPT` **verbatim** in task 5. It is not in the
+repo yet.
 
 ---
 
