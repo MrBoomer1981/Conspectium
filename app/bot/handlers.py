@@ -1,5 +1,6 @@
 """Aiogram handlers."""
 
+import logging
 from dataclasses import asdict
 
 from aiogram import Bot, F, Router
@@ -7,13 +8,18 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import texts
+from app.bot import albums, texts
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Note, User
-from app.services import images, limits, mathcheck, photoguard, vision
+from app.services import docx, images, limits, mathcheck, photoguard, vision
+
+logger = logging.getLogger(__name__)
 
 router = Router()
+
+# Telegram documents over this size are refused before download.
+_MAX_DOCX_BYTES = 5 * 1024 * 1024
 
 
 @router.message(CommandStart())
@@ -55,6 +61,29 @@ async def handle_photo(
     photo = message.photo[-1]
     original = (await bot.download(photo)).read()
     compressed = images.compress(original)
+
+    # Step 0: an album arrives as separate messages sharing a media_group_id.
+    # Buffer this page and let a single update assemble the whole batch; the
+    # individual-photo steps 4-16 below do not run for an album page.
+    if message.media_group_id:
+        albums.add_page(
+            message.media_group_id,
+            albums.PageInput(
+                data=compressed,
+                message_id=message.message_id,
+                chat_id=message.chat.id,
+                media_group_id=message.media_group_id,
+                bytes_before=len(original),
+                bytes_after=len(compressed),
+                width=photo.width,
+                height=photo.height,
+            ),
+        )
+        pages = await albums.collect(message.media_group_id)
+        if pages is None:
+            return  # another update owns this batch
+        await _process_album(message, session, user, pages)
+        return
 
     await log_event(
         session,
@@ -190,5 +219,188 @@ async def handle_photo(
             for d in result.numeric_divergences
         ]
         flags.append("\n".join(lines))
+    if flags:
+        await message.answer("\n\n".join(flags))
+
+
+@router.message(F.document)
+async def handle_document(
+    message: Message, session: AsyncSession, user: User, bot: Bot
+) -> None:
+    """.docx only. The text is already machine-readable, so there is no model
+    call: no limits are checked and no quota is spent — a Word file is
+    processed even with AI_ENABLED=false. Steps 0, 4-10, 12 and 14 are skipped;
+    step 11 (empty text) still applies."""
+    document = message.document
+    name = document.file_name or ""
+    if not name.lower().endswith(".docx"):
+        await message.answer(texts.DOCX_ONLY)
+        return
+    if document.file_size and document.file_size > _MAX_DOCX_BYTES:
+        await message.answer(texts.FILE_TOO_BIG)
+        return
+
+    data = (await bot.download(document)).read()
+    await log_event(
+        session,
+        user.id,
+        "note_captured",
+        {"bytes_before": len(data), "source_type": "docx"},
+    )
+
+    try:
+        markdown = docx.extract_markdown(data)
+    except Exception:
+        logger.exception("docx extraction failed")
+        await message.answer(texts.ERROR_GENERIC)
+        return
+
+    if len(markdown.strip()) < settings.MIN_MARKDOWN_LEN:
+        await message.answer(texts.NO_TEXT_FOUND)
+        return
+
+    note = Note(
+        user_id=user.id,
+        title=docx.derive_title(markdown, name.rsplit(".", 1)[0]),
+        subject=None,
+        markdown=markdown,
+        source_type="docx",
+        page_count=1,
+        status="ready",
+        uncertain=[],
+        issues=[],
+        numeric_divergences=[],
+        unreadable_count=0,
+        text_agreement=None,
+        photo_sharpness=None,
+        photo_line_height=None,
+        photo_paper_fraction=None,
+        photo_contrast=None,
+    )
+    session.add(note)
+
+    await log_event(
+        session,
+        user.id,
+        "note_processed",
+        {"verdict": "clean", "page_count": 1, "source_type": "docx"},
+    )
+
+    for chunk in _split_message(f"{note.title}\n\n{markdown}"):
+        await message.answer(chunk)
+
+
+async def _process_album(
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    pages: list[albums.PageInput],
+) -> None:
+    """Assemble a buffered album into one Note. The single-photo pipeline never
+    runs for album pages — this is the batch equivalent, and the per-page work
+    (frame check, recognition, mathcheck) happens in albums.process_batch,
+    which never touches the database."""
+    if len(pages) > settings.MAX_ALBUM_PAGES:
+        # A shape-of-request check, so it comes before the spend check: an
+        # oversized album is refused even with the quota exhausted.
+        await message.answer(texts.TOO_MANY_PAGES)
+        return
+
+    # message_id order is the page order; the number is assigned here and used
+    # everywhere after — note_captured, per-page fields, every message.
+    ordered = sorted(pages, key=lambda p: p.message_id)
+
+    limit_message = await limits.check_limits(session, user, pages=len(ordered))
+    if limit_message is not None:
+        await message.answer(limit_message)
+        return
+
+    for number, page in enumerate(ordered, 1):
+        await log_event(
+            session,
+            user.id,
+            "note_captured",
+            {
+                "bytes_before": page.bytes_before,
+                "bytes_after": page.bytes_after,
+                "width": page.width,
+                "height": page.height,
+                "source_type": "photo",
+                "page": number,
+                "media_group_id": page.media_group_id,
+            },
+        )
+
+    await message.answer(texts.PROCESSING)
+
+    outcome = await albums.process_batch(ordered)
+    await vision.log_ai_calls(user.id, outcome.stats)  # once, every page's calls
+
+    if outcome.record is None:
+        await message.answer(texts.REJECTED_QUALITY)
+        return
+
+    rec = outcome.record
+    note = Note(
+        user_id=user.id,
+        title=rec.title,
+        subject=rec.subject,
+        markdown=rec.markdown,
+        source_type="photo",
+        page_count=rec.page_count,
+        status=rec.status,
+        uncertain=rec.uncertain,
+        issues=rec.issues,
+        numeric_divergences=rec.numeric_divergences,
+        unreadable_count=rec.unreadable_count,
+        text_agreement=rec.text_agreement,
+        photo_sharpness=rec.photo_sharpness,
+        photo_line_height=rec.photo_line_height,
+        photo_paper_fraction=rec.photo_paper_fraction,
+        photo_contrast=rec.photo_contrast,
+    )
+    session.add(note)
+
+    await limits.consume(session, user, pages=rec.page_count)
+
+    await log_event(
+        session,
+        user.id,
+        "note_processed",
+        {
+            "verdict": rec.verdict,
+            "page_count": rec.page_count,
+            "source_type": "photo",
+            "pages_skipped": len(outcome.skips),
+        },
+    )
+
+    for chunk in _split_message(f"{rec.title}\n\n{rec.markdown}"):
+        await message.answer(chunk)
+
+    flags: list[str] = []
+    if rec.status == "needs_review":
+        flags.append(texts.NEEDS_REVIEW)
+    math_blocks = [
+        texts.page_prefix(p.page, p.report.render())
+        for p in outcome.pages_ok
+        if p.report.issues
+    ]
+    if math_blocks:
+        flags.append("\n\n".join(math_blocks))
+    if rec.numeric_divergences:
+        lines = [texts.DIVERGENCES_HEADER]
+        lines += [
+            texts.divergence_line(d["context"], d["variants"], page=d["page"])
+            for d in rec.numeric_divergences
+        ]
+        flags.append("\n".join(lines))
+    if outcome.skips:
+        flags.append(
+            "\n".join(
+                texts.page_skipped(number, reason)
+                for number, reason in outcome.skips
+            )
+        )
     if flags:
         await message.answer("\n\n".join(flags))

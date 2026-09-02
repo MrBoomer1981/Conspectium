@@ -36,6 +36,11 @@ TRANSCRIBE_PROMPT = (
 # One client per process, not one per call.
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
+# An album fans VISION_RUNS calls out per page — 30 at once for ten pages, up
+# to 90 once task 10 adds retries. Gemini answers a burst that size with 429s.
+# One process-wide semaphore around the API call, not a queue.
+_API_SLOTS = asyncio.Semaphore(10)
+
 
 @dataclass
 class Uncertain:
@@ -216,18 +221,19 @@ async def transcribe(
     external timeout is task 10 too."""
     started = time.monotonic()
     try:
-        response = await _client.aio.models.generate_content(
-            model=settings.VISION_MODEL,
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                TRANSCRIBE_PROMPT,
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=1.0,
-                max_output_tokens=8192,
-            ),
-        )
+        async with _API_SLOTS:
+            response = await _client.aio.models.generate_content(
+                model=settings.VISION_MODEL,
+                contents=[
+                    types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+                    TRANSCRIBE_PROMPT,
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=1.0,
+                    max_output_tokens=8192,
+                ),
+            )
     except Exception as exc:
         # No response → no tokens billed → no cost to record.
         latency_ms = int((time.monotonic() - started) * 1000)
