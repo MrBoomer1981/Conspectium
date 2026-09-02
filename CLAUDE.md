@@ -272,7 +272,9 @@ Required only for three places, everything else has no tests yet:
 ## How to work in this project
 
 - **Describe the plan of changes first, wait for confirmation, then write
-  code.**
+  code.** No size threshold — a one-line, single-point change still gets
+  its plan stated and confirmed before any edit. "It's just one line" is
+  not a reason to skip straight to code.
 - One task from `PLAN.md` — one session — one commit.
 - Nothing beyond the current task. Got an idea — put it in the `PLAN.md`
   backlog.
