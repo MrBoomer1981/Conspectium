@@ -1,5 +1,7 @@
 """Aiogram handlers."""
 
+from dataclasses import asdict
+
 from aiogram import Bot, F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message
@@ -8,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import texts
 from app.core.config import settings
 from app.core.events import log_event
-from app.db.models import User
-from app.services import images, mathcheck, photoguard, vision
+from app.db.models import Note, User
+from app.services import images, limits, mathcheck, photoguard, vision
 
 router = Router()
 
@@ -67,6 +69,13 @@ async def handle_photo(
         },
     )
 
+    # Step 4: limits before the frame check and before any model call. With the
+    # kill switch off or a cap hit, there's no point asking for a better photo.
+    limit_message = await limits.check_limits(session, user, pages=1)
+    if limit_message is not None:
+        await message.answer(limit_message)
+        return
+
     # The frame is checked before any model call: on a bad shot the model
     # recognises the topic from the heading and produces a plausible
     # retelling instead of failing. Metrics go to the event for every photo,
@@ -122,6 +131,46 @@ async def handle_photo(
                 "kinds": [i.kind for i in report.issues],
             },
         )
+
+    # Step 13: persist the record. "rejected" already exited at step 10, so the
+    # verdict here is "clean" or "needs_review". Dataclasses are flattened to
+    # plain dicts — JSONB won't take them as they are.
+    note = Note(
+        user_id=user.id,
+        title=result.best.title,
+        subject=result.best.subject,
+        markdown=result.best.markdown,
+        source_type="photo",
+        page_count=1,
+        status="needs_review" if result.verdict == "needs_review" else "ready",
+        uncertain=[asdict(u) for u in result.best.uncertain],
+        issues=[asdict(i) for i in report.issues],
+        numeric_divergences=[asdict(d) for d in result.numeric_divergences],
+        unreadable_count=result.best.unreadable_count,
+        text_agreement=result.text_agreement,
+        photo_sharpness=photo_verdict.sharpness,
+        photo_line_height=photo_verdict.line_height_px,
+        photo_paper_fraction=photo_verdict.paper_fraction,
+        photo_contrast=photo_verdict.contrast,
+    )
+    session.add(note)
+
+    # Step 14: debit the daily page quota, now that the record is saved.
+    await limits.consume(session, user, pages=1)
+
+    # Step 15: processing finished end to end. Transactional — commits with the
+    # Note and the quota bump in the main session. The full contract lands in
+    # task 10; for now, only the fields that already exist.
+    await log_event(
+        session,
+        user.id,
+        "note_processed",
+        {
+            "verdict": result.verdict,
+            "page_count": 1,
+            "source_type": "photo",
+        },
+    )
 
     for chunk in _split_message(f"{result.best.title}\n\n{result.best.markdown}"):
         await message.answer(chunk)

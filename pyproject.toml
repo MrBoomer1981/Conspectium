@@ -1,0 +1,3 @@
+[tool.pytest.ini_options]
+# Async test functions and fixtures run without a per-item @pytest.mark.asyncio.
+asyncio_mode = "auto"
