@@ -9,7 +9,7 @@ from app.bot import texts
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import User
-from app.services import images, photoguard, vision
+from app.services import images, mathcheck, photoguard, vision
 
 router = Router()
 
@@ -103,14 +103,37 @@ async def handle_photo(
         await message.answer(texts.NO_TEXT_FOUND)
         return
 
+    # Step 12: deterministic arithmetic check, no model call. mathcheck compares
+    # physical constants against a reference table and checks that chains of
+    # equalities converge. Only a "critical" issue downgrades the verdict, and
+    # only clean -> needs_review, one way; warnings are shown but leave the
+    # status alone. From here result.verdict is the pipeline's final verdict.
+    report = mathcheck.check(result.best.markdown)
+    has_critical = any(i.severity == "critical" for i in report.issues)
+    if has_critical and result.verdict == "clean":
+        result.verdict = "needs_review"
+    if report.issues:
+        await log_event(
+            session,
+            user.id,
+            "math_issues_found",
+            {
+                "count": len(report.issues),
+                "kinds": [i.kind for i in report.issues],
+            },
+        )
+
     for chunk in _split_message(f"{result.best.title}\n\n{result.best.markdown}"):
         await message.answer(chunk)
 
-    # Items 2–5 of the final reply go in one message after the main text; task 6
-    # fills in the needs-review flag and the numeric divergences.
+    # Items 2–4 of the final reply go in one message after the main text: the
+    # needs-review flag, then what mathcheck found, then the numeric divergences
+    # between runs.
     flags: list[str] = []
     if result.verdict == "needs_review":
         flags.append(texts.NEEDS_REVIEW)
+    if report.issues:
+        flags.append(report.render())
     if result.numeric_divergences:
         lines = [texts.DIVERGENCES_HEADER]
         lines += [
