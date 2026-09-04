@@ -207,9 +207,9 @@ async def handle_photo(
     for chunk in _split_message(f"{result.best.title}\n\n{result.best.markdown}"):
         await message.answer(chunk)
 
-    # Items 2–4 of the final reply go in one message after the main text: the
-    # needs-review flag, then what mathcheck found, then the numeric divergences
-    # between runs.
+    # Items 2–5 of the final reply go in one message after the main text: the
+    # needs-review flag, what mathcheck found, the numeric divergences between
+    # runs, then the spots the model flagged as ambiguous.
     flags: list[str] = []
     if result.verdict == "needs_review":
         flags.append(texts.NEEDS_REVIEW)
@@ -221,6 +221,10 @@ async def handle_photo(
             texts.divergence_line(d.context, d.variants)
             for d in result.numeric_divergences
         ]
+        flags.append("\n".join(lines))
+    if result.best.uncertain:
+        lines = [texts.UNCERTAIN_HEADER]
+        lines += [texts.uncertain_line(u.text, u.why) for u in result.best.uncertain]
         flags.append("\n".join(lines))
     if flags:
         await message.answer("\n\n".join(flags))
@@ -407,6 +411,13 @@ async def _process_album(
         lines += [
             texts.divergence_line(d["context"], d["variants"], page=d["page"])
             for d in rec.numeric_divergences
+        ]
+        flags.append("\n".join(lines))
+    if rec.uncertain:
+        lines = [texts.UNCERTAIN_HEADER]
+        lines += [
+            texts.uncertain_line(u["text"], u["why"], page=u["page"])
+            for u in rec.uncertain
         ]
         flags.append("\n".join(lines))
     if outcome.skips:

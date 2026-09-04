@@ -30,6 +30,8 @@ NEEDS_REVIEW = "Прогоны распознавания местами раз�
 
 DIVERGENCES_HEADER = "Числа, прочитанные по-разному в разных прогонах:"
 
+UNCERTAIN_HEADER = "Спорные места — символ читается двояко:"
+
 
 def divergence_line(
     context: str, variants: dict[str, int], page: int | None = None
@@ -68,3 +70,10 @@ def page_prefix(page: int, body: str) -> str:
     """Attach an album page number to a multi-line block — e.g. a mathcheck
     report that applies to that page alone."""
     return f"Страница {page}.\n{body}"
+
+
+def uncertain_line(text: str, why: str, page: int | None = None) -> str:
+    """One line per uncertain spot: what was read and why it is ambiguous.
+    `page` prefixes the line for an album record."""
+    prefix = f"с. {page} — " if page is not None else ""
+    return f'{prefix}"{text}" — {why}'

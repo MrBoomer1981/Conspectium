@@ -5,8 +5,9 @@ from contextlib import asynccontextmanager
 
 from aiogram import Bot, Dispatcher
 from aiogram.types import ErrorEvent, Message, Update
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
 from app.bot.handlers import router
@@ -14,7 +15,7 @@ from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
 from app.core.events import log_event_standalone
 from app.db.models import User
-from app.db.session import async_session_maker
+from app.db.session import async_session_maker, get_session
 
 logging.basicConfig(
     level=settings.LOG_LEVEL,
@@ -116,12 +117,13 @@ app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/health")
-async def health() -> dict[str, str]:
+async def health(
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str]:
     # The bot idles for hours between photos; a health check that never touches
     # the database would stay green through a dead connection pool.
     try:
-        async with async_session_maker() as session:
-            await session.execute(text("SELECT 1"))
+        await session.execute(text("SELECT 1"))
     except Exception:
         logger.exception("health check: database unreachable")
         raise HTTPException(status_code=503, detail="database unreachable")

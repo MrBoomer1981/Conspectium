@@ -47,4 +47,10 @@ class DbSessionMiddleware(BaseMiddleware):
         session.add(user)
         await session.flush()  # assigns user.id, needed for the event below
         await log_event(session, user.id, "user_registered")
+        # Commit the new user now, before the handler runs. log_ai_calls opens
+        # its own session mid-handler and inserts ai_calls.user_id: without this
+        # commit that row would reference a user this other session can't see
+        # yet, and the FK insert would fail. A user who messaged the bot is
+        # registered regardless of how their first update turns out.
+        await session.commit()
         return user
