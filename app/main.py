@@ -4,12 +4,17 @@ import logging
 from contextlib import asynccontextmanager
 
 from aiogram import Bot, Dispatcher
-from aiogram.types import Update
+from aiogram.types import ErrorEvent, Message, Update
 from fastapi import FastAPI, Header, HTTPException, Request
+from sqlalchemy import select, text
 
+from app.bot import texts
 from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
+from app.core.events import log_event_standalone
+from app.db.models import User
+from app.db.session import async_session_maker
 
 logging.basicConfig(
     level=settings.LOG_LEVEL,
@@ -24,6 +29,77 @@ dp.message.outer_middleware(DbSessionMiddleware())
 dp.include_router(router)
 
 WEBHOOK_PATH = f"/webhook/{settings.WEBHOOK_SECRET}"
+
+
+@dp.errors()
+async def on_error(event: ErrorEvent) -> None:
+    """Last line of defence: not a single traceback reaches the user. The main
+    session is already rolling back by now, so note_failed goes through a
+    standalone session — a regular log_event would roll back with it
+    (PLAN.md -> Transaction model)."""
+    exc = event.exception
+    update = event.update
+    logger.exception("Unhandled error while processing an update", exc_info=exc)
+
+    chat_id = _chat_id(update)
+    if chat_id is not None:
+        try:
+            await bot.send_message(chat_id, texts.ERROR_GENERIC)
+        except Exception:
+            logger.exception("could not deliver the error message to the user")
+
+    tg_id = _tg_id(update)
+    user_id = await _resolve_user_id(tg_id) if tg_id is not None else None
+    await log_event_standalone(
+        user_id,
+        "note_failed",
+        {"reason": type(exc).__name__, "where": _where(update)},
+    )
+
+
+def _incoming(update: Update) -> Message | None:
+    return getattr(update, "message", None)
+
+
+def _chat_id(update: Update) -> int | None:
+    message = _incoming(update)
+    return message.chat.id if message is not None else None
+
+
+def _tg_id(update: Update) -> int | None:
+    message = _incoming(update)
+    if message is None or message.from_user is None:
+        return None
+    return message.from_user.id
+
+
+def _where(update: Update) -> str:
+    """Best-effort name of the handler that was running — ErrorEvent doesn't
+    carry it, so it's inferred from the update."""
+    message = _incoming(update)
+    if message is None:
+        return "unknown"
+    if message.photo:
+        return "handle_photo"
+    if message.document:
+        return "handle_document"
+    if message.text and message.text.startswith("/start"):
+        return "cmd_start"
+    return "unknown"
+
+
+async def _resolve_user_id(tg_id: int) -> int | None:
+    """Our users.id for a Telegram id, or None. The error handler runs without
+    the middleware's injected user, and a user created inside the failed
+    transaction has just been rolled back."""
+    try:
+        async with async_session_maker() as session:
+            return (
+                await session.execute(select(User.id).where(User.tg_id == tg_id))
+            ).scalar_one_or_none()
+    except Exception:
+        logger.exception("could not resolve the user for note_failed")
+        return None
 
 
 @asynccontextmanager
@@ -41,6 +117,14 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
 async def health() -> dict[str, str]:
+    # The bot idles for hours between photos; a health check that never touches
+    # the database would stay green through a dead connection pool.
+    try:
+        async with async_session_maker() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception:
+        logger.exception("health check: database unreachable")
+        raise HTTPException(status_code=503, detail="database unreachable")
     return {"status": "ok"}
 
 

@@ -1,8 +1,9 @@
-"""Gemini recognition: prompt, one model call, response parsing, spend logging.
+"""Gemini recognition: prompt, model call, response parsing, spend logging.
 
-Task 5 wires in exactly one call per photo. Retries (task 10) and three parallel
-runs (task 6) come later. Nothing here touches the database except log_ai_calls,
-which uses its own session on purpose — see CLAUDE.md -> Sessions and transactions.
+`_one_attempt` is a single call; `transcribe` retries it up to three times on a
+transient failure; `transcribe_consensus` runs VISION_RUNS of those in parallel
+and compares them. Nothing here touches the database except log_ai_calls, which
+uses its own session on purpose — see CLAUDE.md -> Sessions and transactions.
 """
 
 from __future__ import annotations
@@ -15,7 +16,9 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import httpx
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 
 from app.core.config import PRICE_PER_MTOK, settings
@@ -37,9 +40,18 @@ TRANSCRIBE_PROMPT = (
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 # An album fans VISION_RUNS calls out per page — 30 at once for ten pages, up
-# to 90 once task 10 adds retries. Gemini answers a burst that size with 429s.
-# One process-wide semaphore around the API call, not a queue.
+# to 90 with retries. Gemini answers a burst that size with 429s. One
+# process-wide semaphore around the API call, not a queue.
 _API_SLOTS = asyncio.Semaphore(10)
+
+# One model call: typical response is ~6 s.
+_CALL_TIMEOUT_S = 30
+# transcribe(): three attempts, so two pauses; the loop stops at the first
+# success or the first non-retryable failure.
+_RETRY_PAUSES_S = (1, 2)
+# transcribe_consensus(): must exceed one run's worst case with retries —
+# 3 * 30 s + 1 s + 2 s = 93 s — so a timeout never cuts the retries short.
+_CONSENSUS_TIMEOUT_S = 120
 
 
 @dataclass
@@ -212,33 +224,59 @@ def _short_error(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {exc}"[:500]
 
 
-async def transcribe(
+def _should_retry(exc: BaseException) -> bool:
+    """The full classification from PLAN.md task 10. When it is unclear whether
+    a failure is transport-level or logical, do not retry — an extra call costs
+    money, an extra rejection costs one tap of "try again"."""
+    if isinstance(exc, TimeoutError):  # asyncio.TimeoutError is this since 3.11
+        return True
+    if isinstance(exc, httpx.TransportError):  # dropped, reset, DNS, read/write
+        return True
+    if isinstance(exc, genai_errors.APIError):
+        code = getattr(exc, "code", None)
+        if isinstance(code, int):
+            return code in (408, 429) or code >= 500  # 4xx (400/401/403/404): no
+        return True  # an SDK error with no usable HTTP code is transport-ish
+    return False
+
+
+async def _one_attempt(
     image_bytes: bytes,
-) -> tuple[Transcription | None, list[CallStats]]:
-    """One Gemini call. Never touches the database. Returns the parsed result
-    (None on a network error, invalid JSON, or a schema mismatch) and a
-    one-element stats list, always non-empty. Retries are task 10; the
-    external timeout is task 10 too."""
+) -> tuple[Transcription | None, CallStats, bool]:
+    """A single Gemini call plus the parsing that follows it. The third element
+    says whether a retry is worth it: True only for a transient exception. A
+    200 that parsed badly is never retried (PLAN.md -> Contracts)."""
     started = time.monotonic()
     try:
         async with _API_SLOTS:
-            response = await _client.aio.models.generate_content(
-                model=settings.VISION_MODEL,
-                contents=[
-                    types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                    TRANSCRIBE_PROMPT,
-                ],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=1.0,
-                    max_output_tokens=8192,
+            response = await asyncio.wait_for(
+                _client.aio.models.generate_content(
+                    model=settings.VISION_MODEL,
+                    contents=[
+                        types.Part.from_bytes(
+                            data=image_bytes, mime_type="image/jpeg"
+                        ),
+                        TRANSCRIBE_PROMPT,
+                    ],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=1.0,
+                        max_output_tokens=8192,
+                    ),
                 ),
+                timeout=_CALL_TIMEOUT_S,
             )
     except Exception as exc:
         # No response → no tokens billed → no cost to record.
         latency_ms = int((time.monotonic() - started) * 1000)
-        logger.warning("Gemini call failed: %s", exc)
-        return None, [CallStats(None, None, None, latency_ms, False, _short_error(exc))]
+        retryable = _should_retry(exc)
+        logger.warning(
+            "Gemini attempt failed (%s): %s",
+            "retryable" if retryable else "final",
+            exc,
+        )
+        stats = CallStats(None, None, None, latency_ms, False, _short_error(exc))
+        return None, stats, retryable
 
     tokens_in, tokens_out = _usage(response)
     result = parse_response(_response_text(response))
@@ -254,7 +292,33 @@ async def transcribe(
         success=result is not None,
         error=None if result is not None else "unparseable model response",
     )
-    return result, [stats]
+    return result, stats, False
+
+
+async def transcribe(
+    image_bytes: bytes,
+) -> tuple[Transcription | None, list[CallStats]]:
+    """Up to three attempts with 1 s then 2 s pauses, stopping at the first
+    success or the first non-retryable failure. Never touches the database.
+    Every attempt is recorded in the returned list, which is always non-empty."""
+    all_stats: list[CallStats] = []
+    last = len(_RETRY_PAUSES_S)
+    for attempt in range(last + 1):
+        result, stats, retryable = await _one_attempt(image_bytes)
+        all_stats.append(stats)
+        if result is not None:
+            return result, all_stats
+        if not retryable or attempt == last:
+            return None, all_stats
+        await asyncio.sleep(_RETRY_PAUSES_S[attempt])
+    return None, all_stats  # unreachable; keeps the type checker happy
+
+
+def total_cost(stats: list[CallStats]) -> float | None:
+    """Sum of the known cost_usd values, or None when every one is unknown —
+    for the note_processed event (PLAN.md -> Contracts -> cost_usd)."""
+    known = [s.cost_usd for s in stats if s.cost_usd is not None]
+    return sum(known) if known else None
 
 
 def _verdict(text_agreement: float) -> str:
@@ -272,24 +336,38 @@ async def transcribe_consensus(
     """settings.VISION_RUNS independent transcribe() calls in parallel, then
     compared by code. Never touches the database: every run's stats are
     collected into one flat list for the handler to log. Fewer than two
-    successful runs → first element None, stats list still non-empty."""
-    outcomes = await asyncio.gather(
-        *(transcribe(image_bytes) for _ in range(settings.VISION_RUNS)),
-        return_exceptions=True,
-    )
+    successful runs → first element None, stats list still non-empty.
+
+    A 120 s ceiling guards against a run that hangs past its own retries. It is
+    asyncio.wait, not wait_for: cancelling the whole gather would throw away the
+    CallStats of runs that already finished, and those calls were still billed."""
+    tasks = [
+        asyncio.create_task(transcribe(image_bytes))
+        for _ in range(settings.VISION_RUNS)
+    ]
+    done, pending = await asyncio.wait(tasks, timeout=_CONSENSUS_TIMEOUT_S)
+    for task in pending:
+        task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
+        logger.warning(
+            "consensus: %d/%d runs unfinished in %ds",
+            len(pending),
+            settings.VISION_RUNS,
+            _CONSENSUS_TIMEOUT_S,
+        )
 
     all_stats: list[CallStats] = []
     ok_runs: list[Transcription] = []
-    for outcome in outcomes:
-        if isinstance(outcome, BaseException):
-            # transcribe() swallows its own errors, so this only fires on
-            # cancellation or something genuinely unforeseen.
-            logger.warning("transcribe run crashed: %s", outcome)
+    for task in done:
+        try:
+            transcription, stats = task.result()
+        except Exception as exc:
+            logger.warning("transcribe run crashed: %s", exc)
             all_stats.append(
-                CallStats(None, None, None, 0, False, _short_error(outcome))
+                CallStats(None, None, None, 0, False, _short_error(exc))
             )
             continue
-        transcription, stats = outcome
         all_stats.extend(stats)
         if transcription is not None:
             ok_runs.append(transcription)

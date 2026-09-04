@@ -1,6 +1,7 @@
 """Aiogram handlers."""
 
 import logging
+import time
 from dataclasses import asdict
 
 from aiogram import Bot, F, Router
@@ -128,6 +129,7 @@ async def handle_photo(
 
     await message.answer(texts.PROCESSING)
 
+    started = time.monotonic()  # note_processed.latency_ms: step 7 -> end of 15
     result, stats = await vision.transcribe_consensus(compressed)
     await vision.log_ai_calls(user.id, stats)  # always — the tokens were spent
 
@@ -188,8 +190,7 @@ async def handle_photo(
     await limits.consume(session, user, pages=1)
 
     # Step 15: processing finished end to end. Transactional — commits with the
-    # Note and the quota bump in the main session. The full contract lands in
-    # task 10; for now, only the fields that already exist.
+    # Note and the quota bump in the main session.
     await log_event(
         session,
         user.id,
@@ -198,6 +199,8 @@ async def handle_photo(
             "verdict": result.verdict,
             "page_count": 1,
             "source_type": "photo",
+            "latency_ms": int((time.monotonic() - started) * 1000),
+            "cost_usd": vision.total_cost(stats),
         },
     )
 
@@ -248,12 +251,14 @@ async def handle_document(
         {"bytes_before": len(data), "source_type": "docx"},
     )
 
+    started = time.monotonic()  # note_processed.latency_ms for docx: extraction
     try:
         markdown = docx.extract_markdown(data)
     except Exception:
         logger.exception("docx extraction failed")
         await message.answer(texts.ERROR_GENERIC)
         return
+    extract_ms = int((time.monotonic() - started) * 1000)
 
     if len(markdown.strip()) < settings.MIN_MARKDOWN_LEN:
         await message.answer(texts.NO_TEXT_FOUND)
@@ -283,7 +288,13 @@ async def handle_document(
         session,
         user.id,
         "note_processed",
-        {"verdict": "clean", "page_count": 1, "source_type": "docx"},
+        {
+            "verdict": "clean",
+            "page_count": 1,
+            "source_type": "docx",
+            "latency_ms": extract_ms,
+            "cost_usd": None,  # no model call
+        },
     )
 
     for chunk in _split_message(f"{note.title}\n\n{markdown}"):
@@ -333,6 +344,7 @@ async def _process_album(
 
     await message.answer(texts.PROCESSING)
 
+    started = time.monotonic()  # note_processed.latency_ms: gather -> end of save
     outcome = await albums.process_batch(ordered)
     await vision.log_ai_calls(user.id, outcome.stats)  # once, every page's calls
 
@@ -372,6 +384,8 @@ async def _process_album(
             "page_count": rec.page_count,
             "source_type": "photo",
             "pages_skipped": len(outcome.skips),
+            "latency_ms": int((time.monotonic() - started) * 1000),
+            "cost_usd": vision.total_cost(outcome.stats),
         },
     )
 

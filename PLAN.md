@@ -30,15 +30,15 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 7. Calculation check
 - [x] 8. Saving and limits
 - [x] 9. Word documents and albums
-- [ ] 10. Reliability
+- [x] 10. Reliability
 
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1, 2, 3, 4, 5, 6, 7, 8, 9
-Current task: 10
+Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+Current task: none
 Next task: none
 Blockers: none
 ```

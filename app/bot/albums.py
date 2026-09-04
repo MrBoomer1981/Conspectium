@@ -24,6 +24,11 @@ logger = logging.getLogger(__name__)
 # Wait this long with no new page before assembling the batch.
 _QUIET_SECONDS = 1.0
 
+# Worst case for ten pages at three runs each under Semaphore(10): three waves
+# of up to 93 s = 279 s. This is a normative value, not an estimate — do not
+# lower it (PLAN.md task 10).
+_ALBUM_TIMEOUT_S = 300
+
 
 @dataclass
 class PageInput:
@@ -148,22 +153,43 @@ class AlbumOutcome:
 async def process_batch(pages: list[PageInput]) -> AlbumOutcome:
     """Run every page in parallel and combine the survivors. `pages` is already
     sorted; a page's position + 1 is its number, used in every per-page field
-    and message. One page failing never cancels the others."""
-    outcomes = await asyncio.gather(
-        *(process_page(page, i) for i, page in enumerate(pages, 1)),
-        return_exceptions=True,
+    and message. One page failing never cancels the others, and a page still
+    unfinished at the 300 s ceiling becomes a skip — asyncio.wait rather than
+    wait_for so the stats of finished pages are not lost with the cancellation."""
+    tasks = {
+        number: asyncio.create_task(process_page(page, number))
+        for number, page in enumerate(pages, 1)
+    }
+    done, pending = await asyncio.wait(
+        tasks.values(), timeout=_ALBUM_TIMEOUT_S
     )
+    for task in pending:
+        task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
+        logger.warning(
+            "album: %d/%d pages unfinished in %ds",
+            len(pending),
+            len(pages),
+            _ALBUM_TIMEOUT_S,
+        )
 
     stats: list[CallStats] = []
     results: list[PageResult] = []
-    for i, outcome in enumerate(outcomes, 1):
-        if isinstance(outcome, BaseException):
-            logger.warning("album page %d crashed: %s", i, outcome)
-            results.append(PageResult(i, [], skip_reason=texts.SKIP_ERROR))
+    for number, task in tasks.items():
+        if task not in done:
+            results.append(PageResult(number, [], skip_reason=texts.SKIP_ERROR))
             continue
-        results.append(outcome)
-        stats.extend(outcome.stats)
+        try:
+            page_result = task.result()
+        except Exception as exc:
+            logger.warning("album page %d crashed: %s", number, exc)
+            results.append(PageResult(number, [], skip_reason=texts.SKIP_ERROR))
+            continue
+        results.append(page_result)
+        stats.extend(page_result.stats)
 
+    results.sort(key=lambda r: r.page)
     pages_ok = [r for r in results if r.ok]
     skips = [(r.page, r.skip_reason) for r in results if not r.ok]
     record = _assemble(pages_ok) if pages_ok else None
