@@ -162,6 +162,7 @@ asyncpg
 alembic
 pydantic-settings
 google-genai
+httpx
 pillow
 numpy
 python-docx

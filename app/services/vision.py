@@ -345,17 +345,25 @@ async def transcribe_consensus(
         asyncio.create_task(transcribe(image_bytes))
         for _ in range(settings.VISION_RUNS)
     ]
-    done, pending = await asyncio.wait(tasks, timeout=_CONSENSUS_TIMEOUT_S)
-    for task in pending:
-        task.cancel()
-    if pending:
-        await asyncio.gather(*pending, return_exceptions=True)
-        logger.warning(
-            "consensus: %d/%d runs unfinished in %ds",
-            len(pending),
-            settings.VISION_RUNS,
-            _CONSENSUS_TIMEOUT_S,
-        )
+    try:
+        done, pending = await asyncio.wait(tasks, timeout=_CONSENSUS_TIMEOUT_S)
+        if pending:
+            logger.warning(
+                "consensus: %d/%d runs unfinished in %ds",
+                len(pending),
+                settings.VISION_RUNS,
+                _CONSENSUS_TIMEOUT_S,
+            )
+    finally:
+        # asyncio.wait leaves its tasks running. Cancel whatever is still going
+        # — on the ceiling above, or when this coroutine is itself cancelled
+        # (an album page dropped by process_batch). An orphaned run keeps
+        # making paid calls with the result thrown away.
+        leftover = [task for task in tasks if not task.done()]
+        for task in leftover:
+            task.cancel()
+        if leftover:
+            await asyncio.gather(*leftover, return_exceptions=True)
 
     all_stats: list[CallStats] = []
     ok_runs: list[Transcription] = []

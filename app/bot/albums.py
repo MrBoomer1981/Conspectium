@@ -160,19 +160,25 @@ async def process_batch(pages: list[PageInput]) -> AlbumOutcome:
         number: asyncio.create_task(process_page(page, number))
         for number, page in enumerate(pages, 1)
     }
-    done, pending = await asyncio.wait(
-        tasks.values(), timeout=_ALBUM_TIMEOUT_S
-    )
-    for task in pending:
-        task.cancel()
-    if pending:
-        await asyncio.gather(*pending, return_exceptions=True)
-        logger.warning(
-            "album: %d/%d pages unfinished in %ds",
-            len(pending),
-            len(pages),
-            _ALBUM_TIMEOUT_S,
+    try:
+        done, pending = await asyncio.wait(
+            tasks.values(), timeout=_ALBUM_TIMEOUT_S
         )
+        if pending:
+            logger.warning(
+                "album: %d/%d pages unfinished in %ds",
+                len(pending),
+                len(pages),
+                _ALBUM_TIMEOUT_S,
+            )
+    finally:
+        # asyncio.wait leaves its tasks running; cancel any straggler so a
+        # timed-out or cancelled batch doesn't keep pages making paid calls.
+        leftover = [task for task in tasks.values() if not task.done()]
+        for task in leftover:
+            task.cancel()
+        if leftover:
+            await asyncio.gather(*leftover, return_exceptions=True)
 
     stats: list[CallStats] = []
     results: list[PageResult] = []
