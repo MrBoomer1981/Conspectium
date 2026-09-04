@@ -5,7 +5,7 @@ JSONB or `notes`, so SQLite behaves exactly like Postgres here — SUM,
 COALESCE, the NULL-cost exclusion and the UTC day boundary all included.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -37,7 +37,7 @@ async def session():
     await engine.dispose()
 
 
-def _today() -> "datetime.date":
+def _today() -> date:
     return datetime.now(timezone.utc).date()
 
 

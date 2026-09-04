@@ -81,9 +81,14 @@ async def test_retry_then_success(monkeypatch, sqlite_maker):
             raise httpx.ConnectError("connection refused")
         return good
 
-    monkeypatch.setattr(
-        vision._client.aio.models, "generate_content", fake_generate_content
+    # Replace the whole client: patching a method on _client.aio.models would
+    # break if the SDK ever gives that object __slots__.
+    fake_client = SimpleNamespace(
+        aio=SimpleNamespace(
+            models=SimpleNamespace(generate_content=fake_generate_content)
+        )
     )
+    monkeypatch.setattr(vision, "_client", fake_client)
 
     result, stats = await vision.transcribe(b"image-bytes")
 

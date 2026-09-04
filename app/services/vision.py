@@ -221,7 +221,10 @@ def _response_text(response: object) -> str:
 
 
 def _short_error(exc: BaseException) -> str:
-    return f"{type(exc).__name__}: {exc}"[:500]
+    text = str(exc)
+    # A bare TimeoutError() from wait_for stringifies to "", which would leave
+    # a trailing ": " in the ai_calls.error column.
+    return (f"{type(exc).__name__}: {text}" if text else type(exc).__name__)[:500]
 
 
 def _should_retry(exc: BaseException) -> bool:
@@ -334,9 +337,10 @@ async def transcribe_consensus(
     image_bytes: bytes,
 ) -> tuple[TranscriptionResult | None, list[CallStats]]:
     """settings.VISION_RUNS independent transcribe() calls in parallel, then
-    compared by code. Never touches the database: every run's stats are
-    collected into one flat list for the handler to log. Fewer than two
-    successful runs → first element None, stats list still non-empty.
+    compared by code. Never touches the database: the returned list carries the
+    stats of every run that finished. Fewer than two successful runs → first
+    element None (the list is then empty only if the 120 s ceiling fired before
+    any run returned).
 
     A 120 s ceiling guards against a run that hangs past its own retries. It is
     asyncio.wait, not wait_for: cancelling the whole gather would throw away the
