@@ -64,6 +64,14 @@ Run a single test:
 `@pytest.mark.asyncio`. Tests that need a database use SQLite through
 `aiosqlite`; nothing in the suite makes a network or Gemini call.
 
+`.python-version` pins 3.12, which is what Railway runs. If pyenv doesn't
+have it, the suite also runs on 3.11 in a virtualenv built with an explicit
+interpreter path, bypassing the shim — nothing under `tests/` needs 3.12:
+
+    ~/.pyenv/versions/3.11.9/bin/python -m venv .venv
+    .venv/bin/pip install -r requirements-dev.txt
+    .venv/bin/pytest
+
 Create a new migration:
 
     alembic revision -m "description"
@@ -327,15 +335,37 @@ the price silently disables the cost circuit breaker.
 
 ## Tests
 
-Required only for these places, everything else has no tests yet:
+The suite is offline: no network, no Gemini, no Postgres. Everything that
+needs a database runs on in-memory SQLite.
 
-1. Parsing the model's response, including garbage, the ```json wrapper,
-   missing fields, and wrong types — `test_parse_response.py`
-2. Spend limit checks — `test_limits.py`
-3. Reliability: retryable vs. final Gemini failures, exactly one owner per
-   album batch, spend surviving a rollback of the main transaction —
-   `test_reliability.py`
-4. FSRS schedule calculation (third week, not started yet)
+| File | Covers |
+|---|---|
+| `test_parse_response.py` | the model's reply: garbage, the ```json fence, missing fields, wrong types |
+| `test_limits.py` | `check_limits` / `consume` — the money-critical path |
+| `test_reliability.py` | retry classification, one owner per album batch, spend surviving a rollback |
+| `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict`, `_short_error` |
+| `test_albums.py` | `_assemble` aggregates, `process_batch` survivor logic |
+| `test_docx.py` | heading styles to markdown, title derivation |
+| `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
+| `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2` |
+| `test_handlers.py` | `_split_message`, the catch-all reply |
+| `test_middleware.py` | session per update, rollback, the early commit of a new user |
+
+`tests/conftest.py` does two things without which nothing imports: it fills
+the five required environment variables with placeholders, and it teaches the
+SQLite compiler to render `JSONB` as `JSON`. The second is a test-side
+adapter for the sqlite dialect only — `app/db/models.py` stays PostgreSQL.
+
+Deliberately **not** covered: `photoguard`, `consensus` and `mathcheck`,
+which arrived with their own tests, and the photo and document pipelines end
+to end — those break on every reordering of a handler, and the pipeline is
+not settled yet.
+
+`test_spend_survives_main_rollback` needs two genuinely separate
+transactions and is skipped unless `TEST_DATABASE_URL` points at a real
+Postgres. It is the one week-ready item the suite does not actually prove.
+
+Still to write: the FSRS schedule calculation (third week, not started).
 
 ---
 

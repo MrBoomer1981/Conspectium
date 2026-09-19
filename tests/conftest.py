@@ -15,3 +15,17 @@ os.environ.setdefault(
 os.environ.setdefault("GEMINI_API_KEY", "test-gemini-key")
 os.environ.setdefault("WEBHOOK_URL", "https://example.test")
 os.environ.setdefault("WEBHOOK_SECRET", "test-secret")
+
+
+# Event.payload and the JSONB columns of Note are PostgreSQL types that the
+# SQLite dialect cannot render, which is why the older tests create only the
+# JSONB-free tables. Teaching the SQLite compiler to emit JSON for JSONB is a
+# test-side adapter: it registers a compilation rule for the sqlite dialect
+# only and leaves the PostgreSQL behaviour, and app/db/models.py, untouched.
+from sqlalchemy.dialects.postgresql import JSONB  # noqa: E402
+from sqlalchemy.ext.compiler import compiles  # noqa: E402
+
+
+@compiles(JSONB, "sqlite")
+def _render_jsonb_as_json_on_sqlite(type_, compiler, **kw) -> str:
+    return "JSON"

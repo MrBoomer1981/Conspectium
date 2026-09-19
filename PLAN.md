@@ -1597,4 +1597,7 @@ for a single user.
 - Caching, queues, workers, Redis
 - Deduplication on `update_id`
 - Row locking, two-phase spend accounting
-- Docker, CI, automated tests beyond the ones listed
+- Docker, CI
+- End-to-end tests of the photo and document handlers — the unit
+  suite was extended by decision, these were left out on purpose
+  (see `CLAUDE.md` → Tests)
