@@ -45,11 +45,12 @@ Install (locally, for running tests):
 
     pip install -r requirements-dev.txt
 
-Both `alembic` and — once tests import `app.*` — `pytest` import
-`app.core.config.settings`, which is built from the environment at import
-time. Copy `.env.example` to `.env` and fill the five required variables
-first, or these commands crash with a validation error before they ever
-reach the database.
+`app.core.config.settings` is built from the environment at import time, so
+anything importing `app.*` needs the five required variables. Copy
+`.env.example` to `.env` and fill them in before running `alembic` or
+`uvicorn`, or they crash with a validation error before ever reaching the
+database. `pytest` is the exception: `tests/conftest.py` fills the same
+variables with placeholders, so the suite collects without an `.env`.
 
 Run tests:
 
@@ -59,9 +60,16 @@ Run a single test:
 
     pytest tests/test_parse_response.py::test_name
 
+`asyncio_mode = "auto"` in `pyproject.toml`: async tests and fixtures need no
+`@pytest.mark.asyncio`. Tests that need a database use SQLite through
+`aiosqlite`; nothing in the suite makes a network or Gemini call.
+
 Create a new migration:
 
     alembic revision -m "description"
+
+Revision ids are hand-written, not the generated hash — `001_users_events`,
+`002_ai_calls`, `003_notes`. Continue the numbering.
 
 Apply migrations:
 
@@ -155,6 +163,12 @@ model". The essentials, because this shapes every handler:
    `data["session"]`, commits after the handler, and rolls back on any
    exception. `notes`, `users`, and `events` all go through it.
 
+   One deliberate exception: a **new** user is committed by the middleware
+   *before* the handler runs. `log_ai_calls` opens its own session
+   mid-handler and inserts `ai_calls.user_id`; without that early commit the
+   other session can't see the row yet and the foreign key fails. Someone who
+   wrote to the bot is registered regardless of how their first update ends.
+
 2. **`events` are transactional and disappear on rollback — deliberately.**
    An event describes something that, in the end, didn't happen. `log_event`
    wraps its insert in a SAVEPOINT (`begin_nested`) not to survive a
@@ -174,10 +188,57 @@ model". The essentials, because this shapes every handler:
    main transaction is already rolling back. Every other event uses
    `log_event`.
 
-5. **Anything that calls the model never touches the database.** In tasks 6
-   and 9 the runs and album pages go through `asyncio.gather`, and a single
+5. **Anything that calls the model never touches the database.** The three
+   runs and the pages of an album run in parallel, and a single
    `AsyncSession` cannot be used concurrently. Model-calling functions
    return their stats upward; the handler performs the writes.
+
+---
+
+## The pipeline
+
+The canonical step order for a photo is in `PLAN.md` → "Final processing
+order for a photo". Every "does this come before or after that?" question is
+answered there, not here. Three things that order implies and that are easy
+to get wrong:
+
+**`verdict` and `status` are different vocabularies.** `verdict` belongs to
+the pipeline and is `clean | needs_review | rejected`; `Note.status` is
+stored and is only `ready | needs_review`. A `rejected` verdict exits at
+step 10 and never reaches the database. A critical `mathcheck` issue
+downgrades `clean` → `needs_review`, one way only — a warning is shown but
+leaves the verdict alone.
+
+**An album is owned by exactly one update.** Telegram delivers an album as
+separate messages sharing a `media_group_id`, each its own webhook update
+with its own session. `albums.collect()` waits for the group to go quiet and
+hands the whole batch to a single caller; every other caller gets `None` and
+**must return without replying**. Reply there and the album gets processed
+once per page.
+
+**`.docx` bypasses the model entirely.** No limits are checked and no quota
+is spent, so a Word file is still processed with `AI_ENABLED=false` — it is
+already machine text. Only the empty-text gate (step 11) still applies.
+
+---
+
+## Concurrency ceilings
+
+These constants are derived from each other across three files. Changing one
+on its own breaks the arithmetic:
+
+| Constant | Where | Why that value |
+|---|---|---|
+| `_API_SLOTS` | `services/vision.py` | `Semaphore(10)` — Gemini answers a bigger burst with 429s |
+| `_CALL_TIMEOUT_S` | `services/vision.py` | 30 s for one call; a typical response is ~6 s |
+| `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | 120 s > one run's worst case with retries (3 × 30 + 1 + 2 = 93 s) |
+| `_ALBUM_TIMEOUT_S` | `bot/albums.py` | 300 s = three waves of 93 s under `Semaphore(10)`. Normative — don't lower it |
+| `max_overflow` | `db/session.py` | 15 — `MAX_ALBUM_PAGES` updates each hold a session open through the debounce |
+
+Both ceilings use `asyncio.wait`, never `wait_for`, and cancel the
+stragglers in a `finally`. Cancelling the group as a whole would discard the
+`CallStats` of runs that already returned — and those calls were billed.
+An orphaned run also keeps making paid calls with the result thrown away.
 
 ---
 
@@ -198,8 +259,7 @@ one — report it, don't fix it silently.
 
 ## Structure
 
-Some entries below don't exist yet — they arrive with their `PLAN.md` task.
-The tree is the target; `(task N)` marks what isn't on disk.
+All ten `PLAN.md` tasks are done — everything below is on disk.
 
 ```
 app/
@@ -208,11 +268,12 @@ app/
     handlers.py       aiogram handlers
     texts.py          all user-facing messages
     middlewares.py    DB session and user injected into handlers
-    albums.py         album buffer and assembly (task 9)
+    albums.py         album buffer and assembly
   services/
-    vision.py         Gemini: prompt, response parsing, three runs (task 5)
+    vision.py         Gemini: prompt, response parsing, three runs
     images.py         compression
-    limits.py         spend limits (task 8)
+    limits.py         spend limits
+    docx.py           .docx -> markdown, no model call
     photoguard.py     ready-made
     consensus.py      ready-made
     mathcheck.py      ready-made
@@ -226,12 +287,13 @@ app/
 tests/
 CLAUDE.md
 PLAN.md
-prompts-v3.md        TRANSCRIBE_PROMPT verbatim source (task 5)
+prompts-v3.md        TRANSCRIBE_PROMPT, read from disk at import
 ```
 
-`prompts-v3.md` holds the recognition prompt as plain text; `vision.py`
-copies it into `TRANSCRIBE_PROMPT` **verbatim** in task 5. It is not in the
-repo yet.
+`prompts-v3.md` holds the recognition prompt as plain text. `vision.py`
+doesn't copy it — it reads the file from the repo root at **import time**.
+So the file has to ship with the deploy or the process dies at startup, and
+editing it changes the prompt without touching any Python.
 
 ---
 
@@ -256,16 +318,24 @@ LOG_LEVEL=INFO
 A missing required variable must crash the app at startup, not on the
 first request.
 
+`VISION_MODEL` is coupled to `PRICE_PER_MTOK` in `core/config.py`: a model
+absent from that table yields `cost_usd = NULL`, and `NULL` rows are skipped
+by the `SUM` behind `DAILY_COST_LIMIT_USD`. Switching models without adding
+the price silently disables the cost circuit breaker.
+
 ---
 
 ## Tests
 
-Required only for three places, everything else has no tests yet:
+Required only for these places, everything else has no tests yet:
 
 1. Parsing the model's response, including garbage, the ```json wrapper,
-   missing fields, and wrong types
-2. Spend limit checks
-3. FSRS schedule calculation (third week, not started yet)
+   missing fields, and wrong types — `test_parse_response.py`
+2. Spend limit checks — `test_limits.py`
+3. Reliability: retryable vs. final Gemini failures, exactly one owner per
+   album batch, spend surviving a rollback of the main transaction —
+   `test_reliability.py`
+4. FSRS schedule calculation (third week, not started yet)
 
 ---
 
