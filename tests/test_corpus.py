@@ -625,3 +625,127 @@ async def test_the_event_outlives_the_record_it_describes(session):
         "title": "Производная сложной функции",
         "page_count": 4,
     }
+
+
+# ── /stats ───────────────────────────────────────────────────────────────────
+
+from datetime import date  # noqa: E402
+
+
+def test_russian_number_agreement():
+    # Sloppy plurals in a tool used every day are grating, and the rule has
+    # three branches plus the 11-14 exception.
+    assert texts._plural(1, "запись", "записи", "записей") == "запись"
+    assert texts._plural(2, "запись", "записи", "записей") == "записи"
+    assert texts._plural(5, "запись", "записи", "записей") == "записей"
+    assert texts._plural(11, "запись", "записи", "записей") == "записей"
+    assert texts._plural(14, "запись", "записи", "записей") == "записей"
+    assert texts._plural(21, "запись", "записи", "записей") == "запись"
+    assert texts._plural(22, "запись", "записи", "записей") == "записи"
+    assert texts._plural(25, "запись", "записи", "записей") == "записей"
+    assert texts._plural(111, "запись", "записи", "записей") == "записей"
+    assert texts._plural(0, "запись", "записи", "записей") == "записей"
+
+
+def test_recent_days_are_named_not_dated():
+    today = date(2026, 9, 19)
+    assert texts._day(today, today) == "сегодня"
+    assert texts._day(date(2026, 9, 18), today) == "вчера"
+    assert texts._day(date(2026, 8, 18), today) == "18 августа"
+
+
+def test_streak_counts_back_from_today():
+    today = date(2026, 9, 19)
+    days = {today, date(2026, 9, 18), date(2026, 9, 17)}
+    assert corpus._streak(days, today) == 3
+
+
+def test_a_gap_ends_the_streak():
+    today = date(2026, 9, 19)
+    days = {today, date(2026, 9, 17), date(2026, 9, 16)}
+    assert corpus._streak(days, today) == 1
+
+
+def test_the_streak_survives_a_day_not_yet_started():
+    # Nothing today yet, but yesterday and the day before. A counter that read
+    # zero every morning until you posted would be noise, not a signal.
+    today = date(2026, 9, 19)
+    days = {date(2026, 9, 18), date(2026, 9, 17)}
+    assert corpus._streak(days, today) == 2
+
+
+def test_the_streak_breaks_after_a_whole_missed_day():
+    today = date(2026, 9, 19)
+    days = {date(2026, 9, 17), date(2026, 9, 16)}
+    assert corpus._streak(days, today) == 0
+
+
+def test_no_records_no_streak():
+    assert corpus._streak(set(), date(2026, 9, 19)) == 0
+
+
+async def test_stats_on_an_empty_corpus(session):
+    user = await _user(session)
+    message = _Message()
+
+    await corpus.cmd_stats(message, session, user)
+
+    assert message.replies == [texts.STATS_EMPTY]
+
+
+async def test_stats_counts_records_and_pages(session):
+    user = await _user(session)
+    await _note(session, user, page_count=3)
+    await _note(session, user, page_count=1)
+    message = _Message()
+
+    await corpus.cmd_stats(message, session, user)
+
+    assert "2 записи" in message.replies[0]
+    assert "4 страницы" in message.replies[0]
+
+
+async def test_stats_reports_a_running_streak(session):
+    user = await _user(session)
+    now = datetime.now(timezone.utc)
+    for back in (0, 1, 2):
+        await _note(session, user, created_at=now - timedelta(days=back))
+    message = _Message()
+
+    await corpus.cmd_stats(message, session, user)
+
+    assert "Подряд: 3 дня" in message.replies[0]
+
+
+async def test_stats_counts_one_record_per_day_not_per_record(session):
+    user = await _user(session)
+    now = datetime.now(timezone.utc)
+    for _ in range(4):
+        await _note(session, user, created_at=now)
+    message = _Message()
+
+    await corpus.cmd_stats(message, session, user)
+
+    assert "Подряд: 1 день" in message.replies[0]
+
+
+async def test_stats_ignores_another_corpus(session):
+    mine = await _user(session, tg_id=1)
+    theirs = await _user(session, tg_id=2)
+    await _note(session, mine, page_count=1)
+    await _note(session, theirs, page_count=9)
+    message = _Message()
+
+    await corpus.cmd_stats(message, session, mine)
+
+    assert "1 запись" in message.replies[0]
+    assert "1 страница" in message.replies[0]
+
+
+async def test_stats_is_logged(session):
+    user = await _user(session)
+    await _note(session, user)
+
+    await corpus.cmd_stats(_Message(), session, user)
+
+    assert len(await _events(session, "stats_viewed")) == 1

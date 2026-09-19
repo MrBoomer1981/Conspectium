@@ -360,6 +360,7 @@ needs a database runs on in-memory SQLite.
 | `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2` |
 | `test_handlers.py` | `_split_message`, the catch-all reply |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
+| `test_corpus.py` | listing, opening, correcting, statistics — and that no query reaches another user's records |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the
@@ -371,9 +372,13 @@ which arrived with their own tests, and the photo and document pipelines end
 to end — those break on every reordering of a handler, and the pipeline is
 not settled yet.
 
-`test_spend_survives_main_rollback` needs two genuinely separate
-transactions and is skipped unless `TEST_DATABASE_URL` points at a real
-Postgres. It is the one week-ready item the suite does not actually prove.
+Five tests are skipped unless `TEST_DATABASE_URL` points at a real Postgres:
+`test_spend_survives_main_rollback`, which needs two genuinely separate
+transactions, and the four behavioural search tests, because SQLite has no
+`to_tsvector`. The shape of the search statement is checked without a server
+by compiling it against the PostgreSQL dialect — that is what catches an
+un-inlined regconfig — but the matching itself is unproven until a Postgres
+is available.
 
 Still to write: the FSRS schedule calculation (third week, not started).
 

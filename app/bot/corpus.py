@@ -12,6 +12,7 @@ returns someone else's record tomorrow.
 from __future__ import annotations
 
 import logging
+from datetime import date, datetime, timedelta, timezone
 
 from aiogram import Router
 from aiogram.filters import Command, CommandObject
@@ -311,3 +312,62 @@ async def cmd_delete(
     # No confirmation step: it needs either inline buttons or a second
     # command, and for one user re-photographing a page costs less than that.
     await message.answer(texts.deleted(title))
+
+
+def _utc_date(value: datetime) -> date:
+    """SQLite hands back naive datetimes, PostgreSQL aware ones. Both are UTC
+    by construction — every timestamp in this project is server_default now()."""
+    if value.tzinfo is None:
+        return value.date()
+    return value.astimezone(timezone.utc).date()
+
+
+def _streak(days: set[date], today: date) -> int:
+    """Consecutive days of capture, counting back from today — or from
+    yesterday when nothing has arrived yet today. A streak that reads zero
+    every morning until you post would be noise, not a signal; it breaks only
+    when a whole day passes with nothing."""
+    anchor = today if today in days else today - timedelta(days=1)
+    count = 0
+    while anchor in days:
+        count += 1
+        anchor -= timedelta(days=1)
+    return count
+
+
+@router.message(Command("stats"))
+async def cmd_stats(message: Message, session: AsyncSession, user: User) -> None:
+    totals = (
+        await session.execute(
+            select(
+                func.count(),
+                func.coalesce(func.sum(Note.page_count), 0),
+                func.min(Note.created_at),
+                func.max(Note.created_at),
+            ).where(Note.user_id == user.id)
+        )
+    ).one()
+    notes, pages, first, last = totals
+    if not notes:
+        await message.answer(texts.STATS_EMPTY)
+        return
+
+    stamps = (
+        (await session.execute(select(Note.created_at).where(Note.user_id == user.id)))
+        .scalars()
+        .all()
+    )
+    today = datetime.now(timezone.utc).date()
+    days = {_utc_date(stamp) for stamp in stamps}
+
+    await log_event(session, user.id, "stats_viewed")
+    await message.answer(
+        texts.stats(
+            notes=notes,
+            pages=pages,
+            first=_utc_date(first),
+            last=_utc_date(last),
+            streak=_streak(days, today),
+            today=today,
+        )
+    )

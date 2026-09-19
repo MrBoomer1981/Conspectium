@@ -1,6 +1,6 @@
 """Все строки, которые видит пользователь."""
 
-from datetime import datetime
+from datetime import date, datetime
 
 START = (
     "Привет! Пришли фотографию конспекта — верну структурированную запись.\n\n"
@@ -175,3 +175,54 @@ def retitled(title: str) -> str:
 
 def deleted(title: str) -> str:
     return f'Запись удалена: «{title}»'
+
+
+STATS_EMPTY = (
+    "Пока нечего считать. Пришли первую страницу — и здесь появится, "
+    "сколько всего накопилось."
+)
+
+_MONTHS = (
+    "января", "февраля", "марта", "апреля", "мая", "июня",
+    "июля", "августа", "сентября", "октября", "ноября", "декабря",
+)
+
+
+def _plural(n: int, one: str, few: str, many: str) -> str:
+    """Russian number agreement: 1 запись, 2 записи, 5 записей."""
+    tail = abs(n) % 100
+    if 11 <= tail <= 14:
+        return many
+    tail %= 10
+    if tail == 1:
+        return one
+    if 2 <= tail <= 4:
+        return few
+    return many
+
+
+def _day(value: date, today: date) -> str:
+    if value == today:
+        return "сегодня"
+    if (today - value).days == 1:
+        return "вчера"
+    return f"{value.day} {_MONTHS[value.month - 1]}"
+
+
+def stats(
+    notes: int, pages: int, first: date, last: date, streak: int, today: date
+) -> str:
+    """The corpus at a glance. Accumulation is the thing that is supposed to
+    make leaving costly, and it is invisible until someone counts it."""
+    lines = [
+        f"{notes} {_plural(notes, 'запись', 'записи', 'записей')}, "
+        f"{pages} {_plural(pages, 'страница', 'страницы', 'страниц')}",
+        f"Первая — {_day(first, today)}, последняя — {_day(last, today)}",
+    ]
+    if streak:
+        lines.append(
+            f"Подряд: {streak} {_plural(streak, 'день', 'дня', 'дней')}"
+        )
+    else:
+        lines.append("Серия прервана — пришли страницу сегодня, чтобы начать заново.")
+    return "\n".join(lines)

@@ -37,16 +37,16 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 11. Reading the corpus
 - [x] 12. Search
 - [x] 13. Correcting records
-- [ ] 14. Statistics
+- [x] 14. Statistics
 
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
 Current task: none
-Next task: 14
+Next task: none
 Blockers: none
 ```
 
@@ -1517,8 +1517,10 @@ query from now until forever. The row goes.
 ```
 
 Over this user's `notes`: row count, `SUM(page_count)`, `MIN(created_at)`,
-`MAX(created_at)`. The streak is the number of consecutive UTC days ending
-today that have at least one record; a gap ends it.
+`MAX(created_at)`. The streak counts consecutive UTC days back from today —
+or from yesterday when nothing has arrived yet today. A counter that read
+zero every morning until you posted would be noise rather than a signal, so
+the streak breaks only once a whole day passes with nothing.
 
 Empty corpus → `texts.STATS_EMPTY`. Event `stats_viewed`, no payload.
 
