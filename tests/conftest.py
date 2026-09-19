@@ -8,7 +8,9 @@ values are enough.
 
 import os
 
-os.environ.setdefault("BOT_TOKEN", "test-bot-token")
+# aiogram validates the token's shape when a Bot is constructed, so the
+# placeholder has to look like a real one or app.main cannot be imported.
+os.environ.setdefault("BOT_TOKEN", "123456789:AAEhTESTtokenNOTreal_0123456789abc")
 os.environ.setdefault(
     "DATABASE_URL", "postgresql+asyncpg://test:test@localhost/test"
 )

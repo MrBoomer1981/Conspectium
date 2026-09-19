@@ -361,6 +361,7 @@ needs a database runs on in-memory SQLite.
 | `test_handlers.py` | `_split_message`, the catch-all reply |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
 | `test_corpus.py` | listing, opening, correcting, statistics — and that no query reaches another user's records |
+| `test_wiring.py` | router order in `main.py` — the catch-all must stay last |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the
