@@ -749,3 +749,20 @@ async def test_stats_is_logged(session):
     await corpus.cmd_stats(_Message(), session, user)
 
     assert len(await _events(session, "stats_viewed")) == 1
+
+
+async def test_help_lists_what_the_bot_can_do(session):
+    user = await _user(session)
+    message = _Message()
+
+    await corpus.cmd_help(message, session, user)
+
+    assert message.replies == [texts.HELP]
+
+
+async def test_help_is_logged(session):
+    user = await _user(session)
+
+    await corpus.cmd_help(_Message(), session, user)
+
+    assert len(await _events(session, "help_viewed")) == 1

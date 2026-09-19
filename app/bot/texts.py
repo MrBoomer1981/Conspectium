@@ -4,7 +4,8 @@ from datetime import date, datetime
 
 START = (
     "Привет! Пришли фотографию конспекта — верну структурированную запись.\n\n"
-    "Записи накапливаются: со временем из них соберётся твой личный корпус."
+    "Записи накапливаются: со временем из них соберётся твой личный корпус.\n\n"
+    "Что ещё умею — /help"
 )
 
 PROCESSING = "Обрабатываю..."
@@ -226,3 +227,32 @@ def stats(
     else:
         lines.append("Серия прервана — пришли страницу сегодня, чтобы начать заново.")
     return "\n".join(lines)
+
+
+# ── The command list ─────────────────────────────────────────────────────────
+# One source for three consumers: Telegram's command menu (main.py), /help,
+# and the test that refuses to let a command ship without a description.
+# (name, menu description, usage example or None)
+
+COMMANDS: tuple[tuple[str, str, str | None], ...] = (
+    ("start", "начать", None),
+    ("notes", "последние записи", "/notes 2"),
+    ("note", "открыть запись", "/note 42"),
+    ("search", "поиск по корпусу", "/search производная"),
+    ("retitle", "переименовать запись", "/retitle 42 Новый заголовок"),
+    ("delete", "удалить запись", "/delete 42"),
+    ("stats", "сколько накопилось", None),
+    ("help", "что я умею", None),
+)
+
+
+def _help_line(name: str, description: str, usage: str | None) -> str:
+    """The usage example stands in for the bare command where there is one, so
+    the syntax is visible without a second line per command."""
+    return f"{usage or '/' + name} — {description}"
+
+
+HELP = "\n".join(
+    ["Пришли фотографию страницы конспекта — верну структурированную запись.", ""]
+    + [_help_line(*command) for command in COMMANDS]
+)

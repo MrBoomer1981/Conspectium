@@ -371,3 +371,9 @@ async def cmd_stats(message: Message, session: AsyncSession, user: User) -> None
             today=today,
         )
     )
+
+
+@router.message(Command("help"))
+async def cmd_help(message: Message, session: AsyncSession, user: User) -> None:
+    await log_event(session, user.id, "help_viewed")
+    await message.answer(texts.HELP)

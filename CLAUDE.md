@@ -283,7 +283,7 @@ app/
   main.py             FastAPI, webhook, /health
   bot/
     handlers.py       aiogram handlers
-    texts.py          all user-facing messages
+    texts.py          all user-facing messages, and the command list
     middlewares.py    DB session and user injected into handlers
     albums.py         album buffer and assembly
     corpus.py         reading, search and correction commands
@@ -361,7 +361,7 @@ needs a database runs on in-memory SQLite.
 | `test_handlers.py` | `_split_message`, the catch-all reply |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
 | `test_corpus.py` | listing, opening, correcting, statistics — and that no query reaches another user's records |
-| `test_wiring.py` | router order in `main.py` — the catch-all must stay last |
+| `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the

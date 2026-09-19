@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from aiogram import Bot, Dispatcher
-from aiogram.types import ErrorEvent, Message, Update
+from aiogram.types import BotCommand, ErrorEvent, Message, Update
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -112,6 +112,19 @@ async def lifespan(app: FastAPI):
     # A bot without a webhook is useless, so a failure here must stop startup.
     await bot.set_webhook(url, secret_token=settings.WEBHOOK_SECRET)
     logger.info("Webhook set")
+
+    # Unlike the webhook, this one must not stop startup: a bot without a
+    # command menu still works, it is just harder to use.
+    try:
+        await bot.set_my_commands(
+            [
+                BotCommand(command=name, description=description)
+                for name, description, _ in texts.COMMANDS
+            ]
+        )
+        logger.info("Command menu published")
+    except Exception:
+        logger.exception("could not publish the command menu")
     yield
     await bot.session.close()
 
