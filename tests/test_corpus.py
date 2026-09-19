@@ -375,3 +375,115 @@ async def test_a_clean_record_gets_no_trailing_flag_message(session):
     await corpus.cmd_note(message, _cmd(str(note.id)), session, user)
 
     assert len(message.replies) == 1
+
+
+# ── /search ──────────────────────────────────────────────────────────────────
+# PostgreSQL full text cannot run on SQLite: to_tsvector does not exist there.
+# What is checkable without a server is the shape of the statement, and that
+# is worth checking — the regconfig has to be inlined rather than bound, or
+# asyncpg fails at run time on a query that looks perfectly fine here.
+
+import os  # noqa: E402
+
+import pytest  # noqa: E402
+from sqlalchemy.dialects import postgresql  # noqa: E402
+
+
+def _compiled() -> str:
+    return str(
+        corpus._search_stmt(1, "производная").compile(dialect=postgresql.dialect())
+    )
+
+
+def test_search_uses_the_russian_configuration():
+    # Inlined, not bound: asyncpg cannot infer regconfig for a placeholder.
+    assert "to_tsvector('russian'" in _compiled()
+    assert "plainto_tsquery('russian'" in _compiled()
+
+
+def test_search_covers_both_title_and_body():
+    sql = _compiled()
+    assert "notes.title" in sql and "notes.markdown" in sql
+
+
+def test_search_is_ranked_and_scoped_and_capped():
+    sql = _compiled()
+    assert "ts_rank(" in sql
+    assert "notes.user_id =" in sql  # never search another corpus
+    assert "LIMIT" in sql
+
+
+async def test_search_without_a_query_explains_itself(session):
+    user = await _user(session)
+    message = _Message()
+
+    await corpus.cmd_search(message, _cmd("   "), session, user)
+
+    assert message.replies == [texts.SEARCH_USAGE]
+
+
+_TEST_DB = os.environ.get("TEST_DATABASE_URL")
+
+pg_only = pytest.mark.skipif(
+    not _TEST_DB, reason="TEST_DATABASE_URL not set (full text needs PostgreSQL)"
+)
+
+
+@pytest_asyncio.fixture
+async def pg_session():
+    engine = create_async_engine(_TEST_DB)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as s:
+        yield s
+    await engine.dispose()
+
+
+@pg_only
+async def test_a_declined_form_is_found(pg_session):
+    """The reason this is full text and not ILIKE: «производная» has to find
+    «производной». A search that misses the declined form of the word you just
+    typed is not a search."""
+    user = await _user(pg_session)
+    await _note(
+        pg_session, user, markdown="Вычисление производной сложной функции."
+    )
+    message = _Message()
+
+    await corpus.cmd_search(message, _cmd("производная"), pg_session, user)
+
+    assert "Производная сложной функции" in message.replies[0]
+
+
+@pg_only
+async def test_search_finds_nothing_politely(pg_session):
+    user = await _user(pg_session)
+    await _note(pg_session, user)
+    message = _Message()
+
+    await corpus.cmd_search(message, _cmd("фотосинтез"), pg_session, user)
+
+    assert message.replies == [texts.search_empty("фотосинтез")]
+
+
+@pg_only
+async def test_search_never_reaches_another_corpus(pg_session):
+    mine = await _user(pg_session, tg_id=1)
+    theirs = await _user(pg_session, tg_id=2)
+    await _note(pg_session, theirs, title="Чужая запись", markdown="производная")
+    message = _Message()
+
+    await corpus.cmd_search(message, _cmd("производная"), pg_session, mine)
+
+    assert message.replies == [texts.search_empty("производная")]
+
+
+@pg_only
+async def test_search_is_logged_with_the_query(pg_session):
+    user = await _user(pg_session)
+    await corpus.cmd_search(_Message(), _cmd("интеграл"), pg_session, user)
+
+    events = await _events(pg_session, "corpus_searched")
+    assert events[0].payload == {"query": "интеграл", "found": 0}

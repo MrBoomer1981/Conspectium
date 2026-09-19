@@ -155,3 +155,10 @@ def split_message(text: str, limit: int = MESSAGE_LIMIT) -> list[str]:
     if current:
         chunks.append(current)
     return chunks
+
+
+SEARCH_USAGE = "Что искать? Например: /search производная"
+
+
+def search_empty(query: str) -> str:
+    return f'По запросу «{query}» ничего не нашлось.'

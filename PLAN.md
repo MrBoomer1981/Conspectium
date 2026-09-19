@@ -35,7 +35,7 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 **Week 2 — getting the corpus back out:**
 
 - [x] 11. Reading the corpus
-- [ ] 12. Search
+- [x] 12. Search
 - [ ] 13. Correcting records
 - [ ] 14. Statistics
 
@@ -44,9 +44,9 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
 Current task: none
-Next task: 12
+Next task: 13
 Blockers: none
 ```
 

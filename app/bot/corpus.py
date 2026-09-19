@@ -16,7 +16,7 @@ import logging
 from aiogram import Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
-from sqlalchemy import func, select
+from sqlalchemy import func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
@@ -181,3 +181,67 @@ async def cmd_note(
     flags = _flags(note)
     if flags:
         await message.answer(flags)
+
+
+# The text search configuration, inlined rather than bound. asyncpg cannot
+# infer regconfig for a placeholder, so `to_tsvector($1, $2)` fails at run time
+# where `to_tsvector('russian', $1)` works.
+_RU = literal_column("'russian'")
+
+
+def _search_stmt(user_id: int, query: str):
+    """Full text over title and body, ranked. Built separately from the handler
+    so its shape can be checked without a PostgreSQL to run it against.
+
+    Why not ILIKE: Russian morphology. `ILIKE '%производная%'` does not match
+    «производной», and a search that misses the declined form of the word you
+    just typed is not a search. to_tsvector stems both sides.
+
+    Why no index: a GIN index needs a generated column and a migration, and a
+    sequential scan over one student's corpus is instant. Add it when the
+    corpus makes it necessary.
+    """
+    vector = func.to_tsvector(_RU, Note.title + " " + Note.markdown)
+    tsquery = func.plainto_tsquery(_RU, query)
+    return (
+        select(Note)
+        .where(Note.user_id == user_id, vector.op("@@")(tsquery))
+        .order_by(func.ts_rank(vector, tsquery).desc(), Note.created_at.desc())
+        .limit(_PAGE_SIZE)
+    )
+
+
+@router.message(Command("search"))
+async def cmd_search(
+    message: Message, command: CommandObject, session: AsyncSession, user: User
+) -> None:
+    query = (command.args or "").strip()
+    if not query:
+        await message.answer(texts.SEARCH_USAGE)
+        return
+
+    notes = (await session.execute(_search_stmt(user.id, query))).scalars().all()
+
+    # The query text is stored: with one user there is no privacy cost, and
+    # what you search for is the most direct signal of what the corpus is for.
+    await log_event(
+        session, user.id, "corpus_searched", {"query": query, "found": len(notes)}
+    )
+
+    if not notes:
+        await message.answer(texts.search_empty(query))
+        return
+
+    lines = [
+        texts.note_line(
+            n.id,
+            n.created_at,
+            n.title,
+            n.subject,
+            n.page_count,
+            n.status == "needs_review",
+        )
+        for n in notes
+    ]
+    for chunk in texts.split_message("\n".join(lines)):
+        await message.answer(chunk)
