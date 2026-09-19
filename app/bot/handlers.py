@@ -429,3 +429,20 @@ async def _process_album(
         )
     if flags:
         await message.answer("\n\n".join(flags))
+
+
+# Registered last on purpose: aiogram matches handlers in registration order,
+# so a filterless @router.message() placed any higher would swallow photos and
+# documents. Everything that reaches here — text, voice, stickers, video —
+# previously got no reply at all.
+@router.message()
+async def handle_unsupported(
+    message: Message, session: AsyncSession, user: User
+) -> None:
+    await log_event(
+        session,
+        user.id,
+        "unsupported_message",
+        {"content_type": message.content_type},
+    )
+    await message.answer(texts.UNSUPPORTED)

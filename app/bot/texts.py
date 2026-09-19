@@ -11,6 +11,12 @@ NO_TEXT_FOUND = "Не нашёл на странице текста. Попро�
 
 ERROR_GENERIC = "Не смог обработать фото. Попробуй ещё раз чуть позже."
 
+# Anything the bot has no handler for — app/bot/handlers.py handle_unsupported.
+UNSUPPORTED = (
+    "Пока умею только одно: фотографию страницы конспекта. "
+    "Пришли снимок — верну структурированную запись."
+)
+
 # Spend limits — app/services/limits.py, step 4.
 AI_DISABLED = "Распознавание сейчас выключено. Загляни позже."
 
