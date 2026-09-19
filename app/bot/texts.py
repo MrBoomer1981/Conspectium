@@ -162,3 +162,16 @@ SEARCH_USAGE = "Что искать? Например: /search производ�
 
 def search_empty(query: str) -> str:
     return f'По запросу «{query}» ничего не нашлось.'
+
+
+RETITLE_USAGE = "Укажи номер и новый заголовок: /retitle 42 Производная функции"
+
+DELETE_USAGE = "Укажи номер записи: /delete 42"
+
+
+def retitled(title: str) -> str:
+    return f'Заголовок изменён: «{title}»'
+
+
+def deleted(title: str) -> str:
+    return f'Запись удалена: «{title}»'

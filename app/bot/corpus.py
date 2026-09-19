@@ -245,3 +245,69 @@ async def cmd_search(
     ]
     for chunk in texts.split_message("\n".join(lines)):
         await message.answer(chunk)
+
+
+# Titles are capped the same way everywhere: vision.py derives them at 60
+# characters, and a hand-written one has no reason to be longer.
+_TITLE_LIMIT = 60
+
+
+def _id_and_rest(args: str | None) -> tuple[int | None, str]:
+    """`42 Новый заголовок` -> (42, "Новый заголовок")."""
+    if not args:
+        return None, ""
+    head, _, rest = args.strip().partition(" ")
+    try:
+        return int(head.lstrip("#")), rest.strip()
+    except ValueError:
+        return None, ""
+
+
+@router.message(Command("retitle"))
+async def cmd_retitle(
+    message: Message, command: CommandObject, session: AsyncSession, user: User
+) -> None:
+    note_id, new_title = _id_and_rest(command.args)
+    if note_id is None or not new_title:
+        await message.answer(texts.RETITLE_USAGE)
+        return
+
+    note = await _load(session, user, note_id)
+    if note is None:
+        await message.answer(texts.NOTE_NOT_FOUND)
+        return
+
+    note.title = new_title[:_TITLE_LIMIT]
+    await log_event(session, user.id, "note_retitled", {"note_id": note.id})
+    await message.answer(texts.retitled(note.title))
+
+
+@router.message(Command("delete"))
+async def cmd_delete(
+    message: Message, command: CommandObject, session: AsyncSession, user: User
+) -> None:
+    note_id = _note_id(command.args)
+    if note_id is None:
+        await message.answer(texts.DELETE_USAGE)
+        return
+
+    note = await _load(session, user, note_id)
+    if note is None:
+        await message.answer(texts.NOTE_NOT_FOUND)
+        return
+
+    # Read the fields out before the row goes: the event is all that will be
+    # left describing what was deleted.
+    title, page_count = note.title, note.page_count
+
+    await session.delete(note)
+    await session.flush()  # the delete lands before the event's SAVEPOINT
+    await log_event(
+        session,
+        user.id,
+        "note_deleted",
+        {"note_id": note_id, "title": title, "page_count": page_count},
+    )
+    # No confirmation step: it needs either inline buttons or a second
+    # command, and for one user re-photographing a page costs less than that.
+    await message.answer(texts.deleted(title))

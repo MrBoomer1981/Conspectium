@@ -36,7 +36,7 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 
 - [x] 11. Reading the corpus
 - [x] 12. Search
-- [ ] 13. Correcting records
+- [x] 13. Correcting records
 - [ ] 14. Statistics
 
 ## State
@@ -44,9 +44,9 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
 Current task: none
-Next task: 13
+Next task: 14
 Blockers: none
 ```
 

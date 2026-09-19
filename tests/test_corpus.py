@@ -487,3 +487,141 @@ async def test_search_is_logged_with_the_query(pg_session):
 
     events = await _events(pg_session, "corpus_searched")
     assert events[0].payload == {"query": "интеграл", "found": 0}
+
+
+# ── /retitle and /delete ─────────────────────────────────────────────────────
+
+
+def test_id_and_rest_splits_on_the_first_space():
+    assert corpus._id_and_rest("42 Новый заголовок") == (42, "Новый заголовок")
+    assert corpus._id_and_rest("#42 Заголовок") == (42, "Заголовок")
+    assert corpus._id_and_rest("42") == (42, "")
+    assert corpus._id_and_rest("сорок два Заголовок") == (None, "")
+    assert corpus._id_and_rest(None) == (None, "")
+
+
+async def test_retitle_without_a_title_explains_itself(session):
+    user = await _user(session)
+    note = await _note(session, user)
+    message = _Message()
+
+    await corpus.cmd_retitle(message, _cmd(str(note.id)), session, user)
+
+    assert message.replies == [texts.RETITLE_USAGE]
+
+
+async def test_retitle_changes_the_title(session):
+    user = await _user(session)
+    note = await _note(session, user)
+    message = _Message()
+
+    await corpus.cmd_retitle(
+        message, _cmd(f"{note.id} Дифференцирование"), session, user
+    )
+
+    assert note.title == "Дифференцирование"
+    assert "Дифференцирование" in message.replies[0]
+
+
+async def test_a_new_title_is_capped_at_60_characters(session):
+    user = await _user(session)
+    note = await _note(session, user)
+
+    await corpus.cmd_retitle(_Message(), _cmd(f"{note.id} " + "я" * 200), session, user)
+
+    assert len(note.title) == 60
+
+
+async def test_retitle_shows_up_in_the_listing(session):
+    user = await _user(session)
+    note = await _note(session, user)
+    await corpus.cmd_retitle(_Message(), _cmd(f"{note.id} Совсем другое"), session, user)
+    message = _Message()
+
+    await corpus.cmd_notes(message, _cmd(), session, user)
+
+    assert "Совсем другое" in message.replies[0]
+
+
+async def test_retitle_cannot_reach_another_corpus(session):
+    mine = await _user(session, tg_id=1)
+    theirs = await _user(session, tg_id=2)
+    foreign = await _note(session, theirs, title="Чужая запись")
+    message = _Message()
+
+    await corpus.cmd_retitle(message, _cmd(f"{foreign.id} Моё"), session, mine)
+
+    assert message.replies == [texts.NOTE_NOT_FOUND]
+    assert foreign.title == "Чужая запись"
+
+
+async def test_retitle_is_logged(session):
+    user = await _user(session)
+    note = await _note(session, user)
+
+    await corpus.cmd_retitle(_Message(), _cmd(f"{note.id} Новое"), session, user)
+
+    events = await _events(session, "note_retitled")
+    assert events[0].payload == {"note_id": note.id}
+
+
+async def test_delete_without_an_id_explains_itself(session):
+    user = await _user(session)
+    message = _Message()
+
+    await corpus.cmd_delete(message, _cmd(), session, user)
+
+    assert message.replies == [texts.DELETE_USAGE]
+
+
+async def test_delete_removes_the_record(session):
+    user = await _user(session)
+    note = await _note(session, user)
+    note_id = note.id
+    message = _Message()
+
+    await corpus.cmd_delete(message, _cmd(str(note_id)), session, user)
+
+    assert "Производная сложной функции" in message.replies[0]
+    remaining = (await session.execute(select(Note))).scalars().all()
+    assert remaining == []
+
+
+async def test_a_deleted_record_leaves_the_listing(session):
+    user = await _user(session)
+    note = await _note(session, user)
+    await corpus.cmd_delete(_Message(), _cmd(str(note.id)), session, user)
+    message = _Message()
+
+    await corpus.cmd_notes(message, _cmd(), session, user)
+
+    assert message.replies == [texts.CORPUS_EMPTY]
+
+
+async def test_delete_cannot_reach_another_corpus(session):
+    mine = await _user(session, tg_id=1)
+    theirs = await _user(session, tg_id=2)
+    foreign = await _note(session, theirs)
+    message = _Message()
+
+    await corpus.cmd_delete(message, _cmd(str(foreign.id)), session, mine)
+
+    assert message.replies == [texts.NOTE_NOT_FOUND]
+    assert (await session.execute(select(Note))).scalars().all() != []
+
+
+async def test_the_event_outlives_the_record_it_describes(session):
+    # The row is gone, so whatever is worth knowing about it has to be in the
+    # event — that is the only trace left.
+    user = await _user(session)
+    note = await _note(session, user, page_count=4)
+    note_id = note.id
+
+    await corpus.cmd_delete(_Message(), _cmd(str(note_id)), session, user)
+
+    events = await _events(session, "note_deleted")
+    assert events[0].payload == {
+        "note_id": note_id,
+        "title": "Производная сложной функции",
+        "page_count": 4,
+    }
