@@ -32,6 +32,13 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 9. Word documents and albums
 - [x] 10. Reliability
 
+**Week 2 — getting the corpus back out:**
+
+- [ ] 11. Reading the corpus
+- [ ] 12. Search
+- [ ] 13. Correcting records
+- [ ] 14. Statistics
+
 ## State
 
 Update strictly following this template, adding or removing nothing:
@@ -39,7 +46,7 @@ Update strictly following this template, adding or removing nothing:
 ```
 Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
 Current task: none
-Next task: none
+Next task: 11
 Blockers: none
 ```
 
@@ -57,6 +64,7 @@ app/
     texts.py
     middlewares.py
     albums.py
+    corpus.py
   services/
     __init__.py
     vision.py
@@ -1354,6 +1362,199 @@ Don't rewrite previous tasks' code in the name of reliability.
 
 ---
 
+# Task 11. Reading the corpus
+
+## Create
+
+`app/bot/corpus.py` with its own `Router`: every command that reads or
+changes an existing record lives there. `handlers.py` keeps capture — photo,
+document, `/start`, the catch-all — and is not touched.
+
+**Router order in `main.py` is load-bearing.** `handlers.router` ends with a
+filterless catch-all that matches every message, so a router included after
+it never receives anything:
+
+```python
+dp.include_router(corpus.router)    # commands first
+dp.include_router(handlers.router)  # capture, and the catch-all last
+```
+
+## Do
+
+`/notes` — the last 10 records of **this user**, newest first:
+
+```
+#42 · 14.09 · Производная сложной функции · матан · 3 с.
+#41 · 13.09 · Интегрирование по частям · матан · 1 с. · нужна проверка
+```
+
+`id`, `created_at` as `DD.MM`, `title`, `subject` (omitted when `None`),
+`page_count`, and the words `нужна проверка` when `status == "needs_review"`.
+
+An empty corpus gets `texts.CORPUS_EMPTY`, not an empty list. `/notes 2`
+shows the next ten; a page past the end says so rather than replying with
+nothing.
+
+`/note 42` — the whole record: title, then markdown through the existing
+`_split_message`, then the record's flags (`needs_review`, `issues`,
+`numeric_divergences`, `uncertain`) rendered by the same `texts` helpers the
+capture path already uses. Reuse that rendering, don't write a second one.
+
+**Every query filters by `user_id`.** One user today is not a reason to write
+a query that returns someone else's record tomorrow. A foreign or missing id
+is answered with `texts.NOTE_NOT_FOUND` — identical answers, because there is
+nothing to gain from revealing that a record exists.
+
+Events: `corpus_listed` with `page` and `shown`; `note_opened` with `note_id`.
+
+## Acceptance criterion
+
+Three photos sent, `/notes` lists three records, and `/note <id>` of the
+middle one returns the text the bot replied with when it was created.
+
+## Don't do
+
+No inline buttons, no pagination state, no editing — that is task 13.
+
+---
+
+# Task 12. Search
+
+## Do
+
+`/search производная` — over `title` and `markdown` of this user's records.
+
+PostgreSQL full text with the `russian` configuration, computed in the query,
+with no stored column and no index:
+
+```python
+vector = func.to_tsvector("russian", Note.title + " " + Note.markdown)
+condition = vector.op("@@")(func.plainto_tsquery("russian", query))
+```
+
+**Why not `ILIKE`.** Russian morphology. `ILIKE '%производная%'` does not
+match «производной», and a search that misses the declined form of the word
+you just typed is not a search. `to_tsvector` stems both sides.
+
+**Why no index.** A GIN index needs a generated column and a migration, and a
+sequential scan over one student's corpus is instant. Add the index when the
+corpus makes it necessary, not in advance.
+
+Results render exactly as `/notes` renders them, capped at 10, ordered by
+`ts_rank` descending. Nothing found → `texts.SEARCH_EMPTY` naming the query.
+`/search` with no argument → `texts.SEARCH_USAGE`.
+
+Event `corpus_searched`: `query`, `found`. The query text is stored: with one
+user there is no privacy cost, and what you search for is the most direct
+signal of what the corpus is actually for.
+
+## Acceptance criterion
+
+A record containing «производной сложной функции» is found by
+`/search производная`.
+
+## Tests required
+
+That declension case, against a real PostgreSQL. SQLite has no `to_tsvector`,
+so the test is skipped without `TEST_DATABASE_URL`, the same way
+`test_spend_survives_main_rollback` is.
+
+## Don't do
+
+No ranking tuning, no `ts_headline` snippets, no searching inside `uncertain`
+or `issues`, no stored tsvector column.
+
+---
+
+# Task 13. Correcting records
+
+## Do
+
+Two operations — the ones that repair real damage to the corpus.
+
+`/retitle 42 Производная сложной функции` replaces `title`. Titles are
+derived automatically and are often wrong, and a wrong title makes a record
+unfindable by eye. Capped at 60 characters, as everywhere else.
+
+`/delete 42` deletes the record. A page shot badly enough to produce a
+plausible retelling is worse than no record at all, and the corpus is the
+product: taking garbage out of it has to be possible.
+
+Deletion is immediate, with no confirmation. A confirmation step needs either
+inline buttons or a second command, and for one user re-photographing a page
+costs less than that machinery.
+
+Both reply with the record's title, so it is visible what was affected. Both
+filter by `user_id`. A missing or foreign id → `texts.NOTE_NOT_FOUND`.
+
+Events: `note_retitled` with `note_id`; `note_deleted` with `note_id`,
+`title`, `page_count`. The row itself is gone afterwards, so anything worth
+keeping about it has to live in the event.
+
+## Acceptance criterion
+
+`/retitle` changes what `/notes` shows. `/delete` removes the record from
+`/notes` and from `/search`, and `note_deleted` remains in `events`.
+
+## Don't do
+
+Don't edit `markdown`. Don't add FSM or any conversation state. Don't
+soft-delete — no `deleted_at` column, no filtering of dead rows in every
+query from now until forever. The row goes.
+
+---
+
+# Task 14. Statistics
+
+## Do
+
+`/stats` — what the corpus has come to:
+
+```
+12 записей, 27 страниц
+Первая — 18 августа, последняя — сегодня
+Подряд: 4 дня
+```
+
+Over this user's `notes`: row count, `SUM(page_count)`, `MIN(created_at)`,
+`MAX(created_at)`. The streak is the number of consecutive UTC days ending
+today that have at least one record; a gap ends it.
+
+Empty corpus → `texts.STATS_EMPTY`. Event `stats_viewed`, no payload.
+
+## Why this belongs in the week
+
+The stage question is whether the author uses this daily, and the stated core
+value is the accumulated corpus. Both are invisible while the only way to see
+the pile is to query the database by hand. `/stats` makes accumulation
+visible, and visible accumulation is what is supposed to make leaving costly.
+
+## Acceptance criterion
+
+Records on three consecutive days give a streak of 3; skipping yesterday
+gives 1.
+
+## Don't do
+
+No charts, no per-subject breakdown, no cost or token figures — `ai_calls` is
+for psql, not for a user-facing screen.
+
+---
+
+# Definition of week-2-ready
+
+- [ ] `/notes` lists the corpus, newest first, with paging
+- [ ] `/note <id>` returns a record in full, flags included
+- [ ] `/search` finds a record by a declined form of the word
+- [ ] Every corpus query filters by `user_id`
+- [ ] A foreign id is indistinguishable from a missing one
+- [ ] `/retitle` and `/delete` change what `/notes` shows
+- [ ] `note_deleted` outlives the record it describes
+- [ ] `/stats` counts records, pages and the streak
+- [ ] Commands answer on an empty corpus without an error
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -1587,8 +1788,6 @@ for a single user.
 
 - A Mini App or any interface other than the bot
 - Flashcards, spaced repetition
-- Search across records
-- Editing a record
 - A targeted re-ask to the model about found discrepancies
 - Video, lecture transcription
 - Payments, subscriptions

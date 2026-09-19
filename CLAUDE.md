@@ -18,8 +18,12 @@ give a reason to keep feeding in notes regularly; the corpus gives a reason
 not to leave. When choosing between "improve the flashcards" and "improve
 work with the corpus," choose the corpus.
 
-**Stage:** first week, one user — the author. The goal is to check whether
-the author will actually use this daily. Not launch, not growth, not
+**Stage:** second week, one user — the author. Week 1 (capture: photo to
+structured record) is built and unit-tested, but has never been confirmed
+end to end on the deployed bot — the "Definition of week-ready" checklist in
+`PLAN.md` is still open. Week 2 gives the corpus a way out: reading, search,
+correction, statistics. The question the whole thing exists to answer is
+still whether the author uses this daily. Not launch, not growth, not
 revenue, not scale.
 
 ---
@@ -224,6 +228,11 @@ hands the whole batch to a single caller; every other caller gets `None` and
 **must return without replying**. Reply there and the album gets processed
 once per page.
 
+**Router order in `main.py` is load-bearing.** `handlers.router` ends with a
+filterless catch-all that matches every message, so any router included after
+it receives nothing. `corpus.router` is included **first**, capture second.
+Adding a third router means deciding where it goes relative to that catch-all.
+
 **`.docx` bypasses the model entirely.** No limits are checked and no quota
 is spent, so a Word file is still processed with `AI_ENABLED=false` — it is
 already machine text. Only the empty-text gate (step 11) still applies.
@@ -277,6 +286,7 @@ app/
     texts.py          all user-facing messages
     middlewares.py    DB session and user injected into handlers
     albums.py         album buffer and assembly
+    corpus.py         reading, search and correction commands
   services/
     vision.py         Gemini: prompt, response parsing, three runs
     images.py         compression
@@ -395,7 +405,6 @@ Everything below is deliberately postponed. Don't suggest or implement:
 
 - A Mini App or any interface other than the bot
 - Flashcards and spaced repetition (third week)
-- Search across the corpus and editing records (second week)
 - Video and lecture transcription
 - Payments, subscriptions, pricing tiers
 - Custom registration and passwords — identity already comes from Telegram
