@@ -28,33 +28,6 @@ async def cmd_start(message: Message, session: AsyncSession, user: User) -> None
     await message.answer(texts.START)
 
 
-# Telegram rejects messages over 4096 characters. Split on blank lines; hard-cut
-# only a single paragraph that is itself longer than the limit.
-_MESSAGE_LIMIT = 4000
-
-
-def _split_message(text: str, limit: int = _MESSAGE_LIMIT) -> list[str]:
-    if len(text) <= limit:
-        return [text]
-    chunks: list[str] = []
-    current = ""
-    for para in text.split("\n\n"):
-        candidate = f"{current}\n\n{para}" if current else para
-        if len(candidate) <= limit:
-            current = candidate
-            continue
-        if current:
-            chunks.append(current)
-            current = ""
-        while len(para) > limit:
-            chunks.append(para[:limit])
-            para = para[limit:]
-        current = para
-    if current:
-        chunks.append(current)
-    return chunks
-
-
 @router.message(F.photo)
 async def handle_photo(
     message: Message, session: AsyncSession, user: User, bot: Bot
@@ -204,7 +177,7 @@ async def handle_photo(
         },
     )
 
-    for chunk in _split_message(f"{result.best.title}\n\n{result.best.markdown}"):
+    for chunk in texts.split_message(f"{result.best.title}\n\n{result.best.markdown}"):
         await message.answer(chunk)
 
     # Items 2–5 of the final reply go in one message after the main text: the
@@ -301,7 +274,7 @@ async def handle_document(
         },
     )
 
-    for chunk in _split_message(f"{note.title}\n\n{markdown}"):
+    for chunk in texts.split_message(f"{note.title}\n\n{markdown}"):
         await message.answer(chunk)
 
 
@@ -393,7 +366,7 @@ async def _process_album(
         },
     )
 
-    for chunk in _split_message(f"{rec.title}\n\n{rec.markdown}"):
+    for chunk in texts.split_message(f"{rec.title}\n\n{rec.markdown}"):
         await message.answer(chunk)
 
     flags: list[str] = []

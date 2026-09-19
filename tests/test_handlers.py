@@ -52,32 +52,32 @@ async def _user(session) -> User:
 
 
 def test_short_text_is_not_split():
-    assert handlers._split_message("коротко") == ["коротко"]
+    assert texts.split_message("коротко") == ["коротко"]
 
 
 def test_text_exactly_at_the_limit_is_not_split():
     text = "я" * 10
-    assert handlers._split_message(text, limit=10) == [text]
+    assert texts.split_message(text, limit=10) == [text]
 
 
 def test_split_happens_on_blank_lines():
-    chunks = handlers._split_message("аааа\n\nбббб\n\nвввв", limit=10)
+    chunks = texts.split_message("аааа\n\nбббб\n\nвввв", limit=10)
     assert chunks == ["аааа\n\nбббб", "вввв"]
 
 
 def test_a_paragraph_longer_than_the_limit_is_hard_cut():
-    chunks = handlers._split_message("я" * 25, limit=10)
+    chunks = texts.split_message("я" * 25, limit=10)
     assert chunks == ["я" * 10, "я" * 10, "я" * 5]
 
 
 def test_every_chunk_respects_the_limit():
     text = "\n\n".join("абзац номер %d" % i for i in range(50))
-    assert all(len(chunk) <= 100 for chunk in handlers._split_message(text, limit=100))
+    assert all(len(chunk) <= 100 for chunk in texts.split_message(text, limit=100))
 
 
 def test_nothing_is_lost_when_splitting():
     text = "\n\n".join("абзац %d" % i for i in range(30))
-    assert "".join(handlers._split_message(text, limit=40)).replace("\n", "") == (
+    assert "".join(texts.split_message(text, limit=40)).replace("\n", "") == (
         text.replace("\n", "")
     )
 

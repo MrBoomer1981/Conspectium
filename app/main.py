@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import texts
+from app.bot import corpus, texts
 from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
 dp.message.outer_middleware(DbSessionMiddleware())
+# Order matters: handlers.router ends with a filterless catch-all that
+# matches every message, so a router included after it gets nothing.
+dp.include_router(corpus.router)
 dp.include_router(router)
 
 WEBHOOK_PATH = f"/webhook/{settings.WEBHOOK_SECRET}"

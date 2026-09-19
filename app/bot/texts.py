@@ -1,5 +1,7 @@
 """Все строки, которые видит пользователь."""
 
+from datetime import datetime
+
 START = (
     "Привет! Пришли фотографию конспекта — верну структурированную запись.\n\n"
     "Записи накапливаются: со временем из них соберётся твой личный корпус."
@@ -83,3 +85,73 @@ def uncertain_line(text: str, why: str, page: int | None = None) -> str:
     `page` prefixes the line for an album record."""
     prefix = f"с. {page} — " if page is not None else ""
     return f'{prefix}"{text}" — {why}'
+
+
+# ── The corpus — app/bot/corpus.py ───────────────────────────────────────────
+
+CORPUS_EMPTY = (
+    "Корпус пока пуст. Пришли фотографию страницы конспекта — появится "
+    "первая запись."
+)
+
+NOTE_NOT_FOUND = "Записи с таким номером нет."
+
+NOTE_USAGE = "Укажи номер записи: /note 42"
+
+NOTES_PAGE_EMPTY = "На этой странице записей нет."
+
+NEEDS_REVIEW_SHORT = "нужна проверка"
+
+
+def note_line(
+    note_id: int,
+    created_at: datetime,
+    title: str,
+    subject: str | None,
+    page_count: int,
+    needs_review: bool,
+) -> str:
+    """One record in a listing. Subject is omitted when the model didn't name
+    one, so a record without it doesn't show an empty gap."""
+    parts = [f"#{note_id}", created_at.strftime("%d.%m"), title]
+    if subject:
+        parts.append(subject)
+    parts.append(f"{page_count} с.")
+    if needs_review:
+        parts.append(NEEDS_REVIEW_SHORT)
+    return " · ".join(parts)
+
+
+def notes_footer(total: int, page: int, per_page: int) -> str | None:
+    """The line under a listing, or None when everything already fits."""
+    shown = min(page * per_page, total)
+    if shown >= total:
+        return None
+    return f"Показано {shown} из {total}. Дальше — /notes {page + 1}"
+
+
+# Telegram rejects messages over 4096 characters. Split on blank lines; hard-cut
+# only a single paragraph that is itself longer than the limit.
+MESSAGE_LIMIT = 4000
+
+
+def split_message(text: str, limit: int = MESSAGE_LIMIT) -> list[str]:
+    if len(text) <= limit:
+        return [text]
+    chunks: list[str] = []
+    current = ""
+    for para in text.split("\n\n"):
+        candidate = f"{current}\n\n{para}" if current else para
+        if len(candidate) <= limit:
+            current = candidate
+            continue
+        if current:
+            chunks.append(current)
+            current = ""
+        while len(para) > limit:
+            chunks.append(para[:limit])
+            para = para[limit:]
+        current = para
+    if current:
+        chunks.append(current)
+    return chunks

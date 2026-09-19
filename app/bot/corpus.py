@@ -1,0 +1,183 @@
+"""Commands that read and change records already in the corpus.
+
+Its own Router, and `main.py` includes it **before** `handlers.router`:
+handlers ends with a filterless catch-all that matches every message, so a
+router registered after it would never receive a command.
+
+Nothing here calls the model — the corpus is already text. Every query
+filters by `user_id`: one user today is not a reason to write a query that
+returns someone else's record tomorrow.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from aiogram import Router
+from aiogram.filters import Command, CommandObject
+from aiogram.types import Message
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.bot import texts
+from app.core.events import log_event
+from app.db.models import Note, User
+from app.services import mathcheck
+
+logger = logging.getLogger(__name__)
+
+router = Router()
+
+_PAGE_SIZE = 10
+
+# mathcheck.Issue's own fields. Stored issues carry an extra `page` for album
+# records, and rows written by an older version may not match today's
+# dataclass at all — so the dict is filtered down rather than splatted.
+_ISSUE_FIELDS = ("kind", "severity", "message", "detail", "suggestion")
+
+
+def _page_number(args: str | None) -> int:
+    """`/notes 2` -> 2. Anything unparseable is page 1: a typo should show the
+    first page, not an error."""
+    if not args:
+        return 1
+    try:
+        return max(1, int(args.strip().split()[0]))
+    except (ValueError, IndexError):
+        return 1
+
+
+def _note_id(args: str | None) -> int | None:
+    if not args:
+        return None
+    try:
+        return int(args.strip().split()[0].lstrip("#"))
+    except (ValueError, IndexError):
+        return None
+
+
+async def _load(session: AsyncSession, user: User, note_id: int) -> Note | None:
+    """One record of this user, or None. A record belonging to someone else is
+    indistinguishable from one that doesn't exist — there is nothing to gain
+    from confirming it is out there."""
+    stmt = select(Note).where(Note.id == note_id, Note.user_id == user.id)
+    return (await session.execute(stmt)).scalar_one_or_none()
+
+
+def _flags(note: Note) -> str | None:
+    """The same four flag blocks the capture path sends after a record, rebuilt
+    from what was stored. The rendering itself is reused — mathcheck's own
+    render() and the texts helpers — only the assembly from JSONB is new."""
+    blocks: list[str] = []
+    if note.status == "needs_review":
+        blocks.append(texts.NEEDS_REVIEW)
+
+    if note.issues:
+        try:
+            report = mathcheck.Report(
+                issues=[
+                    mathcheck.Issue(
+                        **{k: v for k, v in issue.items() if k in _ISSUE_FIELDS}
+                    )
+                    for issue in note.issues
+                ]
+            )
+            blocks.append(report.render())
+        except (TypeError, AttributeError):
+            # A stored shape this version cannot read is not a reason to fail
+            # the whole record: the text itself is what the user asked for.
+            logger.warning("note %d: unreadable issues payload", note.id)
+
+    if note.numeric_divergences:
+        lines = [texts.DIVERGENCES_HEADER]
+        lines += [
+            texts.divergence_line(
+                d.get("context", ""), d.get("variants", {}), page=d.get("page")
+            )
+            for d in note.numeric_divergences
+            if isinstance(d, dict)
+        ]
+        blocks.append("\n".join(lines))
+
+    if note.uncertain:
+        lines = [texts.UNCERTAIN_HEADER]
+        lines += [
+            texts.uncertain_line(u.get("text", ""), u.get("why", ""), page=u.get("page"))
+            for u in note.uncertain
+            if isinstance(u, dict)
+        ]
+        blocks.append("\n".join(lines))
+
+    return "\n\n".join(blocks) if blocks else None
+
+
+@router.message(Command("notes"))
+async def cmd_notes(
+    message: Message, command: CommandObject, session: AsyncSession, user: User
+) -> None:
+    page = _page_number(command.args)
+
+    total = (
+        await session.execute(
+            select(func.count()).select_from(Note).where(Note.user_id == user.id)
+        )
+    ).scalar_one()
+    if total == 0:
+        await message.answer(texts.CORPUS_EMPTY)
+        return
+
+    stmt = (
+        select(Note)
+        .where(Note.user_id == user.id)
+        # id breaks the tie: several records can share a second.
+        .order_by(Note.created_at.desc(), Note.id.desc())
+        .offset((page - 1) * _PAGE_SIZE)
+        .limit(_PAGE_SIZE)
+    )
+    notes = (await session.execute(stmt)).scalars().all()
+
+    await log_event(session, user.id, "corpus_listed", {"page": page, "shown": len(notes)})
+
+    if not notes:
+        await message.answer(texts.NOTES_PAGE_EMPTY)
+        return
+
+    lines = [
+        texts.note_line(
+            n.id,
+            n.created_at,
+            n.title,
+            n.subject,
+            n.page_count,
+            n.status == "needs_review",
+        )
+        for n in notes
+    ]
+    footer = texts.notes_footer(total, page, _PAGE_SIZE)
+    if footer:
+        lines += ["", footer]
+    for chunk in texts.split_message("\n".join(lines)):
+        await message.answer(chunk)
+
+
+@router.message(Command("note"))
+async def cmd_note(
+    message: Message, command: CommandObject, session: AsyncSession, user: User
+) -> None:
+    note_id = _note_id(command.args)
+    if note_id is None:
+        await message.answer(texts.NOTE_USAGE)
+        return
+
+    note = await _load(session, user, note_id)
+    if note is None:
+        await message.answer(texts.NOTE_NOT_FOUND)
+        return
+
+    await log_event(session, user.id, "note_opened", {"note_id": note.id})
+
+    for chunk in texts.split_message(f"{note.title}\n\n{note.markdown}"):
+        await message.answer(chunk)
+    flags = _flags(note)
+    if flags:
+        await message.answer(flags)
