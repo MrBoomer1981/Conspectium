@@ -36,6 +36,15 @@ dp.include_router(router)
 
 WEBHOOK_PATH = f"/webhook/{settings.WEBHOOK_SECRET}"
 
+# Updates are processed after the response, so the tasks need an owner:
+# asyncio keeps only a weak reference to a running task, and one that nothing
+# else holds can be collected mid-flight.
+_in_flight: set[asyncio.Task] = set()
+
+# Not a limit, just a line in the log. Every in-flight update holds a DB
+# session and a photo in memory, and the pool is 5 + 15.
+_BUSY_WARNING_AT = 15
+
 
 @dp.errors()
 async def on_error(event: ErrorEvent) -> None:
@@ -136,6 +145,12 @@ async def lifespan(app: FastAPI):
     yield
 
     warm_up.cancel()
+    if _in_flight:
+        # Shutdown wins: an album can run for minutes, far past any grace
+        # period, so waiting is futile. Log the loss rather than hide it.
+        logger.warning("dropping %d updates still in flight", len(_in_flight))
+        for task in list(_in_flight):
+            task.cancel()
     await bot.session.close()
 
 
@@ -170,5 +185,27 @@ async def telegram_webhook(
         raise HTTPException(status_code=403)
 
     update = Update.model_validate(await request.json(), context={"bot": bot})
-    await dp.feed_update(bot, update)
+
+    # Answer first, work afterwards. Telegram delivers the updates of one chat
+    # strictly in sequence: it will not send the next one until this request
+    # ends. Processing a photo takes ~9 s, so handling it inline meant the
+    # other pages of an album could not arrive until the first was finished —
+    # the album closed with one page and the rest were dropped as stragglers.
+    # Updates from *different* chats are already delivered concurrently, so
+    # this costs other users nothing and gains them nothing either.
+    task = asyncio.create_task(_process(update))
+    _in_flight.add(task)
+    task.add_done_callback(_in_flight.discard)
+    if len(_in_flight) >= _BUSY_WARNING_AT:
+        logger.warning("%d updates in flight", len(_in_flight))
     return {"ok": True}
+
+
+async def _process(update: Update) -> None:
+    """Run an update outside the request. Nothing above this catches errors any
+    more, so the last resort has to be here: aiogram's @dp.errors() handles
+    what happens inside a handler, this covers everything around it."""
+    try:
+        await dp.feed_update(bot, update)
+    except Exception:
+        logger.exception("update %s failed outside the error handler", update.update_id)
