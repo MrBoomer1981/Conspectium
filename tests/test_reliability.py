@@ -113,7 +113,7 @@ async def test_retry_then_success(monkeypatch, sqlite_maker):
 
 async def test_album_batch_has_one_owner(monkeypatch):
     monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.05)
-    albums._buffer.clear()
+    albums.reset()
 
     async def handler(message_id: int):
         albums.add_page(

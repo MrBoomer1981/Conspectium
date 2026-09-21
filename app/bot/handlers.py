@@ -1,5 +1,6 @@
 """Aiogram handlers."""
 
+import asyncio
 import logging
 import time
 from dataclasses import asdict
@@ -33,8 +34,16 @@ async def handle_photo(
     message: Message, session: AsyncSession, user: User, bot: Bot
 ) -> None:
     photo = message.photo[-1]
+    # Announced before the download, not after: albums.collect() times the
+    # album from here, and a page that takes seconds to fetch must not let the
+    # batch close without it (albums.announce explains the rest).
+    if message.media_group_id:
+        albums.announce(message.media_group_id, message.message_id)
+
     original = (await bot.download(photo)).read()
-    compressed = images.compress(original)
+    # Resizing a 12-megapixel photo is CPU-bound; on the event loop it would
+    # freeze every other page of the same album while it runs.
+    compressed = await asyncio.to_thread(images.compress, original)
 
     # Step 0: an album arrives as separate messages sharing a media_group_id.
     # Buffer this page and let a single update assemble the whole batch; the

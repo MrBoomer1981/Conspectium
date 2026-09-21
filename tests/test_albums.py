@@ -284,9 +284,7 @@ async def _arrive(group: str, message_id: int, delay: float):
 
 
 def _reset() -> None:
-    albums._buffer.clear()
-    albums._first_page_at.clear()
-    albums._last_page_at.clear()
+    albums.reset()
 
 
 async def test_pages_trickling_in_stay_in_one_batch(monkeypatch):
@@ -430,3 +428,106 @@ async def test_the_batch_closes_one_window_after_the_last_page(monkeypatch):
 
     assert [len(r) for r in results if r is not None] == [2]
     assert elapsed < last_page_at + 0.3 * 2
+
+
+# ── the two-step registration ────────────────────────────────────────────────
+# The album that kept arriving as four separate records. Telegram delivers the
+# four updates milliseconds apart, but a page only reaches the buffer once it
+# has been downloaded and compressed — seconds per photo. Timing the debounce
+# from the buffer measured our own download speed, so the first page to finish
+# saw a quiet album and took the batch while the rest were still in flight.
+
+
+async def _announce_then_deliver(group: str, message_id: int, download_takes: float):
+    """A page announced at once, its bytes arriving `download_takes` later."""
+    albums.announce(group, message_id)
+    await asyncio.sleep(download_takes)
+    albums.add_page(group, _input(message_id, group))
+    return await albums.collect(group)
+
+
+async def test_a_slow_download_does_not_split_the_album(monkeypatch):
+    # The regression. One page takes far longer than the quiet window to
+    # fetch; the batch must wait for it rather than go out without it.
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.3)
+    monkeypatch.setattr(albums, "_POLL_SECONDS", 0.02)
+    _reset()
+
+    results = await asyncio.gather(
+        _announce_then_deliver("grp", 1, 0.05),
+        _announce_then_deliver("grp", 2, 0.10),
+        _announce_then_deliver("grp", 3, 0.15),
+        _announce_then_deliver("grp", 4, 1.20),  # the straggler
+    )
+
+    batches = [r for r in results if r is not None]
+    assert len(batches) == 1
+    assert len(batches[0]) == 4
+
+
+async def test_the_batch_waits_for_every_announced_page(monkeypatch):
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.2)
+    monkeypatch.setattr(albums, "_POLL_SECONDS", 0.02)
+    _reset()
+
+    albums.announce("grp", 1)
+    albums.announce("grp", 2)
+    albums.add_page("grp", _input(1))
+
+    # Only one of the two announced pages is ready, so nothing may close yet.
+    collector = asyncio.create_task(albums.collect("grp"))
+    await asyncio.sleep(0.5)
+    assert not collector.done()
+
+    albums.add_page("grp", _input(2))
+    pages = await collector
+    assert len(pages) == 2
+
+
+async def test_a_page_arriving_after_its_batch_went_out_is_dropped(monkeypatch):
+    # Otherwise the straggler opens a second record — the very thing the whole
+    # fix is about.
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.1)
+    monkeypatch.setattr(albums, "_POLL_SECONDS", 0.02)
+    _reset()
+
+    albums.announce("grp", 1)
+    albums.add_page("grp", _input(1))
+    first = await albums.collect("grp")
+    assert first is not None and len(first) == 1
+
+    albums.add_page("grp", _input(2))  # too late
+    assert albums._buffer == {}
+    assert await albums.collect("grp") is None
+
+
+async def test_an_album_whose_pages_never_download_yields_nothing(monkeypatch):
+    # The ceiling fires with an empty buffer. Returning an empty list here
+    # would send process_batch into asyncio.wait with nothing to wait on.
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.05)
+    monkeypatch.setattr(albums, "_COLLECT_MAX_S", 0.2)
+    monkeypatch.setattr(albums, "_POLL_SECONDS", 0.02)
+    _reset()
+
+    albums.announce("grp", 1)
+    albums.announce("grp", 2)
+
+    assert await albums.collect("grp") is None
+
+
+async def test_announce_is_idempotent_for_the_same_page(monkeypatch):
+    _reset()
+    albums.announce("grp", 1)
+    albums.announce("grp", 1)
+    assert albums._announced["grp"] == {1}
+
+
+async def test_a_page_never_announced_announces_itself(monkeypatch):
+    # The buffer must never be fed behind the registry's back.
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.05)
+    _reset()
+
+    albums.add_page("grp", _input(3))
+    pages = await albums.collect("grp")
+
+    assert pages is not None and len(pages) == 1

@@ -57,25 +57,78 @@ class PageInput:
     height: int
 
 
+# Pages whose bytes have arrived.
 _buffer: dict[str, list[PageInput]] = {}
-# Arrival times per group, kept beside the buffer so the debounce can measure
-# silence since the last page rather than since an arbitrary sleep started.
+# Pages Telegram has told us about, downloaded or not. This is the authority
+# on what the album contains; _buffer only says how much of it is ready.
+_announced: dict[str, set[int]] = {}
 _first_page_at: dict[str, float] = {}
 _last_page_at: dict[str, float] = {}
+# Groups already handed to a caller, with when. A page that turns up after its
+# batch went out is dropped rather than allowed to open a second record.
+_claimed: dict[str, float] = {}
 
 
-def add_page(media_group_id: str, page: PageInput) -> None:
-    _buffer.setdefault(media_group_id, []).append(page)
+def announce(media_group_id: str, message_id: int) -> None:
+    """Register a page the moment its update arrives, *before* it is
+    downloaded.
+
+    This is the whole point of the two steps. Telegram delivers the updates of
+    an album milliseconds apart, but a page only reaches `_buffer` once it has
+    been fetched and compressed, which takes seconds per photo. Timing the
+    debounce from the buffer measured our own download speed: the first page to
+    finish saw a quiet album and claimed the batch alone while the rest were
+    still in flight. Timing it from here measures what it is supposed to.
+    """
     now = time.monotonic()
+    _prune_claimed(now)
+    if media_group_id in _claimed:
+        return
+    _announced.setdefault(media_group_id, set()).add(message_id)
     _first_page_at.setdefault(media_group_id, now)
     _last_page_at[media_group_id] = now
 
 
+def add_page(media_group_id: str, page: PageInput) -> None:
+    """The page's bytes, once downloaded. Announcing first is the normal path;
+    a page that was never announced is taken as its own announcement so the
+    buffer can never be fed behind the registry's back."""
+    if media_group_id in _claimed:
+        logger.warning(
+            "page %d arrived after album %s was assembled; dropped",
+            page.message_id,
+            media_group_id,
+        )
+        return
+    if page.message_id not in _announced.get(media_group_id, ()):
+        announce(media_group_id, page.message_id)
+    _buffer.setdefault(media_group_id, []).append(page)
+
+
+def reset() -> None:
+    """Drop every album in flight. The buffer lives in the process, so a
+    restart does exactly this in production: an unfinished album is lost, which
+    is the accepted trade for not introducing Redis for one user."""
+    for registry in (_buffer, _announced, _first_page_at, _last_page_at, _claimed):
+        registry.clear()
+
+
+def _prune_claimed(now: float) -> None:
+    """A claimed group is only remembered long enough to catch stragglers."""
+    for group, when in list(_claimed.items()):
+        if now - when > _COLLECT_MAX_S:
+            del _claimed[group]
+
+
 def _forget(media_group_id: str) -> list[PageInput] | None:
     pages = _buffer.pop(media_group_id, None)
+    _announced.pop(media_group_id, None)
     _first_page_at.pop(media_group_id, None)
     _last_page_at.pop(media_group_id, None)
-    return pages
+    _claimed[media_group_id] = time.monotonic()
+    # None, not an empty list: the caller reads None as "not mine, say
+    # nothing", and process_batch has nothing to wait on for an empty batch.
+    return pages or None
 
 
 async def collect(media_group_id: str) -> list[PageInput] | None:
@@ -83,22 +136,27 @@ async def collect(media_group_id: str) -> list[PageInput] | None:
     caller. Every other caller for the same group gets None and must return
     without replying — otherwise the batch is processed once per page.
 
-    The batch closes once _QUIET_SECONDS have passed with no new page, so a
-    slow trickle keeps the window open instead of splitting the album. The
-    _COLLECT_MAX_S ceiling bounds the wait either way."""
+    Two conditions have to hold: _QUIET_SECONDS with nothing new announced, so
+    the album has stopped growing, and every announced page downloaded, so
+    nothing still in flight is left behind. The _COLLECT_MAX_S ceiling bounds
+    the wait either way — a download that never finishes must not strand the
+    pages that did."""
     while True:
-        if media_group_id not in _buffer:
+        if media_group_id not in _announced:
             return None  # another caller already claimed this batch
         now = time.monotonic()
         quiet_for = now - _last_page_at[media_group_id]
-        if quiet_for >= _QUIET_SECONDS:
+        downloaded = len(_buffer.get(media_group_id, ()))
+        expected = len(_announced[media_group_id])
+        if quiet_for >= _QUIET_SECONDS and downloaded >= expected:
             break
         if now - _first_page_at[media_group_id] >= _COLLECT_MAX_S:
             logger.warning(
-                "album %s still arriving after %ds, assembling %d pages",
+                "album %s: %d of %d pages ready after %ds, assembling anyway",
                 media_group_id,
+                downloaded,
+                expected,
                 _COLLECT_MAX_S,
-                len(_buffer[media_group_id]),
             )
             break
         # Never overshoot the moment the quiet window expires.
