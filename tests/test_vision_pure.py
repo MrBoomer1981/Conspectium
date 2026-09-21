@@ -208,3 +208,69 @@ def test_the_filter_does_not_depend_on_the_modules_wording():
     assert vision._is_value("— (пропущено)") is False
     assert vision._is_value("7") is True
     assert vision._is_value("-2.5e3") is True
+
+
+# ── the filter is actually wired in ──────────────────────────────────────────
+# meaningful_divergences being correct is worth nothing if transcribe_consensus
+# forgets to call it, and that omission is invisible to every test above.
+
+from app.services.vision import Transcription  # noqa: E402
+
+
+def _transcription(markdown: str) -> Transcription:
+    return Transcription(
+        title="Графы",
+        subject=None,
+        markdown=markdown,
+        margin_notes=[],
+        uncertain=[],
+        numeric_tokens=[],
+        unreadable_count=0,
+    )
+
+
+async def _stub_runs(monkeypatch, markdowns: list[str]) -> None:
+    """Make each transcribe() call hand back the next prepared run."""
+    remaining = list(markdowns)
+
+    async def fake_transcribe(image_bytes):
+        return _transcription(remaining.pop(0)), []
+
+    monkeypatch.setattr(vision, "transcribe", fake_transcribe)
+    monkeypatch.setattr(vision.settings, "VISION_RUNS", len(markdowns))
+
+
+async def test_consensus_does_not_report_alignment_noise(monkeypatch):
+    # The third run drops the list numbering the other two kept. Nothing here
+    # is a misreading, so nothing should reach the user.
+    await _stub_runs(
+        monkeypatch,
+        [
+            "1. Граф\n2. Вершина\nСтепень равна 5",
+            "1. Граф\n2. Вершина\nСтепень равна 5",
+            "Граф\nВершина\nСтепень равна 5",
+        ],
+    )
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert result.numeric_divergences == []
+
+
+async def test_consensus_still_reports_a_real_misreading(monkeypatch):
+    # Same page, but the runs disagree about a value: that has to survive.
+    await _stub_runs(
+        monkeypatch,
+        [
+            "Степень вершины равна 5",
+            "Степень вершины равна 5",
+            "Степень вершины равна 1",
+        ],
+    )
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert len(result.numeric_divergences) == 1
+    assert set(result.numeric_divergences[0].variants) == {"5", "1"}
