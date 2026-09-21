@@ -138,7 +138,7 @@ AI_ENABLED=true
 DAILY_PAGES_PER_USER=30
 DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3
-VISION_MODEL=gemini-2.5-flash-lite
+VISION_MODEL=gemini-3.5-flash-lite
 MIN_MARKDOWN_LEN=40
 MAX_ALBUM_PAGES=10
 LOG_LEVEL=INFO
@@ -381,7 +381,7 @@ variables. A module-level `settings` instance. Validation for
 `VISION_RUNS >= 2`. The pricing constant:
 
 ```python
-PRICE_PER_MTOK = {"gemini-2.5-flash-lite": (0.10, 0.40)}  # (input, output), USD
+PRICE_PER_MTOK = {"gemini-3.5-flash-lite": (0.30, 2.50)}  # (input, output), USD
 ```
 
 Model missing from the dict → cost is `None`, not a `KeyError`.

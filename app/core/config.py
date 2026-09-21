@@ -6,6 +6,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # (input, output) price in USD per million tokens.
 # A model missing from this dict means unknown cost, not an error.
 PRICE_PER_MTOK: dict[str, tuple[float, float]] = {
+    "gemini-3.5-flash-lite": (0.30, 2.50),
+    # Retired: closed to new accounts since September 2026, kept for the
+    # ai_calls rows already written against it and for any key that still
+    # has access.
     "gemini-2.5-flash-lite": (0.10, 0.40),
 }
 
@@ -24,7 +28,7 @@ class Settings(BaseSettings):
     DAILY_PAGES_PER_USER: int = 30
     DAILY_COST_LIMIT_USD: float = 5
     VISION_RUNS: int = 3
-    VISION_MODEL: str = "gemini-2.5-flash-lite"
+    VISION_MODEL: str = "gemini-3.5-flash-lite"
     MIN_MARKDOWN_LEN: int = 40
     MAX_ALBUM_PAGES: int = 10
     LOG_LEVEL: str = "INFO"

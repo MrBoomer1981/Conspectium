@@ -92,3 +92,16 @@ def test_the_default_model_is_priced():
     # skipped by the SUM behind DAILY_COST_LIMIT_USD — the cost circuit
     # breaker would go quiet without anything failing.
     assert _settings().VISION_MODEL in PRICE_PER_MTOK
+
+
+def test_the_current_model_is_priced_correctly():
+    # Gemini 3.5 Flash-Lite, paid tier: $0.30 in / $2.50 out per Mtok. Output
+    # is over six times what the retired 2.5 cost, so a page is now worth
+    # roughly $0.009 across three runs rather than $0.002.
+    assert PRICE_PER_MTOK["gemini-3.5-flash-lite"] == (0.30, 2.50)
+
+
+def test_the_retired_model_keeps_its_price():
+    # ai_calls rows already reference it; dropping the entry would turn their
+    # cost into NULL on any recomputation.
+    assert PRICE_PER_MTOK["gemini-2.5-flash-lite"] == (0.10, 0.40)

@@ -34,7 +34,7 @@ revenue, not scale.
 - FastAPI — bot webhook and the future home of the Mini App API, single process
 - aiogram 3.x — bot, webhook only, no polling
 - SQLAlchemy 2.x (async) + Alembic + PostgreSQL (Railway addon)
-- Google Gemini 2.5 Flash Lite — recognition
+- Google Gemini 3.5 Flash Lite — recognition
 - Pillow + numpy — image processing
 - Railway — hosting
 
@@ -129,6 +129,14 @@ No linter is configured yet — don't add one without an explicit request.
 
 These conclusions come from real runs. Don't revisit them without new
 data — each one stands on a reproduced failure.
+
+All of them were established on `gemini-2.5-flash-lite`, which Google closed
+to new accounts in September 2026; recognition now runs on
+`gemini-3.5-flash-lite`. The findings are kept because each cost a real
+failure to discover, but they are evidence about the old model. If
+recognition starts behaving differently — the prompt length trade-off, the
+value of three runs, the uselessness of self-assessment — the model change is
+the first thing to suspect, and a fresh reproduction outranks the note.
 
 **A short prompt beats a long one.** A 1500-word version of the prompt
 fixed one thing and broke three that the 250-word version read correctly.
@@ -327,7 +335,7 @@ AI_ENABLED=true          kill switch for all model calls
 DAILY_PAGES_PER_USER=30
 DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3
-VISION_MODEL=gemini-2.5-flash-lite
+VISION_MODEL=gemini-3.5-flash-lite
 MIN_MARKDOWN_LEN=40
 MAX_ALBUM_PAGES=10
 LOG_LEVEL=INFO
