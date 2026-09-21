@@ -149,7 +149,10 @@ the first thing to suspect, and a fresh reproduction outranks the note.
 **A short prompt beats a long one.** A 1500-word version of the prompt
 fixed one thing and broke three that the 250-word version read correctly.
 Every extra rule steals attention from the main task.
-**Don't lengthen `TRANSCRIBE_PROMPT`.**
+**Don't lengthen `TRANSCRIBE_PROMPT`.** That is a budget, not a wall: 250
+words is the length that was proven to work, and `prompts-v3.md` is at 226.
+Rewrite a rule rather than adding one, count the words, stay under it — and
+if the count ever has to go up, say so and measure the result.
 
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a
@@ -278,6 +281,29 @@ three capture paths finish by calling `corpus.send_record`. Rendering is
 CPU-bound and runs in a thread; if it fails for any reason the record is sent
 as plain text instead. A record is never lost over its presentation.
 
+**mathtext is not LaTeX.** matplotlib rejects `\limits`, `\nolimits`,
+`\displaystyle`, `\mbox` and every matrix environment outright, and a formula
+it rejects is printed as its own source. That is not hypothetical:
+`\sum\limits_{i=1}^p` went out on a deployed record as raw backslashes while
+the same sum written `\sum_{i=1}^p` drew perfectly two pages later.
+`pdf.for_mathtext` drops the commands that either do nothing to the layout or
+have a synonym mathtext knows. It cannot rescue `\begin{pmatrix}` — a matrix
+has to arrive as a markdown table to be drawn at all.
+
+**A drawing comes back as data, not a sentence about itself.** Rule 6 of
+`prompts-v3.md` asks for a graph as `[граф: 1-2, 2->3, 3-3]` and for a matrix
+or table as an ordinary markdown table; `pdf.blocks()` turns both into
+pictures, and `[схема: ...]` still carries everything that is neither. The two
+sides are one contract in two files: change the syntax on either and the
+record still renders, it just prints the spec where the drawing should be.
+
+Asking for the structure of a drawing asks the model to **interpret**, which
+is what it is worst at — and a wrong edge looks exactly as authoritative as a
+right one. Rule 6 forbids adding edges it cannot see, and `parse_graph`
+refuses anything that doesn't read as vertices, but nothing yet compares the
+three runs against each other the way numbers are compared. Recorded under
+`PLAN.md` → Known risks.
+
 **`.docx` bypasses the model entirely.** No limits are checked and no quota
 is spent, so a Word file is still processed with `AI_ENABLED=false` — it is
 already machine text. Only the empty-text gate (step 11) still applies.
@@ -378,7 +404,7 @@ app/
     images.py         compression
     limits.py         spend limits
     docx.py           .docx -> markdown, no model call
-    pdf.py            a record as a PDF, formulas drawn
+    pdf.py            a record as a PDF: formulas, graphs, tables
     photoguard.py     ready-made
     consensus.py      ready-made
     mathcheck.py      ready-made
@@ -450,7 +476,7 @@ needs a database runs on in-memory SQLite.
 | `test_corpus.py` | listing, opening, correcting, statistics — and that no query reaches another user's records |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
-| `test_pdf.py` | how a page is parsed into blocks, escaping, and that an unreadable formula never sinks the document |
+| `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses, graphs read back from `[граф: ...]`, and that nothing unreadable ever sinks the document |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the

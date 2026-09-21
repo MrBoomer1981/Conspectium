@@ -1770,6 +1770,16 @@ cost of one album — at current prices, that's cents.
 container — an unfinished batch is silently lost. Redis doesn't pay off
 for a single user.
 
+**A graph read off a drawing is unchecked.** Rule 6 of the prompt asks for
+`[граф: 1-2, 2->3]` and `pdf.py` draws it. Reading the structure of a
+hand-drawn graph is interpretation, and interpretation is where the model
+invents — but unlike invented prose, an invented edge carries no tell. It is
+drawn as confidently as a real one. `parse_graph` refuses text that doesn't
+read as vertices, which catches prose, not a plausible wrong edge. The fix
+is the one that already works for numbers: compare the three runs' edge
+lists and mark the record `needs_review` when they disagree. Deferred on
+purpose — its own task.
+
 ---
 
 # Definition of week-ready
