@@ -117,6 +117,14 @@ def test_the_prompt_file_defaults_to_the_one_in_the_repo():
     assert settings.PROMPT_FILE == "prompts-v3.md"
 
 
+def test_image_compression_defaults_to_what_rule_two_fixed():
+    # 1500 px and quality 85 are the rule; the settings exist so a larger page
+    # can be measured against the same album, not so the default drifts.
+    from app.core.config import settings
+
+    assert (settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY) == (1500, 85)
+
+
 def test_the_prompt_loaded_is_the_one_the_environment_names(tmp_path):
     """Both prompts ship, so the switch has to be proved rather than assumed.
 

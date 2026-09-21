@@ -48,13 +48,14 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 19. Graphs and tables drawn, not described
 - [x] 20. Heading steps, callouts, and a prompt variant behind a switch
 - [x] 21. Remarks beside the line, figure rows, and readable flags
+- [x] 22. The matrix checked against the graph, by code
 
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-21
+Done: 1-22
 Current task: none
 Next task: none
 Blockers: none
@@ -1732,6 +1733,16 @@ money, so none may be dropped.
 3. **Independence of spend.** Rolling back the main transaction doesn't
    remove already-committed `ai_calls`.
 
+One gap is deliberate and has now been paid for three times, so it is
+written down rather than rediscovered: **both capture paths copy fields into
+`Note` and run the checks by hand**, and nothing proves they do. Dropping
+`margin_notes=` or `graphcheck.check(...)` from `handle_photo` leaves the
+whole suite green. `albums.process_page` is covered because it takes bytes
+and returns a `PageResult`; `handle_photo` is not, because covering it means
+a Telegram message, a session, a download and four stubbed services. The
+cost is a class of one-line omissions that shows up on the first record
+instead of in CI.
+
 The "nothing else" that stood here was a first-week scope limit, and it was
 lifted by decision: the suite now covers album assembly, the middleware, the
 webhook, the corpus commands and the PDF as well. What is covered, and what
@@ -1786,6 +1797,16 @@ container and an unfinished batch is silently lost. The heavier half is that
 requirement and not a default, and why the buffer goes to Postgres rather
 than Redis when it has to leave the process. Both in `CLAUDE.md` → Scale
 debt.
+
+**`CallStats` does not carry its model.** `transcribe` prices a call with
+`_cost_usd(settings.VISION_MODEL, …)` and `log_ai_calls` writes
+`model=settings.VISION_MODEL` for every row. Today that is correct, because
+there is only one model. The moment a page is retried on a stronger one —
+the obvious next move for a page whose three runs disagree — those calls are
+recorded under the cheap model's name and **priced at the cheap model's
+rate**, understating the day's spend and weakening the cap that is supposed
+to stop it. Escalation therefore starts by putting the model on `CallStats`,
+not by adding a second model.
 
 **A graph read off a drawing is unchecked.** Rule 6 of the prompt asks for
 `[граф: 1-2, 2->3]` and `pdf.py` draws it. Reading the structure of a

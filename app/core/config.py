@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     # the deployed bot by changing this one variable, and rolled back the same
     # way, without a code change in between.
     PROMPT_FILE: str = "prompts-v3.md"
+    # Compression before the model sees the page. 1500 px and quality 85 are
+    # what rule 2 of CLAUDE.md fixed, on evidence from a model that has since
+    # been retired; these are here so a larger page can be measured against
+    # the same album rather than argued about.
+    IMAGE_MAX_SIDE: int = 1500
+    IMAGE_QUALITY: int = 85
     MIN_MARKDOWN_LEN: int = 40
     MAX_ALBUM_PAGES: int = 10
     LOG_LEVEL: str = "INFO"

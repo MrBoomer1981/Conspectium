@@ -12,6 +12,9 @@ import pytest
 
 from app.bot import albums, texts
 from app.services import consensus, mathcheck
+from types import SimpleNamespace
+
+from app.services import vision
 from app.services.vision import CallStats, Transcription, Uncertain
 
 
@@ -57,6 +60,54 @@ def _page_input(message_id: int) -> albums.PageInput:
         width=100,
         height=100,
     )
+
+
+# ── process_page: the checks a page goes through ─────────────────────────────
+
+
+async def test_a_matrix_contradicting_its_graph_sends_the_page_for_review(
+    monkeypatch,
+):
+    # The matrix check has to run on the album path and not only on the single
+    # photo one: an album is where matrices actually arrive, four pages at a
+    # time.
+    markdown = (
+        "[граф: 1-2, 2-3, 3-4]\n\n"
+        "|   | 1 | 2 | 3 | 4 |\n|---|---|---|---|---|\n"
+        "| **1** | 0 | 1 | 1 | 0 |\n| **2** | 1 | 0 | 1 | 0 |\n"
+        "| **3** | 1 | 1 | 0 | 1 |\n| **4** | 0 | 0 | 1 | 0 |\n"
+    )
+
+    monkeypatch.setattr(
+        albums.photoguard,
+        "check_photo_bytes",
+        lambda data: SimpleNamespace(
+            ok=True,
+            reason=None,
+            sharpness=100.0,
+            line_height_px=20.0,
+            paper_fraction=0.9,
+            contrast=0.8,
+        ),
+    )
+
+    async def _runs(data):
+        return (
+            vision.TranscriptionResult(
+                best=_transcription(markdown=markdown),
+                text_agreement=0.99,
+                numeric_divergences=[],
+                verdict="clean",
+            ),
+            [],
+        )
+
+    monkeypatch.setattr(albums.vision, "transcribe_consensus", _runs)
+
+    result = await albums.process_page(_page_input(1), 1)
+
+    assert result.verdict == "needs_review"
+    assert [i.kind for i in result.report.issues] == ["matrix"]
 
 
 # ── _assemble: text ──────────────────────────────────────────────────────────

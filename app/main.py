@@ -129,6 +129,11 @@ async def lifespan(app: FastAPI):
     logger.info(
         "Prompt: %s, %d words", settings.PROMPT_FILE, vision.PROMPT_WORDS
     )
+    logger.info(
+        "Images: %d px long side, quality %d",
+        settings.IMAGE_MAX_SIDE,
+        settings.IMAGE_QUALITY,
+    )
 
     # Unlike the webhook, this one must not stop startup: a bot without a
     # command menu still works, it is just harder to use.

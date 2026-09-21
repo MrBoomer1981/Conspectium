@@ -14,7 +14,15 @@ from app.bot import albums, corpus, texts
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Note, User
-from app.services import docx, images, limits, mathcheck, photoguard, vision
+from app.services import (
+    docx,
+    graphcheck,
+    images,
+    limits,
+    mathcheck,
+    photoguard,
+    vision,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +51,9 @@ async def handle_photo(
     original = (await bot.download(photo)).read()
     # Resizing a 12-megapixel photo is CPU-bound; on the event loop it would
     # freeze every other page of the same album while it runs.
-    compressed = await asyncio.to_thread(images.compress, original)
+    compressed = await asyncio.to_thread(
+        images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
+    )
 
     # Step 0: an album arrives as separate messages sharing a media_group_id.
     # Buffer this page and let a single update assemble the whole batch; the
@@ -130,7 +140,13 @@ async def handle_photo(
     # equalities converge. Only a "critical" issue downgrades the verdict, and
     # only clean -> needs_review, one way; warnings are shown but leave the
     # status alone. From here result.verdict is the pipeline's final verdict.
-    report = mathcheck.check(result.best.markdown)
+    # graphcheck is the same kind of check on a different subject: a matrix
+    # against the graph drawn beside it. Its findings join the same list, so
+    # they reach the same downgrade, the same event and the same callout.
+    report = mathcheck.Report(
+        issues=mathcheck.check(result.best.markdown).issues
+        + graphcheck.check(result.best.markdown)
+    )
     has_critical = any(i.severity == "critical" for i in report.issues)
     if has_critical and result.verdict == "clean":
         result.verdict = "needs_review"

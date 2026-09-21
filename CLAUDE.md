@@ -113,9 +113,12 @@ No linter is configured yet — don't add one without an explicit request.
    client. Also: the Gemini API isn't reachable directly from Russia, so
    calls go out from Railway.
 
-2. **Compress the image before sending it to the model.** Long side capped
-   at 1500 px, JPEG quality 85. A full-size phone photo costs several times
-   more with no gain in accuracy.
+2. **Compress the image before sending it to the model.** `IMAGE_MAX_SIDE`
+   and `IMAGE_QUALITY`, 1500 px and 85. A full-size phone photo costs several
+   times more with no gain in accuracy — which, like the prompt ceiling, is
+   evidence about a retired model. The numbers are settings now so that
+   claim can be measured against the same album instead of argued about; the
+   defaults do not drift.
 
 3. **Never store the original photos.** Only the recognized text.
 
@@ -342,6 +345,29 @@ that text is ever wanted, it belongs in a second call over the **transcription
 already trusted**, in a column of its own, marked as machine-written on the
 page — never in the call that reads the photo.
 
+**The matrix is checked against the graph, by code.** The uncertainty a
+record carries is not spread evenly: of six numeric divergences in one album,
+five sat on the single page with two hand-drawn matrices, and every one of
+them was a single digit. Whether a cell is 0 or 1 is not a matter of opinion
+and not something a lookup can settle — the edges of the graph beside it
+decide. `graphcheck.check` computes the adjacency from the edge list and
+compares, and checks an incidence matrix the only way its unknown column
+order allows: every column holds the two ends of one edge, every row sum is a
+degree.
+
+It returns `mathcheck.Issue`, so the findings ride the record's existing
+`issues` column, callout and critical → needs_review downgrade rather than
+opening a second channel for the same kind of finding. It parses with
+`pdf.blocks` and `pdf.parse_graph` — the same two functions the drawing goes
+through — so the check and the picture see one structure by construction.
+
+The half that matters more is when it stays quiet. A cycle has as many edges
+as vertices, and then a square table reads as either matrix with equal force;
+nothing on the page settles it, so nothing is said. Same for labels that
+don't match the vertices, and for a bare matrix of *named* vertices, where
+the row order cannot be known. A confident wrong "does not agree with the
+graph" costs more than a check that said nothing.
+
 **A remark sits beside the line it explains.** `uncertain` — what was read,
 on which page, and why it was ambiguous — used to be a list at the top of the
 document. That said what was doubtful without saying where, and by the time a
@@ -463,6 +489,7 @@ app/
     photoguard.py     ready-made
     consensus.py      ready-made
     mathcheck.py      ready-made
+    graphcheck.py     a matrix against the graph drawn beside it
   db/
     models.py
     session.py
@@ -498,6 +525,8 @@ DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3
 VISION_MODEL=gemini-3.5-flash-lite
 PROMPT_FILE=prompts-v3.md
+IMAGE_MAX_SIDE=1500
+IMAGE_QUALITY=85
 MIN_MARKDOWN_LEN=40
 MAX_ALBUM_PAGES=10
 LOG_LEVEL=INFO
@@ -537,6 +566,7 @@ needs a database runs on in-memory SQLite.
 | `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |
 | `test_handlers.py` | `_split_message`, the catch-all reply |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
+| `test_graphcheck.py` | the matrix against the graph: what it must catch, and — the longer half — every shape it must stay quiet about |
 | `test_corpus.py` | listing, opening, correcting, statistics, the flags rebuilt from JSONB as text, as callouts and as anchored remarks — and that no query reaches another user's records |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |

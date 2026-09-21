@@ -17,7 +17,7 @@ from dataclasses import asdict, dataclass
 
 from app.bot import texts
 from app.core.config import settings
-from app.services import mathcheck, photoguard, vision
+from app.services import graphcheck, mathcheck, photoguard, vision
 from app.services.vision import CallStats, Transcription
 
 logger = logging.getLogger(__name__)
@@ -204,7 +204,10 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
     if len(result.best.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
         return PageResult(page, stats, skip_reason=texts.SKIP_NO_TEXT)
 
-    report = mathcheck.check(result.best.markdown)
+    report = mathcheck.Report(
+        issues=mathcheck.check(result.best.markdown).issues
+        + graphcheck.check(result.best.markdown)
+    )
     verdict = result.verdict
     if verdict == "clean" and any(i.severity == "critical" for i in report.issues):
         verdict = "needs_review"
