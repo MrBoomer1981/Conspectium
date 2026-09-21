@@ -324,6 +324,36 @@ def total_cost(stats: list[CallStats]) -> float | None:
     return sum(known) if known else None
 
 
+def _is_value(variant: str) -> bool:
+    """True for a variant that is an actual number. consensus renders values
+    with `%.10g`, so the only non-numeric key a Divergence can carry is its
+    "missing" bucket — matching on the number, not on that Russian string,
+    keeps this independent of the ready-made module's wording."""
+    try:
+        float(variant)
+    except ValueError:
+        return False
+    return True
+
+
+def meaningful_divergences(divergences: list) -> list:
+    """Keep only the positions where runs read genuinely different numbers.
+
+    `consensus.extract_numbers` collects every numeric literal on the page,
+    list markers and subscripts included, and aligns the runs by position. Most
+    of what comes back is therefore an alignment artefact: one run emitted a
+    number where another emitted nothing, which says nothing about how the page
+    was read. Reported upstream as a defect in the ready-made module; filtered
+    here because that module is not ours to change.
+
+    A position earns a line in the reply only when at least two runs put
+    *different values* on it.
+    """
+    return [
+        d for d in divergences if len({k for k in d.variants if _is_value(k)}) >= 2
+    ]
+
+
 def _verdict(text_agreement: float) -> str:
     """Non-overlapping bands from PLAN.md task 6."""
     if text_agreement >= 0.90:
@@ -389,16 +419,22 @@ async def transcribe_consensus(
 
     markdowns = [t.markdown for t in ok_runs]
     text_agreement = consensus.compare_text(markdowns).similarity
-    numeric_divergences = consensus.compare(markdowns).divergences
+    # Filtered once, here, so the handler, the album assembly and the stored
+    # record all see the same signal and none of them stores the noise.
+    reported = consensus.compare(markdowns).divergences
+    numeric_divergences = meaningful_divergences(reported)
     best = ok_runs[consensus.pick_representative(markdowns)]
 
     verdict = _verdict(text_agreement)
     logger.info(
-        "consensus: %d/%d runs ok, text_agreement=%.3f, verdict=%s",
+        "consensus: %d/%d runs ok, text_agreement=%.3f, verdict=%s, "
+        "divergences %d of %d kept",
         len(ok_runs),
         settings.VISION_RUNS,
         text_agreement,
         verdict,
+        len(numeric_divergences),
+        len(reported),
     )
     return (
         TranscriptionResult(best, text_agreement, numeric_divergences, verdict),

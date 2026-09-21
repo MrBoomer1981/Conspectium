@@ -42,7 +42,7 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 **Fixes and export, from real use:**
 
 - [x] 15. An album arrives as one record
-- [ ] 16. Numeric divergences without the noise
+- [x] 16. Numeric divergences without the noise
 - [ ] 17. The record as a PDF
 
 ## State
@@ -50,9 +50,9 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
 Current task: none
-Next task: 16
+Next task: 17
 Blockers: none
 ```
 

@@ -142,3 +142,69 @@ def test_bare_exception_has_no_trailing_colon():
 
 def test_short_error_is_truncated_to_500_chars():
     assert len(vision._short_error(ValueError("x" * 1000))) == 500
+
+
+# ── meaningful_divergences ───────────────────────────────────────────────────
+# consensus.extract_numbers takes every numeric literal on the page, list
+# markers and subscripts included, so most reported positions say only that one
+# run emitted a number where another emitted nothing. The cases below are taken
+# verbatim from what the bot actually sent for a page of lecture notes.
+
+from app.services.consensus import Divergence  # noqa: E402
+
+
+def _div(variants: dict, context: str = "x") -> Divergence:
+    return Divergence(position=0, variants=variants, context=context)
+
+
+def test_a_real_disagreement_is_kept():
+    # Two runs read 5, one read 1 — the page really was read differently.
+    kept = vision.meaningful_divergences([_div({"5": 2, "1": 1}, "5")])
+    assert len(kept) == 1
+
+
+def test_a_number_against_a_gap_is_dropped():
+    # An alignment artefact: nothing here says the page was misread.
+    assert vision.meaningful_divergences([_div({"1": 1, "— (пропущено)": 1})]) == []
+
+
+def test_a_gap_winning_the_vote_is_still_dropped():
+    assert vision.meaningful_divergences([_div({"— (пропущено)": 2, "5": 1})]) == []
+
+
+def test_the_observed_noise_collapses_to_its_one_real_line():
+    observed = [
+        _div({"1": 1, "— (пропущено)": 1}, "1"),
+        _div({"2": 1, "— (пропущено)": 1}, "2"),
+        _div({"3": 1, "— (пропущено)": 1}, "3"),
+        _div({"— (пропущено)": 2, "5": 1}, "5"),
+        _div({"— (пропущено)": 2, "4": 1}, "4"),
+        _div({"5": 2, "1": 1}, "5"),
+        _div({"5": 2, "— (пропущено)": 1}, "5"),
+        _div({"6": 2, "— (пропущено)": 1}, "6"),
+    ]
+    kept = vision.meaningful_divergences(observed)
+    assert [d.variants for d in kept] == [{"5": 2, "1": 1}]
+
+
+def test_three_different_readings_are_kept():
+    kept = vision.meaningful_divergences([_div({"9.8": 1, "9.3": 1, "8.9": 1})])
+    assert len(kept) == 1
+
+
+def test_decimals_and_exponents_count_as_values():
+    kept = vision.meaningful_divergences([_div({"6.626e-34": 2, "6.67e-34": 1})])
+    assert len(kept) == 1
+
+
+def test_nothing_in_nothing_out():
+    assert vision.meaningful_divergences([]) == []
+
+
+def test_the_filter_does_not_depend_on_the_modules_wording():
+    # The "missing" bucket is matched by not being a number, not by its Russian
+    # text, so consensus.py rewording it cannot silently break the filter.
+    assert vision.meaningful_divergences([_div({"7": 1, "whatever": 1})]) == []
+    assert vision._is_value("— (пропущено)") is False
+    assert vision._is_value("7") is True
+    assert vision._is_value("-2.5e3") is True

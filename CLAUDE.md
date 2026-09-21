@@ -290,6 +290,15 @@ An orphaned run also keeps making paid calls with the result thrown away.
 **Don't rewrite or "improve" them.** Only import and call. Found a bug in
 one — report it, don't fix it silently.
 
+One is known and worked around rather than fixed. `consensus.extract_numbers`
+treats every numeric literal on the page as a value to compare, list markers
+and subscripts included, so `compare()` reports a divergence wherever the runs
+happen to align differently. On a real page of lecture notes that produced
+eight reported divergences of which one was genuine. The filter lives in
+`vision.meaningful_divergences`, which keeps a position only when at least two
+runs read it as *different numbers* — a number against a gap is an alignment
+artefact, not a misreading.
+
 ---
 
 ## Structure
