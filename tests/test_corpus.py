@@ -345,6 +345,42 @@ async def test_stored_divergences_and_uncertain_spots_come_back(session):
     assert texts.UNCERTAIN_HEADER in tail and "читается двояко" in tail
 
 
+async def test_the_generic_line_gives_way_to_anything_specific(session):
+    # Above a list of what actually diverged, "прогоны разошлись" repeats that
+    # list's own heading and costs a line.
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        status="needs_review",
+        numeric_divergences=[{"context": "p", "variants": {"5": 2, "6": 1}}],
+    )
+
+    flags = corpus._flags(note)
+
+    assert texts.DIVERGENCES_HEADER in flags
+    assert texts.NEEDS_REVIEW not in flags
+
+
+async def test_the_generic_line_stays_when_there_is_nothing_else_to_say(session):
+    user = await _user(session)
+    note = await _note(session, user, status="needs_review")
+
+    assert corpus._flags(note) == texts.NEEDS_REVIEW
+
+
+async def test_the_review_box_gives_way_the_same_way(session):
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        status="needs_review",
+        numeric_divergences=[{"context": "p", "variants": {"5": 2, "6": 1}}],
+    )
+
+    assert [b.title for b in corpus._callouts(note)] == [texts.CALLOUT_DIVERGENCES]
+
+
 # ── callouts: the same flags, as boxes inside the document ───────────────────
 
 

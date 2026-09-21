@@ -13,7 +13,7 @@ import json
 import logging
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import httpx
@@ -28,10 +28,6 @@ from app.services import consensus
 
 logger = logging.getLogger(__name__)
 
-# The prompt is a file at the repo root, loaded verbatim at import. Which file
-# is PROMPT_FILE, so a variant can be tried on the deployed bot and rolled back
-# by changing one variable. A short prompt beats a long one — see CLAUDE.md
-# before making one longer, and measure what it costs.
 def load_prompt(name: str) -> str:
     """One prompt file from the repo root, verbatim. A bare file name, not a
     path: the file ships with the deploy. A missing one raises here, at import,
@@ -41,6 +37,9 @@ def load_prompt(name: str) -> str:
     )
 
 
+# Which file is PROMPT_FILE, so a variant can be tried on the deployed bot and
+# rolled back by changing one variable. A short prompt beats a long one — see
+# CLAUDE.md before making one longer, and measure what it costs.
 TRANSCRIBE_PROMPT = load_prompt(settings.PROMPT_FILE)
 PROMPT_WORDS = len(TRANSCRIBE_PROMPT.split())
 
@@ -355,10 +354,55 @@ def meaningful_divergences(divergences: list) -> list:
     here because that module is not ours to change.
 
     A position earns a line in the reply only when at least two runs put
-    *different values* on it.
+    *different values* on it, one of those readings is what most runs saw, and
+    the same line has not already been printed.
+
+    The majority rule is the second half of the same argument. Where no value
+    has more runs behind it than the gap does — "6 (1 of 3) or 2 (1 of 3) or
+    missing (1 of 3)" — the three runs did not disagree about a number, they
+    produced different counts of numbers, and the position they were aligned
+    on is not the same position. There is nothing to report and nothing to
+    check.
+    """
+    kept: list = []
+    seen: set[tuple[str, tuple[tuple[str, int], ...]]] = set()
+    for divergence in divergences:
+        values = {k for k in divergence.variants if _is_value(k)}
+        if len(values) < 2:
+            continue
+        has_gap = len(values) < len(divergence.variants)
+        if has_gap and max(divergence.variants.values()) < 2:
+            continue
+        # Two cells of a matrix read "6 against 2" produce two identical lines.
+        # The position is in the data but never in the message, so the second
+        # line says nothing the first did not.
+        key = (divergence.context, tuple(sorted(divergence.variants.items())))
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(divergence)
+    return kept
+
+
+def meaningful_uncertain(uncertain: list[Uncertain]) -> list[Uncertain]:
+    """Keep only the spots that are actually ambiguous.
+
+    The prompt asks for places where a symbol "действительно читается двояко",
+    and the model answers with the state of the paper instead: a word cropped
+    by the edge, a smudge, an abbreviation, something written in the margin.
+    Seven such entries came back on one album and not one of them named a
+    second reading.
+
+    `alternatives` is the test, and it is the prompt's own: an entry that
+    cannot say what else the symbol might be is not an ambiguity. An entry
+    whose text already carries `[неразборчиво]` is not one either — that mark
+    stands in the record itself, in place, and a list repeating it adds a line
+    without adding a fact.
     """
     return [
-        d for d in divergences if len({k for k in d.variants if _is_value(k)}) >= 2
+        u
+        for u in uncertain
+        if any(a.strip() for a in u.alternatives) and "[неразборчиво]" not in u.text
     ]
 
 
@@ -431,18 +475,25 @@ async def transcribe_consensus(
     # record all see the same signal and none of them stores the noise.
     reported = consensus.compare(markdowns).divergences
     numeric_divergences = meaningful_divergences(reported)
-    best = ok_runs[consensus.pick_representative(markdowns)]
+    chosen = ok_runs[consensus.pick_representative(markdowns)]
+    # Filtered in the same place and for the same reason as the divergences,
+    # so the reply, the document and the stored record all see one signal.
+    # A copy rather than an assignment: the runs belong to the comparison that
+    # produced them, and nothing here needs to be the one place that edits one.
+    best = replace(chosen, uncertain=meaningful_uncertain(chosen.uncertain))
 
     verdict = _verdict(text_agreement)
     logger.info(
         "consensus: %d/%d runs ok, text_agreement=%.3f, verdict=%s, "
-        "divergences %d of %d kept",
+        "divergences %d of %d kept, uncertain %d of %d kept",
         len(ok_runs),
         settings.VISION_RUNS,
         text_agreement,
         verdict,
         len(numeric_divergences),
         len(reported),
+        len(best.uncertain),
+        len(chosen.uncertain),
     )
     return (
         TranscriptionResult(best, text_agreement, numeric_divergences, verdict),

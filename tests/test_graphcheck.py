@@ -67,7 +67,7 @@ def test_a_cell_that_could_not_be_read_is_filled_in_from_the_graph():
         )
     )
     assert [i.severity for i in found] == ["warning"]
-    assert "(1, 2) — 1" in found[0].suggestion
+    assert "(1, 2) — 1" in found[0].detail
 
 
 def test_a_wall_of_disagreements_collapses_into_a_count():
@@ -302,3 +302,35 @@ def test_findings_are_mathcheck_issues():
     )
     assert found and all(isinstance(i, mathcheck.Issue) for i in found)
     assert all(i.kind in ("matrix", "incidence") for i in found)
+
+
+def test_no_finding_spends_a_line_on_advice():
+    # "проверьте и матрицу, и рисунок" is the only advice there is to give,
+    # and it is what the reader was going to do anyway.
+    found = graphcheck.check(
+        _record(
+            "1-2, 2-3, 3-4",
+            "|   | 1 | 2 | 3 | 4 |",
+            "| **1** | 0 | 1 | 1 | 0 |",
+            "| **2** | 1 | 0 | - | 0 |",
+            "| **3** | 1 | 0 | 0 | 1 |",
+            "| **4** | 0 | 0 | 1 | 0 |",
+        )
+    )
+    assert found and all(not issue.suggestion for issue in found)
+
+
+def test_a_long_list_of_unreadable_cells_says_how_many_it_left_out():
+    found = graphcheck.check(
+        _record(
+            "1-2, 1-3, 1-4, 1-5, 2-3, 2-4, 2-5, 3-4",
+            "|   | 1 | 2 | 3 | 4 | 5 |",
+            "| **1** | 0 | - | - | - | - |",
+            "| **2** | - | 0 | - | - | - |",
+            "| **3** | - | - | 0 | - | 0 |",
+            "| **4** | - | - | - | 0 | 0 |",
+            "| **5** | - | - | 0 | 0 | 0 |",
+        )
+    )
+    assert [i.severity for i in found] == ["warning"]
+    assert "и ещё" in found[0].detail

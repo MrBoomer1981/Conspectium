@@ -210,6 +210,77 @@ def test_the_filter_does_not_depend_on_the_modules_wording():
     assert vision._is_value("-2.5e3") is True
 
 
+def test_a_split_with_a_gap_and_no_majority_is_dropped():
+    # "6 (1 of 3) or 2 (1 of 3) or missing (1 of 3)". The three runs did not
+    # read one number three ways — they produced different counts of numbers,
+    # so the position they were aligned on is not the same position.
+    assert vision.meaningful_divergences([_div({"6": 1, "2": 1, "— (пропущено)": 1})]) == []
+
+
+def test_a_gap_is_survivable_where_a_reading_has_a_majority():
+    # Five runs: three read 6, one read 2, one saw nothing there. The majority
+    # is a real reading, so the line still says something worth checking.
+    kept = vision.meaningful_divergences([_div({"6": 3, "2": 1, "— (пропущено)": 1})])
+    assert len(kept) == 1
+
+
+def test_three_numeric_readings_survive_without_a_majority():
+    # No gap among them: the runs were aligned on one number and read it three
+    # ways. That is the worst case, not a reason to hide it.
+    assert len(vision.meaningful_divergences([_div({"9.8": 1, "9.3": 1, "8.9": 1})])) == 1
+
+
+def test_the_same_line_twice_is_printed_once():
+    # Two cells of a matrix read "6 against 2" produce two identical lines, and
+    # the position that tells them apart never reaches the message.
+    kept = vision.meaningful_divergences(
+        [_div({"6": 2, "2": 1}, "6"), _div({"6": 2, "2": 1}, "6")]
+    )
+    assert len(kept) == 1
+
+
+def test_the_same_numbers_in_a_different_context_are_both_kept():
+    kept = vision.meaningful_divergences(
+        [_div({"6": 2, "2": 1}, "p ="), _div({"6": 2, "2": 1}, "q =")]
+    )
+    assert len(kept) == 2
+
+
+# ── meaningful_uncertain ─────────────────────────────────────────────────────
+# The prompt asks for places where a symbol "действительно читается двояко".
+# What came back on one album was the state of the paper: a word cropped by the
+# edge, a smudge, an abbreviation, something written in the margin — seven
+# entries, not one of which named a second reading.
+
+
+def _unc(text="щ", why="двоится", alternatives=("ш",)) -> vision.Uncertain:
+    return vision.Uncertain(
+        text=text, where="", why=why, alternatives=list(alternatives)
+    )
+
+
+def test_a_spot_that_names_another_reading_is_kept():
+    assert len(vision.meaningful_uncertain([_unc()])) == 1
+
+
+def test_a_spot_that_names_no_other_reading_is_dropped():
+    assert vision.meaningful_uncertain([_unc(why="слово обрезано краем", alternatives=())]) == []
+
+
+def test_a_blank_alternative_does_not_count_as_one():
+    assert vision.meaningful_uncertain([_unc(alternatives=("", "   "))]) == []
+
+
+def test_a_spot_already_marked_unreadable_in_the_record_is_dropped():
+    # "[неразборчиво]" stands in the text itself, in place. A list repeating it
+    # adds a line without adding a fact.
+    assert vision.meaningful_uncertain([_unc(text="Дискретна[неразборчиво]")]) == []
+
+
+def test_nothing_uncertain_in_nothing_out():
+    assert vision.meaningful_uncertain([]) == []
+
+
 # ── the filter is actually wired in ──────────────────────────────────────────
 # meaningful_divergences being correct is worth nothing if transcribe_consensus
 # forgets to call it, and that omission is invisible to every test above.
@@ -274,3 +345,36 @@ async def test_consensus_still_reports_a_real_misreading(monkeypatch):
     assert result is not None
     assert len(result.numeric_divergences) == 1
     assert set(result.numeric_divergences[0].variants) == {"5", "1"}
+
+
+async def _stub_uncertain(monkeypatch, entries: list) -> None:
+    async def fake_transcribe(image_bytes):
+        page = _transcription("Степень вершины равна 5")
+        page.uncertain = list(entries)
+        return page, []
+
+    monkeypatch.setattr(vision, "transcribe", fake_transcribe)
+    monkeypatch.setattr(vision.settings, "VISION_RUNS", 3)
+
+
+async def test_consensus_drops_a_spot_that_names_no_other_reading(monkeypatch):
+    # The filter being right is worth nothing if transcribe_consensus forgets
+    # to call it, and that omission is invisible to every test above.
+    await _stub_uncertain(
+        monkeypatch, [_unc(why="слово обрезано краем страницы", alternatives=())]
+    )
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert result.best.uncertain == []
+
+
+async def test_consensus_keeps_a_spot_that_really_reads_two_ways(monkeypatch):
+    await _stub_uncertain(monkeypatch, [_unc()])
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert [u.text for u in result.best.uncertain] == ["щ"]
+

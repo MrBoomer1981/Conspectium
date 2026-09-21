@@ -166,33 +166,36 @@ def _adjacency(
     if contradictions:
         issues.append(_disagreement(contradictions))
     if fillable:
+        shown = ", ".join(fillable[:_MAX_CELL_ISSUES])
+        rest = len(fillable) - _MAX_CELL_ISSUES
         issues.append(
             Issue(
                 kind="matrix",
                 severity="warning",
                 message="Матрица смежности местами не прочиталась",
-                detail=f"нечитаемых ячеек: {len(fillable)}",
-                suggestion="по графу там стоит: " + ", ".join(fillable[:_MAX_CELL_ISSUES]),
+                detail=f"по графу там стоит: {shown}"
+                + (f", и ещё {rest}" if rest > 0 else ""),
             )
         )
     return issues
 
 
 def _disagreement(contradictions: list[str]) -> Issue:
+    # No suggestion on either: "проверьте и матрицу, и рисунок" is the only
+    # thing there is to say, and saying it costs a line that carries nothing.
     if len(contradictions) > _MAX_CELL_ISSUES:
         return Issue(
             kind="matrix",
             severity="critical",
             message="Матрица смежности не сходится с графом",
-            detail=f"расхождений: {len(contradictions)}",
-            suggestion="проверьте и матрицу, и рисунок — прочитано неверно одно из них",
+            detail=f"расхождений: {len(contradictions)} — "
+            "неверно прочитано одно из двух",
         )
     return Issue(
         kind="matrix",
         severity="critical",
         message="Матрица смежности не сходится с графом",
         detail="; ".join(contradictions),
-        suggestion="проверьте и матрицу, и рисунок",
     )
 
 
@@ -214,15 +217,14 @@ def _incidence(
             continue
         total = sum(column)
         if total != 2:
-            wrong.append(f"столбец {j + 1}: {total}")
+            wrong.append(f"столбец {j + 1} — {total}")
     if wrong:
         issues.append(
             Issue(
                 kind="incidence",
                 severity="critical",
                 message="В матрице инцидентности столбец не описывает ребро",
-                detail="; ".join(wrong[:_MAX_CELL_ISSUES]),
-                suggestion="у ребра два конца, поэтому в каждом столбце сумма 2",
+                detail="сумма вместо 2: " + "; ".join(wrong[:_MAX_CELL_ISSUES]),
             )
         )
 
@@ -242,7 +244,6 @@ def _incidence(
                 severity="warning",
                 message="Суммы по строкам не совпадают со степенями вершин",
                 detail=f"в матрице {sorted(sums)}, по графу {degrees}",
-                suggestion="строка вершины содержит столько единиц, какова её степень",
             )
         )
     return issues

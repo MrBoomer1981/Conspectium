@@ -109,8 +109,6 @@ def _flags(note: Note) -> str | None:
     from what was stored. The rendering itself is reused — mathcheck's own
     render() and the texts helpers — only the assembly from JSONB is new."""
     blocks: list[str] = []
-    if note.status == "needs_review":
-        blocks.append(texts.NEEDS_REVIEW)
 
     report = _stored_report(note)
     if report is not None:
@@ -123,6 +121,11 @@ def _flags(note: Note) -> str | None:
     uncertain = _uncertain_lines(note)
     if uncertain:
         blocks.append("\n".join([texts.UNCERTAIN_HEADER, *uncertain]))
+
+    # The generic line only when there is nothing specific to say: above a list
+    # of what actually diverged it repeats that list's own heading.
+    if note.status == "needs_review" and not blocks:
+        blocks.append(texts.NEEDS_REVIEW)
 
     return "\n\n".join(blocks) if blocks else None
 
@@ -137,10 +140,6 @@ def _callouts(note: Note) -> list[pdf.Callout]:
     by a marker the document's font cannot draw.
     """
     boxes: list[pdf.Callout] = []
-    if note.status == "needs_review":
-        boxes.append(
-            pdf.Callout(texts.CALLOUT_REVIEW, [texts.NEEDS_REVIEW], "warning")
-        )
 
     report = _stored_report(note)
     if report is not None and report.issues:
@@ -160,6 +159,13 @@ def _callouts(note: Note) -> list[pdf.Callout]:
     divergences = _divergence_lines(note)
     if divergences:
         boxes.append(pdf.Callout(texts.CALLOUT_DIVERGENCES, divergences))
+
+    # Same rule as the message: the generic box only when nothing more exact
+    # is there to fill it. The subtitle already carries "нужна проверка".
+    if note.status == "needs_review" and not boxes:
+        boxes.append(
+            pdf.Callout(texts.CALLOUT_REVIEW, [texts.NEEDS_REVIEW], "warning")
+        )
 
     return boxes
 

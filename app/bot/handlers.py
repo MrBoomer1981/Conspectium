@@ -213,8 +213,6 @@ async def handle_photo(
     # needs-review flag, what mathcheck found, the numeric divergences between
     # runs, then the spots the model flagged as ambiguous.
     flags: list[str] = []
-    if result.verdict == "needs_review":
-        flags.append(texts.NEEDS_REVIEW)
     if report.issues:
         flags.append(report.render())
     if result.numeric_divergences:
@@ -228,6 +226,11 @@ async def handle_photo(
         lines = [texts.UNCERTAIN_HEADER]
         lines += [texts.uncertain_line(u.text, u.why) for u in result.best.uncertain]
         flags.append("\n".join(lines))
+
+    # The generic line only when there is nothing specific to say: above a list
+    # of what actually diverged it repeats that list's own heading.
+    if result.verdict == "needs_review" and not flags:
+        flags.insert(0, texts.NEEDS_REVIEW)
     if flags:
         await message.answer("\n\n".join(flags))
 
@@ -401,8 +404,6 @@ async def _process_album(
     await corpus.send_record(message, note)
 
     flags: list[str] = []
-    if rec.status == "needs_review":
-        flags.append(texts.NEEDS_REVIEW)
     math_blocks = [
         texts.page_prefix(p.page, p.report.render())
         for p in outcome.pages_ok

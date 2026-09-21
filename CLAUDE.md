@@ -193,6 +193,16 @@ to be reliable.
 0.95 on a page with three errors. That's why it's not in the schema.
 `unreadable_count: 0` is likewise not a sign of quality.
 
+**`uncertain` is a complaint, not an ambiguity.** The prompt asks for places
+where a symbol "действительно читается двояко". One album came back with seven
+entries and not one named a second reading: "слово обрезано краем страницы",
+"написано на полях", "частично смазано" — the state of the paper, and in one
+case a word that had been read in full. `vision.meaningful_uncertain` enforces
+the prompt's own test in code, because stating it in the prompt did not work:
+an entry that cannot name an alternative is not an ambiguity, and one whose
+text already carries `[неразборчиво]` is a mark that stands in the record
+itself, in place.
+
 **Arithmetic is checked by code, not by the model.** The model makes
 calculation errors and silently "fixes" things that don't add up.
 `mathcheck` found an error in a constant and a diverging chain that the
@@ -329,6 +339,12 @@ refuses anything that doesn't read as vertices, but nothing yet compares the
 three runs against each other the way numbers are compared. Recorded under
 `PLAN.md` → Known risks.
 
+**A generic flag gives way to a specific one.** "Прогоны распознавания
+местами разошлись" above a list of exactly what diverged repeats that list's
+own heading. Both `corpus._flags` and `corpus._callouts` add it only when
+nothing more exact is there to say; the subtitle of the document carries
+"нужна проверка" either way.
+
 **A callout says what we already know, never what the model thinks.** The
 tinted boxes at the top of a record — needs review, arithmetic that doesn't
 add up, numbers the runs read differently, spots read two ways — are built by
@@ -463,7 +479,12 @@ happen to align differently. On a real page of lecture notes that produced
 eight reported divergences of which one was genuine. The filter lives in
 `vision.meaningful_divergences`, which keeps a position only when at least two
 runs read it as *different numbers* — a number against a gap is an alignment
-artefact, not a misreading.
+artefact, not a misreading. Two rules were added after a second album: a
+position where no reading has a majority **and** a gap is among the variants
+is dropped, because the runs there produced different counts of numbers rather
+than different readings of one; and an identical line is printed once, since
+two cells of a matrix read "6 against 2" are indistinguishable in a message
+that never carries the position.
 
 ---
 
