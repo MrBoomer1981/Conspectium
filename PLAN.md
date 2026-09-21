@@ -1802,7 +1802,8 @@ for a single user.
 - Export to Anki, and any bulk export of the corpus (`/pdf` renders one
   record for reading — not a download-everything button)
 - Styling and design of responses
-- Caching, queues, workers, Redis
+- Caching, queues, workers, Redis — until the album buffer has to leave
+  process memory (`CLAUDE.md` → Scale debt), and then Postgres first
 - Deduplication on `update_id`
 - Row locking, two-phase spend accounting
 - Docker, CI

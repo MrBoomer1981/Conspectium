@@ -18,6 +18,11 @@ give a reason to keep feeding in notes regularly; the corpus gives a reason
 not to leave. When choosing between "improve the flashcards" and "improve
 work with the corpus," choose the corpus.
 
+This is a product meant for **many users**. It runs for one today, and the
+stage governs what gets built, but "there is only one user" is never a reason
+a design is correct — when a shortcut only breaks under concurrency, say so
+and record it under "Scale debt" rather than calling it done.
+
 **Stage:** second week, one user — the author. Week 1 (capture: photo to
 structured record) is built and unit-tested, but has never been confirmed
 end to end on the deployed bot — the "Definition of week-ready" checklist in
@@ -39,8 +44,10 @@ revenue, not scale.
 - reportlab + matplotlib — a record as a PDF, formulas drawn by mathtext
 - Railway — hosting
 
-Don't add dependencies without an explicit need. Don't introduce Redis,
-queues, workers, Docker, or CI — there's a single user.
+Don't add dependencies without an explicit need. Redis, queues, workers,
+Docker and CI stay out for now — not because the product is single-user, but
+because the second user hasn't arrived. See "Scale debt" for what that
+postpones and what it costs.
 
 ---
 
@@ -230,6 +237,15 @@ step 10 and never reaches the database. A critical `mathcheck` issue
 downgrades `clean` → `needs_review`, one way only — a warning is shown but
 leaves the verdict alone.
 
+**The webhook answers before it works.** Telegram delivers the updates of one
+chat **strictly in sequence** — it does not send the next until the current
+request ends; updates from different chats are already concurrent. Processing
+a photo takes about nine seconds, so handling an update inside the request
+stops that chat from sending anything else, and an album can never assemble:
+its later pages do not exist for us yet. `telegram_webhook` schedules the work
+and returns immediately. **Never `await` the processing of an update inside
+the endpoint.**
+
 **An album is owned by exactly one update.** Telegram delivers an album as
 separate messages sharing a `media_group_id`, each its own webhook update
 with its own session. `albums.collect()` waits for the group to go quiet and
@@ -287,6 +303,36 @@ Both ceilings use `asyncio.wait`, never `wait_for`, and cancel the
 stragglers in a `finally`. Cancelling the group as a whole would discard the
 `CallStats` of runs that already returned — and those calls were billed.
 An orphaned run also keeps making paid calls with the result thrown away.
+
+---
+
+## Scale debt
+
+The product targets many users; these shortcuts are deliberate, and each one
+breaks at a knowable point. Don't treat any of them as settled design, and
+don't add the machinery before the point arrives either — record what you find
+here instead.
+
+| Shortcut | Breaks at | What happens |
+|---|---|---|
+| The album buffer is five module-level dicts in `bot/albums.py` | **a second replica** | pages of one album land in different processes and become separate records |
+| An update is processed in a background task | **any deploy** | in-flight updates are cancelled; paid Gemini calls are wasted |
+| No deduplication on `update_id` | **a delivery timeout** | Telegram retries, producing a duplicate record and a second set of paid calls |
+| `DAILY_COST_LIMIT_USD` is global, not per user | **two users** | one person can exhaust the day's budget for everyone |
+| `limits.consume` takes no row lock | **concurrent uploads by one user** | the page quota undercounts |
+| DB pool is 5 + 15 | **~20 updates in flight** | connection checkout starts timing out |
+| `_API_SLOTS` is a per-process `Semaphore(10)` | **tens of active chats** | the queue to Gemini grows into timeouts |
+| Photos are held whole in memory | **many parallel downloads** | container memory |
+
+**One replica is a requirement, not a default.** The album buffer lives in the
+process. Scaling the Railway service horizontally will silently split albums
+again — the failure looks exactly like the bug that took three attempts to
+find. Fix the first row before adding a replica.
+
+The natural next step for that first row is Postgres as the buffer — a
+`note_pages` table keyed by `media_group_id`, assembled by `message_id` — not
+Redis. The data is already in Postgres, and a debounce would then only decide
+*when to send the PDF*, never whether a page survives.
 
 ---
 
@@ -403,6 +449,7 @@ needs a database runs on in-memory SQLite.
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
 | `test_corpus.py` | listing, opening, correcting, statistics — and that no query reaches another user's records |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
+| `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_pdf.py` | how a page is parsed into blocks, escaping, and that an unreadable formula never sinks the document |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
