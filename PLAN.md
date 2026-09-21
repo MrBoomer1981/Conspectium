@@ -44,13 +44,15 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 15. An album arrives as one record
 - [x] 16. Numeric divergences without the noise
 - [x] 17. The record as a PDF
+- [x] 18. The webhook answers before it processes
+- [x] 19. Graphs and tables drawn, not described
 
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
+Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
 Current task: none
 Next task: none
 Blockers: none
@@ -1717,8 +1719,9 @@ payload: `{"reason": <exception type>, "where": <handler name>}`.
 
 ## Testing boundaries
 
-Required: the tests from tasks 5 and 8, plus exactly three integration
-tests for the mechanisms where a bug costs real money:
+The tests from tasks 5 and 8 are required, and so are the three integration
+tests below. Together they are the floor: a bug in any of them costs real
+money, so none may be dropped.
 
 1. **Retry.** `429`, then success → two `CallStats` elements and two rows
    in `ai_calls`.
@@ -1727,9 +1730,11 @@ tests for the mechanisms where a bug costs real money:
 3. **Independence of spend.** Rolling back the main transaction doesn't
    remove already-committed `ai_calls`.
 
-Nothing else: not on consensus, not on album assembly, not on the
-middleware, not on the webhook. A deliberate scope limit for the first
-week.
+The "nothing else" that stood here was a first-week scope limit, and it was
+lifted by decision: the suite now covers album assembly, the middleware, the
+webhook, the corpus commands and the PDF as well. What is covered, and what
+is left out on purpose, lives in `CLAUDE.md` → Tests — in one place, so the
+two files cannot drift apart.
 
 ---
 
@@ -1738,37 +1743,47 @@ week.
 Found, discussed, left as is. **Don't fix on your own initiative** — if
 one of these actually bites, it becomes its own task.
 
-**Processing happens inside the webhook request.** `POST /webhook`
-replies to Telegram with 200 only after `feed_update` finishes, and that
-can take up to 120 seconds for a photo and up to 300 for an album.
-Telegram considers an update undelivered after roughly a minute and
-resends it — which produces a second round of processing for the same
-photo: extra Gemini calls and a second quota debit. The tell: two
-identical `notes` rows a minute apart and doubled `ai_calls`. Fixed by
-deduplicating on `update_id` or by replying 200 before processing — a
-separate task, at the user's discretion.
+**A redelivered update is processed twice.** Nothing deduplicates on
+`update_id`. If Telegram decides an update went undelivered, the retry
+arrives as a new update and produces a second record for the same photo:
+extra Gemini calls and a second quota debit. The tell is two identical
+`notes` rows a minute apart and doubled `ai_calls`.
 
-⚠️ **This risk is amplified for albums.** The atomic `pop` protects
-against two handlers within a single delivery, but redelivered pages
-arrive as new messages and will assemble into a new batch under the same
-`media_group_id` — one the first handler already took. An album that
-takes 300 seconds is guaranteed to be resent by Telegram. Same tell:
-duplicated records and spend. Accepted deliberately for the first week.
+Until task 18 this was not a risk but a certainty — the endpoint replied 200
+only after `feed_update` finished, which is up to 120 seconds for a photo and
+300 for an album, while Telegram gives up after roughly a minute. It answers
+immediately now, so a retry takes an actual delivery failure. The consequence
+survived the fix; only its likelihood changed.
+
+⚠️ **For an album the duplicate is a whole record.** The atomic `pop`
+protects against two handlers within a single delivery, but redelivered pages
+arrive as new messages and assemble into a fresh batch under a
+`media_group_id` the first handler has already taken. Same tell: duplicated
+records and spend.
+
+Answering the webhook first put a different exposure in place of the old one.
+An update is now processed in a background task, so **a deploy cancels
+whatever is in flight** and the Gemini calls already paid for are thrown
+away. That one is listed with the rest of what a single replica costs in
+`CLAUDE.md` → Scale debt.
 
 **A race between checking and debiting the quota.** `check_limits` reads
 `pages_used_today`, `consume` increments it, and there are seconds of
 model work in between. Two parallel processing runs for the same user
-could both pass the check and both debit the quota. Row locking isn't
-introduced deliberately: for a single user, the cost of the bug is one
-extra page counted.
+could both pass the check and both debit the quota, and the page count comes
+out short. Row locking is deliberately not introduced yet; the point at which
+that stops being affordable is in `CLAUDE.md` → Scale debt.
 
 **The cost limit is soft.** `DAILY_COST_LIMIT_USD` is only checked before
 processing starts, no budget is reserved. The cap can be exceeded by the
 cost of one album — at current prices, that's cents.
 
 **The album buffer lives in the process's memory.** Railway restarts the
-container — an unfinished batch is silently lost. Redis doesn't pay off
-for a single user.
+container and an unfinished batch is silently lost. The heavier half is that
+**a second replica splits albums** — which is why one replica is a
+requirement and not a default, and why the buffer goes to Postgres rather
+than Redis when it has to leave the process. Both in `CLAUDE.md` → Scale
+debt.
 
 **A graph read off a drawing is unchecked.** Rule 6 of the prompt asks for
 `[граф: 1-2, 2->3]` and `pdf.py` draws it. Reading the structure of a
