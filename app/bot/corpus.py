@@ -67,6 +67,43 @@ async def _load(session: AsyncSession, user: User, note_id: int) -> Note | None:
     return (await session.execute(stmt)).scalar_one_or_none()
 
 
+def _stored_report(note: Note) -> mathcheck.Report | None:
+    """mathcheck's own Report, rebuilt from JSONB, or None when there is
+    nothing stored — or when the stored shape is one this version cannot read.
+    A record is not worth failing over its flags: the text is what was asked
+    for."""
+    if not note.issues:
+        return None
+    try:
+        return mathcheck.Report(
+            issues=[
+                mathcheck.Issue(**{k: v for k, v in issue.items() if k in _ISSUE_FIELDS})
+                for issue in note.issues
+            ]
+        )
+    except (TypeError, AttributeError):
+        logger.warning("note %d: unreadable issues payload", note.id)
+        return None
+
+
+def _divergence_lines(note: Note) -> list[str]:
+    return [
+        texts.divergence_line(
+            d.get("context", ""), d.get("variants", {}), page=d.get("page")
+        )
+        for d in note.numeric_divergences
+        if isinstance(d, dict)
+    ]
+
+
+def _uncertain_lines(note: Note) -> list[str]:
+    return [
+        texts.uncertain_line(u.get("text", ""), u.get("why", ""), page=u.get("page"))
+        for u in note.uncertain
+        if isinstance(u, dict)
+    ]
+
+
 def _flags(note: Note) -> str | None:
     """The same four flag blocks the capture path sends after a record, rebuilt
     from what was stored. The rendering itself is reused — mathcheck's own
@@ -75,43 +112,60 @@ def _flags(note: Note) -> str | None:
     if note.status == "needs_review":
         blocks.append(texts.NEEDS_REVIEW)
 
-    if note.issues:
-        try:
-            report = mathcheck.Report(
-                issues=[
-                    mathcheck.Issue(
-                        **{k: v for k, v in issue.items() if k in _ISSUE_FIELDS}
-                    )
-                    for issue in note.issues
-                ]
-            )
-            blocks.append(report.render())
-        except (TypeError, AttributeError):
-            # A stored shape this version cannot read is not a reason to fail
-            # the whole record: the text itself is what the user asked for.
-            logger.warning("note %d: unreadable issues payload", note.id)
+    report = _stored_report(note)
+    if report is not None:
+        blocks.append(report.render())
 
-    if note.numeric_divergences:
-        lines = [texts.DIVERGENCES_HEADER]
-        lines += [
-            texts.divergence_line(
-                d.get("context", ""), d.get("variants", {}), page=d.get("page")
-            )
-            for d in note.numeric_divergences
-            if isinstance(d, dict)
-        ]
-        blocks.append("\n".join(lines))
+    divergences = _divergence_lines(note)
+    if divergences:
+        blocks.append("\n".join([texts.DIVERGENCES_HEADER, *divergences]))
 
-    if note.uncertain:
-        lines = [texts.UNCERTAIN_HEADER]
-        lines += [
-            texts.uncertain_line(u.get("text", ""), u.get("why", ""), page=u.get("page"))
-            for u in note.uncertain
-            if isinstance(u, dict)
-        ]
-        blocks.append("\n".join(lines))
+    uncertain = _uncertain_lines(note)
+    if uncertain:
+        blocks.append("\n".join([texts.UNCERTAIN_HEADER, *uncertain]))
 
     return "\n\n".join(blocks) if blocks else None
+
+
+def _callouts(note: Note) -> list[pdf.Callout]:
+    """The same flags as boxes on the first page of the document.
+
+    Built from the same three readers as `_flags`, so the message and the
+    document cannot come to disagree about what a record is flagged for. What
+    differs is only the presentation: a box has a short title of its own, and
+    the severity of an arithmetic issue is carried by the colour rather than
+    by a marker the document's font cannot draw.
+    """
+    boxes: list[pdf.Callout] = []
+    if note.status == "needs_review":
+        boxes.append(
+            pdf.Callout(texts.CALLOUT_REVIEW, [texts.NEEDS_REVIEW], "warning")
+        )
+
+    report = _stored_report(note)
+    if report is not None and report.issues:
+        boxes.append(
+            pdf.Callout(
+                texts.CALLOUT_MATH,
+                [
+                    texts.issue_line(i.message, i.detail, i.suggestion)
+                    for i in report.issues
+                ],
+                "warning"
+                if any(i.severity == "critical" for i in report.issues)
+                else "info",
+            )
+        )
+
+    divergences = _divergence_lines(note)
+    if divergences:
+        boxes.append(pdf.Callout(texts.CALLOUT_DIVERGENCES, divergences))
+
+    uncertain = _uncertain_lines(note)
+    if uncertain:
+        boxes.append(pdf.Callout(texts.CALLOUT_UNCERTAIN, uncertain))
+
+    return boxes
 
 
 @router.message(Command("notes"))
@@ -406,7 +460,9 @@ async def send_record_pdf(message: Message, note: Note) -> bool:
     )
     try:
         # Drawing formulas is CPU-bound; the webhook must not stall on it.
-        data = await asyncio.to_thread(pdf.render, note.title, note.markdown, subtitle)
+        data = await asyncio.to_thread(
+            pdf.render, note.title, note.markdown, subtitle, _callouts(note)
+        )
     except Exception:
         logger.exception("could not build a PDF for note %s", note.id)
         return False

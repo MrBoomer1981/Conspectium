@@ -19,6 +19,7 @@ import math
 import os
 import re
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from xml.sax.saxutils import escape
 
@@ -54,6 +55,16 @@ _TEXT_WIDTH_PT = A4[0] - 2 * _MARGIN_MM * mm
 _INK = "#333333"
 _GRAPH_WIDTH_PT = 150.0
 _TABLE_PT = 9.0
+# Four steps, so a section is told from a subsection at a glance. The level
+# blocks() reads was being parsed and thrown away: every heading printed at
+# one size, which made "#" and "###" the same thing on the page.
+_HEADING_PT = {1: 14.0, 2: 12.5, 3: 11.0}
+_HEADING_SPACE_BEFORE = {1: 15, 2: 11, 3: 9}
+# background, and the accent used for the left edge and the title
+_CALLOUT_TONES = {
+    "info": ("#eef3fa", "#3f6f9f"),
+    "warning": ("#fdf4e6", "#a8742c"),
+}
 _MIN_COLUMN_PT = 20.0
 _MAX_COLUMN_PT = 120.0
 
@@ -80,6 +91,21 @@ _UNDIRECTED_RE = re.compile(r"\s*[-–—]\s*")
 # be prose the model mislabelled than a graph. Same for a long vertex name.
 _MAX_VERTICES = 24
 _MAX_VERTEX_CHARS = 12
+
+
+@dataclass
+class Callout:
+    """A box above the record saying how far the transcription can be trusted.
+
+    Never anything the model wrote about the page: only what the pipeline
+    already stored beside the text — unreadable spots, arithmetic it could not
+    make add up, numbers the three runs read differently. The caller builds
+    these; this module knows nothing about where a record comes from.
+    """
+
+    title: str
+    lines: list[str]
+    tone: str = "info"  # "info" | "warning"
 
 
 @dataclass
@@ -536,12 +562,24 @@ def _styles() -> dict[str, ParagraphStyle]:
     )
     return {
         "title": ParagraphStyle(
-            "title", parent=base, fontName="DejaVu-Bold", fontSize=16,
-            leading=20, spaceAfter=10,
+            "title", parent=base, fontName="DejaVu-Bold", fontSize=17,
+            leading=21, spaceAfter=12,
         ),
-        "heading": ParagraphStyle(
-            "heading", parent=base, fontName="DejaVu-Bold", fontSize=12.5,
-            leading=17, spaceBefore=8, spaceAfter=3,
+        **{
+            f"heading{level}": ParagraphStyle(
+                f"heading{level}", parent=base, fontName="DejaVu-Bold",
+                fontSize=size, leading=size * 1.35,
+                spaceBefore=_HEADING_SPACE_BEFORE[level], spaceAfter=size * 0.3,
+            )
+            for level, size in _HEADING_PT.items()
+        },
+        "callout_title": ParagraphStyle(
+            "callout_title", parent=base, fontName="DejaVu-Bold",
+            fontSize=_BODY_PT, spaceAfter=4,
+        ),
+        "callout_body": ParagraphStyle(
+            "callout_body", parent=base, fontSize=_BODY_PT - 0.5,
+            leading=(_BODY_PT - 0.5) * 1.45, spaceAfter=1,
         ),
         "body": base,
         "bullet": ParagraphStyle(
@@ -611,6 +649,42 @@ def _table(
     return table
 
 
+def _callout(
+    box: Callout, formulas: _Formulas, styles: dict[str, ParagraphStyle]
+) -> Table:
+    """One box: a tinted panel with a coloured edge down its left side.
+
+    reportlab has no such flowable, so it is a table of one cell — that is
+    what gives a background and a rule on one side only.
+    """
+    background, accent = _CALLOUT_TONES.get(box.tone, _CALLOUT_TONES["info"])
+    inside: list = [
+        Paragraph(
+            f'<font color="{accent}">{_markup(box.title)}</font>',
+            styles["callout_title"],
+        )
+    ]
+    inside += [
+        Paragraph(_line_markup(line, formulas, _BODY_PT - 0.5), styles["callout_body"])
+        for line in box.lines
+    ]
+    table = Table([[inside]], colWidths=[_TEXT_WIDTH_PT], hAlign="CENTER")
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(background)),
+                ("LINEBEFORE", (0, 0), (0, -1), 2.5, colors.HexColor(accent)),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    return table
+
+
 def _graph(spec: str) -> Image | None:
     """A drawn graph, or None when the spec does not read as one."""
     parsed = parse_graph(spec)
@@ -626,7 +700,12 @@ def _graph(spec: str) -> Image | None:
     return image
 
 
-def render(title: str, markdown: str, subtitle: str | None = None) -> bytes:
+def render(
+    title: str,
+    markdown: str,
+    subtitle: str | None = None,
+    callouts: Sequence[Callout] = (),
+) -> bytes:
     """A record as PDF bytes. Never raises on the content of the record."""
     _register_fonts()
     styles = _styles()
@@ -638,6 +717,11 @@ def render(title: str, markdown: str, subtitle: str | None = None) -> bytes:
         if subtitle:
             story.append(Paragraph(_markup(subtitle), styles["note"]))
             story.append(Spacer(1, 6))
+        for box in callouts:
+            # Above the record, not below it: these say how far the text that
+            # follows can be trusted, and that is worth knowing first.
+            story.append(_callout(box, formulas, styles))
+            story.append(Spacer(1, 8))
 
         for block in blocks(markdown):
             if block.kind == "gap":
@@ -670,9 +754,10 @@ def render(title: str, markdown: str, subtitle: str | None = None) -> bytes:
                         Paragraph(_markup(f"граф: {block.text}"), styles["note"])
                     )
             elif block.kind == "heading":
+                style = styles[f"heading{max(1, min(block.level, 3))}"]
                 story.append(
                     Paragraph(
-                        _line_markup(block.text, formulas, 12.5), styles["heading"]
+                        _line_markup(block.text, formulas, style.fontSize), style
                     )
                 )
             elif block.kind == "bullet":
@@ -689,9 +774,9 @@ def render(title: str, markdown: str, subtitle: str | None = None) -> bytes:
                 image = formulas.display(block.text, _BODY_PT + 1.5)
                 if image is not None:
                     image.hAlign = "CENTER"
-                    story.append(Spacer(1, 3))
+                    story.append(Spacer(1, 7))
                     story.append(image)
-                    story.append(Spacer(1, 3))
+                    story.append(Spacer(1, 7))
                 else:
                     story.append(
                         Paragraph(_markup(f"${block.text}$"), styles["math"])

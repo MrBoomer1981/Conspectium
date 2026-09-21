@@ -150,9 +150,10 @@ the first thing to suspect, and a fresh reproduction outranks the note.
 fixed one thing and broke three that the 250-word version read correctly.
 Every extra rule steals attention from the main task.
 **Don't lengthen `TRANSCRIBE_PROMPT`.** That is a budget, not a wall: 250
-words is the length that was proven to work, and `prompts-v3.md` is at 226.
-Rewrite a rule rather than adding one, count the words, stay under it — and
-if the count ever has to go up, say so and measure the result.
+words is the length that was proven to work. `prompts-v3.md` is at **245**,
+so five words are left. Rewriting a rule is how it has gone twice; there is
+no longer room to add one. Count the words after every edit, and if the total
+has to pass 250, say so first and measure what it costs.
 
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a
@@ -303,6 +304,22 @@ right one. Rule 6 forbids adding edges it cannot see, and `parse_graph`
 refuses anything that doesn't read as vertices, but nothing yet compares the
 three runs against each other the way numbers are compared. Recorded under
 `PLAN.md` → Known risks.
+
+**A callout says what we already know, never what the model thinks.** The
+tinted boxes at the top of a record — needs review, arithmetic that doesn't
+add up, numbers the runs read differently, spots read two ways — are built by
+`corpus._callouts` out of the `Note`'s own columns, through the same three
+readers `_flags` uses for the message, so the document and the chat cannot
+come to disagree. `pdf.py` receives a list of `Callout` and knows nothing
+about where a record came from.
+
+What that forecloses is worth naming, because it will be asked for. A box
+headed "what this topic is about" or "the main points", written by the model
+from the photograph, is the exact shape of the failure recorded above under a
+bad shot: fluent, confident, and indistinguishable from the real thing. If
+that text is ever wanted, it belongs in a second call over the **transcription
+already trusted**, in a column of its own, marked as machine-written on the
+page — never in the call that reads the photo.
 
 **`.docx` bypasses the model entirely.** No limits are checked and no quota
 is spent, so a Word file is still processed with `AI_ENABLED=false` — it is
@@ -473,10 +490,10 @@ needs a database runs on in-memory SQLite.
 | `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2` |
 | `test_handlers.py` | `_split_message`, the catch-all reply |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
-| `test_corpus.py` | listing, opening, correcting, statistics — and that no query reaches another user's records |
+| `test_corpus.py` | listing, opening, correcting, statistics, the flags rebuilt from JSONB as text and as callouts — and that no query reaches another user's records |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
-| `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses, graphs read back from `[граф: ...]`, and that nothing unreadable ever sinks the document |
+| `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses, graphs read back from `[граф: ...]`, heading levels, callouts, and that nothing unreadable ever sinks the document |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the

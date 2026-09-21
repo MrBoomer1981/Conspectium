@@ -406,6 +406,127 @@ def test_warm_up_never_raises(monkeypatch):
     pdf.warm_up()  # must not propagate
 
 
+def _sizes(monkeypatch) -> list[float]:
+    """Records the point size every line of the record is set at."""
+    seen: list[float] = []
+    original = pdf._line_markup
+    monkeypatch.setattr(
+        pdf,
+        "_line_markup",
+        lambda text, formulas, size: seen.append(size) or original(text, formulas, size),
+    )
+    return seen
+
+
+def test_a_heading_is_set_at_the_size_of_its_level(monkeypatch):
+    # blocks() has always read the level; render() threw it away and set every
+    # heading at one size, which made "#" and "###" the same thing on a page.
+    sizes = _sizes(monkeypatch)
+    pdf.render("Заголовок", "# Раз\n## Два\n### Три")
+    assert sizes == [14.0, 12.5, 11.0]
+
+
+def test_a_heading_deeper_than_three_is_set_like_the_third(monkeypatch):
+    sizes = _sizes(monkeypatch)
+    pdf.render("Заголовок", "###### Глубоко")
+    assert sizes == [11.0]
+
+
+def test_render_draws_a_callout():
+    data = pdf.render(
+        "Графы",
+        "текст записи",
+        callouts=[pdf.Callout("Нужна проверка", ["прогоны разошлись"], "warning")],
+    )
+    assert data.startswith(b"%PDF-")
+
+
+def test_render_draws_every_callout_it_is_given(monkeypatch):
+    # A PDF comes out either way; only the call proves the boxes were built.
+    seen: list[str] = []
+    original = pdf._callout
+    monkeypatch.setattr(
+        pdf,
+        "_callout",
+        lambda box, formulas, styles: seen.append(box.title)
+        or original(box, formulas, styles),
+    )
+    pdf.render(
+        "Графы",
+        "текст",
+        callouts=[pdf.Callout("Раз", ["a"]), pdf.Callout("Два", ["b"])],
+    )
+    assert seen == ["Раз", "Два"]
+
+
+def _panel(box: pdf.Callout) -> list[str]:
+    """The reportlab markup that actually ends up inside a callout panel.
+
+    _cellvalues is reportlab's own record of what a table was built from.
+    Reaching into it is the only way to see that the title and the lines got
+    as far as the page: a test that checks a PDF came out passes just as
+    happily with the panel empty.
+    """
+    import tempfile
+
+    pdf._register_fonts()
+    with tempfile.TemporaryDirectory() as directory:
+        table = pdf._callout(box, pdf._Formulas(directory), pdf._styles())
+    return [flowable.text for flowable in table._cellvalues[0][0]]
+
+
+def test_a_panel_holds_its_title_and_every_line():
+    panel = _panel(pdf.Callout("Спорные места", ["раз", "два"]))
+    assert len(panel) == 3
+    assert "Спорные места" in panel[0]
+    assert panel[1:] == ["раз", "два"]
+
+
+def test_a_warning_panel_is_titled_in_the_warning_colour():
+    assert pdf._CALLOUT_TONES["warning"][1] in _panel(
+        pdf.Callout("Нужна проверка", [], "warning")
+    )[0]
+    assert pdf._CALLOUT_TONES["info"][1] in _panel(pdf.Callout("Спорные", []))[0]
+
+
+def test_an_unknown_tone_is_titled_like_an_ordinary_one():
+    assert pdf._CALLOUT_TONES["info"][1] in _panel(
+        pdf.Callout("Раз", [], "лиловый")
+    )[0]
+
+
+def test_a_panel_escapes_its_title_and_its_lines():
+    panel = _panel(pdf.Callout("a < b", ["c & d"]))
+    assert "a &lt; b" in panel[0]
+    assert panel[1] == "c &amp; d"
+
+
+def test_a_formula_in_a_panel_line_is_drawn():
+    assert "<img" in _panel(pdf.Callout("Раз", ["дано $x^2$"]))[1]
+
+
+def test_a_callout_with_an_unknown_tone_still_draws():
+    # The tone comes from the caller; a typo there must not sink a record.
+    data = pdf.render("Графы", "текст", callouts=[pdf.Callout("Раз", ["a"], "лиловый")])
+    assert data.startswith(b"%PDF-")
+
+
+def test_a_callout_draws_the_formulas_in_its_lines():
+    data = pdf.render("Графы", "текст", callouts=[pdf.Callout("Раз", ["дано $x^2$"])])
+    assert data.startswith(b"%PDF-")
+
+
+def test_a_callout_survives_markup_characters():
+    data = pdf.render("Графы", "текст", callouts=[pdf.Callout("a < b", ["c & d"])])
+    assert data.startswith(b"%PDF-")
+
+
+def test_a_callout_with_no_lines_still_draws():
+    assert pdf.render("Графы", "текст", callouts=[pdf.Callout("Раз", [])]).startswith(
+        b"%PDF-"
+    )
+
+
 def test_render_asks_for_a_drawing_when_the_record_has_a_graph(monkeypatch):
     # Checking only that a PDF comes out would pass with the drawing dropped
     # on the floor: an unhandled block kind prints as an empty line.

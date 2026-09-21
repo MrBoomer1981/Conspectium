@@ -344,6 +344,128 @@ async def test_stored_divergences_and_uncertain_spots_come_back(session):
     assert texts.UNCERTAIN_HEADER in tail and "читается двояко" in tail
 
 
+# ── callouts: the same flags, as boxes inside the document ───────────────────
+
+
+async def test_a_clean_record_has_no_callouts(session):
+    user = await _user(session)
+    assert corpus._callouts(await _note(session, user)) == []
+
+
+async def test_needs_review_becomes_a_warning_box(session):
+    user = await _user(session)
+    note = await _note(session, user, status="needs_review")
+
+    boxes = corpus._callouts(note)
+
+    assert [(b.title, b.tone) for b in boxes] == [(texts.CALLOUT_REVIEW, "warning")]
+    assert boxes[0].lines == [texts.NEEDS_REVIEW]
+
+
+async def test_an_arithmetic_issue_becomes_a_box_without_its_emoji(session):
+    # mathcheck marks its lines with ❌ and ⚠️, which is right in Telegram and
+    # wrong on the page: DejaVu has a glyph for neither.
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        issues=[
+            {
+                "kind": "constant",
+                "severity": "warning",
+                "message": "h отличается от справочного",
+                "detail": "6,62 против 6,626",
+                "suggestion": "проверьте константу",
+            }
+        ],
+    )
+
+    boxes = corpus._callouts(note)
+
+    assert [b.title for b in boxes] == [texts.CALLOUT_MATH]
+    assert boxes[0].tone == "info"
+    assert "❌" not in boxes[0].lines[0] and "⚠" not in boxes[0].lines[0]
+    assert "h отличается от справочного" in boxes[0].lines[0]
+    assert "проверьте константу" in boxes[0].lines[0]
+
+
+def test_an_issue_line_carries_message_detail_and_suggestion():
+    assert texts.issue_line("не сходится", "6,62 против 6,626", "проверьте") == (
+        "не сходится · 6,62 против 6,626 · → проверьте"
+    )
+
+
+def test_an_issue_line_with_nothing_but_a_message():
+    assert texts.issue_line("не сходится", None, None) == "не сходится"
+
+
+def test_an_issue_line_keeps_a_detail_without_a_suggestion():
+    assert texts.issue_line("не сходится", "6,62", None) == "не сходится · 6,62"
+
+
+async def test_a_critical_issue_turns_the_box_amber(session):
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        issues=[{"kind": "chain", "severity": "critical", "message": "цепочка не сходится"}],
+    )
+
+    assert corpus._callouts(note)[0].tone == "warning"
+
+
+async def test_divergences_and_uncertain_each_get_a_box(session):
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        numeric_divergences=[{"context": "p = ", "variants": {"5": 2, "6": 1}}],
+        uncertain=[{"text": "щ", "why": "двоится"}],
+    )
+
+    assert [b.title for b in corpus._callouts(note)] == [
+        texts.CALLOUT_DIVERGENCES,
+        texts.CALLOUT_UNCERTAIN,
+    ]
+
+
+async def test_a_page_number_reaches_the_box_too(session):
+    user = await _user(session)
+    note = await _note(
+        session, user, page_count=3, uncertain=[{"text": "щ", "why": "двоится", "page": 2}]
+    )
+
+    assert "с. 2 —" in corpus._callouts(note)[0].lines[0]
+
+
+async def test_an_unreadable_issues_payload_does_not_sink_the_boxes(session):
+    # Same bargain as the message path: a shape this version cannot read costs
+    # its own box, not the record.
+    user = await _user(session)
+    note = await _note(
+        session, user, issues=[{"совсем": "не то"}], uncertain=[{"text": "щ", "why": "двоится"}]
+    )
+
+    assert [b.title for b in corpus._callouts(note)] == [texts.CALLOUT_UNCERTAIN]
+
+
+async def test_the_document_is_built_with_the_boxes_of_the_record(session, monkeypatch):
+    # The boxes being right proves nothing if the PDF is rendered without them.
+    user = await _user(session)
+    note = await _note(session, user, status="needs_review")
+    seen: list[list] = []
+    original = corpus.pdf.render
+
+    def spy(title, markdown, subtitle=None, callouts=()):
+        seen.append(list(callouts))
+        return original(title, markdown, subtitle, callouts)
+
+    monkeypatch.setattr(corpus.pdf, "render", spy)
+    await corpus.send_record_pdf(_Message(), note)
+
+    assert [b.title for b in seen[0]] == [texts.CALLOUT_REVIEW]
+
+
 async def test_album_flags_keep_their_page_numbers(session):
     user = await _user(session)
     note = await _note(

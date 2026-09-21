@@ -41,6 +41,30 @@ DIVERGENCES_HEADER = "Числа, прочитанные по-разному в 
 
 UNCERTAIN_HEADER = "Спорные места — символ читается двояко:"
 
+# The same four flags as headings of a box inside the PDF. Short, because a
+# box has its own title line, where the message needs a whole sentence.
+CALLOUT_REVIEW = "Нужна проверка"
+CALLOUT_MATH = "Проверка вычислений"
+CALLOUT_DIVERGENCES = "Числа прочитаны по-разному"
+CALLOUT_UNCERTAIN = "Спорные места"
+
+
+def issue_line(message: str, detail: str | None, suggestion: str | None) -> str:
+    """One arithmetic issue on one line, for the PDF.
+
+    mathcheck puts ❌ or ⚠️ in front of its own lines, which is right in
+    Telegram and wrong on the page. DejaVu has a glyph for ⚠ but none for ❌,
+    so on paper a critical issue would come out as an empty box while a mere
+    warning drew fine — the worse of the two made to look like nothing at all.
+    Inside the document the colour of the callout carries the severity.
+    """
+    parts = [message]
+    if detail:
+        parts.append(detail)
+    if suggestion:
+        parts.append(f"→ {suggestion}")
+    return " · ".join(parts)
+
 
 def divergence_line(
     context: str, variants: dict[str, int], page: int | None = None
