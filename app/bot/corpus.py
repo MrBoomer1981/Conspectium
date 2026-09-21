@@ -161,11 +161,31 @@ def _callouts(note: Note) -> list[pdf.Callout]:
     if divergences:
         boxes.append(pdf.Callout(texts.CALLOUT_DIVERGENCES, divergences))
 
-    uncertain = _uncertain_lines(note)
-    if uncertain:
-        boxes.append(pdf.Callout(texts.CALLOUT_UNCERTAIN, uncertain))
-
     return boxes
+
+
+def _remarks(note: Note) -> list[pdf.Remark]:
+    """The spots that read two ways, as remarks to be set beside them.
+
+    These used to be a box at the top of the document, which said what was
+    doubtful without saying where. `uncertain.text` is what the model read, so
+    it is also the anchor: whichever line of the record contains it gets the
+    remark. One that anchors nowhere is not lost — `pdf.render` puts it at the
+    end.
+    """
+    return [
+        pdf.Remark(
+            anchor=str(u.get("text", "")),
+            label=texts.remark_label(u.get("page")),
+            lines=texts.uncertain_remark(
+                str(u.get("text", "")),
+                str(u.get("why", "")),
+                u.get("alternatives") or [],
+            ),
+        )
+        for u in note.uncertain
+        if isinstance(u, dict)
+    ]
 
 
 @router.message(Command("notes"))
@@ -467,6 +487,7 @@ async def send_record_pdf(message: Message, note: Note) -> bool:
             subtitle,
             _callouts(note),
             texts.byline(note.margin_notes),
+            _remarks(note),
         )
     except Exception:
         logger.exception("could not build a PDF for note %s", note.id)

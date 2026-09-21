@@ -53,7 +53,7 @@ _BODY_PT = 10.5
 _MARGIN_MM = 18
 _TEXT_WIDTH_PT = A4[0] - 2 * _MARGIN_MM * mm
 _INK = "#333333"
-_GRAPH_WIDTH_PT = 150.0
+_GRAPH_WIDTH_PT = 135.0
 _TABLE_PT = 9.0
 # Four steps, so a section is told from a subsection at a glance. The level
 # blocks() reads was being parsed and thrown away: every heading printed at
@@ -65,6 +65,12 @@ _CALLOUT_TONES = {
     "info": ("#eef3fa", "#3f6f9f"),
     "warning": ("#fdf4e6", "#a8742c"),
 }
+_HAIRLINE = "#d5d5d5"
+_REMARK_ACCENT = "#9aa5b1"
+# More than three drawings in a row and none of them is readable.
+_FIGURES_PER_ROW = 3
+# Padding either side of a drawing inside its cell of the row.
+_FIGURE_GAP_PT = 16.0
 _MIN_COLUMN_PT = 20.0
 _MAX_COLUMN_PT = 120.0
 
@@ -83,7 +89,10 @@ _RULE_RE = re.compile(r"^(?:-{3,}|\*{3,}|_{3,})$")
 _ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
 _ROW_SEPARATOR_RE = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
 # "[граф: 1-2, 2-3]" inside the square brackets of a note.
-_GRAPH_RE = re.compile(r"^(?:граф|graph)\s*:\s*(.*)$", re.IGNORECASE)
+# "[граф: 1-2]", or "[граф Ориентированный: 1->2]" with a caption.
+_GRAPH_RE = re.compile(
+    r"^(?:граф|graph)\s*([^:]{0,40}?)\s*:\s*(.*)$", re.IGNORECASE
+)
 _DIRECTED_RE = re.compile(r"\s*(?:-+>|→)\s*")
 _UNDIRECTED_RE = re.compile(r"\s*[-–—]\s*")
 
@@ -109,12 +118,28 @@ class Callout:
 
 
 @dataclass
+class Remark:
+    """A note about how one place in the record was read, set beside it.
+
+    `anchor` is the text it belongs to: whichever block contains that text
+    gets the remark under it. One that matches nothing is not thrown away —
+    it goes at the end, where it is still readable. Like a Callout, it says
+    only what the pipeline already knows.
+    """
+
+    anchor: str
+    label: str
+    lines: list[str]
+
+
+@dataclass
 class Block:
     kind: str  # heading | bullet | text | math | note | gap | rule | table | graph
     text: str = ""
     level: int = 0
     rows: list[list[str]] = field(default_factory=list)
     header: bool = False
+    caption: str = ""
 
 
 def _is_whole_formula(line: str) -> str | None:
@@ -267,7 +292,11 @@ def blocks(markdown: str) -> list[Block]:
             inner = stripped[1:-1].strip()
             drawing = _GRAPH_RE.match(inner)
             out.append(
-                Block("graph", drawing.group(1).strip())
+                Block(
+                    "graph",
+                    drawing.group(2).strip(),
+                    caption=drawing.group(1).strip(),
+                )
                 if drawing
                 else Block("note", inner)
             )
@@ -386,7 +415,10 @@ def _formula_png(latex: str, size_pt: float) -> tuple[bytes, float, float]:
 
 
 def _graph_png(
-    vertices: list[str], edges: list[tuple[str, str]], directed: bool
+    vertices: list[str],
+    edges: list[tuple[str, str]],
+    directed: bool,
+    width_pt: float = _GRAPH_WIDTH_PT,
 ) -> tuple[bytes, float, float]:
     """A graph drawn as a picture, with its size in points. Raises on anything
     matplotlib dislikes; the caller falls back to printing the spec."""
@@ -458,7 +490,7 @@ def _graph_png(
 
     data = buffer.getvalue()
     width, height = PILImage.open(io.BytesIO(data)).size
-    scale = _GRAPH_WIDTH_PT / width
+    scale = width_pt / width
     return data, width * scale, height * scale
 
 
@@ -557,8 +589,11 @@ def _styles() -> dict[str, ParagraphStyle]:
         "body",
         fontName="DejaVu",
         fontSize=_BODY_PT,
-        leading=_BODY_PT * 1.6,
-        spaceAfter=1,
+        leading=_BODY_PT * 1.7,
+        # Rule 8 of the prompt joins lines that continue a sentence, so a text
+        # block is now a paragraph rather than one written line. Paragraphs
+        # need air between them; written lines did not.
+        spaceAfter=4,
     )
     return {
         "title": ParagraphStyle(
@@ -587,7 +622,20 @@ def _styles() -> dict[str, ParagraphStyle]:
         ),
         "body": base,
         "bullet": ParagraphStyle(
-            "bullet", parent=base, leftIndent=10, bulletIndent=2, spaceAfter=1
+            "bullet", parent=base, leftIndent=16, bulletIndent=5, spaceAfter=3
+        ),
+        "remark_label": ParagraphStyle(
+            "remark_label", parent=base, fontName="DejaVu-Bold",
+            fontSize=_BODY_PT - 2.5, leading=(_BODY_PT - 2.5) * 1.3, spaceAfter=2,
+        ),
+        "remark_body": ParagraphStyle(
+            "remark_body", parent=base, fontSize=_BODY_PT - 1,
+            leading=(_BODY_PT - 1) * 1.45, textColor="#5a6570", spaceAfter=1,
+        ),
+        "caption": ParagraphStyle(
+            "caption", parent=base, fontSize=_BODY_PT - 1.5,
+            leading=(_BODY_PT - 1.5) * 1.3, alignment=TA_CENTER,
+            textColor="#555555", spaceAfter=0,
         ),
         "note": ParagraphStyle(
             "note", parent=base, fontName="DejaVu-Oblique", textColor="#666666"
@@ -689,13 +737,95 @@ def _callout(
     return table
 
 
-def _graph(spec: str) -> Image | None:
+def _figure_width(count: int) -> float:
+    """How wide each drawing in a row of `count` may be.
+
+    A drawing has a natural size, and beyond a certain number per row that
+    size stops fitting — the row has to give way to the page, not the other
+    way round.
+    """
+    return min(_GRAPH_WIDTH_PT, (_TEXT_WIDTH_PT - _FIGURE_GAP_PT * count) / count)
+
+
+def _figure_row(
+    figures: list[tuple[str, str]], styles: dict[str, ParagraphStyle]
+) -> list:
+    """Drawings side by side, each with its caption under it.
+
+    Three variants of one idea were drawn across the page, and that is how
+    they read. Stacked one per row they become three unrelated pictures with
+    half a page between them.
+    """
+    width = _figure_width(len(figures))
+    cells: list[list] = []
+    for caption, spec in figures:
+        drawn = _graph(spec, width)
+        if drawn is None:
+            # Same bargain as an unreadable formula: worse to look at than a
+            # drawing, far better than a silently missing one.
+            cells.append([Paragraph(_markup(f"граф: {spec}"), styles["note"])])
+            continue
+        cell: list = [drawn]
+        if caption:
+            cell.append(Spacer(1, 3))
+            cell.append(Paragraph(_markup(caption), styles["caption"]))
+        cells.append(cell)
+
+    table = Table([cells], hAlign="CENTER")
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), _FIGURE_GAP_PT / 2),
+                ("RIGHTPADDING", (0, 0), (-1, -1), _FIGURE_GAP_PT / 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    return [Spacer(1, 6), table, Spacer(1, 8)]
+
+
+def _remark(
+    remark: Remark, formulas: _Formulas, styles: dict[str, ParagraphStyle]
+) -> Table:
+    """A note set beside the line it belongs to: a rule down the left and grey
+    text, with no panel behind it. Anything louder and a page of ordinary
+    reading becomes a page of warnings."""
+    inside: list = [
+        Paragraph(
+            f'<font color="{_REMARK_ACCENT}">{_markup(remark.label)}</font>',
+            styles["remark_label"],
+        )
+    ]
+    inside += [
+        Paragraph(_line_markup(line, formulas, _BODY_PT - 1), styles["remark_body"])
+        for line in remark.lines
+    ]
+    table = Table([[inside]], colWidths=[_TEXT_WIDTH_PT - 14], hAlign="RIGHT")
+    table.setStyle(
+        TableStyle(
+            [
+                ("LINEBEFORE", (0, 0), (0, -1), 1.6, colors.HexColor(_REMARK_ACCENT)),
+                ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    return table
+
+
+def _graph(spec: str, width_pt: float = _GRAPH_WIDTH_PT) -> Image | None:
     """A drawn graph, or None when the spec does not read as one."""
     parsed = parse_graph(spec)
     if parsed is None:
         return None
     try:
-        data, width, height = _graph_png(*parsed)
+        data, width, height = _graph_png(*parsed, width_pt=width_pt)
     except Exception:
         logger.exception("could not draw the graph %r", spec)
         return None
@@ -704,100 +834,142 @@ def _graph(spec: str) -> Image | None:
     return image
 
 
+def _hairline(width: str = "100%") -> HRFlowable:
+    """The thin rule the target layout puts under a title and under each
+    top-level heading. Quiet enough to separate without being furniture."""
+    return HRFlowable(
+        width=width,
+        thickness=0.5,
+        hAlign="CENTER",
+        color=colors.HexColor(_HAIRLINE),
+        spaceBefore=0,
+        spaceAfter=0,
+    )
+
+
+def _flowables(
+    block: Block, formulas: _Formulas, styles: dict[str, ParagraphStyle]
+) -> list:
+    """One parsed block as reportlab flowables. Graphs are not here: they are
+    gathered into rows by the caller, which needs to see several at once."""
+    if block.kind == "gap":
+        return [Spacer(1, 5)]
+
+    if block.kind == "rule":
+        # The seam between two pages of an album. A short thin line says "the
+        # next page starts here" without shouting it.
+        return [Spacer(1, 7), _hairline("35%"), Spacer(1, 7)]
+
+    if block.kind == "table":
+        return [
+            Spacer(1, 4),
+            _table(block.rows, block.header, formulas, styles),
+            Spacer(1, 6),
+        ]
+
+    if block.kind == "heading":
+        level = max(1, min(block.level, 3))
+        style = styles[f"heading{level}"]
+        out = [Paragraph(_line_markup(block.text, formulas, style.fontSize), style)]
+        if level == 1:
+            out += [_hairline(), Spacer(1, 6)]
+        return out
+
+    if block.kind == "bullet":
+        return [
+            Paragraph(
+                _line_markup(block.text, formulas, _BODY_PT),
+                styles["bullet"],
+                bulletText="•",
+            )
+        ]
+
+    if block.kind == "note":
+        return [Paragraph(_markup(block.text), styles["note"])]
+
+    if block.kind == "math":
+        image = formulas.display(block.text, _BODY_PT + 1.5)
+        if image is None:
+            return [Paragraph(_markup(f"${block.text}$"), styles["math"])]
+        image.hAlign = "CENTER"
+        return [Spacer(1, 7), image, Spacer(1, 7)]
+
+    return [Paragraph(_line_markup(block.text, formulas, _BODY_PT), styles["body"])]
+
+
 def render(
     title: str,
     markdown: str,
     subtitle: str | None = None,
     callouts: Sequence[Callout] = (),
     byline: str | None = None,
+    remarks: Sequence[Remark] = (),
 ) -> bytes:
     """A record as PDF bytes. Never raises on the content of the record."""
     _register_fonts()
     styles = _styles()
     buffer = io.BytesIO()
 
+    # A first heading repeating the title is the commonest shape a page takes:
+    # the record is called "Графы" and the page is headed "Графы". Printing
+    # both says nothing twice.
+    wanted = title.strip().casefold()
+    parsed = [
+        block
+        for block in blocks(markdown)
+        if not (block.kind == "heading" and block.text.strip().casefold() == wanted)
+    ]
+
     with tempfile.TemporaryDirectory(prefix="conspectium-pdf-") as directory:
         formulas = _Formulas(directory)
-        story: list = [Paragraph(_markup(title), styles["title"])]
+        story: list = [Paragraph(_markup(title), styles["title"]), _hairline()]
         if byline:
             # What was written in the margin rather than in the note: whose
-            # lecture it was, which date, which page. Under the title, where
-            # a reader looks for it — not in the body, where it reads as
+            # lecture it was, which date, which page. Under the title, where a
+            # reader looks for it — not in the body, where it reads as
             # something the author was saying.
+            story.append(Spacer(1, 5))
             story.append(Paragraph(_markup(byline), styles["byline"]))
         if subtitle:
+            if not byline:
+                story.append(Spacer(1, 5))
             story.append(Paragraph(_markup(subtitle), styles["note"]))
-            story.append(Spacer(1, 6))
+        story.append(Spacer(1, 10))
+
         for box in callouts:
             # Above the record, not below it: these say how far the text that
             # follows can be trusted, and that is worth knowing first.
             story.append(_callout(box, formulas, styles))
             story.append(Spacer(1, 8))
 
-        for block in blocks(markdown):
-            if block.kind == "gap":
-                story.append(Spacer(1, 5))
-            elif block.kind == "rule":
-                # The seam between two pages of an album. A thin short line
-                # says "the next page starts here" without shouting it.
-                story.append(Spacer(1, 7))
-                story.append(
-                    HRFlowable(
-                        width="35%", thickness=0.6, hAlign="CENTER",
-                        color=colors.HexColor("#cccccc"),
-                    )
-                )
-                story.append(Spacer(1, 7))
-            elif block.kind == "table":
+        pending = list(remarks)
+        index = 0
+        while index < len(parsed):
+            if parsed[index].kind == "graph":
+                figures: list[tuple[str, str]] = []
+                while (
+                    index < len(parsed)
+                    and parsed[index].kind == "graph"
+                    and len(figures) < _FIGURES_PER_ROW
+                ):
+                    figures.append((parsed[index].caption, parsed[index].text))
+                    index += 1
+                story.extend(_figure_row(figures, styles))
+                continue
+
+            block = parsed[index]
+            story.extend(_flowables(block, formulas, styles))
+            for remark in [r for r in pending if r.anchor and r.anchor in block.text]:
+                story.append(_remark(remark, formulas, styles))
                 story.append(Spacer(1, 4))
-                story.append(_table(block.rows, block.header, formulas, styles))
-                story.append(Spacer(1, 6))
-            elif block.kind == "graph":
-                image = _graph(block.text)
-                if image is not None:
-                    story.append(Spacer(1, 4))
-                    story.append(image)
-                    story.append(Spacer(1, 6))
-                else:
-                    # Same bargain as an unreadable formula: worse to look at
-                    # than a drawing, far better than a silently missing one.
-                    story.append(
-                        Paragraph(_markup(f"граф: {block.text}"), styles["note"])
-                    )
-            elif block.kind == "heading":
-                style = styles[f"heading{max(1, min(block.level, 3))}"]
-                story.append(
-                    Paragraph(
-                        _line_markup(block.text, formulas, style.fontSize), style
-                    )
-                )
-            elif block.kind == "bullet":
-                story.append(
-                    Paragraph(
-                        _line_markup(block.text, formulas, _BODY_PT),
-                        styles["bullet"],
-                        bulletText="•",
-                    )
-                )
-            elif block.kind == "note":
-                story.append(Paragraph(_markup(block.text), styles["note"]))
-            elif block.kind == "math":
-                image = formulas.display(block.text, _BODY_PT + 1.5)
-                if image is not None:
-                    image.hAlign = "CENTER"
-                    story.append(Spacer(1, 7))
-                    story.append(image)
-                    story.append(Spacer(1, 7))
-                else:
-                    story.append(
-                        Paragraph(_markup(f"${block.text}$"), styles["math"])
-                    )
-            else:
-                story.append(
-                    Paragraph(
-                        _line_markup(block.text, formulas, _BODY_PT), styles["body"]
-                    )
-                )
+                pending.remove(remark)
+            index += 1
+
+        # A remark whose anchor was never found is still worth reading; it
+        # goes at the end rather than nowhere.
+        for remark in pending:
+            story.append(Spacer(1, 4))
+            story.append(_remark(remark, formulas, styles))
 
         SimpleDocTemplate(
             buffer,

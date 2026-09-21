@@ -49,6 +49,24 @@ CALLOUT_DIVERGENCES = "Числа прочитаны по-разному"
 CALLOUT_UNCERTAIN = "Спорные места"
 
 
+def remark_label(page: int | None = None) -> str:
+    """The heading of a remark set beside a line of the record."""
+    return "В рукописи" if page is None else f"В рукописи, с. {page}"
+
+
+def uncertain_remark(text: str, why: str, alternatives: list[str]) -> list[str]:
+    """One spot that reads two ways, as the lines of a remark beside it.
+
+    As a list at the top of the document this said what was doubtful but not
+    where, and by the time a reader reached the text they had forgotten it.
+    """
+    lines = [f"«{text}» — {why}" if why else f"«{text}»"]
+    other = [str(a).strip() for a in alternatives if str(a).strip()]
+    if other:
+        lines.append("другое прочтение: " + ", ".join(other))
+    return lines
+
+
 def issue_line(message: str, detail: str | None, suggestion: str | None) -> str:
     """One arithmetic issue on one line, for the PDF.
 
@@ -69,11 +87,27 @@ def issue_line(message: str, detail: str | None, suggestion: str | None) -> str:
 def divergence_line(
     context: str, variants: dict[str, int], page: int | None = None
 ) -> str:
-    """One line per divergent number: its context and each competing value with
-    how many runs produced it. `page` prefixes the line for an album record."""
-    options = ", ".join(f"{value} — {count}" for value, count in variants.items())
-    prefix = f"с. {page} — " if page is not None else ""
-    return f"{prefix}{context}: {options}"
+    """One divergent number, phrased for a person.
+
+    What stood here before was the comparison's own shape —
+    `с. 4 — 0: 0 — 2, 2 — 1` — six lines of which went into a record and told
+    nobody anything. The question a reader has is which reading won and by how
+    much, so that is what the line says.
+    """
+    total = sum(variants.values()) or 1
+    options = " или ".join(
+        # consensus writes a gap as "— (пропущено)". Left as it is, the dash
+        # reads as a stray minus mid-sentence and the brackets collide with
+        # the count that follows: "(пропущено) (1 из 3)".
+        f"{value.strip('—() ') or 'пропущено'} ({count} из {total})"
+        for value, count in variants.items()
+    )
+    where = f"с. {page}" if page is not None else ""
+    around = context.strip()
+    if around and around not in variants:
+        around = around if len(around) <= 30 else around[:29] + "…"
+        where = f"{where}, «{around}»" if where else f"«{around}»"
+    return f"{where}: {options}" if where else options
 
 
 # Documents — app/bot/handlers.py handle_document.

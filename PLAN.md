@@ -47,13 +47,14 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 18. The webhook answers before it processes
 - [x] 19. Graphs and tables drawn, not described
 - [x] 20. Heading steps, callouts, and a prompt variant behind a switch
+- [x] 21. Remarks beside the line, figure rows, and readable flags
 
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+Done: 1-21
 Current task: none
 Next task: none
 Blockers: none

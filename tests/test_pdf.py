@@ -74,6 +74,17 @@ def test_a_graph_note_is_drawn_instead_of_described():
     assert pdf.blocks("[граф: 1-2, 2-3]")[0] == pdf.Block("graph", "1-2, 2-3")
 
 
+def test_a_drawing_can_carry_a_caption():
+    block = pdf.blocks("[граф Ориентированный: 1->2, 2->3]")[0]
+    assert block.kind == "graph"
+    assert block.caption == "Ориентированный"
+    assert block.text == "1->2, 2->3"
+
+
+def test_a_drawing_without_a_caption_has_an_empty_one():
+    assert pdf.blocks("[граф: 1-2]")[0] == pdf.Block("graph", "1-2")
+
+
 def test_a_graph_note_is_recognised_in_english_too():
     assert pdf.blocks("[graph: a-b]")[0].kind == "graph"
 
@@ -560,7 +571,9 @@ def test_render_asks_for_a_drawing_when_the_record_has_a_graph(monkeypatch):
     # Checking only that a PDF comes out would pass with the drawing dropped
     # on the floor: an unhandled block kind prints as an empty line.
     asked: list[str] = []
-    monkeypatch.setattr(pdf, "_graph", lambda spec: asked.append(spec) or None)
+    monkeypatch.setattr(
+        pdf, "_graph", lambda spec, width=None: asked.append(spec) or None
+    )
     pdf.render("Графы", "[граф: 1-2, 2-3]")
     assert asked == ["1-2, 2-3"]
 
@@ -585,7 +598,9 @@ def test_render_draws_a_line_at_the_seam_between_pages(monkeypatch):
         pdf, "HRFlowable", lambda **kw: drawn.append(kw) or original(**kw)
     )
     pdf.render("Альбом", "первая\n\n---\n\nвторая")
-    assert len(drawn) == 1
+    # Two rules: the full-width one under the title, then the short one at the
+    # seam. Their widths are how they are told apart on the page.
+    assert [rule["width"] for rule in drawn] == ["100%", "35%"]
 
 
 def test_render_survives_a_graph_it_cannot_read():
@@ -655,3 +670,152 @@ def test_a_graph_is_drawn_in_the_placement_order(monkeypatch):
     )
     pdf._graph("5-1, 3-5")
     assert seen == [["5", "1", "3"]]
+
+
+# ── the story: where a flowable actually lands ───────────────────────────────
+
+
+def _story(monkeypatch, *args, **kwargs) -> list:
+    """The flowables render() hands to reportlab, caught on the way in.
+
+    Position is the whole point of a remark — that it sits beside the line it
+    belongs to — and a finished PDF says nothing about where a flowable went.
+    """
+    captured: list = []
+
+    class _Doc:
+        def __init__(self, *a, **k):
+            pass
+
+        def build(self, story):
+            captured.extend(story)
+
+    monkeypatch.setattr(pdf, "SimpleDocTemplate", _Doc)
+    pdf.render(*args, **kwargs)
+    return captured
+
+
+def _where(story: list, needle: str) -> int:
+    for position, flowable in enumerate(story):
+        if needle in getattr(flowable, "text", ""):
+            return position
+    return -1
+
+
+def test_a_remark_is_set_directly_under_the_line_it_belongs_to(monkeypatch):
+    story = _story(
+        monkeypatch,
+        "Графы",
+        "первая строка\nвторая строка про щуку\nтретья строка",
+        remarks=[pdf.Remark("щуку", "В рукописи", ["двоится"])],
+    )
+    anchor = _where(story, "щуку")
+
+    assert anchor > 0
+    assert type(story[anchor + 1]).__name__ == "Table"
+    assert _where(story, "третья") > anchor + 1
+
+
+def test_a_remark_that_anchors_nowhere_goes_to_the_end(monkeypatch):
+    # Not dropped: it still says something about the record, and the end of
+    # the document is where it is least in the way.
+    story = _story(
+        monkeypatch,
+        "Графы",
+        "первая строка\nвторая строка",
+        remarks=[pdf.Remark("чего тут нет", "В рукописи", ["двоится"])],
+    )
+    assert type(story[-1]).__name__ == "Table"
+    assert _where(story, "вторая") < len(story) - 1
+
+
+def test_a_remark_with_an_empty_anchor_is_not_pinned_to_the_first_line(monkeypatch):
+    # "" is a substring of everything; an empty anchor must not swallow the
+    # first block it meets.
+    story = _story(
+        monkeypatch,
+        "Графы",
+        "первая строка\nвторая строка",
+        remarks=[pdf.Remark("", "В рукописи", ["двоится"])],
+    )
+    assert type(story[-1]).__name__ == "Table"
+
+
+def test_a_heading_repeating_the_title_is_dropped(monkeypatch):
+    # The commonest shape a page takes: the record is called "Графы" and the
+    # page is headed "Графы". Printing both says nothing twice.
+    story = _story(monkeypatch, "Графы", "# Графы\nтекст записи")
+    assert sum(1 for f in story if getattr(f, "text", "") == "Графы") == 1
+
+
+def test_a_repeated_heading_is_matched_past_case_and_spaces(monkeypatch):
+    story = _story(monkeypatch, "Графы", "#   графы  \nтекст записи")
+    assert _where(story, "рафы") == 0
+
+
+def test_a_heading_that_is_not_the_title_survives(monkeypatch):
+    story = _story(monkeypatch, "Графы", "# Основные понятия\nтекст записи")
+    assert _where(story, "Основные понятия") > 0
+
+
+def test_adjacent_drawings_are_set_in_one_row(monkeypatch):
+    rows: list[list[tuple[str, str]]] = []
+    monkeypatch.setattr(
+        pdf, "_figure_row", lambda figures, styles: rows.append(figures) or []
+    )
+    pdf.render("Графы", "[граф A: 1-2]\n[граф B: 1->2]\n[граф C: 1-2, 2-3]")
+    assert rows == [[("A", "1-2"), ("B", "1->2"), ("C", "1-2, 2-3")]]
+
+
+def test_a_fourth_drawing_starts_a_new_row(monkeypatch):
+    rows: list[list] = []
+    monkeypatch.setattr(
+        pdf, "_figure_row", lambda figures, styles: rows.append(figures) or []
+    )
+    pdf.render("Графы", "\n".join(f"[граф: {i}-{i + 1}]" for i in range(4)))
+    assert [len(row) for row in rows] == [3, 1]
+
+
+def test_a_drawing_with_text_around_it_stays_on_its_own(monkeypatch):
+    rows: list[list] = []
+    monkeypatch.setattr(
+        pdf, "_figure_row", lambda figures, styles: rows.append(figures) or []
+    )
+    pdf.render("Графы", "[граф: 1-2]\nтекст между ними\n[граф: 2-3]")
+    assert [len(row) for row in rows] == [1, 1]
+
+
+def test_one_drawing_in_a_row_is_drawn_at_its_natural_size():
+    assert pdf._figure_width(1) == pdf._GRAPH_WIDTH_PT
+
+
+def test_a_crowded_row_gives_way_to_the_page():
+    # Three fit at full size; the arithmetic has to hold past that too, or a
+    # row runs off the edge of the paper without reportlab complaining.
+    assert pdf._figure_width(pdf._FIGURES_PER_ROW) == pdf._GRAPH_WIDTH_PT
+    for count in (4, 6, 8):
+        row = count * (pdf._figure_width(count) + pdf._FIGURE_GAP_PT)
+        assert row <= pdf._TEXT_WIDTH_PT
+
+
+def test_a_caption_is_set_under_its_drawing():
+    row = pdf._figure_row([("Ориентированный", "1->2")], pdf._styles())
+    cell = row[1]._cellvalues[0][0]
+    assert cell[-1].text == "Ориентированный"
+
+
+def test_a_drawing_that_cannot_be_read_still_leaves_a_row():
+    row = pdf._figure_row([("", "тут была какая то схема")], pdf._styles())
+    assert "граф:" in row[1]._cellvalues[0][0][0].text
+
+
+def test_render_draws_a_hairline_under_the_title(monkeypatch):
+    story = _story(monkeypatch, "Графы", "текст записи")
+    assert type(story[1]).__name__ == "HRFlowable"
+
+
+def test_a_top_level_heading_gets_a_hairline_and_a_deeper_one_does_not(monkeypatch):
+    with_rule = _story(monkeypatch, "Т", "# Раздел\nтекст")
+    without = _story(monkeypatch, "Т", "## Подраздел\nтекст")
+    assert sum(1 for f in with_rule if type(f).__name__ == "HRFlowable") == 2
+    assert sum(1 for f in without if type(f).__name__ == "HRFlowable") == 1

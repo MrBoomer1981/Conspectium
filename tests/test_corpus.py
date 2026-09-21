@@ -341,7 +341,7 @@ async def test_stored_divergences_and_uncertain_spots_come_back(session):
     await corpus.cmd_note(message, _cmd(str(note.id)), session, user)
 
     tail = message.replies[-1]
-    assert texts.DIVERGENCES_HEADER in tail and "9.8 — 2" in tail
+    assert texts.DIVERGENCES_HEADER in tail and "9.8 (2 из 3)" in tail
     assert texts.UNCERTAIN_HEADER in tail and "читается двояко" in tail
 
 
@@ -390,6 +390,34 @@ async def test_an_arithmetic_issue_becomes_a_box_without_its_emoji(session):
     assert "проверьте константу" in boxes[0].lines[0]
 
 
+def test_a_divergent_number_reads_as_a_sentence():
+    assert texts.divergence_line("сумма", {"2": 2, "3": 1}, page=3) == (
+        "с. 3, «сумма»: 2 (2 из 3) или 3 (1 из 3)"
+    )
+
+
+def test_a_number_missing_from_a_run_is_named_rather_than_dashed():
+    # consensus writes a gap as "— (пропущено)". Left alone, the dash reads
+    # as a stray minus in the middle of the sentence.
+    assert texts.divergence_line("", {"5": 2, "— (пропущено)": 1}) == (
+        "5 (2 из 3) или пропущено (1 из 3)"
+    )
+
+
+def test_a_context_that_is_only_the_number_is_not_repeated():
+    # The shape that produced "с. 4 — 0: 0 — 2, 2 — 1": consensus hands the
+    # number back as its own context, and saying it twice was half of what
+    # made the line unreadable.
+    assert texts.divergence_line("0", {"0": 2, "2": 1}, page=4) == (
+        "с. 4: 0 (2 из 3) или 2 (1 из 3)"
+    )
+
+
+def test_a_long_context_is_cut_rather_than_run_on():
+    line = texts.divergence_line("очень длинное окружение из тетради", {"1": 3})
+    assert "…" in line and len(line) < 60
+
+
 def test_an_issue_line_carries_message_detail_and_suggestion():
     assert texts.issue_line("не сходится", "6,62 против 6,626", "проверьте") == (
         "не сходится · 6,62 против 6,626 · → проверьте"
@@ -415,7 +443,9 @@ async def test_a_critical_issue_turns_the_box_amber(session):
     assert corpus._callouts(note)[0].tone == "warning"
 
 
-async def test_divergences_and_uncertain_each_get_a_box(session):
+async def test_divergences_get_a_box_and_uncertain_spots_do_not(session):
+    # A spot that reads two ways is now a remark beside the line it belongs
+    # to; only the numbers stay a box, having nowhere in particular to point.
     user = await _user(session)
     note = await _note(
         session,
@@ -424,19 +454,47 @@ async def test_divergences_and_uncertain_each_get_a_box(session):
         uncertain=[{"text": "щ", "why": "двоится"}],
     )
 
-    assert [b.title for b in corpus._callouts(note)] == [
-        texts.CALLOUT_DIVERGENCES,
-        texts.CALLOUT_UNCERTAIN,
-    ]
+    assert [b.title for b in corpus._callouts(note)] == [texts.CALLOUT_DIVERGENCES]
 
 
-async def test_a_page_number_reaches_the_box_too(session):
+async def test_an_uncertain_spot_becomes_a_remark_anchored_on_what_was_read(session):
     user = await _user(session)
     note = await _note(
-        session, user, page_count=3, uncertain=[{"text": "щ", "why": "двоится", "page": 2}]
+        session,
+        user,
+        uncertain=[{"text": "∂cv", "why": "почерк неразборчив", "page": 2}],
     )
 
-    assert "с. 2 —" in corpus._callouts(note)[0].lines[0]
+    remarks = corpus._remarks(note)
+
+    assert [r.anchor for r in remarks] == ["∂cv"]
+    assert remarks[0].label == "В рукописи, с. 2"
+    assert "почерк неразборчив" in remarks[0].lines[0]
+
+
+async def test_a_remark_carries_the_other_readings(session):
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        uncertain=[{"text": "∂cv", "why": "двоится", "alternatives": ["дсv", "∂cu"]}],
+    )
+
+    assert corpus._remarks(note)[-1].lines[-1] == "другое прочтение: дсv, ∂cu"
+
+
+async def test_a_remark_without_a_page_says_so_without_one(session):
+    user = await _user(session)
+    note = await _note(session, user, uncertain=[{"text": "щ", "why": "двоится"}])
+
+    assert corpus._remarks(note)[0].label == "В рукописи"
+
+
+async def test_a_stored_uncertain_shape_that_is_not_a_dict_is_skipped(session):
+    user = await _user(session)
+    note = await _note(session, user, uncertain=["мусор", {"text": "щ", "why": "х"}])
+
+    assert [r.anchor for r in corpus._remarks(note)] == ["щ"]
 
 
 async def test_an_unreadable_issues_payload_does_not_sink_the_boxes(session):
@@ -447,7 +505,7 @@ async def test_an_unreadable_issues_payload_does_not_sink_the_boxes(session):
         session, user, issues=[{"совсем": "не то"}], uncertain=[{"text": "щ", "why": "двоится"}]
     )
 
-    assert [b.title for b in corpus._callouts(note)] == [texts.CALLOUT_UNCERTAIN]
+    assert corpus._callouts(note) == []
 
 
 async def test_the_document_is_built_with_the_boxes_of_the_record(session, monkeypatch):
@@ -457,9 +515,9 @@ async def test_the_document_is_built_with_the_boxes_of_the_record(session, monke
     seen: list[list] = []
     original = corpus.pdf.render
 
-    def spy(title, markdown, subtitle=None, callouts=(), byline=None):
+    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=()):
         seen.append(list(callouts))
-        return original(title, markdown, subtitle, callouts, byline)
+        return original(title, markdown, subtitle, callouts, byline, remarks)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
     await corpus.send_record_pdf(_Message(), note)
@@ -489,14 +547,32 @@ async def test_the_document_is_built_with_the_byline_of_the_record(
     seen: list[str | None] = []
     original = corpus.pdf.render
 
-    def spy(title, markdown, subtitle=None, callouts=(), byline=None):
+    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=()):
         seen.append(byline)
-        return original(title, markdown, subtitle, callouts, byline)
+        return original(title, markdown, subtitle, callouts, byline, remarks)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
     await corpus.send_record_pdf(_Message(), note)
 
     assert seen == ["Шиманская Г. С."]
+
+
+async def test_the_document_is_built_with_the_remarks_of_the_record(
+    session, monkeypatch
+):
+    user = await _user(session)
+    note = await _note(session, user, uncertain=[{"text": "щ", "why": "двоится"}])
+    seen: list[list] = []
+    original = corpus.pdf.render
+
+    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=()):
+        seen.append(list(remarks))
+        return original(title, markdown, subtitle, callouts, byline, remarks)
+
+    monkeypatch.setattr(corpus.pdf, "render", spy)
+    await corpus.send_record_pdf(_Message(), note)
+
+    assert [r.anchor for r in seen[0]] == ["щ"]
 
 
 async def test_album_flags_keep_their_page_numbers(session):

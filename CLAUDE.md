@@ -153,19 +153,28 @@ Every extra rule steals attention from the main task.
 words is the length that was proven to work, and `prompts-v3.md` is at
 **245**. Count the words after every edit.
 
-**That ceiling is under test.** The finding is evidence about
-`gemini-2.5-flash-lite`, and this runs on `gemini-3.5-flash-lite` —
-the case where this file says a fresh reproduction outranks the note.
-`prompts-v4.md` ships alongside at **313 words**: the same rules plus four
-about paragraphs, sub-headings, when a list is a list, and routing the
-lecturer's name to `margin_notes`. It is reached only by setting
-`PROMPT_FILE`; the default is unchanged.
+**That ceiling did not hold, and it was measured, not argued.** The finding
+is evidence about `gemini-2.5-flash-lite`; this runs on
+`gemini-3.5-flash-lite`, the case where a fresh reproduction outranks the
+note. `prompts-v4.md` went against the same four-page album at 310 words:
 
-Rule 8 is the one to watch. Joining lines that continue a sentence is the
+| | v3, 242 words | v4, 310 words |
+|---|---|---|
+| lowest `text_agreement` | 0.783 | **0.828** |
+| median | 0.862 | **0.907** |
+| pages needing review | 3 of 4 | **2 of 4** |
+
+Every order statistic improved — the distribution moved, not one lucky page.
+Rule 8 was the one to watch: joining lines that continue a sentence is the
 only rule that touches the text rather than its markup, and a model that
-joins tends to tidy while it joins. `text_agreement` measures exactly that:
-tidying differs run to run, so agreement falls. Compare it against the same
-pages before concluding anything, and write the result here either way.
+joins tends to tidy while it joins. `text_agreement` measures exactly that,
+and it went up.
+
+Read it for what it is. One album, four pages, and Gemini was returning 503s
+through the second run. It does not establish a new ceiling — it removes the
+old one as a reason not to try. `prompts-v4.md` is at 321 words now; measure
+again before going much past it, and count with `PROMPT_WORDS` from the
+startup log, because `wc -w` reads three words more than `str.split`.
 
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a
@@ -333,6 +342,23 @@ that text is ever wanted, it belongs in a second call over the **transcription
 already trusted**, in a column of its own, marked as machine-written on the
 page — never in the call that reads the photo.
 
+**A remark sits beside the line it explains.** `uncertain` — what was read,
+on which page, and why it was ambiguous — used to be a list at the top of the
+document. That said what was doubtful without saying where, and by the time a
+reader reached the text they had forgotten it. `corpus._remarks` turns each
+entry into a `pdf.Remark` anchored on the text that was read, and `render`
+sets it under whichever block contains that text; one that anchors nowhere
+goes to the end rather than nowhere.
+
+The reference document the author works from does the same and goes further:
+every addition of its own sits in a marked box, and a box about a reading
+says what the manuscript actually had — *"в рукописи матрица плохо читается
+…, поэтому она восстановлена по рисунку графа"*. That is the standard.
+**Adding is not forbidden; adding unmarked is.** The `uncertain` remarks are
+the first half of it, built from data already collected. The second half —
+commentary on the mathematics — is not built, and when it is, it comes from a
+separate call over the trusted transcription.
+
 **`.docx` bypasses the model entirely.** No limits are checked and no quota
 is spent, so a Word file is still processed with `AI_ENABLED=false` — it is
 already machine text. Only the empty-text gate (step 11) still applies.
@@ -433,7 +459,7 @@ app/
     images.py         compression
     limits.py         spend limits
     docx.py           .docx -> markdown, no model call
-    pdf.py            a record as a PDF: formulas, graphs, tables, callouts
+    pdf.py            a record as a PDF: formulas, graphs, tables, remarks
     photoguard.py     ready-made
     consensus.py      ready-made
     mathcheck.py      ready-made
@@ -511,7 +537,7 @@ needs a database runs on in-memory SQLite.
 | `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |
 | `test_handlers.py` | `_split_message`, the catch-all reply |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
-| `test_corpus.py` | listing, opening, correcting, statistics, the flags rebuilt from JSONB as text and as callouts — and that no query reaches another user's records |
+| `test_corpus.py` | listing, opening, correcting, statistics, the flags rebuilt from JSONB as text, as callouts and as anchored remarks — and that no query reaches another user's records |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses, graphs read back from `[граф: ...]`, heading levels, callouts, and that nothing unreadable ever sinks the document |
