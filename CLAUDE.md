@@ -179,6 +179,27 @@ old one as a reason not to try. `prompts-v4.md` is at 321 words now; measure
 again before going much past it, and count with `PROMPT_WORDS` from the
 startup log, because `wc -w` reads three words more than `str.split`.
 
+**Read the mean, not the minimum.** v4 was run twice on the same album. The
+mean agreement came back 0.902 and 0.903; the lowest page moved 0.828 → 0.807
+and the median 0.907 → 0.9125. So the per-page minimum wobbles by about 0.02
+between two runs of the *same* prompt, while the mean reproduces to a
+thousandth. The v3 → v4 shift was 0.854 → 0.902 of the mean — five times the
+spread the instrument shows at rest. Compare means; the minimum is the noisy
+one and the first table above led with it.
+
+**`prompts-v5.md` asks the question the length test did not.** Of v4's 321
+words, some 86 are about how the page should look: headings, bold terms,
+display formulas, sub-headings on definitions, lists only where lists are,
+lines joined into paragraphs. The total length turned out survivable; whether
+those particular rules cost reading accuracy was never measured. v5 is v3 with
+every one of them removed — 235 words, shorter than v3 — keeping rule 6,
+because a graph as an edge list is extraction, not presentation, and it is
+what feeds `graphcheck`.
+
+A record made with v5 will look flat: no headings, no bold, nothing set on its
+own line. That is the point, not a defect. It measures reading alone, and
+formatting would belong to a second pass over the trusted text.
+
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a
 discrepancy that didn't exist, duplicated it three times, and found none
@@ -523,6 +544,7 @@ CLAUDE.md
 PLAN.md
 prompts-v3.md        TRANSCRIBE_PROMPT, read from disk at import
 prompts-v4.md        the longer variant under test, behind PROMPT_FILE
+prompts-v5.md        extraction only — no rule about how a page should look
 ```
 
 The prompt files hold the recognition prompt as plain text. `vision.py`

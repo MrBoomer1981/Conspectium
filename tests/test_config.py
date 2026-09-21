@@ -164,5 +164,31 @@ def test_a_prompt_file_that_is_not_there_stops_the_process():
         vision.load_prompt("prompts-v99.md")
 
 
-def test_the_two_prompts_that_ship_are_not_the_same_file():
-    assert vision.load_prompt("prompts-v3.md") != vision.load_prompt("prompts-v4.md")
+def test_every_prompt_that_ships_loads_and_carries_a_prompt():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    names = sorted(path.name for path in root.glob("prompts-v*.md"))
+
+    assert len(names) >= 3
+    for name in names:
+        assert len(vision.load_prompt(name).split()) > 100, name
+
+
+def test_the_prompts_that_ship_are_different_files():
+    loaded = {
+        name: vision.load_prompt(name)
+        for name in ("prompts-v3.md", "prompts-v4.md", "prompts-v5.md")
+    }
+    assert len(set(loaded.values())) == 3
+
+
+def test_the_extraction_prompt_stays_the_shortest_one():
+    # prompts-v5 exists to carry nothing but reading: every rule about how the
+    # page should look was taken out of it. If it stops being the shortest,
+    # formatting has crept back in and the measurement it was made for is gone.
+    words = {
+        name: len(vision.load_prompt(name).split())
+        for name in ("prompts-v3.md", "prompts-v4.md", "prompts-v5.md")
+    }
+    assert words["prompts-v5.md"] == min(words.values())
