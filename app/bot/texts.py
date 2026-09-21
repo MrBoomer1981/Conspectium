@@ -297,6 +297,13 @@ def record_caption(note_id: int, page_count: int) -> str:
     return f"#{note_id} · {pages}\nОткрыть текстом: /note {note_id}"
 
 
+def byline(margin_notes: list[str]) -> str | None:
+    """What stood in the margin, as one line under the title. None when the
+    margin was empty — an empty line under a title is worse than none."""
+    parts = [str(n).strip() for n in margin_notes if str(n).strip()]
+    return " · ".join(parts) if parts else None
+
+
 def pdf_subtitle(created_at: datetime, page_count: int, needs_review: bool) -> str:
     """The grey line under the title inside the document itself."""
     parts = [

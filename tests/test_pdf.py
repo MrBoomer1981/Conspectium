@@ -384,6 +384,35 @@ def test_render_survives_an_empty_record():
     assert pdf.render("Пусто", "").startswith(b"%PDF-")
 
 
+def test_render_draws_a_byline_under_the_title(monkeypatch):
+    drawn: list[str] = []
+    original = pdf.Paragraph
+    monkeypatch.setattr(
+        pdf,
+        "Paragraph",
+        lambda text, style, **kw: drawn.append((style.name, text))
+        or original(text, style, **kw),
+    )
+    pdf.render("Дискретная математика", "текст", byline="Шиманская Г. С.")
+    assert ("byline", "Шиманская Г. С.") in drawn
+
+
+def test_a_record_with_no_byline_draws_none(monkeypatch):
+    drawn: list[str] = []
+    original = pdf.Paragraph
+    monkeypatch.setattr(
+        pdf,
+        "Paragraph",
+        lambda text, style, **kw: drawn.append(style.name) or original(text, style, **kw),
+    )
+    pdf.render("Дискретная математика", "текст")
+    assert "byline" not in drawn
+
+
+def test_a_byline_is_escaped():
+    assert pdf.render("Т", "текст", byline="a < b").startswith(b"%PDF-")
+
+
 def test_render_accepts_a_subtitle():
     assert pdf.render("Графы", "текст", subtitle="3 страницы · 21.09").startswith(
         b"%PDF-"

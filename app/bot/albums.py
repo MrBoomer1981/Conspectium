@@ -234,6 +234,7 @@ class AssembledRecord:
     uncertain: list[dict]
     issues: list[dict]
     numeric_divergences: list[dict]
+    margin_notes: list[str]
     unreadable_count: int
     text_agreement: float | None
     photo_sharpness: float | None
@@ -329,6 +330,11 @@ def _assemble(pages_ok: list[PageResult]) -> AssembledRecord:
             {**asdict(d), "page": p.page}
             for p in pages_ok
             for d in p.numeric_divergences
+        ],
+        margin_notes=[
+            note
+            for p in pages_ok
+            for note in p.transcription.margin_notes
         ],
         unreadable_count=sum(p.transcription.unreadable_count for p in pages_ok),
         text_agreement=min(p.text_agreement for p in pages_ok),

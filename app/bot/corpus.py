@@ -461,7 +461,12 @@ async def send_record_pdf(message: Message, note: Note) -> bool:
     try:
         # Drawing formulas is CPU-bound; the webhook must not stall on it.
         data = await asyncio.to_thread(
-            pdf.render, note.title, note.markdown, subtitle, _callouts(note)
+            pdf.render,
+            note.title,
+            note.markdown,
+            subtitle,
+            _callouts(note),
+            texts.byline(note.margin_notes),
         )
     except Exception:
         logger.exception("could not build a PDF for note %s", note.id)

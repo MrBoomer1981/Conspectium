@@ -9,6 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.config import PRICE_PER_MTOK, Settings
+from app.services import vision
 
 _REQUIRED = {
     "BOT_TOKEN": "t",
@@ -105,3 +106,55 @@ def test_the_retired_model_keeps_its_price():
     # ai_calls rows already reference it; dropping the entry would turn their
     # cost into NULL on any recomputation.
     assert PRICE_PER_MTOK["gemini-2.5-flash-lite"] == (0.10, 0.40)
+
+
+# ── PROMPT_FILE: the switch the prompt experiment runs on ────────────────────
+
+
+def test_the_prompt_file_defaults_to_the_one_in_the_repo():
+    from app.core.config import settings
+
+    assert settings.PROMPT_FILE == "prompts-v3.md"
+
+
+def test_the_prompt_loaded_is_the_one_the_environment_names(tmp_path):
+    """Both prompts ship, so the switch has to be proved rather than assumed.
+
+    Reading the name from settings and hardcoding it straight back would look
+    identical in every other test, the default being that very name — which is
+    how an experiment comes to compare a variant against itself.
+
+    A subprocess, because PROMPT_FILE is read once at import: reloading the
+    module in place rebinds vision's dataclasses and every test holding the
+    old Transcription class starts failing on identity.
+    """
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "-c", "from app.services import vision;"
+         " print(vision.PROMPT_WORDS)"],
+        capture_output=True,
+        text=True,
+        cwd=root,
+        env={**os.environ, "PROMPT_FILE": "prompts-v4.md"},
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert int(result.stdout.strip()) == len(
+        vision.load_prompt("prompts-v4.md").split()
+    )
+
+
+def test_a_prompt_file_that_is_not_there_stops_the_process():
+    # The same bargain as a missing required variable: fail on the deploy,
+    # never on somebody's first photo.
+    with pytest.raises(FileNotFoundError):
+        vision.load_prompt("prompts-v99.md")
+
+
+def test_the_two_prompts_that_ship_are_not_the_same_file():
+    assert vision.load_prompt("prompts-v3.md") != vision.load_prompt("prompts-v4.md")

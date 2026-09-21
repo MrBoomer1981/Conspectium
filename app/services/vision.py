@@ -28,13 +28,21 @@ from app.services import consensus
 
 logger = logging.getLogger(__name__)
 
-# The prompt is maintained in prompts-v3.md at the repo root and loaded verbatim.
-# A short prompt beats a long one — see CLAUDE.md; do not lengthen it.
-TRANSCRIBE_PROMPT = (
-    (Path(__file__).resolve().parents[2] / "prompts-v3.md")
-    .read_text(encoding="utf-8")
-    .strip()
-)
+# The prompt is a file at the repo root, loaded verbatim at import. Which file
+# is PROMPT_FILE, so a variant can be tried on the deployed bot and rolled back
+# by changing one variable. A short prompt beats a long one — see CLAUDE.md
+# before making one longer, and measure what it costs.
+def load_prompt(name: str) -> str:
+    """One prompt file from the repo root, verbatim. A bare file name, not a
+    path: the file ships with the deploy. A missing one raises here, at import,
+    so the process dies on the deploy rather than on somebody's first photo."""
+    return (
+        (Path(__file__).resolve().parents[2] / name).read_text(encoding="utf-8").strip()
+    )
+
+
+TRANSCRIBE_PROMPT = load_prompt(settings.PROMPT_FILE)
+PROMPT_WORDS = len(TRANSCRIBE_PROMPT.split())
 
 # One client per process, not one per call.
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)

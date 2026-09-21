@@ -15,7 +15,7 @@ from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
 from app.core.events import log_event_standalone
-from app.services import pdf
+from app.services import pdf, vision
 from app.db.models import User
 from app.db.session import async_session_maker, get_session
 
@@ -123,6 +123,12 @@ async def lifespan(app: FastAPI):
     # A bot without a webhook is useless, so a failure here must stop startup.
     await bot.set_webhook(url, secret_token=settings.WEBHOOK_SECRET)
     logger.info("Webhook set")
+
+    # Which prompt produced a record is only answerable from the logs, and
+    # only if the deploy says which file it read and how long it was.
+    logger.info(
+        "Prompt: %s, %d words", settings.PROMPT_FILE, vision.PROMPT_WORDS
+    )
 
     # Unlike the webhook, this one must not stop startup: a bot without a
     # command menu still works, it is just harder to use.

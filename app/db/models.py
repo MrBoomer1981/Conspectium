@@ -80,6 +80,7 @@ class Note(Base):
     status: Mapped[str] = mapped_column(String)  # "ready" | "needs_review"
     # Dataclasses (Uncertain, Issue, Divergence) are turned into plain dicts
     # with dataclasses.asdict before they reach these columns.
+    margin_notes: Mapped[list] = mapped_column(JSONB, server_default="[]")
     uncertain: Mapped[list] = mapped_column(JSONB, server_default="[]")
     issues: Mapped[list] = mapped_column(JSONB, server_default="[]")
     numeric_divergences: Mapped[list] = mapped_column(JSONB, server_default="[]")

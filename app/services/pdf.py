@@ -573,6 +573,10 @@ def _styles() -> dict[str, ParagraphStyle]:
             )
             for level, size in _HEADING_PT.items()
         },
+        "byline": ParagraphStyle(
+            "byline", parent=base, fontName="DejaVu-Oblique",
+            fontSize=_BODY_PT, textColor="#555555", spaceAfter=2,
+        ),
         "callout_title": ParagraphStyle(
             "callout_title", parent=base, fontName="DejaVu-Bold",
             fontSize=_BODY_PT, spaceAfter=4,
@@ -705,6 +709,7 @@ def render(
     markdown: str,
     subtitle: str | None = None,
     callouts: Sequence[Callout] = (),
+    byline: str | None = None,
 ) -> bytes:
     """A record as PDF bytes. Never raises on the content of the record."""
     _register_fonts()
@@ -714,6 +719,12 @@ def render(
     with tempfile.TemporaryDirectory(prefix="conspectium-pdf-") as directory:
         formulas = _Formulas(directory)
         story: list = [Paragraph(_markup(title), styles["title"])]
+        if byline:
+            # What was written in the margin rather than in the note: whose
+            # lecture it was, which date, which page. Under the title, where
+            # a reader looks for it — not in the body, where it reads as
+            # something the author was saying.
+            story.append(Paragraph(_markup(byline), styles["byline"]))
         if subtitle:
             story.append(Paragraph(_markup(subtitle), styles["note"]))
             story.append(Spacer(1, 6))

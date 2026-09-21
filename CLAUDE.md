@@ -150,10 +150,22 @@ the first thing to suspect, and a fresh reproduction outranks the note.
 fixed one thing and broke three that the 250-word version read correctly.
 Every extra rule steals attention from the main task.
 **Don't lengthen `TRANSCRIBE_PROMPT`.** That is a budget, not a wall: 250
-words is the length that was proven to work. `prompts-v3.md` is at **245**,
-so five words are left. Rewriting a rule is how it has gone twice; there is
-no longer room to add one. Count the words after every edit, and if the total
-has to pass 250, say so first and measure what it costs.
+words is the length that was proven to work, and `prompts-v3.md` is at
+**245**. Count the words after every edit.
+
+**That ceiling is under test.** The finding is evidence about
+`gemini-2.5-flash-lite`, and this runs on `gemini-3.5-flash-lite` —
+the case where this file says a fresh reproduction outranks the note.
+`prompts-v4.md` ships alongside at **313 words**: the same rules plus four
+about paragraphs, sub-headings, when a list is a list, and routing the
+lecturer's name to `margin_notes`. It is reached only by setting
+`PROMPT_FILE`; the default is unchanged.
+
+Rule 8 is the one to watch. Joining lines that continue a sentence is the
+only rule that touches the text rather than its markup, and a model that
+joins tends to tidy while it joins. `text_agreement` measures exactly that:
+tidying differs run to run, so agreement falls. Compare it against the same
+pages before concluding anything, and write the result here either way.
 
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a
@@ -421,7 +433,7 @@ app/
     images.py         compression
     limits.py         spend limits
     docx.py           .docx -> markdown, no model call
-    pdf.py            a record as a PDF: formulas, graphs, tables
+    pdf.py            a record as a PDF: formulas, graphs, tables, callouts
     photoguard.py     ready-made
     consensus.py      ready-made
     mathcheck.py      ready-made
@@ -436,12 +448,13 @@ tests/
 CLAUDE.md
 PLAN.md
 prompts-v3.md        TRANSCRIBE_PROMPT, read from disk at import
+prompts-v4.md        the longer variant under test, behind PROMPT_FILE
 ```
 
-`prompts-v3.md` holds the recognition prompt as plain text. `vision.py`
-doesn't copy it — it reads the file from the repo root at **import time**.
-So the file has to ship with the deploy or the process dies at startup, and
-editing it changes the prompt without touching any Python.
+The prompt files hold the recognition prompt as plain text. `vision.py`
+doesn't copy one — it reads `PROMPT_FILE` from the repo root at **import
+time**. So the file has to ship with the deploy or the process dies at
+startup, and editing it changes the prompt without touching any Python.
 
 ---
 
@@ -458,6 +471,7 @@ DAILY_PAGES_PER_USER=30
 DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3
 VISION_MODEL=gemini-3.5-flash-lite
+PROMPT_FILE=prompts-v3.md
 MIN_MARKDOWN_LEN=40
 MAX_ALBUM_PAGES=10
 LOG_LEVEL=INFO
@@ -470,6 +484,13 @@ first request.
 absent from that table yields `cost_usd = NULL`, and `NULL` rows are skipped
 by the `SUM` behind `DAILY_COST_LIMIT_USD`. Switching models without adding
 the price silently disables the cost circuit breaker.
+
+`PROMPT_FILE` names the prompt `vision.py` loads at import. It exists so a
+variant can be tried on the deployed bot and rolled back by changing one
+variable, and it is the only honest way to compare two prompts: the startup
+log says which file and how many words, so a record can be attributed to the
+prompt that produced it. A name that isn't in the repo kills the process at
+startup, deliberately.
 
 ---
 
@@ -487,7 +508,7 @@ needs a database runs on in-memory SQLite.
 | `test_albums.py` | `_assemble` aggregates, `process_batch` survivor logic |
 | `test_docx.py` | heading styles to markdown, title derivation |
 | `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
-| `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2` |
+| `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |
 | `test_handlers.py` | `_split_message`, the catch-all reply |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
 | `test_corpus.py` | listing, opening, correcting, statistics, the flags rebuilt from JSONB as text and as callouts — and that no query reaches another user's records |

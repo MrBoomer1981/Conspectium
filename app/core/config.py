@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     DAILY_COST_LIMIT_USD: float = 5
     VISION_RUNS: int = 3
     VISION_MODEL: str = "gemini-3.5-flash-lite"
+    # Which prompt file vision.py loads at import. A variant can be tried on
+    # the deployed bot by changing this one variable, and rolled back the same
+    # way, without a code change in between.
+    PROMPT_FILE: str = "prompts-v3.md"
     MIN_MARKDOWN_LEN: int = 40
     MAX_ALBUM_PAGES: int = 10
     LOG_LEVEL: str = "INFO"

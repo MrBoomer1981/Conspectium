@@ -83,6 +83,19 @@ def test_subject_is_the_first_non_empty_one():
     assert record.subject == "Физика"
 
 
+def test_margin_notes_of_every_page_end_up_in_the_record():
+    # What stood in the margin of page three is still a margin note of the
+    # album, in the order the pages were photographed.
+    record = albums._assemble(
+        [
+            _page(1, transcription=_transcription(margin_notes=["Шиманская Г. С."])),
+            _page(2, transcription=_transcription(margin_notes=[])),
+            _page(3, transcription=_transcription(margin_notes=["с. 4", "важно"])),
+        ]
+    )
+    assert record.margin_notes == ["Шиманская Г. С.", "с. 4", "важно"]
+
+
 def test_subject_is_none_when_no_page_has_one():
     record = albums._assemble([_page(1), _page(2)])
     assert record.subject is None

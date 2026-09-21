@@ -67,6 +67,7 @@ async def _note(session, user: User, **overrides) -> Note:
         uncertain=[],
         issues=[],
         numeric_divergences=[],
+        margin_notes=[],
         unreadable_count=0,
         created_at=datetime.now(timezone.utc),
     )
@@ -456,14 +457,46 @@ async def test_the_document_is_built_with_the_boxes_of_the_record(session, monke
     seen: list[list] = []
     original = corpus.pdf.render
 
-    def spy(title, markdown, subtitle=None, callouts=()):
+    def spy(title, markdown, subtitle=None, callouts=(), byline=None):
         seen.append(list(callouts))
-        return original(title, markdown, subtitle, callouts)
+        return original(title, markdown, subtitle, callouts, byline)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
     await corpus.send_record_pdf(_Message(), note)
 
     assert [b.title for b in seen[0]] == [texts.CALLOUT_REVIEW]
+
+
+def test_a_byline_joins_what_stood_in_the_margin():
+    assert texts.byline(["Шиманская Г. С.", "21.09"]) == "Шиманская Г. С. · 21.09"
+
+
+def test_an_empty_margin_has_no_byline():
+    # An empty line under a title looks worse than no line at all.
+    assert texts.byline([]) is None
+    assert texts.byline(["", "   "]) is None
+
+
+def test_a_byline_survives_a_stored_shape_that_is_not_a_string():
+    assert texts.byline([None, 3, "с. 4"]) == "None · 3 · с. 4"
+
+
+async def test_the_document_is_built_with_the_byline_of_the_record(
+    session, monkeypatch
+):
+    user = await _user(session)
+    note = await _note(session, user, margin_notes=["Шиманская Г. С."])
+    seen: list[str | None] = []
+    original = corpus.pdf.render
+
+    def spy(title, markdown, subtitle=None, callouts=(), byline=None):
+        seen.append(byline)
+        return original(title, markdown, subtitle, callouts, byline)
+
+    monkeypatch.setattr(corpus.pdf, "render", spy)
+    await corpus.send_record_pdf(_Message(), note)
+
+    assert seen == ["Шиманская Г. С."]
 
 
 async def test_album_flags_keep_their_page_numbers(session):
