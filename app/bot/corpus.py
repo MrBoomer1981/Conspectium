@@ -11,19 +11,21 @@ returns someone else's record tomorrow.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 from datetime import date, datetime, timedelta, timezone
 
 from aiogram import Router
 from aiogram.filters import Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import BufferedInputFile, Message
 from sqlalchemy import func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
 from app.core.events import log_event
 from app.db.models import Note, User
-from app.services import mathcheck
+from app.services import mathcheck, pdf
 
 logger = logging.getLogger(__name__)
 
@@ -377,3 +379,69 @@ async def cmd_stats(message: Message, session: AsyncSession, user: User) -> None
 async def cmd_help(message: Message, session: AsyncSession, user: User) -> None:
     await log_event(session, user.id, "help_viewed")
     await message.answer(texts.HELP)
+
+
+# ── Delivering a record as a file ────────────────────────────────────────────
+# Lives here rather than in handlers.py because showing a saved record is this
+# module's job; the capture handlers import it after saving one.
+
+_FILENAME_KEEP = re.compile(r"[^\w\s-]", re.UNICODE)
+_FILENAME_GAPS = re.compile(r"[\s_]+")
+
+
+def pdf_filename(note_id: int, title: str) -> str:
+    """A file name a phone will not choke on, still recognisable in a
+    downloads folder, and carrying the record number."""
+    safe = _FILENAME_GAPS.sub("-", _FILENAME_KEEP.sub("", title).strip())[:40]
+    safe = safe.strip("-")
+    return f"{note_id}-{safe}.pdf" if safe else f"zapis-{note_id}.pdf"
+
+
+async def send_record_pdf(message: Message, note: Note) -> bool:
+    """Send one record as a PDF. Returns False if it could not be built, so the
+    caller can fall back to plain text — a record is never worth losing over
+    its presentation."""
+    subtitle = texts.pdf_subtitle(
+        note.created_at, note.page_count, note.status == "needs_review"
+    )
+    try:
+        # Drawing formulas is CPU-bound; the webhook must not stall on it.
+        data = await asyncio.to_thread(pdf.render, note.title, note.markdown, subtitle)
+    except Exception:
+        logger.exception("could not build a PDF for note %s", note.id)
+        return False
+
+    await message.answer_document(
+        BufferedInputFile(data, filename=pdf_filename(note.id, note.title)),
+        caption=texts.record_caption(note.id, note.page_count),
+    )
+    return True
+
+
+async def send_record(message: Message, note: Note) -> None:
+    """A saved record delivered to the user: the PDF when it can be built, the
+    plain text when it cannot."""
+    if await send_record_pdf(message, note):
+        return
+    await message.answer(texts.PDF_FAILED)
+    for chunk in texts.split_message(f"{note.title}\n\n{note.markdown}"):
+        await message.answer(chunk)
+
+
+@router.message(Command("pdf"))
+async def cmd_pdf(
+    message: Message, command: CommandObject, session: AsyncSession, user: User
+) -> None:
+    note_id = _note_id(command.args)
+    if note_id is None:
+        await message.answer(texts.PDF_USAGE)
+        return
+
+    note = await _load(session, user, note_id)
+    if note is None:
+        await message.answer(texts.NOTE_NOT_FOUND)
+        return
+
+    await log_event(session, user.id, "pdf_sent", {"note_id": note.id})
+    if not await send_record_pdf(message, note):
+        await message.answer(texts.PDF_FAILED)

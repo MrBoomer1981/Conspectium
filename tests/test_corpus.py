@@ -35,9 +35,13 @@ async def session():
 class _Message:
     def __init__(self):
         self.replies: list[str] = []
+        self.documents: list[tuple[str, bytes, str | None]] = []
 
     async def answer(self, text: str) -> None:
         self.replies.append(text)
+
+    async def answer_document(self, document, caption: str | None = None) -> None:
+        self.documents.append((document.filename, document.data, caption))
 
 
 def _cmd(args: str | None = None):
@@ -766,3 +770,101 @@ async def test_help_is_logged(session):
     await corpus.cmd_help(_Message(), session, user)
 
     assert len(await _events(session, "help_viewed")) == 1
+
+
+# ── delivering a record as a file ────────────────────────────────────────────
+
+
+def test_a_filename_keeps_the_record_number_and_the_title():
+    assert corpus.pdf_filename(42, "Производная функции") == (
+        "42-Производная-функции.pdf"
+    )
+
+
+def test_a_filename_drops_characters_a_filesystem_would_object_to():
+    name = corpus.pdf_filename(7, 'Граф: "мульти"/петля \\ *?')
+    assert name.startswith("7-")
+    assert name.endswith(".pdf")
+    assert not set(name) & set(':"/\\*?')
+
+
+def test_a_filename_survives_a_title_with_nothing_usable_in_it():
+    assert corpus.pdf_filename(9, "!!! ??? ...") == "zapis-9.pdf"
+
+
+def test_a_long_title_is_trimmed_in_the_filename():
+    assert len(corpus.pdf_filename(1, "я" * 200)) < 60
+
+
+async def test_a_record_is_delivered_as_a_pdf(session):
+    user = await _user(session)
+    note = await _note(session, user, markdown="Граф $G$ — пара множеств.")
+    message = _Message()
+
+    assert await corpus.send_record_pdf(message, note) is True
+
+    filename, data, caption = message.documents[0]
+    assert data.startswith(b"%PDF-")
+    assert filename.startswith(f"{note.id}-")
+    # The caption points back into the corpus rather than away from it.
+    assert f"/note {note.id}" in caption
+
+
+async def test_a_record_that_cannot_be_drawn_still_reaches_the_user(session):
+    # Presentation is never worth losing a record over.
+    user = await _user(session)
+    note = await _note(session, user)
+    message = _Message()
+
+    import app.services.pdf as pdf_module
+
+    original = pdf_module.render
+    pdf_module.render = lambda *a, **k: 1 / 0
+    try:
+        await corpus.send_record(message, note)
+    finally:
+        pdf_module.render = original
+
+    assert message.documents == []
+    assert texts.PDF_FAILED in message.replies[0]
+    assert "Пусть дана функция f(g(x))." in "".join(message.replies)
+
+
+async def test_pdf_without_an_id_explains_itself(session):
+    user = await _user(session)
+    message = _Message()
+
+    await corpus.cmd_pdf(message, _cmd(), session, user)
+
+    assert message.replies == [texts.PDF_USAGE]
+
+
+async def test_pdf_of_a_missing_record_is_reported(session):
+    user = await _user(session)
+    message = _Message()
+
+    await corpus.cmd_pdf(message, _cmd("999"), session, user)
+
+    assert message.replies == [texts.NOTE_NOT_FOUND]
+
+
+async def test_pdf_cannot_reach_another_corpus(session):
+    mine = await _user(session, tg_id=1)
+    theirs = await _user(session, tg_id=2)
+    foreign = await _note(session, theirs)
+    message = _Message()
+
+    await corpus.cmd_pdf(message, _cmd(str(foreign.id)), session, mine)
+
+    assert message.replies == [texts.NOTE_NOT_FOUND]
+    assert message.documents == []
+
+
+async def test_sending_a_pdf_is_logged(session):
+    user = await _user(session)
+    note = await _note(session, user)
+
+    await corpus.cmd_pdf(_Message(), _cmd(str(note.id)), session, user)
+
+    events = await _events(session, "pdf_sent")
+    assert events[0].payload == {"note_id": note.id}

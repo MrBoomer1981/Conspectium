@@ -38,6 +38,7 @@ def test_every_corpus_command_is_reachable():
         "cmd_delete",
         "cmd_stats",
         "cmd_help",
+        "cmd_pdf",
     }
 
 

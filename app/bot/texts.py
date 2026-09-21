@@ -241,6 +241,7 @@ COMMANDS: tuple[tuple[str, str, str | None], ...] = (
     ("search", "поиск по корпусу", "/search производная"),
     ("retitle", "переименовать запись", "/retitle 42 Новый заголовок"),
     ("delete", "удалить запись", "/delete 42"),
+    ("pdf", "запись файлом", "/pdf 42"),
     ("stats", "сколько накопилось", None),
     ("help", "что я умею", None),
 )
@@ -256,3 +257,28 @@ HELP = "\n".join(
     ["Пришли фотографию страницы конспекта — верну структурированную запись.", ""]
     + [_help_line(*command) for command in COMMANDS]
 )
+
+
+# ── The record as a file — app/bot/corpus.py send_record_pdf ─────────────────
+
+PDF_USAGE = "Укажи номер записи: /pdf 42"
+
+PDF_FAILED = "Не смог собрать PDF. Текст записи цел — открой её через /note."
+
+
+def record_caption(note_id: int, page_count: int) -> str:
+    """The line under the file. It carries the record number on purpose: the
+    document should lead back into the corpus, not away from it."""
+    pages = f"{page_count} {_plural(page_count, 'страница', 'страницы', 'страниц')}"
+    return f"#{note_id} · {pages}\nОткрыть текстом: /note {note_id}"
+
+
+def pdf_subtitle(created_at: datetime, page_count: int, needs_review: bool) -> str:
+    """The grey line under the title inside the document itself."""
+    parts = [
+        created_at.strftime("%d.%m.%Y"),
+        f"{page_count} {_plural(page_count, 'страница', 'страницы', 'страниц')}",
+    ]
+    if needs_review:
+        parts.append(NEEDS_REVIEW_SHORT)
+    return " · ".join(parts)

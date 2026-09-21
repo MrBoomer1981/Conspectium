@@ -9,7 +9,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, texts
+from app.bot import albums, corpus, texts
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Note, User
@@ -177,8 +177,11 @@ async def handle_photo(
         },
     )
 
-    for chunk in texts.split_message(f"{result.best.title}\n\n{result.best.markdown}"):
-        await message.answer(chunk)
+    # Step 16: the record itself goes out as a PDF — recognised notes are full
+    # of LaTeX, and a formula reads as noise until it is drawn. The flags
+    # follow as a message, as before.
+    await session.flush()  # note.id, for the file name and the caption
+    await corpus.send_record(message, note)
 
     # Items 2–5 of the final reply go in one message after the main text: the
     # needs-review flag, what mathcheck found, the numeric divergences between
@@ -274,8 +277,8 @@ async def handle_document(
         },
     )
 
-    for chunk in texts.split_message(f"{note.title}\n\n{markdown}"):
-        await message.answer(chunk)
+    await session.flush()  # note.id, for the file name and the caption
+    await corpus.send_record(message, note)
 
 
 async def _process_album(
@@ -366,8 +369,8 @@ async def _process_album(
         },
     )
 
-    for chunk in texts.split_message(f"{rec.title}\n\n{rec.markdown}"):
-        await message.answer(chunk)
+    await session.flush()  # note.id, for the file name and the caption
+    await corpus.send_record(message, note)
 
     flags: list[str] = []
     if rec.status == "needs_review":

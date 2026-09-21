@@ -1,5 +1,6 @@
 """FastAPI application: Telegram webhook and health check."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -14,6 +15,7 @@ from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
 from app.core.events import log_event_standalone
+from app.services import pdf
 from app.db.models import User
 from app.db.session import async_session_maker, get_session
 
@@ -125,7 +127,15 @@ async def lifespan(app: FastAPI):
         logger.info("Command menu published")
     except Exception:
         logger.exception("could not publish the command menu")
+
+    # matplotlib builds a font cache on first use and reportlab registers its
+    # fonts once — several seconds nobody should pay inside their first photo.
+    # Off the startup path too: a slow warm-up must not delay serving.
+    warm_up = asyncio.create_task(asyncio.to_thread(pdf.warm_up))
+
     yield
+
+    warm_up.cancel()
     await bot.session.close()
 
 

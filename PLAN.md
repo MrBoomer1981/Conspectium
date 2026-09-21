@@ -43,16 +43,16 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 
 - [x] 15. An album arrives as one record
 - [x] 16. Numeric divergences without the noise
-- [ ] 17. The record as a PDF
+- [x] 17. The record as a PDF
 
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+Done: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17
 Current task: none
-Next task: 17
+Next task: none
 Blockers: none
 ```
 
@@ -1799,7 +1799,8 @@ for a single user.
 - A targeted re-ask to the model about found discrepancies
 - Video, lecture transcription
 - Payments, subscriptions
-- Export to any format
+- Export to Anki, and any bulk export of the corpus (`/pdf` renders one
+  record for reading — not a download-everything button)
 - Styling and design of responses
 - Caching, queues, workers, Redis
 - Deduplication on `update_id`

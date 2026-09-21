@@ -36,6 +36,7 @@ revenue, not scale.
 - SQLAlchemy 2.x (async) + Alembic + PostgreSQL (Railway addon)
 - Google Gemini 3.5 Flash Lite — recognition
 - Pillow + numpy — image processing
+- reportlab + matplotlib — a record as a PDF, formulas drawn by mathtext
 - Railway — hosting
 
 Don't add dependencies without an explicit need. Don't introduce Redis,
@@ -249,6 +250,12 @@ filterless catch-all that matches every message, so any router included after
 it receives nothing. `corpus.router` is included **first**, capture second.
 Adding a third router means deciding where it goes relative to that catch-all.
 
+**A saved record goes out as a PDF.** Recognised notes are dense with LaTeX,
+and `$\sum_{i=1}^{p} \rho(v_i) = 2q$` reads as noise until it is drawn, so all
+three capture paths finish by calling `corpus.send_record`. Rendering is
+CPU-bound and runs in a thread; if it fails for any reason the record is sent
+as plain text instead. A record is never lost over its presentation.
+
 **`.docx` bypasses the model entirely.** No limits are checked and no quota
 is spent, so a Word file is still processed with `AI_ENABLED=false` — it is
 already machine text. Only the empty-text gate (step 11) still applies.
@@ -319,6 +326,7 @@ app/
     images.py         compression
     limits.py         spend limits
     docx.py           .docx -> markdown, no model call
+    pdf.py            a record as a PDF, formulas drawn
     photoguard.py     ready-made
     consensus.py      ready-made
     mathcheck.py      ready-made
@@ -389,6 +397,7 @@ needs a database runs on in-memory SQLite.
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
 | `test_corpus.py` | listing, opening, correcting, statistics — and that no query reaches another user's records |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
+| `test_pdf.py` | how a page is parsed into blocks, escaping, and that an unreadable formula never sinks the document |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the
@@ -442,7 +451,9 @@ Everything below is deliberately postponed. Don't suggest or implement:
 - Payments, subscriptions, pricing tiers
 - Custom registration and passwords — identity already comes from Telegram
 - An admin panel
-- Export to Anki or any other format
+- Export to Anki, and any bulk export of the corpus. `/pdf` renders **one
+  record** so it can be read — that is presentation, not an exit door, and
+  it is not licence to add "download everything"
 - A language trainer, text rewriting, or any second feature
 - Visual design and styling of bot responses
 - Social features, sharing, friends

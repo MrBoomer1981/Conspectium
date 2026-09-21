@@ -8,5 +8,7 @@ pydantic-settings
 google-genai
 httpx
 pillow
+reportlab
+matplotlib
 numpy
 python-docx
