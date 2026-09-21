@@ -6,6 +6,7 @@ only, and the part of process_batch that decides what counts as a survivor.
 """
 
 import asyncio
+import time
 
 import pytest
 
@@ -252,3 +253,170 @@ async def test_spend_is_collected_from_every_page(monkeypatch):
     outcome = await albums.process_batch([_page_input(i) for i in (1, 2)])
 
     assert len(outcome.stats) == 2
+
+
+# ── collect: the debounce that keeps an album whole ──────────────────────────
+# An album arrived as four one-page records because pages land in the buffer
+# only after handle_photo has downloaded and compressed each photo, which on a
+# slow link takes longer than the old one-second window. Timings here are
+# scaled down by monkeypatching _QUIET_SECONDS; what matters is the ratio of
+# the arrival gap to the quiet window.
+
+
+def _input(message_id: int, group: str = "grp") -> albums.PageInput:
+    return albums.PageInput(
+        data=b"x",
+        message_id=message_id,
+        chat_id=1,
+        media_group_id=group,
+        bytes_before=1,
+        bytes_after=1,
+        width=1,
+        height=1,
+    )
+
+
+async def _arrive(group: str, message_id: int, delay: float):
+    """One page of an album, landing in the buffer `delay` seconds from now."""
+    await asyncio.sleep(delay)
+    albums.add_page(group, _input(message_id, group))
+    return await albums.collect(group)
+
+
+def _reset() -> None:
+    albums._buffer.clear()
+    albums._first_page_at.clear()
+    albums._last_page_at.clear()
+
+
+async def test_pages_trickling_in_stay_in_one_batch(monkeypatch):
+    # The regression: gaps shorter than the quiet window must keep the album
+    # together. At the old 1.0 s this split into four separate records.
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.4)
+    _reset()
+
+    gap = 0.2
+    results = await asyncio.gather(
+        *(_arrive("grp", i, i * gap) for i in range(4))
+    )
+
+    batches = [r for r in results if r is not None]
+    assert len(batches) == 1
+    assert len(batches[0]) == 4
+
+
+async def test_a_simultaneous_album_is_still_one_batch(monkeypatch):
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.2)
+    _reset()
+
+    results = await asyncio.gather(*(_arrive("grp", i, 0.0) for i in range(5)))
+
+    batches = [r for r in results if r is not None]
+    assert len(batches) == 1
+    assert len(batches[0]) == 5
+
+
+async def test_exactly_one_caller_owns_a_trickling_album(monkeypatch):
+    # The single-owner invariant has to survive the longer window: every other
+    # caller must get None and reply nothing.
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.4)
+    _reset()
+
+    results = await asyncio.gather(
+        *(_arrive("grp", i, i * 0.15) for i in range(4))
+    )
+
+    assert sum(1 for r in results if r is not None) == 1
+    assert sum(1 for r in results if r is None) == 3
+
+
+async def test_a_fast_album_is_not_delayed_by_the_poll_interval(monkeypatch):
+    # The wait is shortened to land when the window expires, so a quick album
+    # is not rounded up to the next poll tick.
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.2)
+    monkeypatch.setattr(albums, "_POLL_SECONDS", 5.0)
+    _reset()
+
+    started = time.monotonic()
+    albums.add_page("grp", _input(1))
+    pages = await albums.collect("grp")
+
+    assert pages is not None and len(pages) == 1
+    assert time.monotonic() - started < 1.0
+
+
+async def test_the_ceiling_closes_an_album_that_never_goes_quiet(monkeypatch):
+    # A stream that keeps arriving must not hold its DB session for ever.
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 10.0)
+    monkeypatch.setattr(albums, "_COLLECT_MAX_S", 0.5)
+    monkeypatch.setattr(albums, "_POLL_SECONDS", 0.05)
+    _reset()
+
+    async def keep_feeding():
+        for i in range(100, 130):
+            await asyncio.sleep(0.05)
+            albums.add_page("grp", _input(i))
+
+    albums.add_page("grp", _input(1))
+    feeder = asyncio.create_task(keep_feeding())
+    pages = await albums.collect("grp")
+    feeder.cancel()
+
+    assert pages is not None
+    assert len(pages) > 1  # it closed mid-stream rather than after one page
+
+
+async def test_the_bookkeeping_does_not_leak(monkeypatch):
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.1)
+    _reset()
+
+    albums.add_page("grp", _input(1))
+    await albums.collect("grp")
+
+    assert albums._buffer == {}
+    assert albums._first_page_at == {}
+    assert albums._last_page_at == {}
+
+
+async def test_two_albums_at_once_do_not_mix(monkeypatch):
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.3)
+    _reset()
+
+    first, second = await asyncio.gather(
+        _arrive("a", 1, 0.0), _arrive("b", 2, 0.05)
+    )
+
+    assert first is not None and second is not None
+    assert first[0].media_group_id == "a"
+    assert second[0].media_group_id == "b"
+
+
+def test_the_quiet_window_stays_wide_enough_for_a_slow_page():
+    """What actually fixed the split album is this value, not the shape of the
+    loop: a debounce cannot tell a finished album from a slow one, so the only
+    defence is a window wider than the gap between arrivals. The observed gap
+    was around 1.5 s — download plus compression of one photo, not Telegram's
+    delivery — so the window keeps roughly double that as headroom.
+
+    Telegram does not report how many items a media group holds, so there is
+    nothing better than a debounce to wait on."""
+    assert albums._QUIET_SECONDS >= 3.0
+
+
+async def test_the_batch_closes_one_window_after_the_last_page(monkeypatch):
+    # Measuring silence from the last arrival rather than from the start of a
+    # fixed sleep is what keeps this tight: the old loop could run up to two
+    # windows past the final page before claiming.
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.3)
+    monkeypatch.setattr(albums, "_POLL_SECONDS", 0.02)
+    _reset()
+
+    started = time.monotonic()
+    last_page_at = 0.2
+    results = await asyncio.gather(
+        _arrive("grp", 1, 0.0), _arrive("grp", 2, last_page_at)
+    )
+    elapsed = time.monotonic() - started
+
+    assert [len(r) for r in results if r is not None] == [2]
+    assert elapsed < last_page_at + 0.3 * 2

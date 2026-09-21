@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import asdict, dataclass
 
 from app.bot import texts
@@ -21,8 +22,22 @@ from app.services.vision import CallStats, Transcription
 
 logger = logging.getLogger(__name__)
 
-# Wait this long with no new page before assembling the batch.
-_QUIET_SECONDS = 1.0
+# Wait this long with no *new* page before assembling the batch. Measured from
+# the last arrival, not as a single fixed sleep: pages do not land in the
+# buffer as fast as Telegram delivers them, because handle_photo downloads and
+# compresses each photo before calling add_page. A large page over a slow link
+# can take seconds, and at 1.0 s the first page decided the album was over and
+# claimed the batch alone — one album arrived as four one-page records.
+_QUIET_SECONDS = 3.0
+
+# How often the quiet window is re-checked. Only an upper bound: the wait is
+# shortened to land exactly when the window expires, so a fast album is not
+# delayed by the poll interval.
+_POLL_SECONDS = 0.3
+
+# Hard ceiling from the first page. A stream that never goes quiet must not
+# hold its middleware DB session open indefinitely.
+_COLLECT_MAX_S = 60
 
 # Worst case for ten pages at three runs each under Semaphore(10): three waves
 # of up to 93 s = 279 s. This is a normative value, not an estimate — do not
@@ -43,26 +58,54 @@ class PageInput:
 
 
 _buffer: dict[str, list[PageInput]] = {}
+# Arrival times per group, kept beside the buffer so the debounce can measure
+# silence since the last page rather than since an arbitrary sleep started.
+_first_page_at: dict[str, float] = {}
+_last_page_at: dict[str, float] = {}
 
 
 def add_page(media_group_id: str, page: PageInput) -> None:
     _buffer.setdefault(media_group_id, []).append(page)
+    now = time.monotonic()
+    _first_page_at.setdefault(media_group_id, now)
+    _last_page_at[media_group_id] = now
+
+
+def _forget(media_group_id: str) -> list[PageInput] | None:
+    pages = _buffer.pop(media_group_id, None)
+    _first_page_at.pop(media_group_id, None)
+    _last_page_at.pop(media_group_id, None)
+    return pages
 
 
 async def collect(media_group_id: str) -> list[PageInput] | None:
     """Block until the album stops growing, then hand the whole batch to one
     caller. Every other caller for the same group gets None and must return
-    without replying — otherwise the batch is processed once per page."""
+    without replying — otherwise the batch is processed once per page.
+
+    The batch closes once _QUIET_SECONDS have passed with no new page, so a
+    slow trickle keeps the window open instead of splitting the album. The
+    _COLLECT_MAX_S ceiling bounds the wait either way."""
     while True:
         if media_group_id not in _buffer:
             return None  # another caller already claimed this batch
-        size = len(_buffer[media_group_id])
-        await asyncio.sleep(_QUIET_SECONDS)
-        if media_group_id in _buffer and len(_buffer[media_group_id]) == size:
+        now = time.monotonic()
+        quiet_for = now - _last_page_at[media_group_id]
+        if quiet_for >= _QUIET_SECONDS:
             break
-    # No await between the stability check and this pop: exactly one caller
-    # gets the list, the rest get None.
-    return _buffer.pop(media_group_id, None)
+        if now - _first_page_at[media_group_id] >= _COLLECT_MAX_S:
+            logger.warning(
+                "album %s still arriving after %ds, assembling %d pages",
+                media_group_id,
+                _COLLECT_MAX_S,
+                len(_buffer[media_group_id]),
+            )
+            break
+        # Never overshoot the moment the quiet window expires.
+        await asyncio.sleep(min(_POLL_SECONDS, max(_QUIET_SECONDS - quiet_for, 0.01)))
+    # No await between the decision and this pop: exactly one caller gets the
+    # list, every other one comes back around and finds the group gone.
+    return _forget(media_group_id)
 
 
 @dataclass
