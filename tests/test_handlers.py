@@ -118,3 +118,90 @@ async def test_every_unhandled_kind_is_answered(session):
         message = _Message(content_type)
         await handlers.handle_unsupported(message, session, user)
         assert message.replies == [texts.UNSUPPORTED], content_type
+
+
+# ── an album page is registered before it is fetched ─────────────────────────
+# The line this covers is the whole of the album fix: announcing after the
+# download would time the debounce from our own network speed again, and a
+# four-page album would come back as four separate records. Removing the call
+# left every other test green, which is why this one exists.
+
+import asyncio  # noqa: E402
+import io  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+
+from PIL import Image  # noqa: E402
+
+from app.bot import albums  # noqa: E402
+
+
+def _jpeg() -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (60, 40), "white").save(buffer, format="JPEG")
+    return buffer.getvalue()
+
+
+class _PhotoMessage:
+    def __init__(self, media_group_id: str | None, message_id: int = 11):
+        self.photo = [SimpleNamespace(width=60, height=40, file_id="f")]
+        self.document = None
+        self.media_group_id = media_group_id
+        self.message_id = message_id
+        self.chat = SimpleNamespace(id=5)
+        self.replies: list[str] = []
+
+    async def answer(self, text: str) -> None:
+        self.replies.append(text)
+
+
+class _SlowBot:
+    """Stands in for aiogram's Bot, holding the download open so the state of
+    the album can be inspected while the page is still in flight."""
+
+    def __init__(self):
+        self.started = asyncio.Event()
+        self.finish = asyncio.Event()
+
+    async def download(self, photo):
+        self.started.set()
+        await self.finish.wait()
+        return io.BytesIO(_jpeg())
+
+
+async def test_an_album_page_is_announced_while_still_downloading(session):
+    albums.reset()
+    user = await _user(session)
+    message = _PhotoMessage("grp-1", message_id=11)
+    bot = _SlowBot()
+
+    handling = asyncio.create_task(handlers.handle_photo(message, session, user, bot))
+    try:
+        await asyncio.wait_for(bot.started.wait(), timeout=2)
+
+        # Mid-download: Telegram has told us this page exists, so the album
+        # must already know about it.
+        assert albums._announced.get("grp-1") == {11}
+        # And its bytes are, of course, not there yet.
+        assert albums._buffer.get("grp-1") is None
+    finally:
+        handling.cancel()
+        bot.finish.set()
+        await asyncio.gather(handling, return_exceptions=True)
+        albums.reset()
+
+
+async def test_a_single_photo_is_not_registered_as_an_album(session):
+    albums.reset()
+    user = await _user(session)
+    message = _PhotoMessage(None, message_id=12)
+    bot = _SlowBot()
+
+    handling = asyncio.create_task(handlers.handle_photo(message, session, user, bot))
+    try:
+        await asyncio.wait_for(bot.started.wait(), timeout=2)
+        assert albums._announced == {}
+    finally:
+        handling.cancel()
+        bot.finish.set()
+        await asyncio.gather(handling, return_exceptions=True)
+        albums.reset()

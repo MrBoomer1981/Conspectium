@@ -238,12 +238,18 @@ hands the whole batch to a single caller; every other caller gets `None` and
 once per page.
 
 Telegram never says how many items a media group holds, so "the album has
-ended" can only ever be a guess at silence. A page reaches the buffer only
-after `handle_photo` has downloaded and compressed it, so the gap between
-arrivals is one photo's worth of work — seconds, not milliseconds. Too short
-a window and one album becomes several one-page records, each with its own
-reply and its own paid recognition. That is a real failure, not a
-hypothetical: at 1 s a four-page album arrived as four records.
+ended" can only ever be a guess at silence. **Register a page with
+`albums.announce` the moment its update arrives, before downloading it**, and
+call `add_page` with the bytes afterwards. The debounce times the
+announcements, which Telegram delivers milliseconds apart; a batch closes only
+once it has also downloaded every page it was told about.
+
+Announcing after the download instead times our own network speed, and no
+value of `_QUIET_SECONDS` survives that — the first page to finish fetching
+claims the batch while the rest are still in flight, and each of them then
+opens a record of its own. That failure happened twice on the deployed bot: a
+four-page album came back as four records, each with its own reply, its own
+PDF and its own three paid recognition runs.
 
 **Router order in `main.py` is load-bearing.** `handlers.router` ends with a
 filterless catch-all that matches every message, so any router included after
@@ -273,7 +279,7 @@ on its own breaks the arithmetic:
 | `_CALL_TIMEOUT_S` | `services/vision.py` | 30 s for one call; a typical response is ~6 s |
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | 120 s > one run's worst case with retries (3 × 30 + 1 + 2 = 93 s) |
 | `_ALBUM_TIMEOUT_S` | `bot/albums.py` | 300 s = three waves of 93 s under `Semaphore(10)`. Normative — don't lower it |
-| `_QUIET_SECONDS` | `bot/albums.py` | 3 s of silence closes an album. Must exceed the gap between pages *landing in the buffer* — that gap is one photo's download and compression, not Telegram's delivery |
+| `_QUIET_SECONDS` | `bot/albums.py` | 3 s of silence **since the last `announce`** closes an album, provided every announced page has downloaded |
 | `_COLLECT_MAX_S` | `bot/albums.py` | 60 s from the first page, so a stream that never goes quiet can't hold a session for ever |
 | `max_overflow` | `db/session.py` | 15 — `MAX_ALBUM_PAGES` updates each hold a session open through the debounce |
 
