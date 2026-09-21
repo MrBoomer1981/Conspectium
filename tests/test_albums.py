@@ -346,24 +346,34 @@ async def test_a_fast_album_is_not_delayed_by_the_poll_interval(monkeypatch):
 
 
 async def test_the_ceiling_closes_an_album_that_never_goes_quiet(monkeypatch):
-    # A stream that keeps arriving must not hold its DB session for ever.
-    monkeypatch.setattr(albums, "_QUIET_SECONDS", 10.0)
-    monkeypatch.setattr(albums, "_COLLECT_MAX_S", 0.5)
+    """A stream that keeps arriving must not hold its DB session for ever.
+
+    What the ceiling guarantees is a *bounded wait*, so that is what is
+    asserted. Checking only that several pages came back would pass with the
+    ceiling removed — the batch would still close, just one whole quiet window
+    after the stream finally stopped."""
+    quiet, ceiling = 10.0, 0.5
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", quiet)
+    monkeypatch.setattr(albums, "_COLLECT_MAX_S", ceiling)
     monkeypatch.setattr(albums, "_POLL_SECONDS", 0.05)
     _reset()
 
     async def keep_feeding():
-        for i in range(100, 130):
+        for i in range(100, 140):
             await asyncio.sleep(0.05)
             albums.add_page("grp", _input(i))
 
     albums.add_page("grp", _input(1))
     feeder = asyncio.create_task(keep_feeding())
+    started = time.monotonic()
     pages = await albums.collect("grp")
+    elapsed = time.monotonic() - started
     feeder.cancel()
 
     assert pages is not None
-    assert len(pages) > 1  # it closed mid-stream rather than after one page
+    assert len(pages) > 1  # closed mid-stream, not after the first page alone
+    # Bounded by the ceiling, nowhere near the 10 s quiet window.
+    assert elapsed < quiet / 2
 
 
 async def test_the_bookkeeping_does_not_leak(monkeypatch):
