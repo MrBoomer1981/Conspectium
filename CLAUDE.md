@@ -204,22 +204,29 @@ A record made with v5 will look flat: no headings, no bold, nothing set on its
 own line. That is the point, not a defect. It measures reading alone, and
 formatting would belong to a second pass over the trusted text.
 
-**The next measurement is three arms on one album, and it is not run yet.**
-Everything below A has been built and never switched on, so no finding in this
-file says anything about it.
+**Three arms on one album. A and B are run; C is not.**
 
-| | `PROMPT_FILE` | `VISION_MEDIA_RESOLUTION` | `COMPOSE_ENABLED` |
-|---|---|---|---|
-| **A** — baseline | `prompts-v4.md` | `unset` | `false` |
-| **B** — the knob | `prompts-v4.md` | `high` | `false` |
-| **C** — two stages | `prompts-v5.md` | `high` | `true` |
+| | `PROMPT_FILE` | `VISION_MEDIA_RESOLUTION` | `COMPOSE_ENABLED` | |
+|---|---|---|---|---|
+| **A** — baseline | `prompts-v4.md` | `unset` | `false` | run |
+| **B** — the knob | `prompts-v4.md` | `high` | `false` | run, knob inert |
+| **C** — two stages | `prompts-v5.md` | `unset` | `true` | not run |
 
 One thing moves between arms; `VISION_CALL_TIMEOUT_S=90`, `VISION_MODEL` and
 `IMAGE_MAX_SIDE` stay put. Compare **`numeric_agreement`**, not
 `text_agreement`: v5 changes the shape of the text and `compare_text` measures
 shape, which is the confound that made the v5 measurement unreadable the first
 time. `ai_calls.tokens_in` confirms whether `media_resolution` applied at
-all — more detail is more tokens for the same image.
+all — more detail is more tokens for the same image. It said it did not, which
+is why arm C carries `unset` rather than the `high` it was first written with:
+a setting proven to change nothing does not belong in an arm that is trying to
+measure something else.
+
+Arm C moves two things at once — the prompt and the second stage — and that is
+deliberate rather than an oversight: v5 exists *because* there is a second
+stage to hand the formatting to, and running it alone would measure a prompt
+with half its job removed. The cost is that a difference cannot be attributed
+to one of the two without a fourth arm.
 
 In arm C the first number to look at is how many records reached composition:
 if `compose` refuses most of them, three arms come back looking alike and the
@@ -227,11 +234,41 @@ conclusion would be about the guard rather than about the architecture.
 `compose_refused` and `compose_drift` are in the `note_processed` payload for
 exactly that.
 
-**Arm A, measured 2026-09-22 on a three-page album of biology notes**, with
-the timeout at 90 s and the frame check fixed: `text_agreement` 1.000 / 0.917 /
-0.990, `numeric_agreement` 1.000 / 0.939 / **0.600**. The third page is what
-the whole instrument was built for — the prose agreed to 0.990 and the numbers
-to 0.600, and under the old rule it would have gone into the corpus as clean.
+**Arm A, measured 2026-09-22 on a three-page album on quantum mechanics**,
+with the timeout at 90 s and the frame check fixed: `text_agreement` 1.000 /
+0.917 / 0.990, `numeric_agreement` 1.000 / 0.939 / **0.600**. The third page is
+what the whole instrument was built for — the prose agreed to 0.990 and the
+numbers to 0.600, and under the old rule it would have gone into the corpus as
+clean.
+
+**Arm B was run and the knob did nothing.** Same album, same evening,
+`VISION_MEDIA_RESOLUTION=high` confirmed in the startup log. The check this
+file specified — input tokens per image — came back *identical*: every call of
+arm A and every call of arm B reports `tokens_in` of exactly 1809, min equal to
+max in both. The instrument is a sensitive one, because 1809 is what every
+photograph has cost since the prompt last changed; the number moves with
+`PROMPT_FILE` (1609 on v3, 1809 on v4, about 200 words apart) and not with the
+picture. So the image contributes a constant, any change in tiling would show,
+and none did. Either `gemini-3.8-flash` ignores the field, or at
+`IMAGE_MAX_SIDE=1500` there is no detail left for a higher setting to keep.
+**`media_resolution` is not a lever on this model at this image size**, and the
+arm-C comparison should not carry it as though it were.
+
+**What arm B did measure is the instrument at rest, and that is worth more.**
+Two runs of what turned out to be the same configuration, on the same album:
+
+| | mean `numeric_agreement` | worst page | mean `text_agreement` |
+|---|---:|---:|---:|
+| arm A | 0.846 | 0.600 | 0.969 |
+| arm B (same settings) | 0.873 | 0.619 | 0.974 |
+
+So the mean of `numeric_agreement` wobbles by about **0.03** between two runs
+that differ in nothing. Read against the v3 → v4 shift of 0.048 in the mean of
+`text_agreement`, that is not a comfortable margin: an arm that moves the
+numeric mean by less than 0.03 on one album has said nothing. `text_agreement`
+is quieter here, 0.005 between the two, which matches this file's earlier note
+that its mean reproduces to a thousandth. The two numbers do not have the same
+noise floor, and the noisier one is the one the arms are compared on.
 
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a

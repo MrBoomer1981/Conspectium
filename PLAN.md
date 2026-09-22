@@ -1807,29 +1807,33 @@ ink by contrast rather than by rank, and drops the three-line minimum. The
 threshold `MIN_LINE_HEIGHT_PX` would move with it, and it cannot be chosen by
 reasoning — it needs a folder of real pages through `photoguard`'s own CLI.
 
-**A recognition run may be being truncated by our own ceiling, and nobody has
-checked.** `unparseable model response` arrived twice in one evening — roughly
-8% of calls — and each one costs a whole run, because a 200 that parsed badly
-is never retried. Three runs become two on exactly the long pages worth the
-most. The suspect is `max_output_tokens=8192`: a long page whose JSON is cut
-mid-string cannot parse and looks identical to a model that answered with
-prose.
+**A recognition run is sometimes lost to an answer that will not parse, and it
+is not our ceiling.** `unparseable model response` costs a whole run, because a
+200 that parsed badly is never retried; three runs become two. The suspect was
+`max_output_tokens=8192` — a long page whose JSON is cut mid-string cannot
+parse and looks identical to a model that answered with prose. **Measured
+2026-09-22 and cleared:** across 298 calls in three days, 12 came back
+unparseable with `tokens_out` between 312 and 714, averaging **518** against
+**520** for the calls that succeeded. Not one row anywhere near 8192. The
+failures are the same length as the successes, so nothing was truncated, and
+raising the ceiling would have spent a change on a guess.
 
-**The check is a query, not a change.** Rows written before 2026-09-22 carry no
-reason, but they carry the token count:
+That leaves the other branch, and it is still open: the model answers at normal
+length with something that is not JSON. All 12 rows predate the deploy that
+started recording `finish_reason`, and no unparseable answer has arrived since,
+so the distinction the log now draws — `STOP` (answered, not JSON) against
+`SAFETY` (refused) — has no sample yet. **Wait for one rather than guessing**;
+the instrumentation is in place and the next occurrence names itself.
+
+The query, for when it is next worth asking:
 
 ```sql
-SELECT error, count(*), min(tokens_out), max(tokens_out), round(avg(tokens_out))
+SELECT coalesce(error, 'ok') AS what, count(*),
+       min(tokens_out), max(tokens_out), round(avg(tokens_out))
 FROM ai_calls
 WHERE created_at > now() - interval '3 days'
-GROUP BY error ORDER BY 2 DESC;
+GROUP BY 1 ORDER BY 2 DESC;
 ```
-
-`tokens_out` sitting at 8192 on the unparseable rows is the answer, and the fix
-is one line. Rows written since then name it outright —
-`finish_reason=MAX_TOKENS` is truncation, `STOP` is the model returning
-something that is not JSON, and those two have different fixes. Raising the
-ceiling before knowing which would spend the change on a guess.
 
 **A redelivered update is processed twice.** Nothing deduplicates on
 `update_id`. If Telegram decides an update went undelivered, the retry
