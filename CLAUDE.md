@@ -425,10 +425,10 @@ boundary applies as to `\limits`, for the same reason: `\le` opens `\leq`,
 separate rounds of this cost three records before anybody thought to ask
 mathtext the whole question at once. About 120 constructs were put through
 `pdf.for_mathtext` and then through the parser; these are what still come back
-refused, and the table is the finding — **the rewrites below are not built
-yet.**
+refused. The six below are built; `pdf.for_mathtext` does them and
+`test_pdf.py` proves each one both rewrites *and* draws.
 
-| Written by the model | What mathtext would take |
+| Written by the model | Now rewritten to |
 |---|---|
 | `\textrm{...}` | `\text{...}` — the same swap `\mbox` already gets |
 | `\tfrac{a}{b}` | `\frac{a}{b}`; a size variant with no meaning here, like `\displaystyle` |
@@ -437,8 +437,12 @@ yet.**
 | `\xrightarrow{t}` | `\overset{t}{\to}` — needs a braced argument, not a word swap |
 | `\overbrace` / `\underbrace` | `\overline` / `\underline`; the grouping survives, the brace does not |
 
-`\xrightarrow` is the one to weigh first for these notes: an arrow with its
-condition written above is most of the reactions on a page of biology.
+`\xrightarrow` is the one that mattered most for these notes: an arrow with
+its condition written above is most of the reactions on a page of biology. It
+needs a braced argument rather than a word swap, and the pattern allows one
+level of nesting so `\xrightarrow{\text{фермент}}` works; deeper than that it
+does not match and the formula goes out as its own source, which is what
+happened before.
 
 **And the set nothing can rescue**, which is a different kind of fact:
 `\ce{H2O}` is mhchem, a language of its own rather than a command;
@@ -449,10 +453,21 @@ where a matrix arrives as a markdown table and `pdf.blocks` turns it into a
 picture. `cases` is the one that will be missed: a piecewise definition is
 ordinary mathematics, and it currently prints as its own source.
 
-**A formula mathtext refuses is printed as its source and nothing says so.**
-That is how all three rounds went: the author noticed a broken page, and only
-then did anyone look. The cheap end of this is a log line naming the formula
-that would not draw.
+**A formula mathtext refuses now says so in the log.** All three rounds went
+the other way: the author noticed a broken page, and only then did anyone
+look. The line existed the whole time at `logger.debug`, and `LOG_LEVEL` is
+`INFO` — produced and thrown away. It is a warning now, it carries mathtext's
+own diagnosis (`Unknown symbol: \xrightarrow` names the command), and it is
+printed once per distinct formula per document, because a macro the model
+cannot spell is usually on every page of the record.
+
+Two traps in that one line, both already paid for elsewhere. mathtext's
+message opens with a blank line and a caret under the source, so the *last*
+line is the diagnosis — the same shape as `str(TimeoutError())` being `""`.
+And the drop list needs no longest-first sort: `(?![A-Za-z])` makes a short
+match fail where a letter follows, so `\bigl` backtracks out of `big` on its
+own. A sort there survived every mutation, which is what dead sophistication
+looks like.
 
 **A drawing comes back as data, not a sentence about itself.** Rule 6 of
 `prompts-v3.md` asks for a graph as `[граф: 1-2, 2->3, 3-3]` and for a matrix

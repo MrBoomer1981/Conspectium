@@ -363,21 +363,51 @@ def warm_up() -> None:
         logger.exception("PDF warm-up failed; first render will be slower")
 
 
-# mathtext is not LaTeX, and the model writes LaTeX. These four commands are
-# the ones it reaches for that mathtext rejects outright, taking the whole
-# formula down with them: a page that said \sum\limits_{i=1}^p printed as its
-# own source while the same sum written \sum_{i=1}^p drew perfectly. Each one
+# mathtext is not LaTeX, and the model writes LaTeX. These commands are the
+# ones it reaches for that mathtext rejects outright, taking the whole formula
+# down with them: a page that said \sum\limits_{i=1}^p printed as its own
+# source while the same sum written \sum_{i=1}^p drew perfectly. Each one
 # either has no effect on how mathtext lays a formula out or has a synonym it
 # does know, so dropping it costs nothing.
 #
+# The \big family is here for the same reason: it sizes a delimiter, mathtext
+# sizes its own, and dropping the modifier leaves the bracket standing.
+#
 # The boundary is (?![A-Za-z]), not \b: "_" counts as a word character, so
 # `limits\b` never matches `\limits_{i=1}` — and \lim and \limsup must
-# survive untouched.
+# survive untouched. It is what keeps \big off \bigcup, too; \bigl and
+# \bigr are letters away from \big and have to be named in their own right.
 _COMMAND_END = r"(?![A-Za-z])"
+_UNSUPPORTED = (
+    "limits", "nolimits", "displaystyle", "textstyle",
+    "biggl", "biggr", "Biggl", "Biggr", "bigl", "bigr", "Bigl", "Bigr",
+    "bigg", "Bigg", "big", "Big",
+)
+# Order in the alternation does not matter and sorting it would be decoration:
+# the lookahead makes a short match fail where a letter follows, so \bigl
+# backtracks out of "big" into "bigl" on its own. A longest-first sort here
+# survived every mutation, which is what dead sophistication looks like.
 _UNSUPPORTED_RE = re.compile(
-    rf"\\(?:limits|nolimits|displaystyle|textstyle){_COMMAND_END}"
+    r"\\(?:" + "|".join(_UNSUPPORTED) + rf"){_COMMAND_END}"
 )
 _THIN_SPACE_RE = re.compile(r"\\[,!:;]")
+
+# An arrow with its condition written above it — most of the reactions on a
+# page of biology. mathtext has no \xrightarrow and does have \overset, so the
+# label survives instead of the whole formula going out as source.
+#
+# One level of nesting, because the label is usually \text{...}. Deeper than
+# that the pattern does not match and the formula falls through to its own
+# source, which is exactly what happens today.
+_BRACED = r"((?:[^{}]|\{[^{}]*\})*)"
+_LABELLED_ARROW_RE = re.compile(
+    rf"\\x(right|left)arrow\{{{_BRACED}\}}"
+)
+
+
+def _labelled_arrow(found: re.Match) -> str:
+    direction = "to" if found.group(1) == "right" else "leftarrow"
+    return rf"\overset{{{found.group(2)}}}{{\{direction}}}"
 
 # LaTeX spells each of these two ways and mathtext knows only one of them. The
 # model writes the other: a page of inequalities came back with every \le and
@@ -395,6 +425,14 @@ _SYNONYMS = {
     "implies": "Rightarrow",
     "impliedby": "Leftarrow",
     "mbox": "text",
+    # Swept out of ~120 constructs at once rather than found one broken record
+    # at a time, which is how the six above were discovered.
+    "textrm": "text",
+    "tfrac": "frac",
+    "stackrel": "overset",
+    # The brace is lost and the grouping survives, which is the better half.
+    "overbrace": "overline",
+    "underbrace": "underline",
 }
 _SYNONYM_RE = re.compile(
     r"\\(" + "|".join(sorted(_SYNONYMS, key=len, reverse=True)) + rf"){_COMMAND_END}"
@@ -403,6 +441,7 @@ _SYNONYM_RE = re.compile(
 
 def for_mathtext(latex: str) -> str:
     """LaTeX as close to it as matplotlib's mathtext will accept."""
+    latex = _LABELLED_ARROW_RE.sub(_labelled_arrow, latex)
     latex = _UNSUPPORTED_RE.sub("", latex)
     latex = _SYNONYM_RE.sub(lambda found: "\\" + _SYNONYMS[found.group(1)], latex)
     return _THIN_SPACE_RE.sub(" ", latex)
@@ -558,6 +597,32 @@ class _Formulas:
         self._directory = directory
         self._cache: dict[tuple[str, float], tuple[str, float, float]] = {}
         self._count = 0
+        self._refused_seen: set[str] = set()
+
+    def _refused(self, latex: str, exc: Exception) -> None:
+        """A formula that is about to go out as its own source.
+
+        This was a debug line and LOG_LEVEL is INFO, so it never appeared:
+        three separate rounds of "the PDF has broken symbols" were found by
+        the author's eye rather than by the log, one command at a time.
+
+        mathtext's message names the offending command — "Unknown symbol:
+        \\xrightarrow" — but it opens with a blank line and a caret under the
+        source, the same shape of trap as str(TimeoutError()). The last line
+        is the diagnosis; the source is logged beside it anyway.
+
+        Once per distinct formula per document: a macro the model does not
+        know how to spell is usually on every page of the record.
+        """
+        if latex in self._refused_seen:
+            return
+        self._refused_seen.add(latex)
+        detail = str(exc).strip().splitlines()
+        logger.warning(
+            "mathtext refused %r: %s",
+            latex,
+            detail[-1] if detail else type(exc).__name__,
+        )
 
     def inline(self, latex: str, size_pt: float) -> str | None:
         """An <img> tag for use inside a paragraph, or None if unrenderable."""
@@ -565,8 +630,8 @@ class _Formulas:
         if key not in self._cache:
             try:
                 data, width, height = _formula_png(latex, size_pt)
-            except Exception:
-                logger.debug("mathtext could not render %r", latex)
+            except Exception as exc:
+                self._refused(latex, exc)
                 return None
             self._count += 1
             path = os.path.join(self._directory, f"f{self._count}.png")
@@ -584,8 +649,8 @@ class _Formulas:
     def display(self, latex: str, size_pt: float) -> Image | None:
         try:
             data, width, height = _formula_png(latex, size_pt)
-        except Exception:
-            logger.debug("mathtext could not render %r", latex)
+        except Exception as exc:
+            self._refused(latex, exc)
             return None
         return Image(io.BytesIO(data), width=width, height=height)
 

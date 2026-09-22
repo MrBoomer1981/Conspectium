@@ -287,9 +287,16 @@ def test_every_translation_in_the_table_is_one_mathtext_draws():
     # to its source, exactly as it did before the table existed.
     import tempfile
 
-    # All of them are binary operators between two terms, except \mbox, which
-    # takes its text as an argument.
-    samples = {"mbox": r"\mbox{тут}"}
+    # Most are binary operators between two terms; the rest take arguments,
+    # and a-\textrm-b is not LaTeX in the first place.
+    samples = {
+        "mbox": r"\mbox{тут}",
+        "textrm": r"\textrm{тут}",
+        "tfrac": r"\tfrac{a}{b}",
+        "stackrel": r"\stackrel{t}{\to}",
+        "overbrace": r"\overbrace{abc}",
+        "underbrace": r"\underbrace{abc}",
+    }
 
     with tempfile.TemporaryDirectory() as directory:
         formulas = pdf._Formulas(directory)
@@ -850,3 +857,143 @@ def test_a_top_level_heading_gets_a_hairline_and_a_deeper_one_does_not(monkeypat
     without = _story(monkeypatch, "Т", "## Подраздел\nтекст")
     assert sum(1 for f in with_rule if type(f).__name__ == "HRFlowable") == 2
     assert sum(1 for f in without if type(f).__name__ == "HRFlowable") == 1
+
+
+# ── the sweep: what a page of chemistry writes that mathtext will not take ───
+
+
+def test_the_swept_synonyms_are_rewritten():
+    # Found by putting ~120 constructs through the parser at once, rather than
+    # one broken record at a time, which is how the first six were found.
+    assert pdf.for_mathtext(r"\textrm{АТФ}") == r"\text{АТФ}"
+    assert pdf.for_mathtext(r"\tfrac{a}{b}") == r"\frac{a}{b}"
+    assert pdf.for_mathtext(r"\stackrel{t}{\to}") == r"\overset{t}{\to}"
+    assert pdf.for_mathtext(r"\overbrace{abc}") == r"\overline{abc}"
+    assert pdf.for_mathtext(r"\underbrace{abc}") == r"\underline{abc}"
+
+
+def test_a_sized_delimiter_loses_its_size_and_keeps_its_bracket():
+    # mathtext sizes its own delimiters; the modifier means nothing to it and
+    # takes the whole formula down. Dropping it leaves the bracket standing.
+    assert pdf.for_mathtext(r"\big( a \big)") == "( a )"
+    assert pdf.for_mathtext(r"\Bigg[ a \Bigg]") == "[ a ]"
+    assert pdf.for_mathtext(r"\bigl\{ a \bigr\}") == r"\{ a \}"
+
+
+def test_the_big_family_does_not_eat_the_operators_that_start_the_same_way():
+    # \bigcup, \bigcap, \bigoplus are real symbols mathtext knows. The command
+    # boundary is what keeps \big off them — the same rule that keeps \le off
+    # \leq, and the reason \bigl and \bigr have to be listed in their own
+    # right rather than left to \big.
+    for untouched in (
+        r"\bigcup_{i} A_i",
+        r"\bigcap_{i} A_i",
+        r"\bigoplus V_i",
+        r"\bigwedge p",
+    ):
+        assert pdf.for_mathtext(untouched) == untouched
+
+
+def test_an_arrow_with_a_condition_over_it_keeps_the_condition():
+    # Most of the reactions on a page of biology. mathtext has no
+    # \xrightarrow and does have \overset, so the label survives instead of
+    # the whole formula going out as its own source.
+    assert pdf.for_mathtext(r"A \xrightarrow{t} B") == r"A \overset{t}{\to} B"
+    assert (
+        pdf.for_mathtext(r"A \xleftarrow{t} B") == r"A \overset{t}{\leftarrow} B"
+    )
+
+
+def test_the_condition_may_itself_be_a_command_with_an_argument():
+    # \xrightarrow{\text{фермент}} is the ordinary way to write it.
+    assert pdf.for_mathtext(r"A \xrightarrow{\text{фермент}} B") == (
+        r"A \overset{\text{фермент}}{\to} B"
+    )
+
+
+def test_a_label_nested_deeper_than_one_level_is_left_alone():
+    # It then goes out as its own source, which is what happens today. Better
+    # than a half-rewritten formula that reads as something it is not.
+    deep = r"A \xrightarrow{\text{при \frac{a}{b}}} B"
+    assert pdf.for_mathtext(deep) == deep
+
+
+def test_every_swept_rewrite_is_one_mathtext_actually_draws():
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        for latex in (
+            r"\textrm{АТФ}",
+            r"\tfrac{a}{b}",
+            r"\stackrel{t}{\to}",
+            r"\overbrace{a+b}",
+            r"\underbrace{a+b}",
+            r"\big( a + b \big)",
+            r"6CO_2 \xrightarrow{\text{свет}} C_6H_{12}O_6",
+        ):
+            assert formulas.display(latex, 10.0) is not None, latex
+
+
+# ── a formula that still cannot be drawn says so out loud ────────────────────
+
+
+def test_a_refused_formula_is_logged_with_what_mathtext_said(caplog):
+    """It was a debug line and LOG_LEVEL is INFO, so it never appeared: three
+    rounds of "the PDF has broken symbols" were found by eye instead."""
+    import logging
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        with caplog.at_level(logging.WARNING, logger="app.services.pdf"):
+            assert formulas.display(r"\ce{H2O}", 10.0) is None
+
+    line = next(r.getMessage() for r in caplog.records if "refused" in r.getMessage())
+    assert r"\ce{H2O}" in line
+    assert "Unknown symbol" in line  # mathtext names the command itself
+
+
+def test_the_diagnosis_survives_the_blank_first_line(caplog):
+    # mathtext's message opens with an empty line and a caret under the
+    # source — the same shape of trap as str(TimeoutError()) being "".
+    import logging
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        with caplog.at_level(logging.WARNING, logger="app.services.pdf"):
+            formulas.display(r"\begin{cases} a \\ b \end{cases}", 10.0)
+
+    line = next(r.getMessage() for r in caplog.records if "refused" in r.getMessage())
+    assert not line.rstrip().endswith(":")  # a diagnosis follows the colon
+
+
+def test_the_same_broken_formula_is_reported_once_per_document(caplog):
+    # A macro the model cannot spell is usually on every page of a record.
+    import logging
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        with caplog.at_level(logging.WARNING, logger="app.services.pdf"):
+            for _ in range(5):
+                formulas.display(r"\ce{H2O}", 10.0)
+                formulas.inline(r"\ce{H2O}", 10.0)
+
+    refusals = [r for r in caplog.records if "refused" in r.getMessage()]
+    assert len(refusals) == 1
+
+
+def test_two_different_broken_formulas_are_both_reported(caplog):
+    import logging
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        with caplog.at_level(logging.WARNING, logger="app.services.pdf"):
+            formulas.display(r"\ce{H2O}", 10.0)
+            formulas.display(r"\ce{CO2}", 10.0)
+
+    refusals = [r for r in caplog.records if "refused" in r.getMessage()]
+    assert len(refusals) == 2
