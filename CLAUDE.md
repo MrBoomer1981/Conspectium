@@ -312,9 +312,24 @@ to get wrong:
 **`verdict` and `status` are different vocabularies.** `verdict` belongs to
 the pipeline and is `clean | needs_review | rejected`; `Note.status` is
 stored and is only `ready | needs_review`. A `rejected` verdict exits at
-step 10 and never reaches the database. A critical `mathcheck` issue
-downgrades `clean` → `needs_review`, one way only — a warning is shown but
-leaves the verdict alone.
+step 10 and never reaches the database.
+
+Two findings downgrade `clean` → `needs_review`, both one way only. A critical
+`mathcheck` issue does it in the handlers — a warning is shown but leaves the
+verdict alone. A surviving **numeric divergence** does it in
+`transcribe_consensus`, where the divergences are computed and filtered, so
+the rule lives in one place rather than in both capture paths.
+
+The second one exists because `text_agreement` cannot see what it is for. Two
+runs reading a matrix cell as 6 and as 8 differ by one character, which barely
+moves the agreement, so the page comes back `clean` with the disagreement
+sitting in it — that happened twice in one evening's logs. And of everything a
+record carries, a number is what a reader can least check afterwards: a
+sentence that makes no sense gets caught on re-reading, a wrong digit looks
+exactly as authoritative as a right one. What makes it safe to act on is
+`vision.meaningful_divergences`: before that filter a single page of notes
+produced eight divergences of which one was genuine, and every record would
+have worn the flag.
 
 **The webhook answers before it works.** Telegram delivers the updates of one
 chat **strictly in sequence** — it does not send the next until the current

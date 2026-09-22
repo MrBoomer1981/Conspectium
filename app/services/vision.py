@@ -587,6 +587,21 @@ async def transcribe_consensus(
     best = replace(chosen, uncertain=meaningful_uncertain(chosen.uncertain))
 
     verdict = _verdict(text_agreement)
+    if verdict == "clean" and numeric_divergences:
+        # A kept divergence means at least two runs read one position as
+        # different *numbers* — meaningful_divergences has already dropped the
+        # alignment artefacts, which is what makes this safe to act on.
+        #
+        # It is worth a flag in a way that prose is not. A reader re-reading
+        # the record will catch a sentence that makes no sense; a 6 that
+        # should be an 8 in a matrix looks exactly as authoritative as the
+        # right digit and stays in the corpus for ever. text_agreement cannot
+        # see it either — a one-character difference barely moves it, so the
+        # page comes back clean with the disagreement sitting in it.
+        #
+        # One way only, exactly like a critical mathcheck finding: this can
+        # lower a clean verdict and can never lift a rejected one.
+        verdict = "needs_review"
     logger.info(
         "consensus: %d/%d runs ok, text_agreement=%.3f, "
         "numeric_agreement=%.3f, verdict=%s, "

@@ -13,7 +13,7 @@ import pytest
 from google.genai import errors as genai_errors
 from google.genai import types
 
-from app.services import vision
+from app.services import consensus, vision
 from app.services.vision import CallStats
 
 
@@ -678,3 +678,120 @@ def test_a_page_dense_with_repeated_digits_is_not_written_off_as_noise():
         b[position] = "9"
 
     assert vision.numeric_agreement([a, b]) > 0.5
+
+
+# ── a divergent number lowers the verdict ────────────────────────────────────
+
+# A page's worth of text, because that is where the rule has to work. On a
+# short line one changed digit moves compare_text to 0.83 and the band already
+# says needs_review; on a real page it moves it to 0.97 and the band says
+# clean. That second case is the one the deployed bot produced twice in an
+# evening — text_agreement=0.969 with a divergence kept, verdict clean.
+_PAGE = (
+    "Теорема. Пусть дан связный граф без кратных рёбер и петель. Тогда "
+    "сумма степеней всех его вершин равна удвоенному числу рёбер, и степень "
+    "выделенной вершины равна 5."
+)
+_PAGE_MISREAD = _PAGE.replace("равна 5.", "равна 1.")
+
+# A page whose runs disagree only about markdown: the third drops the list
+# numbering, so the raw comparison aligns numbers against gaps and reports
+# divergences that are not misreadings. Long enough that the band still says
+# clean, which is what makes it a test of the filter rather than of the band.
+_LIST_PAGE = (
+    "Теорема о вложенных отрезках. Пусть дана последовательность отрезков, "
+    "каждый следующий содержится в предыдущем. Тогда их пересечение непусто.\n"
+    "1. Первое свойство последовательности\n"
+    "2. Второе свойство последовательности\n"
+    "3. Третье свойство последовательности\n"
+    "Отсюда следует утверждение о полноте прямой."
+)
+_LIST_PAGE_UNNUMBERED = (
+    _LIST_PAGE.replace("1. ", "").replace("2. ", "").replace("3. ", "")
+)
+
+
+async def test_a_divergent_number_lowers_a_clean_verdict(monkeypatch):
+    """The runs agree on the prose and disagree on a value.
+
+    One character apart, so text_agreement barely moves and the band says
+    clean — which is exactly the case this exists for. A sentence that makes
+    no sense gets caught on re-reading; a wrong digit in a matrix looks as
+    authoritative as a right one and stays.
+    """
+    await _stub_runs(monkeypatch, [_PAGE, _PAGE, _PAGE_MISREAD])
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert vision._verdict(result.text_agreement) == "clean"  # the band alone
+    assert result.numeric_divergences  # but the numbers did not agree
+    assert result.verdict == "needs_review"
+
+
+async def test_agreement_with_no_divergence_stays_clean(monkeypatch):
+    await _stub_runs(monkeypatch, [_PAGE] * 3)
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert result.numeric_divergences == []
+    assert result.verdict == "clean"
+
+
+async def test_an_alignment_artefact_does_not_lower_the_verdict(monkeypatch):
+    """The filter is the whole reason the rule is safe to act on.
+
+    One page of real notes produced eight raw divergences of which one was
+    genuine; reading the unfiltered list would put the flag on every record
+    and the flag would stop meaning anything. This page is the shape that
+    produces them — one run drops the list numbering, so numbers align against
+    gaps — and it has to come back clean.
+    """
+    runs = [_LIST_PAGE, _LIST_PAGE, _LIST_PAGE_UNNUMBERED]
+    # The premise, stated so this cannot quietly become a test of nothing:
+    # the raw comparison does report divergences here.
+    assert consensus.compare(runs).divergences
+
+    await _stub_runs(monkeypatch, runs)
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert vision._verdict(result.text_agreement) == "clean"
+    assert result.numeric_divergences == []
+    assert result.verdict == "clean"
+
+
+async def test_a_divergence_never_lifts_a_rejected_page(monkeypatch):
+    """rejected exits the pipeline at step 10 and never reaches the database.
+    A finding that means "look at this" must not be able to turn that into a
+    record that gets saved."""
+    await _stub_runs(
+        monkeypatch,
+        [
+            "Степень вершины равна 5",
+            "Совершенно другой текст про кольца и поля, 7 штук",
+            "Третий вариант ни на что не похожий, всего 1",
+        ],
+    )
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert vision._verdict(result.text_agreement) == "rejected"
+    assert result.verdict == "rejected"
+
+
+async def test_the_downgrade_is_the_one_the_record_is_built_from(monkeypatch):
+    # The rule lives in transcribe_consensus rather than in the two capture
+    # paths, so it has to come out on the result rather than be applied later.
+    await _stub_runs(
+        monkeypatch,
+        [_PAGE, _PAGE, _PAGE.replace("равна 5.", "равна 15.")],
+    )
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert result.verdict == "needs_review"
+    assert len(result.numeric_divergences) == 1
