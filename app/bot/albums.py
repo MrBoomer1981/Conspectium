@@ -45,8 +45,16 @@ _COLLECT_MAX_S = 60
 # setting now, and a ceiling that did not follow it would cut a slow album
 # short. Normative, not an estimate — the margin is not to be lowered
 # (PLAN.md task 10).
-_WAVES = math.ceil(
-    settings.MAX_ALBUM_PAGES * settings.VISION_RUNS / vision.API_SLOTS
+def _waves(pages: int, runs: int, slots: int) -> int:
+    """How many times the semaphore fills before every call has been made. A
+    function, not an expression, because the rounding only matters when the
+    calls do not divide evenly into slots — and the settings this process was
+    started with are exactly the case where they do."""
+    return math.ceil(pages * runs / slots)
+
+
+_WAVES = _waves(
+    settings.MAX_ALBUM_PAGES, settings.VISION_RUNS, vision.API_SLOTS
 )
 _ALBUM_TIMEOUT_S = int(_WAVES * vision.RUN_WORST_CASE_S * vision.TIMEOUT_MARGIN)
 

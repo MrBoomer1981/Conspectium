@@ -607,13 +607,20 @@ def test_the_album_ceiling_covers_every_wave_of_runs():
 
 
 def test_the_wave_count_comes_from_the_settings_it_depends_on():
-    import math
-
-    assert albums._WAVES == math.ceil(
-        albums.settings.MAX_ALBUM_PAGES
-        * albums.settings.VISION_RUNS
-        / vision.API_SLOTS
+    assert albums._WAVES == albums._waves(
+        albums.settings.MAX_ALBUM_PAGES,
+        albums.settings.VISION_RUNS,
+        vision.API_SLOTS,
     )
+
+
+def test_a_partly_full_last_wave_still_counts_as_a_wave():
+    # 10 x 3 / 10 divides evenly, so the defaults cannot tell rounding down
+    # from rounding up. Seven pages can: 21 calls is three waves, and a
+    # ceiling built on two would cancel the last one mid-call.
+    assert albums._waves(7, 3, 10) == 3
+    assert albums._waves(10, 3, 10) == 3
+    assert albums._waves(1, 3, 10) == 1
 
 
 def test_the_album_ceiling_never_dropped_below_where_it_started():
@@ -642,10 +649,37 @@ async def test_closing_a_batch_is_logged_once_with_both_counts(monkeypatch, capl
         pages = await albums.collect("grp")
 
     assert pages is not None and len(pages) == 2
-    closed = [r.getMessage() for r in caplog.records if "batch closed" in r.getMessage()]
+    closed = [
+        r.getMessage() for r in caplog.records if "batch closed" in r.getMessage()
+    ]
     assert len(closed) == 1
     assert "grp" in closed[0]
     assert "2 of 2 pages" in closed[0]
+
+
+async def test_the_two_counts_in_the_line_are_not_the_same_count(monkeypatch, caplog):
+    # Downloaded against announced. With a whole album they are equal and
+    # printing one of them twice would look right, so the case that tells them
+    # apart is the one where a page never arrived.
+    import logging
+
+    monkeypatch.setattr(albums, "_COLLECT_MAX_S", 0.05)
+    _reset()
+    albums.announce("grp", 1)
+    albums.announce("grp", 2)
+    albums.announce("grp", 3)
+    albums.add_page("grp", _input(1))
+    albums.add_page("grp", _input(2))
+
+    with caplog.at_level(logging.INFO, logger="app.bot.albums"):
+        pages = await albums.collect("grp")
+
+    assert pages is not None and len(pages) == 2
+    closed = [
+        r.getMessage() for r in caplog.records if "batch closed" in r.getMessage()
+    ]
+    assert len(closed) == 1
+    assert "2 of 3 pages" in closed[0]
 
 
 async def test_the_caller_that_loses_the_batch_logs_nothing(monkeypatch, caplog):

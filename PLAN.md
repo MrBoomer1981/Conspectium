@@ -1328,18 +1328,27 @@ page. So:
 
 | What | How long | Why that much |
 |---|---|---|
-| one model call | 30 s | typical response ~6 s |
-| `transcribe_consensus` | 120 s | 3 attempts × 30 s + 1 and 2 s pauses = 93 s, plus margin |
-| a whole album | 300 s | covers the worst case across 10 pages |
+| one model call | `VISION_CALL_TIMEOUT_S`, 30 s | typical response ~6 s on `gemini-3.5-flash-lite` |
+| one run's worst case | 93 s | 3 attempts × 30 s + 1 and 2 s pauses |
+| `transcribe_consensus` | 120 s | the worst case above, plus margin |
+| a whole album | 362 s | three waves of that worst case, plus margin |
+
+Only the first of these is a number anybody writes down. **The other three are
+computed from it**, because raising the call timeout alone — which is what a
+slower model needs — would leave the two ceilings cutting the retries short
+while looking untouched. The arithmetic is in the code, not in these comments:
+`vision.RUN_WORST_CASE_S`, `vision._CONSENSUS_TIMEOUT_S`, and
+`albums._ALBUM_TIMEOUT_S` over `albums._waves(...)`.
 
 The consensus timeout must be greater than the worst case of a single run
 with retries, otherwise it would cut processing short before the retries
 themselves finish.
 
 The album timeout must cover the worst-case page schedule under
-`Semaphore(10)`: for 10 pages at 3 runs each, that's three waves of up to
-93 seconds each, i.e. up to 279 seconds. **300 seconds is a normative
-value, not an approximation**, and it must not be lowered.
+`Semaphore(10)`: for 10 pages at 3 runs each, that's three waves. **The margin
+over that is a normative value, not an approximation**, and it must not be
+lowered — the ceiling may only ever move up, which is what it did when the
+hand-written 300 became a derived 362.
 
 **aiogram's global error handler**: any unhandled exception → the user
 gets `texts.ERROR_GENERIC`, details go to the log with a traceback. **Not
@@ -1777,8 +1786,9 @@ extra Gemini calls and a second quota debit. The tell is two identical
 `notes` rows a minute apart and doubled `ai_calls`.
 
 Until task 18 this was not a risk but a certainty — the endpoint replied 200
-only after `feed_update` finished, which is up to 120 seconds for a photo and
-300 for an album, while Telegram gives up after roughly a minute. It answers
+only after `feed_update` finished, which at the default call timeout is up to
+120 seconds for a photo and 362 for an album, while Telegram gives up after
+roughly a minute. It answers
 immediately now, so a retry takes an actual delivery failure. The consequence
 survived the fix; only its likelihood changed.
 
@@ -1845,7 +1855,8 @@ purpose — its own task.
       `.docx` keeps working without Gemini
 - [ ] An album produces one record and one `PROCESSING`
 - [ ] Exactly one handler owns an assembled batch
-- [ ] The album timeout is 300 seconds
+- [ ] The album timeout covers every wave of runs, and was derived rather
+      than written down
 - [ ] `ai_calls` survive a rollback of the main transaction
 - [ ] `note_processed` is written only after `Note` and `consume`
 - [ ] Not a single traceback reaches the user
