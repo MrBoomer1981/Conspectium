@@ -15,7 +15,7 @@ from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import PRICE_PER_MTOK, settings
 from app.core.events import log_event_standalone
-from app.services import pdf, vision
+from app.services import compose, pdf, vision
 from app.db.models import User
 from app.db.session import async_session_maker, get_session
 
@@ -138,6 +138,13 @@ async def lifespan(app: FastAPI):
     # process is actually running on is for it to say so.
     # Both default to "unset", meaning the field is not sent. The deploy has
     # to say which, or a record cannot be attributed to the call that made it.
+    logger.info(
+        "Compose: %s, %s, %s, %d words",
+        "on" if settings.COMPOSE_ENABLED else "off",
+        settings.COMPOSE_MODEL,
+        settings.COMPOSE_PROMPT_FILE,
+        compose.COMPOSE_PROMPT_WORDS,
+    )
     logger.info(
         "Model call: media_resolution=%s, thinking_level=%s",
         settings.VISION_MEDIA_RESOLUTION,

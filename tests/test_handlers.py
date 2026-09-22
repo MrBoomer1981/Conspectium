@@ -5,13 +5,14 @@ catch-all for messages the bot has no handler for. The photo and document
 pipelines are deliberately not covered here.
 """
 
+import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.bot import albums, handlers, texts
-from app.services import mathcheck
+from app.services import compose, mathcheck, photoguard, vision
 from app.db.models import Base, Event, Note, User
 
 
@@ -367,3 +368,284 @@ async def test_a_whole_album_is_still_saved(session, monkeypatch):
     assert len(notes) == 1
     assert notes[0].page_count == 4
     assert message.documents
+
+
+# ── stage two, where the record is built ─────────────────────────────────────
+
+
+async def test_the_record_stores_the_composed_text(session, monkeypatch):
+    """compose() being right is worth nothing if the handler computes it and
+    then builds the Note out of the transcription anyway. That omission is
+    invisible to every test in test_compose.py."""
+
+    async def fake_compose(markdown):
+        return compose.Composition("# Оформлено\n\n" + markdown)
+
+    monkeypatch.setattr(handlers.compose, "compose", fake_compose)
+
+    await _run_album(
+        session,
+        monkeypatch,
+        skips=[],
+        pages_ok=[_ok_page(i) for i in range(1, 5)],
+        record=_record(4),
+    )
+
+    notes = (await session.execute(select(Note))).scalars().all()
+    assert notes[0].markdown.startswith("# Оформлено")
+
+
+async def test_a_refused_composition_stores_the_text_it_started_from(
+    session, monkeypatch
+):
+    # The whole bargain: the worst case of stage two is the record without it.
+    async def fake_compose(markdown):
+        return compose.Composition(
+            markdown, refused="numbers", stats=[_compose_stat()]
+        )
+
+    monkeypatch.setattr(handlers.compose, "compose", fake_compose)
+
+    await _run_album(
+        session,
+        monkeypatch,
+        skips=[],
+        pages_ok=[_ok_page(i) for i in range(1, 5)],
+        record=_record(4),
+    )
+
+    notes = (await session.execute(select(Note))).scalars().all()
+    assert notes[0].markdown == _record(4).markdown
+
+    event = (
+        await session.execute(
+            select(Event).where(Event.type == "note_processed")
+        )
+    ).scalar_one()
+    assert event.payload["compose_refused"] == "numbers"
+    assert event.payload["composed"] is False
+
+
+async def test_composition_gets_its_own_limits_check(session, monkeypatch):
+    """Rule 6: limits before the model call, not after. The check at the top
+    of the record covers recognition; this is a second model call and a
+    second check, and a cost cap hit between them has to stop it."""
+    answers = [None, texts.LIMIT_COST]
+    seen: list[int] = []
+
+    async def fake_check(session_, user_, pages):
+        seen.append(pages)
+        return answers.pop(0)
+
+    called = False
+
+    async def fake_compose(markdown):
+        nonlocal called
+        called = True
+        return compose.Composition(markdown)
+
+    monkeypatch.setattr(handlers.limits, "check_limits", fake_check)
+    monkeypatch.setattr(handlers.compose, "compose", fake_compose)
+
+    await _run_album(
+        session,
+        monkeypatch,
+        skips=[],
+        pages_ok=[_ok_page(i) for i in range(1, 5)],
+        record=_record(4),
+    )
+
+    assert called is False
+    # Not a page: the page budget was already debited for the recognition.
+    assert seen == [4, 0]
+
+    notes = (await session.execute(select(Note))).scalars().all()
+    assert notes[0].markdown == _record(4).markdown
+
+
+# ── the single-photo path, for the one line the album tests cannot reach ─────
+
+
+_PHOTO_MD = "Пусть $I_n = [a_n; b_n]$ и пересечение непусто везде."
+
+
+def _compose_stat() -> vision.CallStats:
+    return vision.CallStats("compose", "gemini-3.5-flash-lite", 1, 1, 0.001, 10, True, None)
+
+
+class _FastBot:
+    async def download(self, photo):
+        return io.BytesIO(_jpeg())
+
+
+def _verdict_ok():
+    return photoguard.PhotoVerdict(
+        ok=True,
+        reason="Фото годится для распознавания",
+        line_height_px=25.0,
+        sharpness=200.0,
+        paper_fraction=0.9,
+        contrast=40.0,
+    )
+
+
+async def _run_photo(session, monkeypatch, composition, composed=None):
+    """handle_photo with everything outside this test's subject stubbed out.
+
+    The album harness above cannot cover the photo path: they are two separate
+    functions that each build their own Note, and a composition wired into one
+    and dropped in the other is a paid call thrown away on every single page.
+    """
+    user = await _user(session)
+
+    transcription = vision.Transcription(
+        title="Теорема Кантора",
+        subject=None,
+        markdown=_PHOTO_MD,
+        margin_notes=[],
+        uncertain=[],
+        numeric_tokens=[],
+        unreadable_count=0,
+    )
+
+    async def fake_consensus(image_bytes):
+        return (
+            vision.TranscriptionResult(transcription, 0.95, [], "clean"),
+            [],
+        )
+
+    async def fake_compose(markdown):
+        if composed is not None:
+            composed.append(markdown)
+        return composition
+
+    async def no_spend(user_id, stats):
+        return None
+
+    async def no_pdf(message, note):
+        return None
+
+    monkeypatch.setattr(handlers.photoguard, "check_photo_bytes", lambda data: _verdict_ok())
+    monkeypatch.setattr(handlers.vision, "transcribe_consensus", fake_consensus)
+    monkeypatch.setattr(handlers.vision, "log_ai_calls", no_spend)
+    monkeypatch.setattr(handlers.compose, "compose", fake_compose)
+    monkeypatch.setattr(handlers.corpus, "send_record", no_pdf)
+
+    albums.reset()
+    await handlers.handle_photo(_PhotoMessage(None, message_id=21), session, user, _FastBot())
+    return transcription
+
+
+async def test_a_single_photo_stores_the_composed_text(session, monkeypatch):
+    source = await _run_photo(
+        session,
+        monkeypatch,
+        compose.Composition("# Оформлено\n\nтекст", drift=3, stats=[_compose_stat()]),
+    )
+
+    notes = (await session.execute(select(Note))).scalars().all()
+    assert len(notes) == 1
+    assert notes[0].markdown == "# Оформлено\n\nтекст"
+    assert notes[0].markdown != source.markdown
+
+    event = (
+        await session.execute(select(Event).where(Event.type == "note_processed"))
+    ).scalar_one()
+    assert event.payload["composed"] is True
+    assert event.payload["compose_refused"] is None
+    assert event.payload["compose_drift"] == 3
+
+
+async def test_a_refused_composition_on_a_photo_says_so_in_the_event(
+    session, monkeypatch
+):
+    # compose() already hands back the source when it refuses, which is what
+    # test_compose.py proves. What only this path can show is that the reason
+    # survives into note_processed, where the experiment will read it.
+    await _run_photo(
+        session,
+        monkeypatch,
+        compose.Composition(
+            _PHOTO_MD, refused="numbers", drift=7, stats=[_compose_stat()]
+        ),
+    )
+
+    notes = (await session.execute(select(Note))).scalars().all()
+    assert notes[0].markdown == _PHOTO_MD
+
+    event = (
+        await session.execute(select(Event).where(Event.type == "note_processed"))
+    ).scalar_one()
+    assert event.payload["compose_refused"] == "numbers"
+    assert event.payload["composed"] is False
+    assert event.payload["compose_drift"] == 7
+
+
+async def test_composition_on_a_photo_gets_its_own_limits_check(
+    session, monkeypatch
+):
+    # The same bargain as the album path: rule 6 admits no exception for a
+    # second model call, and pages=0 because the page budget belongs to the
+    # recognition that has already been debited.
+    answers = [None, texts.LIMIT_COST]
+    seen: list[int] = []
+
+    async def fake_check(session_, user_, pages):
+        seen.append(pages)
+        return answers.pop(0)
+
+    monkeypatch.setattr(handlers.limits, "check_limits", fake_check)
+    composed: list[str] = []
+
+    await _run_photo(
+        session,
+        monkeypatch,
+        compose.Composition("# Оформлено", stats=[_compose_stat()]),
+        composed=composed,
+    )
+
+    assert composed == []
+    assert seen == [1, 0]
+
+    notes = (await session.execute(select(Note))).scalars().all()
+    assert notes[0].markdown == _PHOTO_MD
+
+
+async def test_what_the_second_stage_cost_is_counted_in_the_record(
+    session, monkeypatch
+):
+    # note_processed.cost_usd is what the day's spend is read off. Leaving the
+    # composition out of it understates every record that used one.
+    await _run_photo(
+        session,
+        monkeypatch,
+        compose.Composition("# Оформлено\n\nтекст", stats=[_compose_stat()]),
+    )
+
+    event = (
+        await session.execute(select(Event).where(Event.type == "note_processed"))
+    ).scalar_one()
+    assert event.payload["cost_usd"] == pytest.approx(0.001)
+
+
+async def test_what_the_second_stage_cost_is_counted_in_an_album_record(
+    session, monkeypatch
+):
+    async def fake_compose(markdown):
+        return compose.Composition(markdown, stats=[_compose_stat()])
+
+    monkeypatch.setattr(handlers.compose, "compose", fake_compose)
+
+    await _run_album(
+        session,
+        monkeypatch,
+        skips=[],
+        pages_ok=[_ok_page(i) for i in range(1, 5)],
+        record=_record(4),
+    )
+
+    event = (
+        await session.execute(select(Event).where(Event.type == "note_processed"))
+    ).scalar_one()
+    assert event.payload["cost_usd"] == pytest.approx(0.001)
+    assert event.payload["composed"] is True

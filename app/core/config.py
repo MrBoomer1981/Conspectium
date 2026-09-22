@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     # is bit-for-bit what the call did before they existed.
     VISION_MEDIA_RESOLUTION: str = "unset"
     VISION_THINKING_LEVEL: str = "unset"
+    # Stage two: the trusted transcription, formatted. Off by default — it is
+    # an experiment behind a switch, like PROMPT_FILE, and turning it on is a
+    # decision rather than something that happens on a deploy.
+    COMPOSE_ENABLED: bool = False
+    COMPOSE_MODEL: str = "gemini-3.5-flash-lite"
+    COMPOSE_PROMPT_FILE: str = "prompts-compose-v1.md"
     # Which prompt file vision.py loads at import. A variant can be tried on
     # the deployed bot by changing this one variable, and rolled back the same
     # way, without a code change in between.
@@ -76,14 +82,20 @@ class Settings(BaseSettings):
         a limit while everything else keeps working. Refuse to start, unless
         that is the decision: trying a model before its price is published is
         a real thing to want, and the page cap still stands."""
-        if self.VISION_MODEL in PRICE_PER_MTOK or self.ALLOW_UNPRICED_MODEL:
+        if self.ALLOW_UNPRICED_MODEL:
             return self
-        raise ValueError(
-            f"{self.VISION_MODEL} has no price in PRICE_PER_MTOK "
-            "(app/core/config.py). Add its cost per million tokens as "
-            "(input, output), or set ALLOW_UNPRICED_MODEL=true to run with "
-            "DAILY_COST_LIMIT_USD not enforced."
-        )
+        # Both of them: half the spend going out unpriced breaks the cap just
+        # as quietly as all of it.
+        for name in ("VISION_MODEL", "COMPOSE_MODEL"):
+            model = getattr(self, name)
+            if model not in PRICE_PER_MTOK:
+                raise ValueError(
+                    f"{name}={model} has no price in PRICE_PER_MTOK "
+                    "(app/core/config.py). Add its cost per million tokens as "
+                    "(input, output), or set ALLOW_UNPRICED_MODEL=true to run "
+                    "with DAILY_COST_LIMIT_USD not enforced."
+                )
+        return self
 
     @field_validator("VISION_RUNS")
     @classmethod

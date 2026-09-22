@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Note, User
 from app.services import (
+    compose,
     docx,
     graphcheck,
     images,
@@ -161,6 +162,21 @@ async def handle_photo(
             },
         )
 
+    # Step 12a: stage two, formatting. It is given the text the three runs
+    # agreed on and never the photograph, so it has nothing to invent from,
+    # and what it returns is checked against what went in — by code, not by
+    # another model call. Refused for any reason, the record is the one we
+    # already had. It runs after the checks above deliberately: mathcheck and
+    # graphcheck judge what was *read*, and this stage is presentation.
+    composition = compose.Composition(result.best.markdown)
+    # Rule 6, limits before the model call. pages=0 because composition is one
+    # call per record rather than per page — the page budget is already
+    # debited for the recognition — but the kill switch and the daily cost cap
+    # still decide whether it may run at all.
+    if await limits.check_limits(session, user, pages=0) is None:
+        composition = await compose.compose(result.best.markdown)
+        await vision.log_ai_calls(user.id, composition.stats)
+
     # Step 13: persist the record. "rejected" already exited at step 10, so the
     # verdict here is "clean" or "needs_review". Dataclasses are flattened to
     # plain dicts — JSONB won't take them as they are.
@@ -168,7 +184,7 @@ async def handle_photo(
         user_id=user.id,
         title=result.best.title,
         subject=result.best.subject,
-        markdown=result.best.markdown,
+        markdown=composition.markdown,
         source_type="photo",
         page_count=1,
         status="needs_review" if result.verdict == "needs_review" else "ready",
@@ -198,8 +214,11 @@ async def handle_photo(
             "verdict": result.verdict,
             "page_count": 1,
             "source_type": "photo",
+            "composed": composition.refused is None and bool(composition.stats),
+            "compose_refused": composition.refused,
+            "compose_drift": composition.drift,
             "latency_ms": int((time.monotonic() - started) * 1000),
-            "cost_usd": vision.total_cost(stats),
+            "cost_usd": vision.total_cost(stats + composition.stats),
         },
     )
 
@@ -384,11 +403,18 @@ async def _process_album(
         return
 
     rec = outcome.record
+    # Stage two runs once over the assembled record, not once per page: a
+    # document formatted page by page keeps the seams the assembly removed.
+    composition = compose.Composition(rec.markdown)
+    if await limits.check_limits(session, user, pages=0) is None:
+        composition = await compose.compose(rec.markdown)
+        await vision.log_ai_calls(user.id, composition.stats)
+
     note = Note(
         user_id=user.id,
         title=rec.title,
         subject=rec.subject,
-        markdown=rec.markdown,
+        markdown=composition.markdown,
         source_type="photo",
         page_count=rec.page_count,
         status=rec.status,
@@ -416,8 +442,11 @@ async def _process_album(
             "page_count": rec.page_count,
             "source_type": "photo",
             "pages_skipped": len(outcome.skips),
+            "composed": composition.refused is None and bool(composition.stats),
+            "compose_refused": composition.refused,
+            "compose_drift": composition.drift,
             "latency_ms": int((time.monotonic() - started) * 1000),
-            "cost_usd": vision.total_cost(outcome.stats),
+            "cost_usd": vision.total_cost(outcome.stats + composition.stats),
         },
     )
 

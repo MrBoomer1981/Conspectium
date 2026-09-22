@@ -417,6 +417,46 @@ that text is ever wanted, it belongs in a second call over the **transcription
 already trusted**, in a column of its own, marked as machine-written on the
 page — never in the call that reads the photo.
 
+**Reading and composing are two jobs with opposite requirements, and they are
+two calls.** Sort the failures recorded above into the ones where the model
+*misread* something and the ones where it *interpreted*: a semicolon read as a
+letter and a digit in a hand-drawn matrix are perception; the fluent retelling
+of a distant photograph, "possibly a typo by the author", the silently fixed
+arithmetic, the invented discrepancy, `confidence: 0.95`, and `uncertain` as a
+complaint about the paper are all the interpretive faculty leaking into the
+literal job. Six of eight. We fought that with words in the prompt — "не
+пересказывай", "не дополняй", "не исправляй" — and every such word also steals
+attention from the reading.
+
+So `compose.py` is a second call over the text the runs already agreed on, and
+it **never receives the photograph**. That is the point, not an implementation
+detail: the worst failure this project has reproduced needs an image to invent
+from, and there is none. The stage's own job — heading levels, bold terms, a
+formula on its own line, a run of lines into a list — is transformation, which
+is what a model is good at.
+
+What makes it safe to ship is that its output is checked against its input **by
+code**. CLAUDE.md records that a verification model call does not work, and
+that finding stands: *that* call compared text against a photograph, which is
+perception again, and it invented a discrepancy. These guards compare text
+against text. The multiset of numbers must be identical, list markers stripped
+first because rule 8 lets the composer renumber a list; the count of
+`[неразборчиво]` must be identical; the document must not come back materially
+shorter. Any of those, and the record is the one stage one produced. Off,
+refused, or failed, the worst case of the stage is the pipeline without it.
+
+Word drift is **measured and not refused on**, deliberately. Rule 6 of
+`prompts-compose-v1.md` asks for `### Определение` over a definition, so the
+stage is *required* to write a word the page does not carry; a word guard would
+refuse the prompt's own instruction. The count goes into the log and the
+`note_processed` payload so the size of that liberty can be seen before anyone
+decides what to do about it.
+
+This is the same second call the paragraph above anticipated, spent on markup
+rather than on commentary. **Commentary is still not built.** A box explaining
+the mathematics would also belong here rather than in the reading call, and it
+would still have to be marked as machine-written on the page.
+
 **The matrix is checked against the graph, by code.** The uncertainty a
 record carries is not spread evenly: of six numeric divergences in one album,
 five sat on the single page with two hand-drawn matrices, and every one of
@@ -575,6 +615,7 @@ app/
     vision.py         Gemini: prompt, response parsing, three runs
     images.py         compression
     limits.py         spend limits
+    compose.py        stage two: the trusted transcription, formatted
     docx.py           .docx -> markdown, no model call
     pdf.py            a record as a PDF: formulas, graphs, tables, remarks
     photoguard.py     ready-made
@@ -594,6 +635,7 @@ PLAN.md
 prompts-v3.md        TRANSCRIBE_PROMPT, read from disk at import
 prompts-v4.md        the longer variant under test, behind PROMPT_FILE
 prompts-v5.md        extraction only — no rule about how a page should look
+prompts-compose-v1.md  stage two: markup over text already trusted
 ```
 
 The prompt files hold the recognition prompt as plain text. `vision.py`
@@ -619,6 +661,9 @@ VISION_MODEL=gemini-3.5-flash-lite
 VISION_CALL_TIMEOUT_S=30
 VISION_MEDIA_RESOLUTION=unset
 VISION_THINKING_LEVEL=unset
+COMPOSE_ENABLED=false
+COMPOSE_MODEL=gemini-3.5-flash-lite
+COMPOSE_PROMPT_FILE=prompts-compose-v1.md
 PROMPT_FILE=prompts-v3.md
 IMAGE_MAX_SIDE=1500
 IMAGE_QUALITY=85
@@ -644,6 +689,10 @@ is published is a real thing to want, and the refusal exists to make the state
 chosen rather than stumbled into — the deploy log then carries a warning on
 every start. What still guards the spend in that state is
 `DAILY_PAGES_PER_USER` alone, so raising both at once leaves nothing.
+
+`COMPOSE_ENABLED` turns stage two on. Off by default, and `COMPOSE_MODEL` is
+priced by the same validator as `VISION_MODEL` — half the spend going out
+unpriced breaks the daily cap exactly as quietly as all of it.
 
 `VISION_MEDIA_RESOLUTION` and `VISION_THINKING_LEVEL` are the two knobs on
 *how* the model is asked, as opposed to what it is asked. Both default to
@@ -701,6 +750,7 @@ needs a database runs on in-memory SQLite.
 | `test_corpus.py` | listing, opening, correcting, statistics, the flags rebuilt from JSONB as text, as callouts and as anchored remarks — and that no query reaches another user's records |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
+| `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, and every guard that makes it refuse itself |
 | `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses, graphs read back from `[граф: ...]`, heading levels, callouts, and that nothing unreadable ever sinks the document |
 
 `tests/conftest.py` does two things without which nothing imports: it fills

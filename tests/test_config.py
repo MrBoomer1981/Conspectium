@@ -327,3 +327,43 @@ def test_an_unknown_thinking_level_stops_the_process():
     for value in ("maximum", "on", "high ", ""):
         with pytest.raises(ValidationError):
             _settings(VISION_THINKING_LEVEL=value)
+
+
+# ── stage two ────────────────────────────────────────────────────────────────
+
+
+def test_composition_is_off_until_somebody_turns_it_on():
+    # An experiment behind a switch, like PROMPT_FILE. A deploy must not start
+    # spending on a second stage because a default changed.
+    s = _settings()
+    assert s.COMPOSE_ENABLED is False
+    assert s.COMPOSE_PROMPT_FILE == "prompts-compose-v1.md"
+
+
+def test_the_compose_model_has_to_be_priced_too():
+    # Half the spend going out unpriced breaks DAILY_COST_LIMIT_USD exactly as
+    # quietly as all of it: NULL rows are skipped by the SUM behind the cap.
+    with pytest.raises(ValidationError) as caught:
+        _settings(COMPOSE_MODEL="gemini-9.9-imaginary")
+    assert "COMPOSE_MODEL" in str(caught.value)
+
+
+def test_the_escape_hatch_covers_both_models():
+    s = _settings(
+        VISION_MODEL="gemini-9.9-imaginary",
+        COMPOSE_MODEL="gemini-9.9-imaginary",
+        ALLOW_UNPRICED_MODEL=True,
+    )
+    assert s.COMPOSE_MODEL == "gemini-9.9-imaginary"
+
+
+def test_the_refusal_names_which_model_has_no_price():
+    # Two models in the message now, so it has to say which one is the problem.
+    with pytest.raises(ValidationError) as caught:
+        _settings(VISION_MODEL="gemini-9.9-imaginary")
+    assert "VISION_MODEL" in str(caught.value)
+    assert "COMPOSE_MODEL" not in str(caught.value)
+
+
+def test_the_default_compose_model_is_priced():
+    assert _settings().COMPOSE_MODEL in PRICE_PER_MTOK

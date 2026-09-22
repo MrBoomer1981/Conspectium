@@ -273,7 +273,8 @@ question comes up while working on a task, the answer is here.
  9. result is None                                    ← texts.ERROR_GENERIC, exit
 10. verdict == "rejected"                              ← texts.REJECTED_QUALITY, exit
 11. markdown shorter than MIN_MARKDOWN_LEN             ← texts.NO_TEXT_FOUND, exit
-12. check calculations (mathcheck.check)
+12. check calculations (mathcheck.check, graphcheck.check)
+12a. limits again (pages=0), then stage two (compose.compose)  ← refused: the text from step 7
 13. save the Note
 14. debit the quota (limits.consume, pages=1)
 15. log the note_processed event
@@ -294,6 +295,16 @@ created, no quota is debited, `note_processed` is not written,
 failures), the user gets exactly one message with the reason.
 
 **Step 8 always runs** once step 7 has been reached.
+
+**Step 12a cannot fail the record.** It is a second model call, over the text
+step 7 produced and never over the photograph, and its output is checked
+against its input by code. Off, refused, or failed, the record is the one
+step 12 already had — so the worst case of the stage is the pipeline without
+it. It gets its own `check_limits` because rule 6 admits no exception for a
+second call, and `pages=0` because the page budget belongs to the recognition.
+
+It runs **after** step 12, not before: `mathcheck` and `graphcheck` judge what
+was *read*, and step 12a is presentation.
 
 **Step 15 goes strictly between `consume` and the reply to the user.** The
 event means "processing finished successfully end to end," so it can't be
