@@ -66,6 +66,53 @@ def _page_input(message_id: int) -> albums.PageInput:
 # ── process_page: the checks a page goes through ─────────────────────────────
 
 
+def _frame_ok() -> SimpleNamespace:
+    """A frame that passes every threshold, so the page reaches the model."""
+    return SimpleNamespace(
+        ok=True,
+        reason=None,
+        sharpness=100.0,
+        line_height_px=20.0,
+        paper_fraction=0.9,
+        contrast=0.8,
+    )
+
+
+async def test_a_page_carries_both_agreements_off_the_consensus(monkeypatch):
+    """The album's two columns are no better than this hand-off.
+
+    A page that reads text_agreement into both fields leaves the rest of the
+    suite green: _assemble takes minima of whatever it is given, and the
+    record then reports a page's layout agreement as its numeric one — the
+    experiment would compare the wrong measure without anything failing.
+    """
+    monkeypatch.setattr(albums.photoguard, "check_photo_bytes", lambda data: _frame_ok())
+
+    async def _runs(data):
+        return (
+            vision.TranscriptionResult(
+                best=_transcription(
+                    markdown=(
+                        "Сумма степеней вершин связного графа равна "
+                        "удвоенному числу его рёбер."
+                    )
+                ),
+                text_agreement=0.99,
+                numeric_agreement=0.60,
+                numeric_divergences=[],
+                verdict="clean",
+            ),
+            [],
+        )
+
+    monkeypatch.setattr(albums.vision, "transcribe_consensus", _runs)
+
+    page = await albums.process_page(_page_input(1), 1)
+
+    assert page.text_agreement == 0.99
+    assert page.numeric_agreement == 0.60
+
+
 async def test_a_matrix_contradicting_its_graph_sends_the_page_for_review(
     monkeypatch,
 ):
@@ -79,18 +126,7 @@ async def test_a_matrix_contradicting_its_graph_sends_the_page_for_review(
         "| **3** | 1 | 1 | 0 | 1 |\n| **4** | 0 | 0 | 1 | 0 |\n"
     )
 
-    monkeypatch.setattr(
-        albums.photoguard,
-        "check_photo_bytes",
-        lambda data: SimpleNamespace(
-            ok=True,
-            reason=None,
-            sharpness=100.0,
-            line_height_px=20.0,
-            paper_fraction=0.9,
-            contrast=0.8,
-        ),
-    )
+    monkeypatch.setattr(albums.photoguard, "check_photo_bytes", lambda data: _frame_ok())
 
     async def _runs(data):
         return (
