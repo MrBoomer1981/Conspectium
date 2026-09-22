@@ -86,6 +86,7 @@ class Note(Base):
     numeric_divergences: Mapped[list] = mapped_column(JSONB, server_default="[]")
     unreadable_count: Mapped[int] = mapped_column(Integer, server_default="0")
     text_agreement: Mapped[float | None] = mapped_column(Float)
+    numeric_agreement: Mapped[float | None] = mapped_column(Float)
     photo_sharpness: Mapped[float | None] = mapped_column(Float)
     photo_line_height: Mapped[float | None] = mapped_column(Float)
     photo_paper_fraction: Mapped[float | None] = mapped_column(Float)

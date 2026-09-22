@@ -120,6 +120,12 @@ class TranscriptionResult:
 
     best: Transcription
     text_agreement: float  # 0..1
+    # The two agreements answer different questions and neither stands in for
+    # the other: text_agreement compares the markdown, so it moves when a
+    # prompt changes how a page is laid out; this one compares the numbers,
+    # and a number has no layout. Stored rather than logged only, because
+    # comparing two prompts should be a query and Railway's logs roll off.
+    numeric_agreement: float  # 0..1
     numeric_divergences: list  # consensus.Divergence objects
     verdict: str  # "clean" | "needs_review" | "rejected"
 
@@ -636,24 +642,31 @@ async def transcribe_consensus(
         # One way only, exactly like a critical mathcheck finding: this can
         # lower a clean verdict and can never lift a rejected one.
         verdict = "needs_review"
+    # Built before the log line rather than after it, so the number printed and
+    # the number stored are one value. Computed twice they could drift apart,
+    # and the log is what anyone would check the column against.
+    result = TranscriptionResult(
+        best=best,
+        text_agreement=text_agreement,
+        numeric_agreement=numeric_agreement([t.numeric_tokens for t in ok_runs]),
+        numeric_divergences=numeric_divergences,
+        verdict=verdict,
+    )
     logger.info(
         "consensus: %d/%d runs ok, text_agreement=%.3f, "
         "numeric_agreement=%.3f, verdict=%s, "
         "divergences %d of %d kept, uncertain %d of %d kept",
         len(ok_runs),
         settings.VISION_RUNS,
-        text_agreement,
-        numeric_agreement([t.numeric_tokens for t in ok_runs]),
-        verdict,
+        result.text_agreement,
+        result.numeric_agreement,
+        result.verdict,
         len(numeric_divergences),
         len(reported),
         len(best.uncertain),
         len(chosen.uncertain),
     )
-    return (
-        TranscriptionResult(best, text_agreement, numeric_divergences, verdict),
-        all_stats,
-    )
+    return result, all_stats
 
 
 # ── Spend logging ────────────────────────────────────────────────────────────

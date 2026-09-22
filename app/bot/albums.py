@@ -200,6 +200,7 @@ class PageResult:
     report: mathcheck.Report | None = None
     verdict: str | None = None
     text_agreement: float | None = None
+    numeric_agreement: float | None = None
     numeric_divergences: list | None = None
     photo_sharpness: float | None = None
     photo_line_height: float | None = None
@@ -298,6 +299,7 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
         report=report,
         verdict=verdict,
         text_agreement=result.text_agreement,
+        numeric_agreement=result.numeric_agreement,
         numeric_divergences=result.numeric_divergences,
         photo_sharpness=frame.sharpness,
         photo_line_height=frame.line_height_px,
@@ -319,6 +321,7 @@ class AssembledRecord:
     margin_notes: list[str]
     unreadable_count: int
     text_agreement: float | None
+    numeric_agreement: float | None
     photo_sharpness: float | None
     photo_line_height: float | None
     photo_paper_fraction: float | None
@@ -422,6 +425,7 @@ def _assemble(pages_ok: list[PageResult]) -> AssembledRecord:
         ],
         unreadable_count=sum(p.transcription.unreadable_count for p in pages_ok),
         text_agreement=min(p.text_agreement for p in pages_ok),
+        numeric_agreement=min(p.numeric_agreement for p in pages_ok),
         photo_sharpness=_min_metric(pages_ok, "photo_sharpness"),
         photo_line_height=_min_metric(pages_ok, "photo_line_height"),
         photo_paper_fraction=_min_metric(pages_ok, "photo_paper_fraction"),

@@ -194,6 +194,7 @@ async def handle_photo(
         numeric_divergences=[asdict(d) for d in result.numeric_divergences],
         unreadable_count=result.best.unreadable_count,
         text_agreement=result.text_agreement,
+        numeric_agreement=result.numeric_agreement,
         photo_sharpness=photo_verdict.sharpness,
         photo_line_height=photo_verdict.line_height_px,
         photo_paper_fraction=photo_verdict.paper_fraction,
@@ -306,6 +307,7 @@ async def handle_document(
         numeric_divergences=[],
         unreadable_count=0,
         text_agreement=None,
+        numeric_agreement=None,  # a .docx has no runs to compare
         photo_sharpness=None,
         photo_line_height=None,
         photo_paper_fraction=None,
@@ -442,6 +444,7 @@ async def _process_album(
         numeric_divergences=rec.numeric_divergences,
         unreadable_count=rec.unreadable_count,
         text_agreement=rec.text_agreement,
+        numeric_agreement=rec.numeric_agreement,
         photo_sharpness=rec.photo_sharpness,
         photo_line_height=rec.photo_line_height,
         photo_paper_fraction=rec.photo_paper_fraction,

@@ -666,6 +666,47 @@ async def test_numbers_agree_where_layout_does_not(monkeypatch, caplog):
     assert "text_agreement=1.000" not in line
 
 
+async def test_the_number_in_the_log_is_the_number_in_the_record(
+    monkeypatch, caplog
+):
+    """One value read twice, never two computations.
+
+    The column is what the experiment queries; the log line is what anyone
+    would check the column against. Computed separately they can drift, and a
+    disagreeing pair is worse than either alone — there would be no way to
+    tell which of the two is the measurement.
+    """
+    import logging
+
+    pages = [
+        ("Дано: $n = 5$, $k = 12$, $m = 7$", ["5", "12", "7"]),
+        ("Дано: $n = 5$, $k = 13$, $m = 7$", ["5", "13", "7"]),
+    ]
+    remaining = list(pages)
+
+    async def fake_transcribe(image_bytes, model):
+        markdown, tokens = remaining.pop(0)
+        page = _transcription(markdown)
+        page.numeric_tokens = tokens
+        return page, []
+
+    monkeypatch.setattr(vision, "transcribe", fake_transcribe)
+    monkeypatch.setattr(vision.settings, "VISION_RUNS", 2)
+
+    with caplog.at_level(logging.INFO, logger="app.services.vision"):
+        result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    # Strictly inside the range, so a field frozen at either end fails here.
+    assert 0.0 < result.numeric_agreement < 1.0
+    assert result.numeric_agreement == pytest.approx(
+        vision.numeric_agreement([tokens for _, tokens in pages])
+    )
+
+    line = next(m for m in (r.getMessage() for r in caplog.records) if "consensus:" in m)
+    assert f"numeric_agreement={result.numeric_agreement:.3f}" in line
+
+
 def test_a_page_dense_with_repeated_digits_is_not_written_off_as_noise():
     """difflib's autojunk heuristic calls anything common in a sequence over
     200 long "noise" and stops matching on it. A page of matrices is exactly

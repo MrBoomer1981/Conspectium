@@ -250,6 +250,14 @@ made the v5 measurement unreadable, and it would make a two-stage run
 incomparable with a one-stage one. `vision.numeric_agreement` compares the
 runs' `numeric_tokens` sequences instead. A number has no layout.
 
+**Both are columns on `notes`.** The second one was in the log alone, which
+made comparing two prompts a grep through Railway's logs — and those roll
+off, so an arm measured last week stops being checkable. Each takes the
+album's *worst* page, and that is rarely the same page twice: on the album of
+2026-09-22 the text minimum came from page 2 and the numeric minimum from
+page 3, which is the whole argument for keeping both. `.docx` records have no
+runs to compare and keep `NULL` in both.
+
 Read it across the arms of one experiment, never against a threshold: a page
 of matrices is hundreds of numbers drawn from a handful of digits, a
 repetitive sequence has many equally good alignments, and the absolute value

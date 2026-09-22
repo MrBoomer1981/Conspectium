@@ -39,6 +39,7 @@ def _page(number: int, **overrides) -> albums.PageResult:
         report=mathcheck.Report(issues=[]),
         verdict="clean",
         text_agreement=1.0,
+        numeric_agreement=1.0,
         numeric_divergences=[],
         photo_sharpness=100.0,
         photo_line_height=20.0,
@@ -96,6 +97,7 @@ async def test_a_matrix_contradicting_its_graph_sends_the_page_for_review(
             vision.TranscriptionResult(
                 best=_transcription(markdown=markdown),
                 text_agreement=0.99,
+                numeric_agreement=0.99,
                 numeric_divergences=[],
                 verdict="clean",
             ),
@@ -235,6 +237,25 @@ def test_text_agreement_is_the_worst_page():
         [_page(1, text_agreement=0.99), _page(2, text_agreement=0.72)]
     )
     assert record.text_agreement == 0.72
+
+
+def test_the_worst_page_by_text_is_not_the_worst_page_by_numbers():
+    """Both agreements take the worst page, and it is not the same page.
+
+    The biology album of 2026-09-22, which is why both are stored rather than
+    one: page 2 read 0.917 text / 0.939 numeric, page 3 read 0.990 / 0.600.
+    The prose on page 3 agreed almost perfectly and its numbers did not, so a
+    record carrying only the minimum of one of them describes the wrong page.
+    """
+    record = albums._assemble(
+        [
+            _page(1, text_agreement=0.917, numeric_agreement=0.939),
+            _page(2, text_agreement=0.990, numeric_agreement=0.600),
+        ]
+    )
+
+    assert record.text_agreement == 0.917
+    assert record.numeric_agreement == 0.600
 
 
 def test_frame_metrics_take_the_worst_page():

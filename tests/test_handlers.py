@@ -246,6 +246,7 @@ def _ok_page(number: int) -> albums.PageResult:
         report=mathcheck.Report(issues=[]),
         verdict="clean",
         text_agreement=0.95,
+        numeric_agreement=0.62,
     )
 
 
@@ -276,6 +277,7 @@ def _record(page_count: int) -> albums.AssembledRecord:
         margin_notes=[],
         unreadable_count=0,
         text_agreement=0.95,
+        numeric_agreement=0.62,
         photo_sharpness=100.0,
         photo_line_height=20.0,
         photo_paper_fraction=0.9,
@@ -544,7 +546,13 @@ async def _run_photo(session, monkeypatch, composition, composed=None):
 
     async def fake_consensus(image_bytes):
         return (
-            vision.TranscriptionResult(transcription, 0.95, [], "clean"),
+            vision.TranscriptionResult(
+                best=transcription,
+                text_agreement=0.95,
+                numeric_agreement=0.62,
+                numeric_divergences=[],
+                verdict="clean",
+            ),
             [],
         )
 
@@ -683,3 +691,30 @@ async def test_what_the_second_stage_cost_is_counted_in_an_album_record(
     ).scalar_one()
     assert event.payload["cost_usd"] == pytest.approx(0.001)
     assert event.payload["composed"] is True
+
+
+# ── both agreements reach the record ─────────────────────────────────────────
+
+# They are stored so that comparing two prompts against the same album is a
+# query rather than a grep through Railway's logs, which roll off. Two
+# mistakes would leave the suite green without this: dropping the new number
+# on the way to the Note, and copying text_agreement into both. The fixtures
+# hold 0.95 for the text and 0.62 for the numbers, so either one fails here.
+
+
+async def test_an_album_record_stores_both_agreements(session, monkeypatch):
+    await _run_album(
+        session, monkeypatch, skips=[], pages_ok=[_ok_page(1)], record=_record(1)
+    )
+
+    note = (await session.execute(select(Note))).scalar_one()
+    assert note.text_agreement == 0.95
+    assert note.numeric_agreement == 0.62
+
+
+async def test_a_photo_record_stores_both_agreements(session, monkeypatch):
+    await _run_photo(session, monkeypatch, compose.Composition(_PHOTO_MD))
+
+    note = (await session.execute(select(Note))).scalar_one()
+    assert note.text_agreement == 0.95
+    assert note.numeric_agreement == 0.62
