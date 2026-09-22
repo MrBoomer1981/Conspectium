@@ -250,6 +250,40 @@ def _response_text(response: object) -> str:
         return ""
 
 
+def _finish_reason(response: object) -> str | None:
+    """Why the model stopped, straight from the response.
+
+    MAX_TOKENS is the one that matters: it means the answer was cut off at our
+    own max_output_tokens, so the JSON ends mid-string and cannot parse. That
+    is a fact the response carries — not something to infer from a token count
+    sitting near the ceiling. Defensive like _usage: a response with no
+    candidates must not turn a parse failure into a crash.
+    """
+    try:
+        reason = response.candidates[0].finish_reason
+    except Exception:
+        return None
+    if not reason:
+        return None
+    # .name because it is an enum, and str() on one prints
+    # "FinishReason.MAX_TOKENS" into a column that is read by eye.
+    return getattr(reason, "name", None) or str(reason)
+
+
+def _unparseable(response: object) -> str:
+    """The error for a 200 whose body would not parse.
+
+    Naming why the model stopped is the whole difference between "it came back
+    wrong" and an answer: MAX_TOKENS is our ceiling, STOP is the model
+    returning something that is not JSON, SAFETY is a refusal.
+    """
+    reason = _finish_reason(response)
+    text = "unparseable model response"
+    if reason:
+        text = f"{text} (finish_reason={reason})"
+    return text[:500]
+
+
 def _short_error(exc: BaseException) -> str:
     text = str(exc)
     # A bare TimeoutError() from wait_for stringifies to "", which would leave
@@ -362,7 +396,7 @@ async def _one_attempt(
         cost_usd=_cost_usd(model, tokens_in, tokens_out),
         latency_ms=latency_ms,
         success=result is not None,
-        error=None if result is not None else "unparseable model response",
+        error=None if result is not None else _unparseable(response),
     )
     return result, stats, False
 

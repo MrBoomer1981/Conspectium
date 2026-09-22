@@ -795,3 +795,134 @@ async def test_the_downgrade_is_the_one_the_record_is_built_from(monkeypatch):
     assert result is not None
     assert result.verdict == "needs_review"
     assert len(result.numeric_divergences) == 1
+
+
+# ── a 200 that would not parse should say why the model stopped ──────────────
+
+
+def _response(text, finish_reason=None, candidates=True):
+    """A response shaped like the SDK's, with only what vision reads."""
+    candidate = SimpleNamespace(finish_reason=finish_reason)
+    return SimpleNamespace(
+        text=text,
+        usage_metadata=SimpleNamespace(
+            prompt_token_count=100, candidates_token_count=8192
+        ),
+        candidates=[candidate] if candidates else [],
+    )
+
+
+async def _attempt(monkeypatch, response):
+    async def answering(**kwargs):
+        return response
+
+    monkeypatch.setattr(vision, "_client", _fake_client(answering))
+    return await vision._one_attempt(b"x", "test-model")
+
+
+async def test_an_answer_cut_off_at_our_ceiling_says_so(monkeypatch):
+    """MAX_TOKENS is the difference between "the model came back wrong" and
+    "we truncated it ourselves". The JSON ends mid-string, parse_response
+    returns None as it must, and the row used to say only that much."""
+    _, stats, retryable = await _attempt(
+        monkeypatch, _response("{'markdown': 'половина ответа", "MAX_TOKENS")
+    )
+
+    assert stats.success is False
+    assert "unparseable model response" in stats.error
+    assert "MAX_TOKENS" in stats.error
+    assert retryable is False  # a 200 that parsed badly is never retried
+
+
+async def test_an_enum_finish_reason_is_recorded_by_name(monkeypatch):
+    # str() on the SDK enum prints "FinishReason.MAX_TOKENS" into a column
+    # that gets read by eye and grepped in logs.
+    from google.genai import types
+
+    _, stats, _ = await _attempt(
+        monkeypatch, _response("не json", types.FinishReason.MAX_TOKENS)
+    )
+
+    assert "finish_reason=MAX_TOKENS" in stats.error
+    assert "FinishReason." not in stats.error
+
+
+async def test_a_model_that_simply_answered_in_prose_is_distinguishable(
+    monkeypatch,
+):
+    # STOP means the answer finished on its own and still was not JSON, which
+    # is a different problem with a different fix from a truncation.
+    _, stats, _ = await _attempt(monkeypatch, _response("Конечно! Вот текст:", "STOP"))
+
+    assert "finish_reason=STOP" in stats.error
+
+
+async def test_a_response_with_no_candidates_still_records_the_failure(
+    monkeypatch,
+):
+    _, stats, _ = await _attempt(
+        monkeypatch, _response("не json", candidates=False)
+    )
+
+    assert stats.error == "unparseable model response"
+
+
+async def test_an_absent_finish_reason_adds_nothing(monkeypatch):
+    _, stats, _ = await _attempt(monkeypatch, _response("не json", None))
+
+    assert stats.error == "unparseable model response"
+
+
+async def test_a_response_that_parsed_carries_no_error_whatever_it_finished_on(
+    monkeypatch,
+):
+    good = '{"markdown": "Достаточно текста, чтобы пройти проверку длины."}'
+    result, stats, _ = await _attempt(monkeypatch, _response(good, "MAX_TOKENS"))
+
+    assert result is not None
+    assert stats.success is True
+    assert stats.error is None
+
+
+def test_the_error_fits_the_column(monkeypatch):
+    # ai_calls.error is 500 characters; _short_error already respects that and
+    # this path builds its own string.
+    long_reason = "X" * 900
+    assert len(vision._unparseable(_response("x", long_reason))) <= 500
+
+
+async def test_a_response_without_candidates_at_all_does_not_crash(monkeypatch):
+    """The SDK's response shape is not a contract this project controls, and
+    _usage guards the same way for the same reason.
+
+    The cost of getting it wrong is not the missing reason. An exception here
+    escapes _one_attempt, and the CallStats of a call that was already billed
+    goes with it — transcribe_consensus can only log "run crashed" and record
+    a row with no tokens on it.
+    """
+    no_candidates = SimpleNamespace(
+        text="не json",
+        usage_metadata=SimpleNamespace(
+            prompt_token_count=7, candidates_token_count=11
+        ),
+    )
+
+    _, stats, _ = await _attempt(monkeypatch, no_candidates)
+
+    assert stats.error == "unparseable model response"
+    assert (stats.tokens_in, stats.tokens_out) == (7, 11)  # the spend survives
+
+
+async def test_a_candidate_without_a_finish_reason_does_not_crash(monkeypatch):
+    bare = SimpleNamespace(
+        text="не json",
+        usage_metadata=SimpleNamespace(
+            prompt_token_count=7, candidates_token_count=11
+        ),
+        candidates=[SimpleNamespace()],
+    )
+
+    _, stats, _ = await _attempt(monkeypatch, bare)
+
+    assert stats.error == "unparseable model response"
+    assert stats.tokens_out == 11

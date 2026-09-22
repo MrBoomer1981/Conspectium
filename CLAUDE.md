@@ -132,7 +132,11 @@ No linter is configured yet — don't add one without an explicit request.
 
 7. **Never trust JSON from the model.** Always validate the schema, always
    handle garbage input. The parsing function never raises — it returns
-   `None`.
+   `None`. When it does, the `ai_calls` row names the response's own
+   `finish_reason`: `MAX_TOKENS` means we truncated the answer at
+   `max_output_tokens` and the JSON ends mid-string, `STOP` means the model
+   finished and simply did not return JSON, `SAFETY` means it refused. Three
+   different problems that used to arrive as one sentence.
 
 ---
 
