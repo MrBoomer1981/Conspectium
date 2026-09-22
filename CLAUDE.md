@@ -582,6 +582,22 @@ Redis. The data is already in Postgres, and a debounce would then only decide
 **Don't rewrite or "improve" them.** Only import and call. Found a bug in
 one — report it, don't fix it silently.
 
+That rule has exactly one exception, made deliberately and after the failure
+was reproduced three times with byte-identical numbers. `photoguard` refused a
+good page — sharpness nineteen times its threshold, the page filling 97% of
+the frame — because `_line_height` returns `0.0` when it cannot build a line
+profile at all, and `0.0` was read as a measurement of a very small line. A
+page written *large* has few lines, so it is nearer that cliff than a page
+written small: the check was inverted exactly where it mattered. Since a
+record is all its pages or none, one such page cost a whole album, every time.
+
+What changed is one rule and nothing else: `UNMEASURED_LINE_HEIGHT` names the
+sentinel, and the criterion is skipped when the height was not measured. The
+other three checks still decide, and they are what stood between us and the
+retelling of a page photographed from across the room. **The measurement
+itself is still wrong** — see PLAN.md → Known risks — and fixing it needs real
+pages to calibrate against, not reasoning.
+
 One is known and worked around rather than fixed. `consensus.extract_numbers`
 treats every numeric literal on the page as a value to compare, list markers
 and subscripts included, so `compare()` reports a divergence wherever the runs
@@ -776,6 +792,7 @@ needs a database runs on in-memory SQLite.
 | `test_corpus.py` | listing, opening, correcting, statistics, the flags rebuilt from JSONB as text, as callouts and as anchored remarks — and that no query reaches another user's records |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
+| `test_photoguard.py` | the one rule in photoguard this project has edited: a line height that could not be measured is not a small one |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, and every guard that makes it refuse itself |
 | `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses, graphs read back from `[граф: ...]`, heading levels, callouts, and that nothing unreadable ever sinks the document |
 
@@ -784,8 +801,9 @@ the five required environment variables with placeholders, and it teaches the
 SQLite compiler to render `JSONB` as `JSON`. The second is a test-side
 adapter for the sqlite dialect only — `app/db/models.py` stays PostgreSQL.
 
-Deliberately **not** covered: `photoguard`, `consensus` and `mathcheck`,
-which arrived with their own tests, and the photo and document pipelines end
+Deliberately **not** covered: `consensus` and `mathcheck`, which arrived with
+their own tests — and `photoguard` except for the one rule this project
+changed, and the photo and document pipelines end
 to end — those break on every reordering of a handler, and the pipeline is
 not settled yet.
 

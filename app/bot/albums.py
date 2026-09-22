@@ -224,7 +224,10 @@ def reason_en(frame: photoguard.PhotoVerdict) -> str:
         return "sharpness"
     if frame.contrast < photoguard.MIN_CONTRAST:
         return "contrast"
-    if frame.line_height_px < photoguard.MIN_LINE_HEIGHT_PX:
+    if (
+        frame.line_height_px != photoguard.UNMEASURED_LINE_HEIGHT
+        and frame.line_height_px < photoguard.MIN_LINE_HEIGHT_PX
+    ):
         return "line height"
     return "none"
 

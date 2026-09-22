@@ -730,8 +730,18 @@ def test_the_log_name_of_each_threshold_is_the_one_that_refused_the_frame():
     assert albums.reason_en(_verdict(ok=False, paper_fraction=0.01)) == "paper fraction"
     assert albums.reason_en(_verdict(ok=False, sharpness=1.0)) == "sharpness"
     assert albums.reason_en(_verdict(ok=False, contrast=1.0)) == "contrast"
-    assert albums.reason_en(_verdict(ok=False, line_height_px=0.0)) == "line height"
+    assert albums.reason_en(_verdict(ok=False, line_height_px=12.0)) == "line height"
     assert albums.reason_en(_verdict()) == "none"
+
+
+def test_a_height_that_could_not_be_measured_names_no_threshold():
+    # photoguard stopped refusing on it, so naming it here would blame a check
+    # that did not make the decision — and this function exists precisely so
+    # the log cannot drift away from photoguard's own order.
+    from app.services import photoguard
+
+    unmeasured = _verdict(line_height_px=photoguard.UNMEASURED_LINE_HEIGHT)
+    assert albums.reason_en(unmeasured) == "none"
 
 
 def test_the_first_failing_threshold_is_the_one_named():

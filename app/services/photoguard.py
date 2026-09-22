@@ -23,6 +23,12 @@ from PIL import Image, ImageOps
 # ─── Пороги. Подбираются на своих данных, это разумные стартовые ───
 
 MIN_LINE_HEIGHT_PX = 20      # ниже — буквы мельче ~11 px, читать нечем
+# _line_height не всегда может измерить: у страницы с двумя строками крупной
+# формулы, у разреженной страницы, у страницы с рисунком профиль не даёт того,
+# что можно посчитать. Функция говорит об этом этим значением — и это
+# отсутствие измерения, а не маленькое измерение. Пока эти два случая были
+# неразличимы, страница, написанная крупно, отбраковывалась как мелкая.
+UNMEASURED_LINE_HEIGHT = 0.0
 MIN_SHARPNESS      = 90.0    # дисперсия лапласиана в области листа
 MIN_PAPER_FRACTION = 0.18    # лист меньше 18% кадра — снято издалека
 MIN_CONTRAST       = 28.0    # стандартное отклонение яркости на листе
@@ -37,11 +43,16 @@ class PhotoVerdict:
     paper_fraction: float
     contrast: float
 
+    def _line_height_text(self) -> str:
+        if self.line_height_px == UNMEASURED_LINE_HEIGHT:
+            return "не измерена — строк в профиле не видно"
+        return f"{self.line_height_px:5.1f} px  (нужно ≥ {MIN_LINE_HEIGHT_PX})"
+
     def render(self) -> str:
         mark = "✅" if self.ok else "❌"
         return (
             f"{mark} {self.reason}\n"
-            f"   высота строки : {self.line_height_px:5.1f} px  (нужно ≥ {MIN_LINE_HEIGHT_PX})\n"
+            f"   высота строки : {self._line_height_text()}\n"
             f"   резкость      : {self.sharpness:5.0f}     (нужно ≥ {MIN_SHARPNESS:.0f})\n"
             f"   лист в кадре  : {self.paper_fraction*100:5.0f} %     (нужно ≥ {MIN_PAPER_FRACTION*100:.0f} %)\n"
             f"   контраст      : {self.contrast:5.1f}     (нужно ≥ {MIN_CONTRAST:.0f})"
@@ -130,7 +141,7 @@ def _check(image: Image.Image) -> PhotoVerdict:
         ok, reason = False, "Фото смазано — переснимите, держа телефон неподвижно"
     elif contrast < MIN_CONTRAST:
         ok, reason = False, "Слишком темно или блик — добавьте света"
-    elif line_h < MIN_LINE_HEIGHT_PX:
+    elif line_h != UNMEASURED_LINE_HEIGHT and line_h < MIN_LINE_HEIGHT_PX:
         ok, reason = False, "Текст мелкий — снимите одну страницу крупным планом"
     else:
         ok, reason = True, "Фото годится для распознавания"

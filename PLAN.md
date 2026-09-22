@@ -1790,16 +1790,22 @@ two files cannot drift apart.
 Found, discussed, left as is. **Don't fix on your own initiative** — if
 one of these actually bites, it becomes its own task.
 
-**`photoguard` reads a large hand as small text.** `_line_height` divides the
-paper region by the number of lines it detects and returns 0.0 below three,
-which fails the threshold with "Текст мелкий". Fewer lines is what a *large*
-hand produces, so the check is inverted exactly where it matters. Reproduced:
-a close-up page written large, refused, and the whole album lost with it
-because a record is all its pages or none. Reported rather than fixed —
-`photoguard` is imported and called, not edited. What exists instead is the
-evidence: every album skip now carries all four frame metrics into the log and
-into `album_incomplete`. If this bites again, the fix is its own task and it
-starts from those numbers.
+**`photoguard` cannot measure a line height on a sparse page, and the reason
+is upstream of where it shows.** `_line_height` thresholds ink at
+`np.percentile(region, 35)`, which assumes ink covers at least 35% of the
+paper. Measured on synthetic pages, real ink covers 4-14%: the percentile then
+lands *in the paper*, the mask takes 97-99% of the sheet, and the profile it
+builds is paper texture rather than lines. Fewer than three transitions
+follow, and the function returns its sentinel.
+
+Half of this is fixed. The sentinel is no longer read as a verdict — see
+CLAUDE.md → Ready-made modules for the one exception made to the
+"import and call" rule, and why. **The measurement is not fixed**: on a page
+with a drawing the band heights run 2.5x to 16x apart between their mean and
+their median, so if this is ever rewritten it takes the median, thresholds the
+ink by contrast rather than by rank, and drops the three-line minimum. The
+threshold `MIN_LINE_HEIGHT_PX` would move with it, and it cannot be chosen by
+reasoning — it needs a folder of real pages through `photoguard`'s own CLI.
 
 **A redelivered update is processed twice.** Nothing deduplicates on
 `update_id`. If Telegram decides an update went undelivered, the retry
