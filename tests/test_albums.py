@@ -275,7 +275,7 @@ async def test_one_failing_page_does_not_take_down_the_others(monkeypatch):
 
     assert outcome.record is not None
     assert outcome.record.page_count == 2
-    assert outcome.skips == [(2, texts.SKIP_ERROR)]
+    assert [(p.page, p.skip_reason) for p in outcome.skips] == [(2, texts.SKIP_ERROR)]
 
 
 async def test_skipped_pages_are_reported_in_page_order(monkeypatch):
@@ -288,7 +288,7 @@ async def test_skipped_pages_are_reported_in_page_order(monkeypatch):
 
     outcome = await albums.process_batch([_page_input(i) for i in (1, 2, 3)])
 
-    assert [number for number, _ in outcome.skips] == [1, 3]
+    assert [p.page for p in outcome.skips] == [1, 3]
 
 
 async def test_no_surviving_page_means_no_record(monkeypatch):
@@ -703,3 +703,96 @@ async def test_the_caller_that_loses_the_batch_logs_nothing(monkeypatch, caplog)
     assert [first, second].count(None) == 1
     closed = [r for r in caplog.records if "batch closed" in r.getMessage()]
     assert len(closed) == 1
+
+
+# ── a refused page has to leave its numbers behind ───────────────────────────
+
+
+def _verdict(**overrides):
+    fields = dict(
+        ok=True,
+        reason="Фото годится для распознавания",
+        line_height_px=25.0,
+        sharpness=200.0,
+        paper_fraction=0.9,
+        contrast=40.0,
+    )
+    fields.update(overrides)
+    from app.services import photoguard
+
+    return photoguard.PhotoVerdict(**fields)
+
+
+def test_the_log_name_of_each_threshold_is_the_one_that_refused_the_frame():
+    # photoguard's own reason is the Russian sentence shown to the user.
+    # Recomputing the name from the numbers keeps the log from going wrong the
+    # day that wording changes, and the order matches photoguard's own.
+    assert albums.reason_en(_verdict(ok=False, paper_fraction=0.01)) == "paper fraction"
+    assert albums.reason_en(_verdict(ok=False, sharpness=1.0)) == "sharpness"
+    assert albums.reason_en(_verdict(ok=False, contrast=1.0)) == "contrast"
+    assert albums.reason_en(_verdict(ok=False, line_height_px=0.0)) == "line height"
+    assert albums.reason_en(_verdict()) == "none"
+
+
+def test_the_first_failing_threshold_is_the_one_named():
+    # Two below at once: the name has to follow photoguard's own order, or the
+    # log will blame a check that did not make the decision.
+    both = _verdict(ok=False, paper_fraction=0.01, line_height_px=0.0)
+    assert albums.reason_en(both) == "paper fraction"
+
+
+async def test_a_page_refused_by_the_frame_keeps_its_four_metrics(monkeypatch):
+    """This is the whole point. A page turned away by the frame check used to
+    leave nothing but a Russian sentence, so the one rejection nobody could
+    argue with was the album one — while a single photo wrote all four numbers
+    to photo_rejected."""
+    refusal = _verdict(ok=False, line_height_px=0.0, reason="Текст мелкий")
+    monkeypatch.setattr(
+        albums.photoguard, "check_photo_bytes", lambda data: refusal
+    )
+
+    result = await albums.process_page(_input(1), 1)
+
+    assert not result.ok
+    assert result.skip_reason == "Текст мелкий"
+    assert result.photo_line_height == 0.0
+    assert result.photo_sharpness == 200.0
+    assert result.photo_paper_fraction == 0.9
+    assert result.photo_contrast == 40.0
+    assert result.stats == []  # refused before any model call
+
+
+async def test_a_refused_frame_is_logged_against_its_thresholds(monkeypatch, caplog):
+    import logging
+
+    monkeypatch.setattr(
+        albums.photoguard,
+        "check_photo_bytes",
+        lambda data: _verdict(ok=False, line_height_px=0.0, reason="Текст мелкий"),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="app.bot.albums"):
+        await albums.process_page(_input(1), 1)
+
+    line = next(m for m in (r.getMessage() for r in caplog.records) if "frame check" in m)
+    assert "line height" in line
+    assert "0.0/20" in line  # the number and the threshold it missed
+
+
+async def test_a_page_that_failed_recognition_keeps_them_too(monkeypatch):
+    # The frame passed, so the numbers were measured anyway; dropping them
+    # here bought nothing.
+    monkeypatch.setattr(
+        albums.photoguard, "check_photo_bytes", lambda data: _verdict()
+    )
+
+    async def nothing_came_back(image_bytes):
+        return None, []
+
+    monkeypatch.setattr(albums.vision, "transcribe_consensus", nothing_came_back)
+
+    result = await albums.process_page(_input(1), 1)
+
+    assert result.skip_reason == texts.SKIP_UNRECOGNIZED
+    assert result.photo_line_height == 25.0
+    assert result.photo_contrast == 40.0

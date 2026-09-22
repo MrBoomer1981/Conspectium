@@ -394,12 +394,30 @@ async def _process_album(
             {
                 "pages": len(ordered),
                 "pages_ok": len(outcome.pages_ok),
-                "reasons": [reason for _, reason in outcome.skips],
+                # The metrics, not just the reasons. A page turned away by the
+                # frame check is a whole album lost, and "Текст мелкий" on a
+                # page written in a large hand is a claim that has to be
+                # checkable after the fact rather than argued from memory.
+                "skipped": [
+                    {
+                        "page": p.page,
+                        "reason": p.skip_reason,
+                        "line_height_px": p.photo_line_height,
+                        "sharpness": p.photo_sharpness,
+                        "paper_fraction": p.photo_paper_fraction,
+                        "contrast": p.photo_contrast,
+                    }
+                    for p in outcome.skips
+                ],
                 "latency_ms": int((time.monotonic() - started) * 1000),
                 "cost_usd": vision.total_cost(outcome.stats),
             },
         )
-        await message.answer(texts.album_incomplete(outcome.skips))
+        await message.answer(
+            texts.album_incomplete(
+                [(p.page, p.skip_reason) for p in outcome.skips]
+            )
+        )
         return
 
     rec = outcome.record

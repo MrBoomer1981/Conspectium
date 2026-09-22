@@ -1790,6 +1790,17 @@ two files cannot drift apart.
 Found, discussed, left as is. **Don't fix on your own initiative** — if
 one of these actually bites, it becomes its own task.
 
+**`photoguard` reads a large hand as small text.** `_line_height` divides the
+paper region by the number of lines it detects and returns 0.0 below three,
+which fails the threshold with "Текст мелкий". Fewer lines is what a *large*
+hand produces, so the check is inverted exactly where it matters. Reproduced:
+a close-up page written large, refused, and the whole album lost with it
+because a record is all its pages or none. Reported rather than fixed —
+`photoguard` is imported and called, not edited. What exists instead is the
+evidence: every album skip now carries all four frame metrics into the log and
+into `album_incomplete`. If this bites again, the fix is its own task and it
+starts from those numbers.
+
 **A redelivered update is processed twice.** Nothing deduplicates on
 `update_id`. If Telegram decides an update went undelivered, the retry
 arrives as a new update and produces a second record for the same photo:

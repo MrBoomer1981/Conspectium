@@ -596,6 +596,32 @@ than different readings of one; and an identical line is printed once, since
 two cells of a matrix read "6 against 2" are indistinguishable in a message
 that never carries the position.
 
+**A second one is reported and not worked around: `photoguard._line_height`
+reads a large hand as small text.** It estimates the line pitch as the height
+of the paper region divided by the number of lines it detects, and if it
+detects fewer than three it returns **0.0** — below any threshold, printing
+"Текст мелкий — снимите одну страницу крупным планом". The larger the
+handwriting, the fewer lines a page carries, so a large hand sits *closer* to
+that cliff than a small one and the message it produces is exactly backwards.
+Reproduced on the deployed bot: a close-up of a page written large, refused as
+small text, and — since a record is all its pages or none — the whole
+three-page album lost with it.
+
+Not fixed here, because these modules are only imported and called. What was
+built instead is the evidence: `albums.process_page` keeps all four frame
+metrics on every skip, logs a refusal against its thresholds, and the
+`album_incomplete` event carries the numbers per page. Before that the album
+was the one path where a page could be turned away leaving nothing but a
+Russian sentence to argue with, while a single photo wrote all four to
+`photo_rejected`.
+
+The same function has a second edge worth knowing: `_paper_box` thresholds at
+`0.82 x percentile99`, so a bright highlight raises the percentile, the mask
+shrinks to the glare, `paper_fraction` collapses into "подойдите ближе", and
+every metric after it is measured on the glare instead of the page. And all
+four thresholds are applied to the **compressed** image, so `IMAGE_MAX_SIDE`
+silently recalibrates them.
+
 ---
 
 ## Structure

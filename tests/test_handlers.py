@@ -249,6 +249,20 @@ def _ok_page(number: int) -> albums.PageResult:
     )
 
 
+def _skipped(number: int, reason: str, line_height: float = 12.0) -> albums.PageResult:
+    """A refused page as process_page now builds one: the frame metrics stay
+    on it, because a refusal has to be checkable after the fact."""
+    return albums.PageResult(
+        page=number,
+        stats=[],
+        skip_reason=reason,
+        photo_sharpness=150.0,
+        photo_line_height=line_height,
+        photo_paper_fraction=0.9,
+        photo_contrast=40.0,
+    )
+
+
 def _record(page_count: int) -> albums.AssembledRecord:
     return albums.AssembledRecord(
         title="Теорема Кантора",
@@ -300,7 +314,10 @@ async def test_an_album_that_lost_a_page_is_not_saved(session, monkeypatch):
     message, _ = await _run_album(
         session,
         monkeypatch,
-        skips=[(2, texts.SKIP_UNRECOGNIZED), (3, texts.SKIP_DIVERGED)],
+        skips=[
+            _skipped(2, texts.SKIP_UNRECOGNIZED),
+            _skipped(3, texts.SKIP_DIVERGED),
+        ],
         pages_ok=[_ok_page(1), _ok_page(4)],
         record=_record(2),
     )
@@ -315,7 +332,10 @@ async def test_the_reply_names_every_page_that_has_to_be_taken_again(
     message, _ = await _run_album(
         session,
         monkeypatch,
-        skips=[(2, texts.SKIP_UNRECOGNIZED), (3, texts.SKIP_DIVERGED)],
+        skips=[
+            _skipped(2, texts.SKIP_UNRECOGNIZED),
+            _skipped(3, texts.SKIP_DIVERGED),
+        ],
         pages_ok=[_ok_page(1), _ok_page(4)],
         record=_record(2),
     )
@@ -329,7 +349,7 @@ async def test_an_incomplete_album_is_written_to_events(session, monkeypatch):
     await _run_album(
         session,
         monkeypatch,
-        skips=[(2, texts.SKIP_UNRECOGNIZED)],
+        skips=[_skipped(2, texts.SKIP_UNRECOGNIZED)],
         pages_ok=[_ok_page(i) for i in (1, 3, 4)],
         record=_record(3),
     )
@@ -343,6 +363,20 @@ async def test_an_incomplete_album_is_written_to_events(session, monkeypatch):
     assert events[0].payload["pages"] == 4
     assert events[0].payload["pages_ok"] == 3
 
+    # The metrics, not only the reason. "Текст мелкий" on a page written in a
+    # large hand costs a whole album, and the claim has to be checkable after
+    # the fact rather than argued from memory.
+    assert events[0].payload["skipped"] == [
+        {
+            "page": 2,
+            "reason": texts.SKIP_UNRECOGNIZED,
+            "line_height_px": 12.0,
+            "sharpness": 150.0,
+            "paper_fraction": 0.9,
+            "contrast": 40.0,
+        }
+    ]
+
 
 async def test_the_pages_that_were_read_are_still_charged(session, monkeypatch):
     # The model calls behind them were made and billed. Only the record
@@ -350,7 +384,7 @@ async def test_the_pages_that_were_read_are_still_charged(session, monkeypatch):
     _, user = await _run_album(
         session,
         monkeypatch,
-        skips=[(2, texts.SKIP_UNRECOGNIZED)],
+        skips=[_skipped(2, texts.SKIP_UNRECOGNIZED)],
         pages_ok=[_ok_page(i) for i in (1, 3, 4)],
         record=_record(3),
     )

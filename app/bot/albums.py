@@ -211,6 +211,24 @@ class PageResult:
         return self.skip_reason is None
 
 
+def reason_en(frame: photoguard.PhotoVerdict) -> str:
+    """Which of the four thresholds refused the frame, in English for the log.
+
+    photoguard's own `reason` is the sentence shown to the user, in Russian.
+    Recomputing the name from the numbers rather than translating that
+    sentence keeps this from breaking silently the day its wording changes.
+    """
+    if frame.paper_fraction < photoguard.MIN_PAPER_FRACTION:
+        return "paper fraction"
+    if frame.sharpness < photoguard.MIN_SHARPNESS:
+        return "sharpness"
+    if frame.contrast < photoguard.MIN_CONTRAST:
+        return "contrast"
+    if frame.line_height_px < photoguard.MIN_LINE_HEIGHT_PX:
+        return "line height"
+    return "none"
+
+
 async def process_page(page_input: PageInput, page: int) -> PageResult:
     """One album page through the pipeline minus the database and minus any
     reply: frame check, three recognition runs, the result gates, then the
@@ -218,16 +236,49 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
     The CallStats list is returned in every case — empty only when the frame
     was rejected before any model call."""
     frame = photoguard.check_photo_bytes(page_input.data)
+
+    def refused(reason: str, stats: list[CallStats]) -> PageResult:
+        """Every skip carries the frame metrics, refusals included.
+
+        They used to be dropped here, so the album was the one path where a
+        page could be turned away and leave nothing to check the decision
+        against — while a single photo wrote all four to photo_rejected. A
+        page that passed the frame and then failed recognition lost them too,
+        for no reason: the numbers had already been measured.
+        """
+        return PageResult(
+            page,
+            stats,
+            skip_reason=reason,
+            photo_sharpness=frame.sharpness,
+            photo_line_height=frame.line_height_px,
+            photo_paper_fraction=frame.paper_fraction,
+            photo_contrast=frame.contrast,
+        )
+
     if not frame.ok:
-        return PageResult(page, [], skip_reason=frame.reason)
+        # Against the thresholds, because the number alone says nothing about
+        # how far off it was — and one of these four is a whole album now.
+        logger.warning(
+            "album page %d refused by the frame check (%s): "
+            "line height %.1f/%d, sharpness %.0f/%.0f, "
+            "paper %.0f%%/%.0f%%, contrast %.1f/%.0f",
+            page,
+            reason_en(frame),
+            frame.line_height_px, photoguard.MIN_LINE_HEIGHT_PX,
+            frame.sharpness, photoguard.MIN_SHARPNESS,
+            frame.paper_fraction * 100, photoguard.MIN_PAPER_FRACTION * 100,
+            frame.contrast, photoguard.MIN_CONTRAST,
+        )
+        return refused(frame.reason, [])
 
     result, stats = await vision.transcribe_consensus(page_input.data)
     if result is None:
-        return PageResult(page, stats, skip_reason=texts.SKIP_UNRECOGNIZED)
+        return refused(texts.SKIP_UNRECOGNIZED, stats)
     if result.verdict == "rejected":
-        return PageResult(page, stats, skip_reason=texts.SKIP_DIVERGED)
+        return refused(texts.SKIP_DIVERGED, stats)
     if len(result.best.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
-        return PageResult(page, stats, skip_reason=texts.SKIP_NO_TEXT)
+        return refused(texts.SKIP_NO_TEXT, stats)
 
     report = mathcheck.Report(
         issues=mathcheck.check(result.best.markdown).issues
@@ -275,7 +326,9 @@ class AssembledRecord:
 @dataclass
 class AlbumOutcome:
     stats: list[CallStats]
-    skips: list[tuple[int, str]]  # (page number, reason), in page order
+    # The refused pages themselves, not just their reasons: a refusal has to
+    # be arguable, and the four frame metrics are what it is argued with.
+    skips: list[PageResult]  # refused pages, in page order
     pages_ok: list[PageResult]  # successful pages, in page order
     record: AssembledRecord | None  # None => not a single page passed
 
@@ -327,7 +380,7 @@ async def process_batch(pages: list[PageInput]) -> AlbumOutcome:
 
     results.sort(key=lambda r: r.page)
     pages_ok = [r for r in results if r.ok]
-    skips = [(r.page, r.skip_reason) for r in results if not r.ok]
+    skips = [r for r in results if not r.ok]
     record = _assemble(pages_ok) if pages_ok else None
     return AlbumOutcome(stats=stats, skips=skips, pages_ok=pages_ok, record=record)
 
