@@ -579,9 +579,12 @@ A missing required variable must crash the app at startup, not on the
 first request.
 
 `VISION_MODEL` is coupled to `PRICE_PER_MTOK` in `core/config.py`: a model
-absent from that table yields `cost_usd = NULL`, and `NULL` rows are skipped
-by the `SUM` behind `DAILY_COST_LIMIT_USD`. Switching models without adding
-the price silently disables the cost circuit breaker.
+absent from that table yields `cost_usd = NULL`, `NULL` rows are skipped by
+the `SUM` behind `DAILY_COST_LIMIT_USD`, and the cost breaker stops working
+with nothing visible to show for it. A validator refuses to start on an
+unpriced model, so changing `VISION_MODEL` means adding its cost per million
+tokens in the same commit. The price is one line; a cap that quietly is not a
+cap is not a thing to discover from a bill.
 
 `PROMPT_FILE` names the prompt `vision.py` loads at import. It exists so a
 variant can be tried on the deployed bot and rolled back by changing one

@@ -55,6 +55,22 @@ class Settings(BaseSettings):
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
         return v
 
+    @field_validator("VISION_MODEL")
+    @classmethod
+    def _model_has_a_price(cls, v: str) -> str:
+        """A model missing from PRICE_PER_MTOK makes every ai_calls row cost
+        NULL, and SUM skips NULL — so DAILY_COST_LIMIT_USD quietly stops being
+        a limit while everything else keeps working. Refuse to start instead:
+        the price is one line, and a silent cap is not a thing to discover
+        from a bill."""
+        if v not in PRICE_PER_MTOK:
+            raise ValueError(
+                f"{v} has no price in PRICE_PER_MTOK (app/core/config.py). "
+                "Add its cost per million tokens as (input, output), or "
+                "DAILY_COST_LIMIT_USD cannot be enforced."
+            )
+        return v
+
     @field_validator("VISION_RUNS")
     @classmethod
     def _at_least_two_runs(cls, v: int) -> int:

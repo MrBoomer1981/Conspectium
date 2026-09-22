@@ -108,6 +108,26 @@ def test_the_retired_model_keeps_its_price():
     assert PRICE_PER_MTOK["gemini-2.5-flash-lite"] == (0.10, 0.40)
 
 
+# ── VISION_MODEL has to be priced ────────────────────────────────────────────
+
+
+def test_a_model_with_no_price_stops_the_process():
+    # The failure this replaces was silent: cost_usd NULL, SUM skipping NULL,
+    # and DAILY_COST_LIMIT_USD no longer a limit with nothing to show for it.
+    with pytest.raises(ValidationError) as caught:
+        _settings(VISION_MODEL="gemini-9.9-imaginary")
+    assert "PRICE_PER_MTOK" in str(caught.value)
+
+
+def test_every_priced_model_is_accepted():
+    for model in PRICE_PER_MTOK:
+        assert _settings(VISION_MODEL=model).VISION_MODEL == model
+
+
+def test_the_default_model_is_priced():
+    assert _settings().VISION_MODEL in PRICE_PER_MTOK
+
+
 # ── PROMPT_FILE: the switch the prompt experiment runs on ────────────────────
 
 
