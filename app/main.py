@@ -136,6 +136,13 @@ async def lifespan(app: FastAPI):
     )
     # Two of these three are computed, so the only way to know what the
     # process is actually running on is for it to say so.
+    # Both default to "unset", meaning the field is not sent. The deploy has
+    # to say which, or a record cannot be attributed to the call that made it.
+    logger.info(
+        "Model call: media_resolution=%s, thinking_level=%s",
+        settings.VISION_MEDIA_RESOLUTION,
+        settings.VISION_THINKING_LEVEL,
+    )
     logger.info(
         "Timeouts: call %ds, consensus %ds, album %ds",
         settings.VISION_CALL_TIMEOUT_S,

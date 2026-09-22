@@ -210,6 +210,20 @@ prompt, results compared by code. Where they agree, trust it; where they
 diverge, flag it. This is the only uncertainty signal that has turned out
 to be reliable.
 
+**There are two agreement numbers now, and they answer different questions.**
+`text_agreement` compares the markdown, so it moves when a prompt changes how
+a page is *laid out* rather than how it was *read* — that is the confound that
+made the v5 measurement unreadable, and it would make a two-stage run
+incomparable with a one-stage one. `vision.numeric_agreement` compares the
+runs' `numeric_tokens` sequences instead. A number has no layout.
+
+Read it across the arms of one experiment, never against a threshold: a page
+of matrices is hundreds of numbers drawn from a handful of digits, a
+repetitive sequence has many equally good alignments, and the absolute value
+runs low on exactly the pages the measure was made for. `difflib`'s autojunk
+heuristic is off for the same reason — left on, it calls the common digits
+noise and reports four changes in four hundred as total disagreement.
+
 **The model's self-assessment is useless.** The `confidence` field gave
 0.95 on a page with three errors. That's why it's not in the schema.
 `unreadable_count: 0` is likewise not a sign of quality.
@@ -269,6 +283,12 @@ model". The essentials, because this shapes every handler:
    `log_ai_calls` takes no session; it opens its own. Consequence:
    `ai_calls` rows with no matching `Note` are a normal outcome, not a bug
    to fix.
+
+   **Each row names its own model.** `CallStats` carries `kind` and `model`,
+   and `log_ai_calls` writes what the stats say rather than reading
+   `settings.VISION_MODEL`. A second stage on another model would otherwise
+   be recorded and priced as the first one, and rule 4 would stop holding
+   with nothing failing to show it.
 
 4. **`note_failed` is the only event written standalone**
    (`log_event_standalone`), because the global error handler runs while the
@@ -597,6 +617,8 @@ DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3
 VISION_MODEL=gemini-3.5-flash-lite
 VISION_CALL_TIMEOUT_S=30
+VISION_MEDIA_RESOLUTION=unset
+VISION_THINKING_LEVEL=unset
 PROMPT_FILE=prompts-v3.md
 IMAGE_MAX_SIDE=1500
 IMAGE_QUALITY=85
@@ -622,6 +644,24 @@ is published is a real thing to want, and the refusal exists to make the state
 chosen rather than stumbled into — the deploy log then carries a warning on
 every start. What still guards the spend in that state is
 `DAILY_PAGES_PER_USER` alone, so raising both at once leaves nothing.
+
+`VISION_MEDIA_RESOLUTION` and `VISION_THINKING_LEVEL` are the two knobs on
+*how* the model is asked, as opposed to what it is asked. Both default to
+`unset`, which means the field is not sent at all — Gemini's own default, and
+bit-for-bit what the call did before they existed. Neither has ever been
+measured, which is the point: every quality finding in this file was made on
+a call that sent three fields and nothing else.
+
+Media resolution is the direct lever on reading a photograph, and it is
+checkable from our own data: raising it raises the input tokens per image, and
+`ai_calls.tokens_in` is written on every call. An unknown value is refused at
+startup rather than ignored, because a knob that silently does nothing is how
+an experiment comes to compare a setting against itself.
+
+What is deliberately *not* a setting is `seed`, and `temperature` stays at
+1.0. Three runs made identical would send `text_agreement` up without touching
+accuracy — the instrument inverted rather than merely broken, the same shape
+of mistake as letting the model search the internet while it reads.
 
 `VISION_CALL_TIMEOUT_S` is how long one model call may take, and it is the
 only timeout that is a variable — see "Concurrency ceilings" for the two that

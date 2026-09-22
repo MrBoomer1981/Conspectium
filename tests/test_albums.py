@@ -307,7 +307,12 @@ async def test_spend_is_collected_from_every_page(monkeypatch):
     # The calls were billed whether or not the page survived, so a skipped
     # page must still contribute its stats.
     async def fake_process_page(page_input, page):
-        stats = [CallStats(10, 20, 0.001, 100, True, None)]
+        stats = [
+            CallStats(
+                "transcribe", "gemini-3.5-flash-lite", 10, 20, 0.001, 100,
+                True, None,
+            )
+        ]
         if page == 2:
             return albums.PageResult(page, stats, skip_reason=texts.SKIP_DIVERGED)
         return _page(page, stats=stats)

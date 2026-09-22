@@ -90,7 +90,7 @@ async def test_retry_then_success(monkeypatch, sqlite_maker):
     )
     monkeypatch.setattr(vision, "_client", fake_client)
 
-    result, stats = await vision.transcribe(b"image-bytes")
+    result, stats = await vision.transcribe(b"image-bytes", "gemini-3.5-flash-lite")
 
     assert result is not None
     assert len(calls) == 2
@@ -167,7 +167,10 @@ async def test_spend_survives_main_rollback(monkeypatch):
         main.add(Event(user_id=user_id, type="note_captured", payload={}))
         await main.flush()
         await vision.log_ai_calls(
-            user_id, [vision.CallStats(1, 1, 0.001, 10, True, None)]
+            user_id, [vision.CallStats(
+                    "transcribe", "gemini-3.5-flash-lite", 1, 1, 0.001, 10,
+                    True, None,
+                )]
         )
         await main.rollback()
 
@@ -184,3 +187,37 @@ async def test_spend_survives_main_rollback(monkeypatch):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
+
+
+# 4. Attribution — the row names the model that was actually called.
+
+
+async def test_a_row_names_its_own_kind_and_model(monkeypatch, sqlite_maker):
+    """log_ai_calls used to write "transcribe" and settings.VISION_MODEL on
+    every row it made. A second stage on another model would have been
+    recorded and priced as the first one, and rule 4 would have stopped
+    holding with nothing failing to show it."""
+    monkeypatch.setattr(vision, "async_session_maker", sqlite_maker)
+
+    await vision.log_ai_calls(
+        1,
+        [
+            vision.CallStats("transcribe", "model-a", 1, 1, 0.001, 10, True, None),
+            vision.CallStats("compose", "model-b", 2, 2, 0.002, 20, True, None),
+        ],
+    )
+
+    async with sqlite_maker() as session:
+        rows = (
+            await session.execute(
+                select(AiCall.kind, AiCall.model).order_by(AiCall.id)
+            )
+        ).all()
+
+    assert [tuple(row) for row in rows] == [
+        ("transcribe", "model-a"),
+        ("compose", "model-b"),
+    ]
+    # Neither row carries the configured model, so neither could have come
+    # from settings rather than from the stats.
+    assert vision.settings.VISION_MODEL not in {model for _, model in rows}

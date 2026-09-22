@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     # slower one has to move the consensus and album ceilings with it, so
     # those are computed from this rather than written down beside it.
     VISION_CALL_TIMEOUT_S: int = 30
+    # Two knobs on the model call that have never been set, so neither has
+    # ever been measured. "unset" means the field is not sent at all, which
+    # is bit-for-bit what the call did before they existed.
+    VISION_MEDIA_RESOLUTION: str = "unset"
+    VISION_THINKING_LEVEL: str = "unset"
     # Which prompt file vision.py loads at import. A variant can be tried on
     # the deployed bot by changing this one variable, and rolled back the same
     # way, without a code change in between.
@@ -86,6 +91,29 @@ class Settings(BaseSettings):
         # Fewer than two runs leaves nothing to compare against.
         if v < 2:
             raise ValueError("VISION_RUNS must be >= 2")
+        return v
+
+    @field_validator("VISION_MEDIA_RESOLUTION")
+    @classmethod
+    def _known_media_resolution(cls, v: str) -> str:
+        # Refused at startup rather than at the first photo, and refused
+        # rather than ignored: a knob that silently does nothing is how an
+        # experiment comes to compare a setting against itself.
+        allowed = {"unset", "low", "medium", "high"}
+        if v not in allowed:
+            raise ValueError(
+                f"VISION_MEDIA_RESOLUTION must be one of {sorted(allowed)}"
+            )
+        return v
+
+    @field_validator("VISION_THINKING_LEVEL")
+    @classmethod
+    def _known_thinking_level(cls, v: str) -> str:
+        allowed = {"unset", "minimal", "low", "medium", "high"}
+        if v not in allowed:
+            raise ValueError(
+                f"VISION_THINKING_LEVEL must be one of {sorted(allowed)}"
+            )
         return v
 
     @field_validator("VISION_CALL_TIMEOUT_S")

@@ -290,3 +290,40 @@ def test_the_call_timeout_moves_all_three_ceilings_together():
     # upward, which is the direction the album ceiling is allowed to move.
     assert ceilings("30") == [30, 93, 120, 362]
     assert ceilings("90") == [90, 273, 354, 1064]
+
+
+# ── the two knobs on the model call ──────────────────────────────────────────
+
+
+def test_neither_knob_is_set_by_default():
+    # "unset" means the field is not sent, which is what the call did before
+    # these existed. A default of "low" or "high" would silently change the
+    # baseline every prompt measurement so far was made against.
+    s = _settings()
+    assert s.VISION_MEDIA_RESOLUTION == "unset"
+    assert s.VISION_THINKING_LEVEL == "unset"
+
+
+def test_every_media_resolution_the_sdk_knows_is_accepted():
+    for value in ("unset", "low", "medium", "high"):
+        assert _settings(VISION_MEDIA_RESOLUTION=value).VISION_MEDIA_RESOLUTION == value
+
+
+def test_every_thinking_level_the_sdk_knows_is_accepted():
+    for value in ("unset", "minimal", "low", "medium", "high"):
+        assert _settings(VISION_THINKING_LEVEL=value).VISION_THINKING_LEVEL == value
+
+
+def test_an_unknown_media_resolution_stops_the_process():
+    # Refused rather than ignored. A knob that silently does nothing is how an
+    # experiment comes to compare a setting against itself and call it a
+    # result — the same failure PROMPT_FILE's subprocess test exists to catch.
+    for value in ("HIGH", "highest", "true", "1", ""):
+        with pytest.raises(ValidationError):
+            _settings(VISION_MEDIA_RESOLUTION=value)
+
+
+def test_an_unknown_thinking_level_stops_the_process():
+    for value in ("maximum", "on", "high ", ""):
+        with pytest.raises(ValidationError):
+            _settings(VISION_THINKING_LEVEL=value)

@@ -9,6 +9,8 @@ uses its own session on purpose — see CLAUDE.md -> Sessions and transactions.
 from __future__ import annotations
 
 import asyncio
+import difflib
+import itertools
 import json
 import logging
 import re
@@ -94,6 +96,15 @@ class Transcription:
 
 @dataclass
 class CallStats:
+    """One model call, in the shape of the row it becomes.
+
+    kind and model are carried rather than read from settings at write time:
+    a second stage calling a different model would otherwise be billed and
+    recorded as the first one, and rule 4 would break without anything
+    failing."""
+
+    kind: str
+    model: str
     tokens_in: int | None
     tokens_out: int | None
     cost_usd: float | None
@@ -262,29 +273,67 @@ def _should_retry(exc: BaseException) -> bool:
     return False
 
 
+_MEDIA_RESOLUTION = {
+    "low": types.MediaResolution.MEDIA_RESOLUTION_LOW,
+    "medium": types.MediaResolution.MEDIA_RESOLUTION_MEDIUM,
+    "high": types.MediaResolution.MEDIA_RESOLUTION_HIGH,
+}
+_THINKING_LEVEL = {
+    "minimal": types.ThinkingLevel.MINIMAL,
+    "low": types.ThinkingLevel.LOW,
+    "medium": types.ThinkingLevel.MEDIUM,
+    "high": types.ThinkingLevel.HIGH,
+}
+
+
+def _generation_config() -> types.GenerateContentConfig:
+    """How the model is asked, as opposed to what it is asked.
+
+    Both new fields default to absent, which is Gemini's own default and
+    bit-for-bit what this call did before the settings existed. Neither has
+    been measured; they are here so that they can be, one at a time, against
+    the same album.
+
+    temperature stays at 1.0 and no seed is sent, deliberately. Three runs
+    that agree because they were made identical would drive text_agreement up
+    without touching accuracy, and agreement between independent runs is the
+    only uncertainty signal that has ever worked here.
+    """
+    thinking = _THINKING_LEVEL.get(settings.VISION_THINKING_LEVEL)
+    return types.GenerateContentConfig(
+        response_mime_type="application/json",
+        temperature=1.0,
+        max_output_tokens=8192,
+        media_resolution=_MEDIA_RESOLUTION.get(settings.VISION_MEDIA_RESOLUTION),
+        thinking_config=(
+            types.ThinkingConfig(thinking_level=thinking) if thinking else None
+        ),
+    )
+
+
 async def _one_attempt(
     image_bytes: bytes,
+    model: str,
 ) -> tuple[Transcription | None, CallStats, bool]:
     """A single Gemini call plus the parsing that follows it. The third element
     says whether a retry is worth it: True only for a transient exception. A
-    200 that parsed badly is never retried (PLAN.md -> Contracts)."""
+    200 that parsed badly is never retried (PLAN.md -> Contracts).
+
+    The model is a parameter, not a read of settings: the row this produces
+    has to name the model that was actually called."""
     started = time.monotonic()
     try:
         async with _API_SLOTS:
             response = await asyncio.wait_for(
                 _client.aio.models.generate_content(
-                    model=settings.VISION_MODEL,
+                    model=model,
                     contents=[
                         types.Part.from_bytes(
                             data=image_bytes, mime_type="image/jpeg"
                         ),
                         TRANSCRIBE_PROMPT,
                     ],
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        temperature=1.0,
-                        max_output_tokens=8192,
-                    ),
+                    config=_generation_config(),
                 ),
                 timeout=_CALL_TIMEOUT_S,
             )
@@ -293,7 +342,10 @@ async def _one_attempt(
         # logged by transcribe(), the only caller that knows whether a
         # retryable one is actually going to be retried.
         latency_ms = int((time.monotonic() - started) * 1000)
-        stats = CallStats(None, None, None, latency_ms, False, _short_error(exc))
+        stats = CallStats(
+            "transcribe", model, None, None, None, latency_ms, False,
+            _short_error(exc),
+        )
         return None, stats, _should_retry(exc)
 
     tokens_in, tokens_out = _usage(response)
@@ -303,9 +355,11 @@ async def _one_attempt(
     # The model answered, so the tokens were spent whether or not we could read
     # the answer — cost is recorded either way (PLAN.md -> Contracts).
     stats = CallStats(
+        kind="transcribe",
+        model=model,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
-        cost_usd=_cost_usd(settings.VISION_MODEL, tokens_in, tokens_out),
+        cost_usd=_cost_usd(model, tokens_in, tokens_out),
         latency_ms=latency_ms,
         success=result is not None,
         error=None if result is not None else "unparseable model response",
@@ -315,6 +369,7 @@ async def _one_attempt(
 
 async def transcribe(
     image_bytes: bytes,
+    model: str,
 ) -> tuple[Transcription | None, list[CallStats]]:
     """Up to three attempts with 1 s then 2 s pauses, stopping at the first
     success or the first non-retryable failure. Never touches the database.
@@ -322,7 +377,7 @@ async def transcribe(
     all_stats: list[CallStats] = []
     last = len(_RETRY_PAUSES_S)
     for attempt in range(last + 1):
-        result, stats, retryable = await _one_attempt(image_bytes)
+        result, stats, retryable = await _one_attempt(image_bytes, model)
         all_stats.append(stats)
         if result is not None:
             return result, all_stats
@@ -424,6 +479,34 @@ def meaningful_uncertain(uncertain: list[Uncertain]) -> list[Uncertain]:
     ]
 
 
+def numeric_agreement(runs: list[list[str]]) -> float:
+    """Mean pairwise similarity of the runs' numeric_tokens sequences.
+
+    text_agreement compares the markdown, so it moves when a prompt changes
+    how the page is laid out rather than how it was read — the confound that
+    made the v5 measurement unreadable, and the one that would make a
+    two-stage run incomparable with a one-stage one. A number has no layout.
+
+    autojunk off, and it is not a detail: past 200 elements difflib treats
+    anything common as noise, and a page of matrices is four hundred numbers
+    drawn from a handful of digits. On such a page four changes out of four
+    hundred read as 0.04 with the heuristic on and 0.59 with it off.
+
+    That 0.59 is worth knowing about too. A repetitive sequence has many
+    equally good alignments, so the absolute value runs low on exactly the
+    pages this was meant for. Compare it across arms of one experiment, never
+    against a threshold.
+    """
+    pairs = list(itertools.combinations(runs, 2))
+    if not pairs:
+        return 1.0  # one run agrees with itself; the caller guarantees two
+    ratios = (
+        difflib.SequenceMatcher(None, a, b, autojunk=False).ratio()
+        for a, b in pairs
+    )
+    return sum(ratios) / len(pairs)
+
+
 def _verdict(text_agreement: float) -> str:
     """Non-overlapping bands from PLAN.md task 6."""
     if text_agreement >= 0.90:
@@ -446,7 +529,7 @@ async def transcribe_consensus(
     asyncio.wait, not wait_for: cancelling the whole gather would throw away the
     CallStats of runs that already finished, and those calls were still billed."""
     tasks = [
-        asyncio.create_task(transcribe(image_bytes))
+        asyncio.create_task(transcribe(image_bytes, settings.VISION_MODEL))
         for _ in range(settings.VISION_RUNS)
     ]
     try:
@@ -477,7 +560,10 @@ async def transcribe_consensus(
         except Exception as exc:
             logger.warning("transcribe run crashed: %s", exc)
             all_stats.append(
-                CallStats(None, None, None, 0, False, _short_error(exc))
+                CallStats(
+                    "transcribe", settings.VISION_MODEL, None, None, None, 0,
+                    False, _short_error(exc),
+                )
             )
             continue
         all_stats.extend(stats)
@@ -502,11 +588,13 @@ async def transcribe_consensus(
 
     verdict = _verdict(text_agreement)
     logger.info(
-        "consensus: %d/%d runs ok, text_agreement=%.3f, verdict=%s, "
+        "consensus: %d/%d runs ok, text_agreement=%.3f, "
+        "numeric_agreement=%.3f, verdict=%s, "
         "divergences %d of %d kept, uncertain %d of %d kept",
         len(ok_runs),
         settings.VISION_RUNS,
         text_agreement,
+        numeric_agreement([t.numeric_tokens for t in ok_runs]),
         verdict,
         len(numeric_divergences),
         len(reported),
@@ -532,8 +620,10 @@ async def log_ai_calls(user_id: int, stats: list[CallStats]) -> None:
                 [
                     AiCall(
                         user_id=user_id,
-                        kind="transcribe",
-                        model=settings.VISION_MODEL,
+                        # Both from the stats, not from settings: a second
+                        # stage on another model has to be billed as itself.
+                        kind=s.kind,
+                        model=s.model,
                         tokens_in=s.tokens_in,
                         tokens_out=s.tokens_out,
                         cost_usd=s.cost_usd,

@@ -6,10 +6,12 @@ judged. All of them are pure, so they are cheap to pin down exactly.
 """
 
 import asyncio
+from types import SimpleNamespace
 
 import httpx
 import pytest
 from google.genai import errors as genai_errors
+from google.genai import types
 
 from app.services import vision
 from app.services.vision import CallStats
@@ -26,7 +28,10 @@ def _api_error(code) -> genai_errors.APIError:
 
 
 def _stats(cost) -> CallStats:
-    return CallStats(None, None, cost, 0, cost is not None, None)
+    return CallStats(
+        "transcribe", "gemini-3.5-flash-lite", None, None, cost, 0,
+        cost is not None, None,
+    )
 
 
 # ── _should_retry ────────────────────────────────────────────────────────────
@@ -304,7 +309,7 @@ async def _stub_runs(monkeypatch, markdowns: list[str]) -> None:
     """Make each transcribe() call hand back the next prepared run."""
     remaining = list(markdowns)
 
-    async def fake_transcribe(image_bytes):
+    async def fake_transcribe(image_bytes, model):
         return _transcription(remaining.pop(0)), []
 
     monkeypatch.setattr(vision, "transcribe", fake_transcribe)
@@ -348,7 +353,7 @@ async def test_consensus_still_reports_a_real_misreading(monkeypatch):
 
 
 async def _stub_uncertain(monkeypatch, entries: list) -> None:
-    async def fake_transcribe(image_bytes):
+    async def fake_transcribe(image_bytes, model):
         page = _transcription("Степень вершины равна 5")
         page.uncertain = list(entries)
         return page, []
@@ -423,7 +428,7 @@ async def _always_raises(monkeypatch, exc: BaseException) -> None:
     async def raising(**kwargs):
         raise exc
 
-    monkeypatch.setattr(vision._client.aio.models, "generate_content", raising)
+    monkeypatch.setattr(vision, "_client", _fake_client(raising))
     monkeypatch.setattr(vision, "_RETRY_PAUSES_S", (0, 0))
 
 
@@ -436,7 +441,7 @@ async def test_a_timeout_reaches_the_log_by_name(monkeypatch, caplog):
     await _always_raises(monkeypatch, TimeoutError())
 
     with caplog.at_level(logging.WARNING, logger="app.services.vision"):
-        result, stats = await vision.transcribe(b"x")
+        result, stats = await vision.transcribe(b"x", "test-model")
 
     assert result is None and len(stats) == 3
     messages = [record.getMessage() for record in caplog.records]
@@ -454,7 +459,7 @@ async def test_the_log_says_which_attempt_and_whether_a_retry_is_coming(
     await _always_raises(monkeypatch, TimeoutError())
 
     with caplog.at_level(logging.WARNING, logger="app.services.vision"):
-        await vision.transcribe(b"x")
+        await vision.transcribe(b"x", "test-model")
 
     messages = [record.getMessage() for record in caplog.records]
     assert "attempt 1/3" in messages[0] and "retrying" in messages[0]
@@ -469,10 +474,207 @@ async def test_a_failure_that_is_not_retried_says_so_on_its_first_attempt(
     await _always_raises(monkeypatch, ValueError("bad argument"))
 
     with caplog.at_level(logging.WARNING, logger="app.services.vision"):
-        result, stats = await vision.transcribe(b"x")
+        result, stats = await vision.transcribe(b"x", "test-model")
 
     assert result is None and len(stats) == 1
     message = caplog.records[0].getMessage()
     assert "attempt 1/3" in message
     assert "no retry left" in message
     assert "ValueError: bad argument" in message
+
+
+# ── how the model is asked, as opposed to what it is asked ───────────────────
+
+
+def _fake_client(generate_content):
+    """The whole client, not a method on it — test_reliability.py records the
+    reason: patching _client.aio.models breaks the day the SDK gives that
+    object __slots__."""
+    return SimpleNamespace(
+        aio=SimpleNamespace(
+            models=SimpleNamespace(generate_content=generate_content)
+        )
+    )
+
+
+def test_by_default_neither_new_knob_is_sent():
+    # "unset" has to mean absent rather than a value we picked: Gemini's own
+    # default is the baseline every measurement will be compared against.
+    config = vision._generation_config()
+    assert config.media_resolution is None
+    assert config.thinking_config is None
+
+
+def test_what_was_always_sent_is_still_sent():
+    config = vision._generation_config()
+    assert config.response_mime_type == "application/json"
+    assert config.max_output_tokens == 8192
+
+
+def test_the_temperature_is_not_lowered_and_no_seed_goes_out():
+    # Runs made identical would drive text_agreement up without touching
+    # accuracy: the instrument inverted rather than merely broken.
+    config = vision._generation_config()
+    assert config.temperature == 1.0
+    assert config.seed is None
+
+
+@pytest.mark.parametrize(
+    "setting,expected",
+    [
+        ("low", types.MediaResolution.MEDIA_RESOLUTION_LOW),
+        ("medium", types.MediaResolution.MEDIA_RESOLUTION_MEDIUM),
+        ("high", types.MediaResolution.MEDIA_RESOLUTION_HIGH),
+    ],
+)
+def test_each_media_resolution_reaches_the_call(monkeypatch, setting, expected):
+    monkeypatch.setattr(vision.settings, "VISION_MEDIA_RESOLUTION", setting)
+    assert vision._generation_config().media_resolution == expected
+
+
+@pytest.mark.parametrize(
+    "setting,expected",
+    [
+        ("minimal", types.ThinkingLevel.MINIMAL),
+        ("low", types.ThinkingLevel.LOW),
+        ("medium", types.ThinkingLevel.MEDIUM),
+        ("high", types.ThinkingLevel.HIGH),
+    ],
+)
+def test_each_thinking_level_reaches_the_call(monkeypatch, setting, expected):
+    monkeypatch.setattr(vision.settings, "VISION_THINKING_LEVEL", setting)
+    config = vision._generation_config()
+    assert config.thinking_config is not None
+    assert config.thinking_config.thinking_level == expected
+
+
+async def test_the_configured_knobs_reach_the_actual_call(monkeypatch):
+    # _generation_config being right is worth nothing if _one_attempt builds
+    # its own config inline, which is exactly what it used to do.
+    monkeypatch.setattr(vision.settings, "VISION_MEDIA_RESOLUTION", "high")
+    sent: list[dict] = []
+
+    async def capture(**kwargs):
+        sent.append(kwargs)
+        raise TimeoutError()
+
+    monkeypatch.setattr(vision, "_client", _fake_client(capture))
+    monkeypatch.setattr(vision, "_RETRY_PAUSES_S", ())
+
+    await vision.transcribe(b"x", "test-model")
+
+    assert sent[0]["config"].media_resolution == (
+        types.MediaResolution.MEDIA_RESOLUTION_HIGH
+    )
+
+
+# ── the model a row names is the model that was called ───────────────────────
+
+
+async def test_the_model_reaches_the_call_and_every_row_of_the_run(monkeypatch):
+    sent: list[dict] = []
+
+    async def capture(**kwargs):
+        sent.append(kwargs)
+        raise TimeoutError()
+
+    monkeypatch.setattr(vision, "_client", _fake_client(capture))
+    monkeypatch.setattr(vision, "_RETRY_PAUSES_S", (0, 0))
+
+    _, stats = await vision.transcribe(b"x", "some-other-model")
+
+    assert [call["model"] for call in sent] == ["some-other-model"] * 3
+    assert {s.model for s in stats} == {"some-other-model"}
+    assert {s.kind for s in stats} == {"transcribe"}
+
+
+async def test_the_cost_is_priced_by_the_model_that_was_called(monkeypatch):
+    """_cost_usd used to be handed settings.VISION_MODEL. A second stage on
+    another model would have been costed at the first stage's price — a
+    number that looks perfectly reasonable and is simply wrong."""
+    answer = SimpleNamespace(
+        text='{"markdown": "Enough body text here to pass the length gate."}',
+        usage_metadata=SimpleNamespace(
+            prompt_token_count=1_000_000, candidates_token_count=1_000_000
+        ),
+    )
+
+    async def answering(**kwargs):
+        return answer
+
+    monkeypatch.setattr(vision, "_client", _fake_client(answering))
+
+    _, priced = await vision.transcribe(b"x", "gemini-2.5-flash-lite")
+    _, unpriced = await vision.transcribe(b"x", "gemini-9.9-imaginary")
+
+    assert priced[0].cost_usd == pytest.approx(0.10 + 0.40)
+    assert unpriced[0].cost_usd is None
+
+
+# ── numeric_agreement: the instrument that survives a change of prompt ───────
+
+
+def test_identical_number_sequences_agree_completely():
+    assert vision.numeric_agreement([["1", "2", "3"]] * 3) == 1.0
+
+
+def test_one_changed_digit_shows_up():
+    agreement = vision.numeric_agreement(
+        [["1", "2", "3"], ["1", "2", "3"], ["1", "7", "3"]]
+    )
+    assert 0.0 < agreement < 1.0
+
+
+def test_a_page_with_no_numbers_agrees_rather_than_dividing_by_zero():
+    assert vision.numeric_agreement([[], [], []]) == 1.0
+
+
+def test_the_measure_is_the_mean_over_every_pair():
+    # Two runs agree and the third differs from both, so one pair of three is
+    # perfect. Reading the best pair, or the first, would report far higher.
+    assert vision.numeric_agreement([["1"], ["1"], ["9"]]) == pytest.approx(1 / 3)
+
+
+async def test_numbers_agree_where_layout_does_not(monkeypatch, caplog):
+    """The whole reason for a second measure, and it is worth nothing if
+    transcribe_consensus never computes it. Two runs read the same numbers and
+    set them out differently: text agreement falls, numeric agreement does
+    not."""
+    import logging
+
+    pages = [
+        ("# Теорема\n\n**Дано:** $n = 5$, $k = 12$", ["5", "12"]),
+        ("Теорема\nДано: n = 5, k = 12", ["5", "12"]),
+    ]
+    remaining = list(pages)
+
+    async def fake_transcribe(image_bytes, model):
+        markdown, tokens = remaining.pop(0)
+        page = _transcription(markdown)
+        page.numeric_tokens = tokens
+        return page, []
+
+    monkeypatch.setattr(vision, "transcribe", fake_transcribe)
+    monkeypatch.setattr(vision.settings, "VISION_RUNS", 2)
+
+    with caplog.at_level(logging.INFO, logger="app.services.vision"):
+        result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    line = next(m for m in (r.getMessage() for r in caplog.records) if "consensus:" in m)
+    assert "numeric_agreement=1.000" in line
+    assert "text_agreement=1.000" not in line
+
+
+def test_a_page_dense_with_repeated_digits_is_not_written_off_as_noise():
+    """difflib's autojunk heuristic calls anything common in a sequence over
+    200 long "noise" and stops matching on it. A page of matrices is exactly
+    that: four hundred numbers out of a handful of digits. With the heuristic
+    left on, four changes out of four hundred come back as total disagreement.
+    """
+    a = [str(i % 5) for i in range(400)]
+    b = list(a)
+    for position in (17, 123, 256, 301):
+        b[position] = "9"
+
+    assert vision.numeric_agreement([a, b]) > 0.5
