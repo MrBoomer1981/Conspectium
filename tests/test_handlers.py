@@ -343,6 +343,20 @@ async def test_an_incomplete_album_is_written_to_events(session, monkeypatch):
     assert events[0].payload["pages_ok"] == 3
 
 
+async def test_the_pages_that_were_read_are_still_charged(session, monkeypatch):
+    # The model calls behind them were made and billed. Only the record
+    # stopped being written; the quota rule did not change.
+    _, user = await _run_album(
+        session,
+        monkeypatch,
+        skips=[(2, texts.SKIP_UNRECOGNIZED)],
+        pages_ok=[_ok_page(i) for i in (1, 3, 4)],
+        record=_record(3),
+    )
+
+    assert user.pages_used_today == 3
+
+
 async def test_a_whole_album_is_still_saved(session, monkeypatch):
     # The guard must not stand in the way of the case it was built around.
     message, _ = await _run_album(
