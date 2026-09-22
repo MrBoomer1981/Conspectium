@@ -267,6 +267,37 @@ def test_latex_mathtext_already_understands_is_left_alone():
     assert pdf.for_mathtext(r"\rho(v_i) = 2q") == r"\rho(v_i) = 2q"
 
 
+def test_the_spellings_mathtext_does_not_know_are_translated():
+    # \le and \ge are what ruined a real record: every inequality on the page
+    # printed as its own source while the formulas around them drew fine.
+    assert pdf.for_mathtext(r"a_n \le b_n") == r"a_n \leq b_n"
+    assert pdf.for_mathtext(r"b_1 \ge a_n") == r"b_1 \geq a_n"
+    assert pdf.for_mathtext(r"p \implies q") == r"p \Rightarrow q"
+
+
+def test_a_synonym_is_not_matched_inside_a_longer_command():
+    # "\le" opens "\leq", "\left" and "\leftarrow"; the boundary is the end
+    # of the command name, which is the same trap \limits fell into.
+    for untouched in (r"\leq", r"\geq", r"\left[ x \right]", r"\leftarrow"):
+        assert pdf.for_mathtext(untouched) == untouched
+
+
+def test_every_translation_in_the_table_is_one_mathtext_draws():
+    # A wrong replacement would be invisible: the formula would still fall back
+    # to its source, exactly as it did before the table existed.
+    import tempfile
+
+    # All of them are binary operators between two terms, except \mbox, which
+    # takes its text as an argument.
+    samples = {"mbox": r"\mbox{тут}"}
+
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        for spelling in pdf._SYNONYMS:
+            latex = samples.get(spelling, f"a \\{spelling} b")
+            assert formulas.display(latex, 10.0) is not None, spelling
+
+
 def test_a_formula_with_limits_is_drawn_rather_than_dumped_as_source():
     # Proves the shim is wired into the drawing path, not merely correct on
     # its own: without it this returns None and the source goes on the page.

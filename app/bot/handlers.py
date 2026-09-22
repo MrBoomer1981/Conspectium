@@ -362,6 +362,27 @@ async def _process_album(
         await message.answer(texts.REJECTED_QUALITY)
         return
 
+    if outcome.skips:
+        # A record missing a page still reads as a whole one, and nothing in it
+        # says which page is gone — the corpus would quietly carry a hole. The
+        # pages that were recognised are charged for either way: the model
+        # calls behind them were made and billed.
+        await limits.consume(session, user, pages=len(outcome.pages_ok))
+        await log_event(
+            session,
+            user.id,
+            "album_incomplete",
+            {
+                "pages": len(ordered),
+                "pages_ok": len(outcome.pages_ok),
+                "reasons": [reason for _, reason in outcome.skips],
+                "latency_ms": int((time.monotonic() - started) * 1000),
+                "cost_usd": vision.total_cost(outcome.stats),
+            },
+        )
+        await message.answer(texts.album_incomplete(outcome.skips))
+        return
+
     rec = outcome.record
     note = Note(
         user_id=user.id,

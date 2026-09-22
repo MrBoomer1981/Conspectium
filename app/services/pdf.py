@@ -377,14 +377,34 @@ _COMMAND_END = r"(?![A-Za-z])"
 _UNSUPPORTED_RE = re.compile(
     rf"\\(?:limits|nolimits|displaystyle|textstyle){_COMMAND_END}"
 )
-_MBOX_RE = re.compile(rf"\\mbox{_COMMAND_END}")
 _THIN_SPACE_RE = re.compile(r"\\[,!:;]")
+
+# LaTeX spells each of these two ways and mathtext knows only one of them. The
+# model writes the other: a page of inequalities came back with every \le and
+# \ge printed as its own source, while the formulas around them drew fine.
+# Cheap to get wrong in the same direction as \limits, so the same boundary
+# applies — \le must not match the start of \leq or \left.
+_SYNONYMS = {
+    "le": "leq",
+    "ge": "geq",
+    "gets": "leftarrow",
+    "land": "wedge",
+    "lor": "vee",
+    "lnot": "neg",
+    "iff": "Leftrightarrow",
+    "implies": "Rightarrow",
+    "impliedby": "Leftarrow",
+    "mbox": "text",
+}
+_SYNONYM_RE = re.compile(
+    r"\\(" + "|".join(sorted(_SYNONYMS, key=len, reverse=True)) + rf"){_COMMAND_END}"
+)
 
 
 def for_mathtext(latex: str) -> str:
     """LaTeX as close to it as matplotlib's mathtext will accept."""
     latex = _UNSUPPORTED_RE.sub("", latex)
-    latex = _MBOX_RE.sub(r"\\text", latex)
+    latex = _SYNONYM_RE.sub(lambda found: "\\" + _SYNONYMS[found.group(1)], latex)
     return _THIN_SPACE_RE.sub(" ", latex)
 
 

@@ -346,6 +346,13 @@ the same sum written `\sum_{i=1}^p` drew perfectly two pages later.
 have a synonym mathtext knows. It cannot rescue `\begin{pmatrix}` — a matrix
 has to arrive as a markdown table to be drawn at all.
 
+The expensive half of that is `pdf._SYNONYMS`. LaTeX spells nine common things
+two ways and mathtext knows only one of each; the model writes the other. `\le`
+and `\ge` cost a whole record — every inequality on a page about nested
+intervals went out as raw source while the formulas around them drew. The same
+boundary applies as to `\limits`, for the same reason: `\le` opens `\leq`,
+`\left` and `\leftarrow`, so a command ends where its letters end.
+
 **A drawing comes back as data, not a sentence about itself.** Rule 6 of
 `prompts-v3.md` asks for a graph as `[граф: 1-2, 2->3, 3-3]` and for a matrix
 or table as an ordinary markdown table; `pdf.blocks()` turns both into
@@ -365,6 +372,14 @@ three runs against each other the way numbers are compared. Recorded under
 own heading. Both `corpus._flags` and `corpus._callouts` add it only when
 nothing more exact is there to say; the subtitle of the document carries
 "нужна проверка" either way.
+
+**A record is all its pages or none of them.** A page that could not be read
+used to be named in the reply and left out, and the record went into the
+corpus regardless — reading as a whole one, with nothing in it to say which
+page is missing. An album with any skipped page now saves nothing, writes
+`album_incomplete`, and names the pages to photograph again. The pages that
+*were* recognised are still charged against the daily quota: the model calls
+behind them were made and billed, and that rule did not change.
 
 **A callout says what we already know, never what the model thinks.** The
 tinted boxes at the top of a record — needs review, arithmetic that doesn't

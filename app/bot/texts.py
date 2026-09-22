@@ -133,6 +133,23 @@ def page_skipped(page: int, reason: str) -> str:
     return f"Страница {page} пропущена: {reason}."
 
 
+ALBUM_INCOMPLETE = (
+    "Не разобрались все страницы, поэтому конспект не сохранён: запись без "
+    "страницы читается как целая, и ничего в ней не говорит, какой страницы "
+    "не хватает."
+)
+
+ALBUM_RESEND = "Переснимите эти страницы и пришлите альбом заново."
+
+
+def album_incomplete(skips: list[tuple[int, str]]) -> str:
+    """Why nothing was saved, and which pages to take again."""
+    lines = [ALBUM_INCOMPLETE, ""]
+    lines += [page_skipped(page, reason) for page, reason in skips]
+    lines += ["", ALBUM_RESEND]
+    return "\n".join(lines)
+
+
 def page_prefix(page: int, body: str) -> str:
     """Attach an album page number to a multi-line block — e.g. a mathcheck
     report that applies to that page alone."""

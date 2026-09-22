@@ -1709,6 +1709,20 @@ pages: if at least one gives `needs_review`, the result is
 `transcribe_consensus == None`, `rejected`, short markdown, or a
 processing error don't participate in this.
 
+## Event `album_incomplete`
+
+Written when an album had at least one page the pipeline could not read, and
+therefore saved nothing. Transactional, like every event but `note_failed`.
+
+    {"pages": 4, "pages_ok": 3, "reasons": ["не удалось распознать"],
+     "latency_ms": 11686, "cost_usd": 0.0031}
+
+`pages` is what arrived, `pages_ok` what was recognised; the difference is
+what has to be photographed again. There is no `note_id` — no record was
+saved, which is the point of the event.
+
+---
+
 ## Event `note_failed`
 
 Written **only on an unhandled exception**, from the global handler, via
