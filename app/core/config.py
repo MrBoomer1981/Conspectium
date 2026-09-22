@@ -1,6 +1,6 @@
 """Application settings, read from the environment once at import time."""
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # (input, output) price in USD per million tokens.
@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # the same album rather than argued about.
     IMAGE_MAX_SIDE: int = 1500
     IMAGE_QUALITY: int = 85
+    # Run a model that has no price anyway. Deliberate and recorded: the daily
+    # cost cap cannot be enforced against calls nobody can price, and that is
+    # a thing to decide rather than to discover.
+    ALLOW_UNPRICED_MODEL: bool = False
     MIN_MARKDOWN_LEN: int = 40
     MAX_ALBUM_PAGES: int = 10
     LOG_LEVEL: str = "INFO"
@@ -55,21 +59,21 @@ class Settings(BaseSettings):
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
         return v
 
-    @field_validator("VISION_MODEL")
-    @classmethod
-    def _model_has_a_price(cls, v: str) -> str:
+    @model_validator(mode="after")
+    def _model_is_priced_or_deliberately_not(self) -> "Settings":
         """A model missing from PRICE_PER_MTOK makes every ai_calls row cost
         NULL, and SUM skips NULL — so DAILY_COST_LIMIT_USD quietly stops being
-        a limit while everything else keeps working. Refuse to start instead:
-        the price is one line, and a silent cap is not a thing to discover
-        from a bill."""
-        if v not in PRICE_PER_MTOK:
-            raise ValueError(
-                f"{v} has no price in PRICE_PER_MTOK (app/core/config.py). "
-                "Add its cost per million tokens as (input, output), or "
-                "DAILY_COST_LIMIT_USD cannot be enforced."
-            )
-        return v
+        a limit while everything else keeps working. Refuse to start, unless
+        that is the decision: trying a model before its price is published is
+        a real thing to want, and the page cap still stands."""
+        if self.VISION_MODEL in PRICE_PER_MTOK or self.ALLOW_UNPRICED_MODEL:
+            return self
+        raise ValueError(
+            f"{self.VISION_MODEL} has no price in PRICE_PER_MTOK "
+            "(app/core/config.py). Add its cost per million tokens as "
+            "(input, output), or set ALLOW_UNPRICED_MODEL=true to run with "
+            "DAILY_COST_LIMIT_USD not enforced."
+        )
 
     @field_validator("VISION_RUNS")
     @classmethod

@@ -570,6 +570,7 @@ VISION_MODEL=gemini-3.5-flash-lite
 PROMPT_FILE=prompts-v3.md
 IMAGE_MAX_SIDE=1500
 IMAGE_QUALITY=85
+ALLOW_UNPRICED_MODEL=false
 MIN_MARKDOWN_LEN=40
 MAX_ALBUM_PAGES=10
 LOG_LEVEL=INFO
@@ -582,9 +583,15 @@ first request.
 absent from that table yields `cost_usd = NULL`, `NULL` rows are skipped by
 the `SUM` behind `DAILY_COST_LIMIT_USD`, and the cost breaker stops working
 with nothing visible to show for it. A validator refuses to start on an
-unpriced model, so changing `VISION_MODEL` means adding its cost per million
-tokens in the same commit. The price is one line; a cap that quietly is not a
-cap is not a thing to discover from a bill.
+unpriced model, so changing `VISION_MODEL` normally means adding its cost per
+million tokens in the same commit. The price is one line; a cap that quietly
+is not a cap is not a thing to discover from a bill.
+
+`ALLOW_UNPRICED_MODEL=true` runs one anyway. Trying a model before its price
+is published is a real thing to want, and the refusal exists to make the state
+chosen rather than stumbled into — the deploy log then carries a warning on
+every start. What still guards the spend in that state is
+`DAILY_PAGES_PER_USER` alone, so raising both at once leaves nothing.
 
 `PROMPT_FILE` names the prompt `vision.py` loads at import. It exists so a
 variant can be tried on the deployed bot and rolled back by changing one

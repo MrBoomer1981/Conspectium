@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import corpus, texts
 from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
-from app.core.config import settings
+from app.core.config import PRICE_PER_MTOK, settings
 from app.core.events import log_event_standalone
 from app.services import pdf, vision
 from app.db.models import User
@@ -134,6 +134,14 @@ async def lifespan(app: FastAPI):
         settings.IMAGE_MAX_SIDE,
         settings.IMAGE_QUALITY,
     )
+    if settings.VISION_MODEL not in PRICE_PER_MTOK:
+        # Allowed by ALLOW_UNPRICED_MODEL; said out loud on every deploy so it
+        # cannot become the state nobody remembers choosing.
+        logger.warning(
+            "VISION_MODEL=%s has no price: ai_calls.cost_usd will be NULL and "
+            "DAILY_COST_LIMIT_USD is not enforced",
+            settings.VISION_MODEL,
+        )
 
     # Unlike the webhook, this one must not stop startup: a bot without a
     # command menu still works, it is just harder to use.

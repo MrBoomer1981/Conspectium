@@ -117,6 +117,17 @@ def test_a_model_with_no_price_stops_the_process():
     with pytest.raises(ValidationError) as caught:
         _settings(VISION_MODEL="gemini-9.9-imaginary")
     assert "PRICE_PER_MTOK" in str(caught.value)
+    assert "ALLOW_UNPRICED_MODEL" in str(caught.value)
+
+
+def test_an_unpriced_model_runs_when_that_is_the_decision():
+    # Trying a model before its price is published is a real thing to want.
+    s = _settings(VISION_MODEL="gemini-9.9-imaginary", ALLOW_UNPRICED_MODEL=True)
+    assert s.VISION_MODEL == "gemini-9.9-imaginary"
+
+
+def test_the_escape_hatch_is_off_by_default():
+    assert _settings().ALLOW_UNPRICED_MODEL is False
 
 
 def test_every_priced_model_is_accepted():
