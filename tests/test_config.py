@@ -223,3 +223,70 @@ def test_the_extraction_prompt_stays_the_shortest_one():
         for name in ("prompts-v3.md", "prompts-v4.md", "prompts-v5.md")
     }
     assert words["prompts-v5.md"] == min(words.values())
+
+
+# ── VISION_CALL_TIMEOUT_S: the one timeout that is a setting ─────────────────
+
+
+def test_the_call_timeout_defaults_to_what_the_constant_was():
+    # 30 s was written by hand in vision.py. Turning it into a setting must
+    # change what can be tuned, not what the deployed process does.
+    assert _settings().VISION_CALL_TIMEOUT_S == 30
+
+
+def test_both_ends_of_the_call_timeout_are_accepted():
+    assert _settings(VISION_CALL_TIMEOUT_S=5).VISION_CALL_TIMEOUT_S == 5
+    assert _settings(VISION_CALL_TIMEOUT_S=180).VISION_CALL_TIMEOUT_S == 180
+
+
+def test_a_call_timeout_outside_the_range_is_refused():
+    # Under 5 s no model answers and every call is a timeout; over 180 s the
+    # album ceiling derived from it passes half an hour, and an update is a
+    # background task that any deploy cancels.
+    for value in (4, 0, -1, 181, 3600):
+        with pytest.raises(ValidationError):
+            _settings(VISION_CALL_TIMEOUT_S=value)
+
+
+def test_the_call_timeout_moves_all_three_ceilings_together():
+    """One variable, three numbers — the whole reason the setting exists.
+
+    Hardcoding the ceilings while reading the setting for the call alone would
+    pass every in-process test above and still cut a slow album short, which is
+    the failure this replaces.
+
+    A subprocess for the same reason as the prompt test: all three are computed
+    at import, and reloading vision in place rebinds its dataclasses under the
+    rest of the suite.
+    """
+    import json
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    code = (
+        "import json;"
+        " from app.services import vision;"
+        " from app.bot import albums;"
+        " print(json.dumps([vision._CALL_TIMEOUT_S, vision.RUN_WORST_CASE_S,"
+        " vision._CONSENSUS_TIMEOUT_S, albums._ALBUM_TIMEOUT_S]))"
+    )
+
+    def ceilings(seconds: str) -> list[int]:
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            cwd=root,
+            env={**os.environ, "VISION_CALL_TIMEOUT_S": seconds},
+        )
+        assert result.returncode == 0, result.stderr
+        return json.loads(result.stdout.strip())
+
+    # 30 / 93 / 120 are the three numbers this commit replaced with arithmetic;
+    # the margin was chosen to land back on them. 362 is the one that moves —
+    # upward, which is the direction the album ceiling is allowed to move.
+    assert ceilings("30") == [30, 93, 120, 362]
+    assert ceilings("90") == [90, 273, 354, 1064]

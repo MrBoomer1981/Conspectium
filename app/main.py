@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import corpus, texts
+from app.bot import albums, corpus, texts
 from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import PRICE_PER_MTOK, settings
@@ -133,6 +133,14 @@ async def lifespan(app: FastAPI):
         "Images: %d px long side, quality %d",
         settings.IMAGE_MAX_SIDE,
         settings.IMAGE_QUALITY,
+    )
+    # Two of these three are computed, so the only way to know what the
+    # process is actually running on is for it to say so.
+    logger.info(
+        "Timeouts: call %ds, consensus %ds, album %ds",
+        settings.VISION_CALL_TIMEOUT_S,
+        vision._CONSENSUS_TIMEOUT_S,
+        albums._ALBUM_TIMEOUT_S,
     )
     if settings.VISION_MODEL not in PRICE_PER_MTOK:
         # Allowed by ALLOW_UNPRICED_MODEL; said out loud on every deploy so it

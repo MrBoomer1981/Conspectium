@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     DAILY_COST_LIMIT_USD: float = 5
     VISION_RUNS: int = 3
     VISION_MODEL: str = "gemini-3.5-flash-lite"
+    # How long one model call may take. The only one of the three timeouts
+    # that is a setting: 30 s was tuned for a model answering in ~6 s, and a
+    # slower one has to move the consensus and album ceilings with it, so
+    # those are computed from this rather than written down beside it.
+    VISION_CALL_TIMEOUT_S: int = 30
     # Which prompt file vision.py loads at import. A variant can be tried on
     # the deployed bot by changing this one variable, and rolled back the same
     # way, without a code change in between.
@@ -81,6 +86,18 @@ class Settings(BaseSettings):
         # Fewer than two runs leaves nothing to compare against.
         if v < 2:
             raise ValueError("VISION_RUNS must be >= 2")
+        return v
+
+    @field_validator("VISION_CALL_TIMEOUT_S")
+    @classmethod
+    def _call_timeout_is_workable(cls, v: int) -> int:
+        """Both ends are the album ceiling, which is derived from this.
+
+        Under 5 s no model answers at all and every call is a timeout; over
+        180 s the derived ceiling passes half an hour, and an update is a
+        background task that any deploy cancels."""
+        if not 5 <= v <= 180:
+            raise ValueError("VISION_CALL_TIMEOUT_S must be between 5 and 180")
         return v
 
 

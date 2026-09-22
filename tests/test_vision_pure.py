@@ -378,3 +378,101 @@ async def test_consensus_keeps_a_spot_that_really_reads_two_ways(monkeypatch):
     assert result is not None
     assert [u.text for u in result.best.uncertain] == ["щ"]
 
+
+
+# ── the ceilings are arithmetic now, not three hand-written numbers ──────────
+
+
+def test_one_run_s_worst_case_counts_every_attempt_and_every_pause():
+    # transcribe() makes one attempt more than it has pauses.
+    assert vision.RUN_WORST_CASE_S == (
+        (len(vision._RETRY_PAUSES_S) + 1) * vision._CALL_TIMEOUT_S
+        + sum(vision._RETRY_PAUSES_S)
+    )
+
+
+def test_the_call_timeout_is_the_setting_itself():
+    assert vision._CALL_TIMEOUT_S == vision.settings.VISION_CALL_TIMEOUT_S
+
+
+def test_the_consensus_ceiling_exceeds_one_run_s_worst_case():
+    # Below it a timeout cuts the retries short, and the run it abandons was
+    # already paid for.
+    assert vision._CONSENSUS_TIMEOUT_S > vision.RUN_WORST_CASE_S
+
+
+def test_the_defaults_reproduce_the_numbers_they_replaced():
+    assert (
+        vision._CALL_TIMEOUT_S,
+        vision.RUN_WORST_CASE_S,
+        vision._CONSENSUS_TIMEOUT_S,
+    ) == (30, 93, 120)
+
+
+def test_the_semaphore_holds_the_slots_the_album_arithmetic_assumes():
+    # albums.py derives its ceiling from vision.API_SLOTS. If the semaphore
+    # were built from a different number, that ceiling would be derived from
+    # a fiction and nothing else would notice.
+    assert vision._API_SLOTS._value == vision.API_SLOTS
+
+
+# ── a failed attempt has to be legible in the log ────────────────────────────
+
+
+async def _always_raises(monkeypatch, exc: BaseException) -> None:
+    async def raising(**kwargs):
+        raise exc
+
+    monkeypatch.setattr(vision._client.aio.models, "generate_content", raising)
+    monkeypatch.setattr(vision, "_RETRY_PAUSES_S", (0, 0))
+
+
+async def test_a_timeout_reaches_the_log_by_name(monkeypatch, caplog):
+    """str(TimeoutError()) is "", so printing the exception produced a line
+    ending in a bare colon. Three of those were the entire trace a failed
+    album left behind — enough to know something broke, not what."""
+    import logging
+
+    await _always_raises(monkeypatch, TimeoutError())
+
+    with caplog.at_level(logging.WARNING, logger="app.services.vision"):
+        result, stats = await vision.transcribe(b"x")
+
+    assert result is None and len(stats) == 3
+    messages = [record.getMessage() for record in caplog.records]
+    assert len(messages) == 3
+    assert all("TimeoutError" in message for message in messages)
+
+
+async def test_the_log_says_which_attempt_and_whether_a_retry_is_coming(
+    monkeypatch, caplog
+):
+    # "retryable" on the third attempt was true and useless: it was retryable
+    # and got no retry. Only transcribe() knows both halves.
+    import logging
+
+    await _always_raises(monkeypatch, TimeoutError())
+
+    with caplog.at_level(logging.WARNING, logger="app.services.vision"):
+        await vision.transcribe(b"x")
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert "attempt 1/3" in messages[0] and "retrying" in messages[0]
+    assert "attempt 3/3" in messages[2] and "no retry left" in messages[2]
+
+
+async def test_a_failure_that_is_not_retried_says_so_on_its_first_attempt(
+    monkeypatch, caplog
+):
+    import logging
+
+    await _always_raises(monkeypatch, ValueError("bad argument"))
+
+    with caplog.at_level(logging.WARNING, logger="app.services.vision"):
+        result, stats = await vision.transcribe(b"x")
+
+    assert result is None and len(stats) == 1
+    message = caplog.records[0].getMessage()
+    assert "attempt 1/3" in message
+    assert "no retry left" in message
+    assert "ValueError: bad argument" in message

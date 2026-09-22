@@ -445,18 +445,32 @@ already machine text. Only the empty-text gate (step 11) still applies.
 
 ## Concurrency ceilings
 
-These constants are derived from each other across three files. Changing one
-on its own breaks the arithmetic:
+**One of these is a setting; two are computed from it.** That arithmetic used
+to live in comments across two files, where raising one number on its own left
+the other two quietly cutting the work short:
 
-| Constant | Where | Why that value |
+| Constant | Where | Value |
 |---|---|---|
-| `_API_SLOTS` | `services/vision.py` | `Semaphore(10)` — Gemini answers a bigger burst with 429s |
-| `_CALL_TIMEOUT_S` | `services/vision.py` | 30 s for one call; a typical response is ~6 s |
-| `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | 120 s > one run's worst case with retries (3 × 30 + 1 + 2 = 93 s) |
-| `_ALBUM_TIMEOUT_S` | `bot/albums.py` | 300 s = three waves of 93 s under `Semaphore(10)`. Normative — don't lower it |
+| `API_SLOTS` | `services/vision.py` | `10` — Gemini answers a bigger burst with 429s. The semaphore is built from it and `albums.py` counts waves with it |
+| `VISION_CALL_TIMEOUT_S` | environment | **The only one anybody sets.** 30 s, the range is 5–180 |
+| `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)` — every attempt timing out. 93 s at the default |
+| `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s at the default |
+| `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × `VISION_RUNS` ÷ `API_SLOTS`⌉ — 362 s at the default. Normative: raising it is allowed, lowering it is not |
 | `_QUIET_SECONDS` | `bot/albums.py` | 3 s of silence **since the last `announce`** closes an album, provided every announced page has downloaded |
 | `_COLLECT_MAX_S` | `bot/albums.py` | 60 s from the first page, so a stream that never goes quiet can't hold a session for ever |
-| `max_overflow` | `db/session.py` | 15 — `MAX_ALBUM_PAGES` updates each hold a session open through the debounce |
+| `max_overflow` | `db/session.py` | 15 — `MAX_ALBUM_PAGES` updates each hold a session through the debounce, and the one that wins the batch holds its own for the whole album |
+
+`TIMEOUT_MARGIN = 1.3` is the ratio the hand-written 120 s held to 93 s, so the
+defaults land back on the numbers they replaced — `_ALBUM_TIMEOUT_S` is the one
+that moves, 300 → 362, in the direction the rule permits. The startup log
+prints all three: two are computed now, and the only way to know what a deploy
+is running on is for it to say so.
+
+Raising `VISION_CALL_TIMEOUT_S` is what a slower or thinking model needs, and
+the cost is not linear — at 90 s the album ceiling becomes 1064 s. That is a
+ceiling, not an expectation; it fires only when calls hang. What it really buys
+is exposure, because an album is processed in a background task that any deploy
+cancels.
 
 Both ceilings use `asyncio.wait`, never `wait_for`, and cancel the
 stragglers in a `finally`. Cancelling the group as a whole would discard the
@@ -582,6 +596,7 @@ DAILY_PAGES_PER_USER=30
 DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3
 VISION_MODEL=gemini-3.5-flash-lite
+VISION_CALL_TIMEOUT_S=30
 PROMPT_FILE=prompts-v3.md
 IMAGE_MAX_SIDE=1500
 IMAGE_QUALITY=85
@@ -607,6 +622,14 @@ is published is a real thing to want, and the refusal exists to make the state
 chosen rather than stumbled into — the deploy log then carries a warning on
 every start. What still guards the spend in that state is
 `DAILY_PAGES_PER_USER` alone, so raising both at once leaves nothing.
+
+`VISION_CALL_TIMEOUT_S` is how long one model call may take, and it is the
+only timeout that is a variable — see "Concurrency ceilings" for the two that
+are computed from it. It exists because 30 s was tuned against a model that
+answered in about six seconds, and a slower one turns every call into a
+timeout: three attempts wasted per run, and pages of an album silently
+dropped. The log of that failure carried nothing but empty error messages,
+because `str(TimeoutError())` is `""`.
 
 `PROMPT_FILE` names the prompt `vision.py` loads at import. It exists so a
 variant can be tried on the deployed bot and rolled back by changing one

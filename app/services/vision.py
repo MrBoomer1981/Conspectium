@@ -48,17 +48,29 @@ _client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 # An album fans VISION_RUNS calls out per page — 30 at once for ten pages, up
 # to 90 with retries. Gemini answers a burst that size with 429s. One
-# process-wide semaphore around the API call, not a queue.
-_API_SLOTS = asyncio.Semaphore(10)
+# process-wide semaphore around the API call, not a queue. The count is a
+# module constant because albums.py derives its own ceiling from it.
+API_SLOTS = 10
+_API_SLOTS = asyncio.Semaphore(API_SLOTS)
 
-# One model call: typical response is ~6 s.
-_CALL_TIMEOUT_S = 30
+# One model call. 30 s fits a model that answers in ~6 s; a thinking or
+# otherwise slower one needs more, and it is the only one of the three
+# timeouts that is a setting — raising it alone would leave the two ceilings
+# below cutting the retries short, so they are computed from it.
+_CALL_TIMEOUT_S = settings.VISION_CALL_TIMEOUT_S
 # transcribe(): three attempts, so two pauses; the loop stops at the first
 # success or the first non-retryable failure.
 _RETRY_PAUSES_S = (1, 2)
-# transcribe_consensus(): must exceed one run's worst case with retries —
-# 3 * 30 s + 1 s + 2 s = 93 s — so a timeout never cuts the retries short.
-_CONSENSUS_TIMEOUT_S = 120
+# One run's worst case: every attempt timing out, plus the pauses between them.
+RUN_WORST_CASE_S = (
+    (len(_RETRY_PAUSES_S) + 1) * _CALL_TIMEOUT_S + sum(_RETRY_PAUSES_S)
+)
+# Enough over that worst case to absorb scheduling and the wait for a
+# semaphore slot. 1.3 is the ratio the hand-written 120 s held to 93 s, so the
+# default reproduces the old number exactly; albums.py applies the same margin.
+TIMEOUT_MARGIN = 1.3
+# transcribe_consensus(): guards a run that hangs past its own retries.
+_CONSENSUS_TIMEOUT_S = int(RUN_WORST_CASE_S * TIMEOUT_MARGIN)
 
 
 @dataclass
@@ -277,16 +289,12 @@ async def _one_attempt(
                 timeout=_CALL_TIMEOUT_S,
             )
     except Exception as exc:
-        # No response → no tokens billed → no cost to record.
+        # No response → no tokens billed → no cost to record. The failure is
+        # logged by transcribe(), the only caller that knows whether a
+        # retryable one is actually going to be retried.
         latency_ms = int((time.monotonic() - started) * 1000)
-        retryable = _should_retry(exc)
-        logger.warning(
-            "Gemini attempt failed (%s): %s",
-            "retryable" if retryable else "final",
-            exc,
-        )
         stats = CallStats(None, None, None, latency_ms, False, _short_error(exc))
-        return None, stats, retryable
+        return None, stats, _should_retry(exc)
 
     tokens_in, tokens_out = _usage(response)
     result = parse_response(_response_text(response))
@@ -318,6 +326,16 @@ async def transcribe(
         all_stats.append(stats)
         if result is not None:
             return result, all_stats
+        # stats.error, not the exception: str(TimeoutError()) is "", and a
+        # timeout used to reach the log as a line ending in a bare colon. The
+        # column had it right; the log had fallen behind.
+        logger.warning(
+            "Gemini attempt %d/%d failed, %s: %s",
+            attempt + 1,
+            last + 1,
+            "retrying" if retryable and attempt < last else "no retry left",
+            stats.error,
+        )
         if not retryable or attempt == last:
             return None, all_stats
         await asyncio.sleep(_RETRY_PAUSES_S[attempt])
@@ -424,7 +442,7 @@ async def transcribe_consensus(
     element None (the list is then empty only if the 120 s ceiling fired before
     any run returned).
 
-    A 120 s ceiling guards against a run that hangs past its own retries. It is
+    _CONSENSUS_TIMEOUT_S guards a run that hangs past its own retries. It is
     asyncio.wait, not wait_for: cancelling the whole gather would throw away the
     CallStats of runs that already finished, and those calls were still billed."""
     tasks = [

@@ -595,3 +595,72 @@ async def test_a_page_never_announced_announces_itself(monkeypatch):
     pages = await albums.collect("grp")
 
     assert pages is not None and len(pages) == 1
+
+
+# ── the album ceiling follows the call timeout ───────────────────────────────
+
+
+def test_the_album_ceiling_covers_every_wave_of_runs():
+    # A ceiling under the waves cancels pages whose calls were already paid
+    # for, which is why PLAN.md task 10 calls this value normative.
+    assert albums._ALBUM_TIMEOUT_S > albums._WAVES * vision.RUN_WORST_CASE_S
+
+
+def test_the_wave_count_comes_from_the_settings_it_depends_on():
+    import math
+
+    assert albums._WAVES == math.ceil(
+        albums.settings.MAX_ALBUM_PAGES
+        * albums.settings.VISION_RUNS
+        / vision.API_SLOTS
+    )
+
+
+def test_the_album_ceiling_never_dropped_below_where_it_started():
+    # 300 s was the hand-written value. The rule is one-way: raising it is
+    # allowed, lowering it is not.
+    assert albums._ALBUM_TIMEOUT_S >= 300
+
+
+# ── one line per closed batch, so a split album is visible in the log ────────
+
+
+async def test_closing_a_batch_is_logged_once_with_both_counts(monkeypatch, caplog):
+    """Two of these lines for one media_group_id means the batch was claimed
+    twice and the album split into separate records. Nothing in the log could
+    previously tell that from a single slow page."""
+    import logging
+
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.05)
+    _reset()
+    albums.announce("grp", 1)
+    albums.announce("grp", 2)
+    albums.add_page("grp", _input(1))
+    albums.add_page("grp", _input(2))
+
+    with caplog.at_level(logging.INFO, logger="app.bot.albums"):
+        pages = await albums.collect("grp")
+
+    assert pages is not None and len(pages) == 2
+    closed = [r.getMessage() for r in caplog.records if "batch closed" in r.getMessage()]
+    assert len(closed) == 1
+    assert "grp" in closed[0]
+    assert "2 of 2 pages" in closed[0]
+
+
+async def test_the_caller_that_loses_the_batch_logs_nothing(monkeypatch, caplog):
+    import logging
+
+    monkeypatch.setattr(albums, "_QUIET_SECONDS", 0.05)
+    _reset()
+    albums.announce("grp", 1)
+    albums.add_page("grp", _input(1))
+
+    with caplog.at_level(logging.INFO, logger="app.bot.albums"):
+        first, second = await asyncio.gather(
+            albums.collect("grp"), albums.collect("grp")
+        )
+
+    assert [first, second].count(None) == 1
+    closed = [r for r in caplog.records if "batch closed" in r.getMessage()]
+    assert len(closed) == 1

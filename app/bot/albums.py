@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
 from dataclasses import asdict, dataclass
 
@@ -39,10 +40,15 @@ _POLL_SECONDS = 0.3
 # hold its middleware DB session open indefinitely.
 _COLLECT_MAX_S = 60
 
-# Worst case for ten pages at three runs each under Semaphore(10): three waves
-# of up to 93 s = 279 s. This is a normative value, not an estimate — do not
-# lower it (PLAN.md task 10).
-_ALBUM_TIMEOUT_S = 300
+# Ten pages at three runs each under Semaphore(10) is three waves of one run's
+# worst case. Computed rather than written down: vision's call timeout is a
+# setting now, and a ceiling that did not follow it would cut a slow album
+# short. Normative, not an estimate — the margin is not to be lowered
+# (PLAN.md task 10).
+_WAVES = math.ceil(
+    settings.MAX_ALBUM_PAGES * settings.VISION_RUNS / vision.API_SLOTS
+)
+_ALBUM_TIMEOUT_S = int(_WAVES * vision.RUN_WORST_CASE_S * vision.TIMEOUT_MARGIN)
 
 
 @dataclass
@@ -161,6 +167,17 @@ async def collect(media_group_id: str) -> list[PageInput] | None:
             break
         # Never overshoot the moment the quiet window expires.
         await asyncio.sleep(min(_POLL_SECONDS, max(_QUIET_SECONDS - quiet_for, 0.01)))
+    # Exactly one of these per media_group_id is what a healthy album looks
+    # like. Two means the batch was claimed twice and the album split into
+    # separate records — the failure that took three attempts to find, and
+    # which nothing in the log could previously tell from one slow page.
+    logger.info(
+        "album %s: batch closed, %d of %d pages, %.1fs since the first",
+        media_group_id,
+        len(_buffer.get(media_group_id, ())),
+        len(_announced[media_group_id]),
+        time.monotonic() - _first_page_at[media_group_id],
+    )
     # No await between the decision and this pop: exactly one caller gets the
     # list, every other one comes back around and finds the group gone.
     return _forget(media_group_id)
