@@ -1807,6 +1807,30 @@ ink by contrast rather than by rank, and drops the three-line minimum. The
 threshold `MIN_LINE_HEIGHT_PX` would move with it, and it cannot be chosen by
 reasoning — it needs a folder of real pages through `photoguard`'s own CLI.
 
+**A recognition run may be being truncated by our own ceiling, and nobody has
+checked.** `unparseable model response` arrived twice in one evening — roughly
+8% of calls — and each one costs a whole run, because a 200 that parsed badly
+is never retried. Three runs become two on exactly the long pages worth the
+most. The suspect is `max_output_tokens=8192`: a long page whose JSON is cut
+mid-string cannot parse and looks identical to a model that answered with
+prose.
+
+**The check is a query, not a change.** Rows written before 2026-09-22 carry no
+reason, but they carry the token count:
+
+```sql
+SELECT error, count(*), min(tokens_out), max(tokens_out), round(avg(tokens_out))
+FROM ai_calls
+WHERE created_at > now() - interval '3 days'
+GROUP BY error ORDER BY 2 DESC;
+```
+
+`tokens_out` sitting at 8192 on the unparseable rows is the answer, and the fix
+is one line. Rows written since then name it outright —
+`finish_reason=MAX_TOKENS` is truncation, `STOP` is the model returning
+something that is not JSON, and those two have different fixes. Raising the
+ceiling before knowing which would spend the change on a guess.
+
 **A redelivered update is processed twice.** Nothing deduplicates on
 `update_id`. If Telegram decides an update went undelivered, the retry
 arrives as a new update and produces a second record for the same photo:
@@ -1905,6 +1929,15 @@ purpose — its own task.
 - Styling and design of responses
 - Caching, queues, workers, Redis — until the album buffer has to leave
   process memory (`CLAUDE.md` → Scale debt), and then Postgres first
+- Merging the three runs block by block instead of picking the medoid.
+  Two readings of every page are thrown away today, and on a matrix the
+  majority per cell is exactly what you would want — but aligning blocks
+  across runs is a second algorithm, `consensus` is a module we only call,
+  and `graphcheck` already settles the matrix case better than a vote,
+  because the graph beside it decides rather than the count
+- Detecting a page photographed rotated. Nothing corrects one today:
+  `images.compress` honours EXIF and a physically turned page carries none.
+  Suspected of costing time on the model, never reproduced
 - Deduplication on `update_id`
 - Row locking, two-phase spend accounting
 - Docker, CI

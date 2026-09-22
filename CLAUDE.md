@@ -204,6 +204,35 @@ A record made with v5 will look flat: no headings, no bold, nothing set on its
 own line. That is the point, not a defect. It measures reading alone, and
 formatting would belong to a second pass over the trusted text.
 
+**The next measurement is three arms on one album, and it is not run yet.**
+Everything below A has been built and never switched on, so no finding in this
+file says anything about it.
+
+| | `PROMPT_FILE` | `VISION_MEDIA_RESOLUTION` | `COMPOSE_ENABLED` |
+|---|---|---|---|
+| **A** — baseline | `prompts-v4.md` | `unset` | `false` |
+| **B** — the knob | `prompts-v4.md` | `high` | `false` |
+| **C** — two stages | `prompts-v5.md` | `high` | `true` |
+
+One thing moves between arms; `VISION_CALL_TIMEOUT_S=90`, `VISION_MODEL` and
+`IMAGE_MAX_SIDE` stay put. Compare **`numeric_agreement`**, not
+`text_agreement`: v5 changes the shape of the text and `compare_text` measures
+shape, which is the confound that made the v5 measurement unreadable the first
+time. `ai_calls.tokens_in` confirms whether `media_resolution` applied at
+all — more detail is more tokens for the same image.
+
+In arm C the first number to look at is how many records reached composition:
+if `compose` refuses most of them, three arms come back looking alike and the
+conclusion would be about the guard rather than about the architecture.
+`compose_refused` and `compose_drift` are in the `note_processed` payload for
+exactly that.
+
+**Arm A, measured 2026-09-22 on a three-page album of biology notes**, with
+the timeout at 90 s and the frame check fixed: `text_agreement` 1.000 / 0.917 /
+0.990, `numeric_agreement` 1.000 / 0.939 / **0.600**. The third page is what
+the whole instrument was built for — the prose agreed to 0.990 and the numbers
+to 0.600, and under the old rule it would have gone into the corpus as clean.
+
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a
 discrepancy that didn't exist, duplicated it three times, and found none
@@ -391,6 +420,39 @@ and `\ge` cost a whole record — every inequality on a page about nested
 intervals went out as raw source while the formulas around them drew. The same
 boundary applies as to `\limits`, for the same reason: `\le` opens `\leq`,
 `\left` and `\leftarrow`, so a command ends where its letters end.
+
+**The full list, swept rather than discovered one report at a time.** Three
+separate rounds of this cost three records before anybody thought to ask
+mathtext the whole question at once. About 120 constructs were put through
+`pdf.for_mathtext` and then through the parser; these are what still come back
+refused, and the table is the finding — **the rewrites below are not built
+yet.**
+
+| Written by the model | What mathtext would take |
+|---|---|
+| `\textrm{...}` | `\text{...}` — the same swap `\mbox` already gets |
+| `\tfrac{a}{b}` | `\frac{a}{b}`; a size variant with no meaning here, like `\displaystyle` |
+| `\stackrel{a}{b}` | `\overset{a}{b}` |
+| `\big(` `\Big(` `\bigg(` `\Bigg(` | drop the modifier, the delimiter renders |
+| `\xrightarrow{t}` | `\overset{t}{\to}` — needs a braced argument, not a word swap |
+| `\overbrace` / `\underbrace` | `\overline` / `\underline`; the grouping survives, the brace does not |
+
+`\xrightarrow` is the one to weigh first for these notes: an arrow with its
+condition written above is most of the reactions on a page of biology.
+
+**And the set nothing can rescue**, which is a different kind of fact:
+`\ce{H2O}` is mhchem, a language of its own rather than a command;
+`\begin{cases}`, `\begin{aligned}`, `\begin{array}` and every matrix
+environment are refused outright. For those there are two paths and neither is
+a rewrite — a rule in the prompt that forbids them, or the drawing contract,
+where a matrix arrives as a markdown table and `pdf.blocks` turns it into a
+picture. `cases` is the one that will be missed: a piecewise definition is
+ordinary mathematics, and it currently prints as its own source.
+
+**A formula mathtext refuses is printed as its source and nothing says so.**
+That is how all three rounds went: the author noticed a broken page, and only
+then did anyone look. The cheap end of this is a log line naming the formula
+that would not draw.
 
 **A drawing comes back as data, not a sentence about itself.** Rule 6 of
 `prompts-v3.md` asks for a graph as `[граф: 1-2, 2->3, 3-3]` and for a matrix
