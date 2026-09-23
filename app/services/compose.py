@@ -125,7 +125,8 @@ async def _one_call(markdown: str) -> tuple[str | None, CallStats]:
                     # No response_mime_type: the answer is markdown, not JSON,
                     # so there is nothing here to parse and nothing to fail.
                     config=types.GenerateContentConfig(
-                        temperature=1.0, max_output_tokens=8192
+                        temperature=1.0,
+                        max_output_tokens=vision.MAX_OUTPUT_TOKENS,
                     ),
                 ),
                 timeout=vision._CALL_TIMEOUT_S,
@@ -134,11 +135,18 @@ async def _one_call(markdown: str) -> tuple[str | None, CallStats]:
         latency_ms = int((time.monotonic() - started) * 1000)
         logger.warning("compose failed: %s", vision._short_error(exc))
         return None, CallStats(
-            "compose", model, None, None, None, latency_ms, False,
-            vision._short_error(exc),
+            kind="compose",
+            model=model,
+            tokens_in=None,
+            tokens_out=None,
+            tokens_thought=None,
+            cost_usd=None,
+            latency_ms=latency_ms,
+            success=False,
+            error=vision._short_error(exc),
         )
 
-    tokens_in, tokens_out = vision._usage(response)
+    tokens_in, tokens_out, tokens_thought = vision._usage(response)
     text = vision._response_text(response).strip()
     latency_ms = int((time.monotonic() - started) * 1000)
     return text, CallStats(
@@ -146,7 +154,8 @@ async def _one_call(markdown: str) -> tuple[str | None, CallStats]:
         model=model,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
-        cost_usd=vision._cost_usd(model, tokens_in, tokens_out),
+        tokens_thought=tokens_thought,
+        cost_usd=vision._cost_usd(model, tokens_in, tokens_out, tokens_thought),
         latency_ms=latency_ms,
         success=bool(text),
         error=None if text else "empty model response",

@@ -506,7 +506,9 @@ _PHOTO_MD = "Пусть $I_n = [a_n; b_n]$ и пересечение непус�
 
 
 def _compose_stat() -> vision.CallStats:
-    return vision.CallStats("compose", "gemini-3.5-flash-lite", 1, 1, 0.001, 10, True, None)
+    return vision.CallStats(
+        "compose", "gemini-3.5-flash-lite", 1, 1, None, 0.001, 10, True, None
+    )
 
 
 class _FastBot:

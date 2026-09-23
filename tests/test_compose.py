@@ -115,6 +115,26 @@ async def test_the_answer_is_markdown_and_not_json(monkeypatch):
     assert sent[0]["config"].response_mime_type is None
 
 
+async def test_both_calls_share_one_output_ceiling(monkeypatch):
+    """Two literals would drift, and the one left behind fails the same way
+    recognition did: the answer stops mid-document because the thinking spent
+    the budget. Here the guards would catch it as "too short" and the record
+    would quietly be the one stage one produced — a paid call thrown away."""
+    sent: list[dict] = []
+
+    async def capture(**kwargs):
+        sent.append(kwargs)
+        return SimpleNamespace(text="# Теорема", usage_metadata=None)
+
+    monkeypatch.setattr(compose.settings, "COMPOSE_ENABLED", True)
+    monkeypatch.setattr(vision, "_client", _fake_client(capture))
+
+    await compose.compose(SOURCE)
+
+    assert sent[0]["config"].max_output_tokens == vision.MAX_OUTPUT_TOKENS
+    assert vision._generation_config().max_output_tokens == vision.MAX_OUTPUT_TOKENS
+
+
 async def test_the_call_goes_to_the_compose_model_and_is_billed_as_one(
     monkeypatch,
 ):

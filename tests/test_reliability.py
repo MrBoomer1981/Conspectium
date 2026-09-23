@@ -168,8 +168,15 @@ async def test_spend_survives_main_rollback(monkeypatch):
         await main.flush()
         await vision.log_ai_calls(
             user_id, [vision.CallStats(
-                    "transcribe", "gemini-3.5-flash-lite", 1, 1, 0.001, 10,
-                    True, None,
+                    kind="transcribe",
+                    model="gemini-3.5-flash-lite",
+                    tokens_in=1,
+                    tokens_out=1,
+                    tokens_thought=None,
+                    cost_usd=0.001,
+                    latency_ms=10,
+                    success=True,
+                    error=None,
                 )]
         )
         await main.rollback()
@@ -202,22 +209,26 @@ async def test_a_row_names_its_own_kind_and_model(monkeypatch, sqlite_maker):
     await vision.log_ai_calls(
         1,
         [
-            vision.CallStats("transcribe", "model-a", 1, 1, 0.001, 10, True, None),
-            vision.CallStats("compose", "model-b", 2, 2, 0.002, 20, True, None),
+            vision.CallStats("transcribe", "model-a", 1, 1, None, 0.001, 10, True, None),
+            vision.CallStats("compose", "model-b", 2, 2, 700, 0.002, 20, True, None),
         ],
     )
 
     async with sqlite_maker() as session:
         rows = (
             await session.execute(
-                select(AiCall.kind, AiCall.model).order_by(AiCall.id)
+                select(AiCall.kind, AiCall.model, AiCall.tokens_thought)
+                .order_by(AiCall.id)
             )
         ).all()
 
-    assert [tuple(row) for row in rows] == [
+    assert [(kind, model) for kind, model, _ in rows] == [
         ("transcribe", "model-a"),
         ("compose", "model-b"),
     ]
+    # The thinking budget reaches the row, and an absent one stays absent: it
+    # is the column that tells a truncated call from a short answer.
+    assert [thought for _, _, thought in rows] == [None, 700]
     # Neither row carries the configured model, so neither could have come
     # from settings rather than from the stats.
-    assert vision.settings.VISION_MODEL not in {model for _, model in rows}
+    assert vision.settings.VISION_MODEL not in {model for _, model, _ in rows}

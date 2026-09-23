@@ -366,8 +366,15 @@ async def test_spend_is_collected_from_every_page(monkeypatch):
     async def fake_process_page(page_input, page):
         stats = [
             CallStats(
-                "transcribe", "gemini-3.5-flash-lite", 10, 20, 0.001, 100,
-                True, None,
+                kind="transcribe",
+                model="gemini-3.5-flash-lite",
+                tokens_in=10,
+                tokens_out=20,
+                tokens_thought=None,
+                cost_usd=0.001,
+                latency_ms=100,
+                success=True,
+                error=None,
             )
         ]
         if page == 2:

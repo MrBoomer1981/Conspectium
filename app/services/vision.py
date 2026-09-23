@@ -107,6 +107,10 @@ class CallStats:
     model: str
     tokens_in: int | None
     tokens_out: int | None
+    # The answer and the thinking are two numbers because they were one for a
+    # week and the one hid a truncation. Both come out of max_output_tokens
+    # and both are billed at the output rate.
+    tokens_thought: int | None
     cost_usd: float | None
     latency_ms: int
     success: bool
@@ -229,24 +233,43 @@ def parse_response(raw: str) -> Transcription | None:
 # ── Model call ───────────────────────────────────────────────────────────────
 
 
-def _usage(response: object) -> tuple[int | None, int | None]:
+def _usage(response: object) -> tuple[int | None, int | None, int | None]:
+    """Prompt, answer, thinking — three numbers, because the second one alone
+    hid a truncation for a week. `candidates_token_count` is the visible
+    answer; a thinking model spends `thoughts_token_count` out of the same
+    `max_output_tokens`, so a call can stop at the ceiling while the column we
+    stored said 498. Both halves are recorded now."""
     meta = getattr(response, "usage_metadata", None)
     if meta is None:
-        return None, None
+        return None, None, None
     return (
         getattr(meta, "prompt_token_count", None),
         getattr(meta, "candidates_token_count", None),
+        getattr(meta, "thoughts_token_count", None),
     )
 
 
-def _cost_usd(model: str, tokens_in: int | None, tokens_out: int | None) -> float | None:
+def _cost_usd(
+    model: str,
+    tokens_in: int | None,
+    tokens_out: int | None,
+    tokens_thought: int | None = None,
+) -> float | None:
     """None unless the model is priced and both token counts are known — we
-    don't invent numbers."""
+    don't invent numbers.
+
+    Thinking is billed at the output rate, so it belongs in the sum. Left out,
+    a call that thinks fifteen times as long as it speaks is recorded at a
+    fifteenth of its price, and `DAILY_COST_LIMIT_USD` stops being a limit
+    without anything failing. A missing count is read as zero rather than as
+    unknown: it is absent exactly when the model did not think.
+    """
     price = PRICE_PER_MTOK.get(model)
     if price is None or tokens_in is None or tokens_out is None:
         return None
     price_in, price_out = price
-    return (tokens_in * price_in + tokens_out * price_out) / 1_000_000
+    billed_out = tokens_out + (tokens_thought or 0)
+    return (tokens_in * price_in + billed_out * price_out) / 1_000_000
 
 
 def _response_text(response: object) -> str:
@@ -325,6 +348,18 @@ _THINKING_LEVEL = {
     "high": types.ThinkingLevel.HIGH,
 }
 
+# A cap, not a reservation: tokens are billed as produced, so a ceiling nobody
+# reaches costs nothing. A ceiling that is reached costs a whole run — a 200
+# whose JSON stopped mid-string is not retried, so three runs become two on
+# exactly the densest page.
+#
+# 8192 was reached. `finish_reason=MAX_TOKENS` arrived on a call whose visible
+# answer was 498 tokens and whose latency was 37 s: the budget went on
+# *thinking*, which draws on the same allowance and is counted apart from the
+# answer. Visible answers here run 289-1457 tokens, so what this number really
+# sizes is how long the model may think.
+MAX_OUTPUT_TOKENS = 32768
+
 
 def _generation_config() -> types.GenerateContentConfig:
     """How the model is asked, as opposed to what it is asked.
@@ -343,7 +378,7 @@ def _generation_config() -> types.GenerateContentConfig:
     return types.GenerateContentConfig(
         response_mime_type="application/json",
         temperature=1.0,
-        max_output_tokens=8192,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
         media_resolution=_MEDIA_RESOLUTION.get(settings.VISION_MEDIA_RESOLUTION),
         thinking_config=(
             types.ThinkingConfig(thinking_level=thinking) if thinking else None
@@ -383,12 +418,19 @@ async def _one_attempt(
         # retryable one is actually going to be retried.
         latency_ms = int((time.monotonic() - started) * 1000)
         stats = CallStats(
-            "transcribe", model, None, None, None, latency_ms, False,
-            _short_error(exc),
+            kind="transcribe",
+            model=model,
+            tokens_in=None,
+            tokens_out=None,
+            tokens_thought=None,
+            cost_usd=None,
+            latency_ms=latency_ms,
+            success=False,
+            error=_short_error(exc),
         )
         return None, stats, _should_retry(exc)
 
-    tokens_in, tokens_out = _usage(response)
+    tokens_in, tokens_out, tokens_thought = _usage(response)
     result = parse_response(_response_text(response))
     latency_ms = int((time.monotonic() - started) * 1000)
 
@@ -399,7 +441,8 @@ async def _one_attempt(
         model=model,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
-        cost_usd=_cost_usd(model, tokens_in, tokens_out),
+        tokens_thought=tokens_thought,
+        cost_usd=_cost_usd(model, tokens_in, tokens_out, tokens_thought),
         latency_ms=latency_ms,
         success=result is not None,
         error=None if result is not None else _unparseable(response),
@@ -601,8 +644,15 @@ async def transcribe_consensus(
             logger.warning("transcribe run crashed: %s", exc)
             all_stats.append(
                 CallStats(
-                    "transcribe", settings.VISION_MODEL, None, None, None, 0,
-                    False, _short_error(exc),
+                    kind="transcribe",
+                    model=settings.VISION_MODEL,
+                    tokens_in=None,
+                    tokens_out=None,
+                    tokens_thought=None,
+                    cost_usd=None,
+                    latency_ms=0,
+                    success=False,
+                    error=_short_error(exc),
                 )
             )
             continue
@@ -688,6 +738,7 @@ async def log_ai_calls(user_id: int, stats: list[CallStats]) -> None:
                         model=s.model,
                         tokens_in=s.tokens_in,
                         tokens_out=s.tokens_out,
+                        tokens_thought=s.tokens_thought,
                         cost_usd=s.cost_usd,
                         latency_ms=s.latency_ms,
                         success=s.success,

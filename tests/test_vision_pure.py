@@ -29,8 +29,15 @@ def _api_error(code) -> genai_errors.APIError:
 
 def _stats(cost) -> CallStats:
     return CallStats(
-        "transcribe", "gemini-3.5-flash-lite", None, None, cost, 0,
-        cost is not None, None,
+        kind="transcribe",
+        model="gemini-3.5-flash-lite",
+        tokens_in=None,
+        tokens_out=None,
+        tokens_thought=None,
+        cost_usd=cost,
+        latency_ms=0,
+        success=cost is not None,
+        error=None,
     )
 
 
@@ -97,6 +104,25 @@ def test_cost_is_none_when_a_token_count_is_missing():
 
 def test_zero_tokens_cost_zero_not_none():
     assert vision._cost_usd("gemini-2.5-flash-lite", 0, 0) == 0.0
+
+
+def test_thinking_is_billed_at_the_output_rate():
+    """The shape that was actually observed: 498 visible tokens against some
+    7700 of thinking. Counted only by the visible half, that call goes into
+    ai_calls at a fifteenth of its price, and DAILY_COST_LIMIT_USD stops being
+    a limit with nothing failing to show it."""
+    visible = vision._cost_usd("gemini-2.5-flash-lite", 1000, 500)
+    thinking = vision._cost_usd("gemini-2.5-flash-lite", 1000, 500, 7700)
+
+    assert thinking > visible
+    # 0.40 per Mtok on 8200 output tokens, 0.10 on 1000 in.
+    assert thinking == pytest.approx((1000 * 0.10 + 8200 * 0.40) / 1_000_000)
+
+
+def test_a_model_that_does_not_think_costs_what_it_always_did():
+    # Absent, not unknown: the field is missing exactly when there was no
+    # thinking, so None reads as zero rather than voiding the price.
+    assert vision._cost_usd("gemini-2.5-flash-lite", 1_000_000, 1_000_000, None) == 0.50
 
 
 # ── total_cost ───────────────────────────────────────────────────────────────
@@ -508,7 +534,7 @@ def test_by_default_neither_new_knob_is_sent():
 def test_what_was_always_sent_is_still_sent():
     config = vision._generation_config()
     assert config.response_mime_type == "application/json"
-    assert config.max_output_tokens == 8192
+    assert config.max_output_tokens == vision.MAX_OUTPUT_TOKENS
 
 
 def test_the_temperature_is_not_lowered_and_no_seed_goes_out():
@@ -967,3 +993,39 @@ async def test_a_candidate_without_a_finish_reason_does_not_crash(monkeypatch):
 
     assert stats.error == "unparseable model response"
     assert stats.tokens_out == 11
+
+
+# ── the half of the budget that was invisible ────────────────────────────────
+
+
+async def test_the_thinking_a_call_did_is_recorded(monkeypatch):
+    """The shape that was actually observed on 2026-09-23, numbers and all.
+
+    The call stopped at max_output_tokens having produced 498 visible tokens,
+    because the rest of the allowance went on thinking. Stored as the visible
+    half alone, a truncated call is indistinguishable in ai_calls from one
+    that simply answered briefly — and a query over three days read as proof
+    that the ceiling was not the problem.
+    """
+    thinking = SimpleNamespace(
+        text="не json",
+        usage_metadata=SimpleNamespace(
+            prompt_token_count=1609,
+            candidates_token_count=498,
+            thoughts_token_count=7700,
+        ),
+        candidates=[SimpleNamespace(finish_reason="MAX_TOKENS")],
+    )
+
+    _, stats, _ = await _attempt(monkeypatch, thinking)
+
+    assert stats.tokens_thought == 7700
+    assert stats.tokens_out == 498
+    assert stats.error == "unparseable model response (finish_reason=MAX_TOKENS)"
+
+
+async def test_a_model_that_does_not_think_reports_none_not_zero(monkeypatch):
+    # The field is absent, which is not the same claim as "it thought nothing".
+    _, stats, _ = await _attempt(monkeypatch, _response("не json"))
+
+    assert stats.tokens_thought is None

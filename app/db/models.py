@@ -58,6 +58,7 @@ class AiCall(Base):
     model: Mapped[str] = mapped_column(String)
     tokens_in: Mapped[int | None] = mapped_column(Integer)
     tokens_out: Mapped[int | None] = mapped_column(Integer)
+    tokens_thought: Mapped[int | None] = mapped_column(Integer)
     cost_usd: Mapped[float | None] = mapped_column(Float)
     latency_ms: Mapped[int] = mapped_column(Integer)
     success: Mapped[bool] = mapped_column(Boolean)
