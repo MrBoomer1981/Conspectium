@@ -26,10 +26,11 @@ and record it under "Scale debt" rather than calling it done.
 **Stage:** second week, one user — the author. Week 1 (capture: photo to
 structured record) is built and unit-tested, but has never been confirmed
 end to end on the deployed bot — the "Definition of week-ready" checklist in
-`PLAN.md` is still open. Week 2 gives the corpus a way out: reading, search,
-correction, statistics. The question the whole thing exists to answer is
-still whether the author uses this daily. Not launch, not growth, not
-revenue, not scale.
+`PLAN.md` is still open. Week 2 gave the corpus a way out — reading, search,
+correction, statistics — and then five of those six commands turned out never
+to have been used once, and were deleted. What remains is one gesture: a tag
+in, a tag back. The question the whole thing exists to answer is still whether
+the author uses this daily. Not launch, not growth, not revenue, not scale.
 
 ---
 
@@ -571,6 +572,48 @@ PDF and its own three paid recognition runs.
 filterless catch-all that matches every message, so any router included after
 it receives nothing. `corpus.router` is included **first**, capture second.
 Adding a third router means deciding where it goes relative to that catch-all.
+It guards more than the commands now: `on_tag` matches on the text of the
+message rather than on a `Command`, so the only thing between a "#word" and
+"пришли фотографию страницы" is that ordering.
+
+**The corpus has one way in and one way back, and a "#word" is both.** After a
+record is delivered the bot asks which subject it belongs to and shows the
+topics it read off the record's own headings; the user's answer is stored on
+`Note.tag`. A later "#word" searches, over the subject and the topics at once,
+and a single match comes back as the document itself rather than as a line
+about it.
+
+Which of the two a message means is decided by the corpus, not by a state
+machine: **if the newest record has no subject the question is still open, and
+if it has one nothing was asked.** That is deliberate twice over. It is
+stateless, so it survives a restart and a second replica — the album buffer is
+the standing reminder of what remembering-in-the-process costs. And it is
+about the *newest* record only: an untagged record from last week is a
+question the user walked away from, and a search typed today must not quietly
+file it under a subject nobody chose.
+
+Topics come from the headings the pipeline has already produced —
+`tags.topics_of` reads them, no second model call, and nothing here interprets
+anything. The consequence is that topics are exactly as good as the headings:
+a composing stage that splits a sentence into a section invents a topic with
+it. That failure is visible in the reply the user gets straight away, which is
+the only reason it is acceptable. They are stored where the record is made
+rather than where it is tagged, so a record nobody ever tagged is still
+findable by what it is about.
+
+`note_topics` is a table and not a JSONB column on `Note`. The question asked
+of it is "which records carry this topic", which is a join on an indexed
+column and reads the same on PostgreSQL and on the SQLite the suite runs
+against; containment would be neither. That is also what finally made the
+search testable offline — the four full-text tests that needed a real
+PostgreSQL went out with `/search`.
+
+**Seven commands were deleted, and the reason is worth keeping.** `/notes`,
+`/note`, `/search`, `/retitle`, `/delete` and `/pdf` were built, tested and
+deployed, and `events` recorded that not one of them had ever been used.
+`/stats` had been used once. Before adding an interface to the corpus, look at
+whether the last one was touched — this project can build a week of them
+without noticing that nobody wanted any.
 
 **A saved record goes out as a PDF.** Recognised notes are dense with LaTeX,
 and `$\sum_{i=1}^{p} \rho(v_i) = 2q$` reads as noise until it is drawn, so all
@@ -658,7 +701,7 @@ three runs against each other the way numbers are compared. Recorded under
 
 **A generic flag gives way to a specific one.** "Прогоны распознавания
 местами разошлись" above a list of exactly what diverged repeats that list's
-own heading. Both `corpus._flags` and `corpus._callouts` add it only when
+own heading. The capture handlers and `corpus._callouts` add it only when
 nothing more exact is there to say; the subtitle of the document carries
 "нужна проверка" either way.
 
@@ -673,10 +716,9 @@ behind them were made and billed, and that rule did not change.
 **A callout says what we already know, never what the model thinks.** The
 tinted boxes at the top of a record — needs review, arithmetic that doesn't
 add up, numbers the runs read differently, spots read two ways — are built by
-`corpus._callouts` out of the `Note`'s own columns, through the same three
-readers `_flags` uses for the message, so the document and the chat cannot
-come to disagree. `pdf.py` receives a list of `Callout` and knows nothing
-about where a record came from.
+`corpus._callouts` out of the `Note`'s own columns, so the document and the
+chat cannot come to disagree. `pdf.py` receives a list of `Callout` and knows
+nothing about where a record came from.
 
 What that forecloses is worth naming, because it will be asked for. A box
 headed "what this topic is about" or "the main points", written by the model
@@ -921,7 +963,8 @@ app/
     texts.py          all user-facing messages, and the command list
     middlewares.py    DB session and user injected into handlers
     albums.py         album buffer and assembly
-    corpus.py         reading, search and correction commands
+    corpus.py         tags, search by tag, and a record as a file
+    tags.py           what a #tag is, and where a record's topics come from
   services/
     vision.py         Gemini: prompt, response parsing, three runs
     images.py         compression
@@ -1084,7 +1127,8 @@ needs a database runs on in-memory SQLite.
 | `test_handlers.py` | `_split_message`, the catch-all reply |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
 | `test_graphcheck.py` | the matrix against the graph: what it must catch, and — the longer half — every shape it must stay quiet about |
-| `test_corpus.py` | listing, opening, correcting, statistics, the flags rebuilt from JSONB as text, as callouts and as anchored remarks — and that no query reaches another user's records |
+| `test_corpus.py` | filing a record under a subject, finding it by a topic, statistics, the flags rebuilt from JSONB as callouts and as anchored remarks — and that no query reaches another user's records |
+| `test_tags.py` | what a #tag normalizes to, what counts as one, and which topics a record yields |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the one rule in photoguard this project has edited: a line height that could not be measured is not a small one |
@@ -1144,8 +1188,8 @@ Everything below is deliberately postponed. Don't suggest or implement:
 - Payments, subscriptions, pricing tiers
 - Custom registration and passwords — identity already comes from Telegram
 - An admin panel
-- Export to Anki, and any bulk export of the corpus. `/pdf` renders **one
-  record** so it can be read — that is presentation, not an exit door, and
+- Export to Anki, and any bulk export of the corpus. A record comes back as
+  one PDF when a tag matches it — that is presentation, not an exit door, and
   it is not licence to add "download everything"
 - A language trainer, text rewriting, or any second feature
 - Visual design and styling of bot responses

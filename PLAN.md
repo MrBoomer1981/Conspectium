@@ -1393,6 +1393,18 @@ Don't rewrite previous tasks' code in the name of reliability.
 
 ---
 
+> **Tasks 11-13 were built, shipped, and deleted on 2026-09-23.** `/notes`,
+> `/note`, `/search`, `/retitle`, `/delete` and `/pdf` all worked and were
+> covered by tests; the `events` table then showed that not one of them had
+> ever been used, against 34 records captured. They were replaced by a single
+> gesture — the bot asks which subject a record belongs to, and a "#word"
+> either answers that or searches. The specifications below are kept as the
+> record of what was built and why, not as a description of the bot. Task 14
+> (`/stats`) survives unchanged; it had been used once.
+>
+> The lesson is cheap to state and was expensive to learn: **before adding an
+> interface to the corpus, look at whether the last one was ever touched.**
+
 # Task 11. Reading the corpus
 
 ## Create
@@ -1576,15 +1588,22 @@ for psql, not for a user-facing screen.
 
 # Definition of week-2-ready
 
-- [ ] `/notes` lists the corpus, newest first, with paging
-- [ ] `/note <id>` returns a record in full, flags included
-- [ ] `/search` finds a record by a declined form of the word
+Rewritten on 2026-09-23 against what the bot actually does. The list it
+replaced described six commands, five of which the event table showed had
+never been used.
+
+- [ ] A delivered record is followed by the question of which subject it is
+- [ ] The question shows the topics read off the record and the subjects
+      already in use
+- [ ] A "#word" answers that question; the same word later searches instead
+- [ ] An untagged record from last week is not filed by a search typed today
+- [ ] A search matches the subject and the topics alike
+- [ ] One match comes back as the document, several as a list that names what
+      to type next
 - [ ] Every corpus query filters by `user_id`
-- [ ] A foreign id is indistinguishable from a missing one
-- [ ] `/retitle` and `/delete` change what `/notes` shows
-- [ ] `note_deleted` outlives the record it describes
+- [ ] A record nobody tagged is still findable by its topics
 - [ ] `/stats` counts records, pages and the streak
-- [ ] Commands answer on an empty corpus without an error
+- [ ] The bot answers on an empty corpus without an error
 
 ---
 
@@ -1759,6 +1778,21 @@ Normal rejections — a limit, `AI_DISABLED`, a bad frame, `rejected`,
 already reflected in their own events and in the reply to the user.
 
 payload: `{"reason": <exception type>, "where": <handler name>}`.
+
+## Events `note_tagged` and `topic_searched`
+
+The two halves of the one gesture the bot has, and the pair that says whether
+it is being used at all — which is the question the five deleted commands
+could not answer until someone thought to ask the event table.
+
+`note_tagged`: `{"note_id": int, "tag": str}` — the subject the user answered
+with, stored without its "#".
+
+`topic_searched`: `{"tag": str, "found": int}`. The tag is stored for the same
+reason the search query used to be: what a person looks for is the most direct
+signal of what the corpus is for. `found: 0` is the interesting row — a search
+that missed is either a topic the bot never wrote or a subject spelled a
+second way.
 
 ## Testing boundaries
 

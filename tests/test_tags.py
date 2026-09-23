@@ -124,9 +124,15 @@ def test_a_record_with_no_headings_still_has_a_topic():
 
 
 def test_a_hash_that_is_not_a_heading_is_not_a_topic():
-    # A heading needs its space: "#физика" written in the body is a tag the
-    # user typed, not a section of the document.
+    """A heading needs its space, and so does this.
+
+    Markdown requires it, and a page can perfectly well start a line with
+    "#физика" — the user's own tag copied onto the paper, or a mark the
+    transcription carries. Without the space in the pattern that line becomes
+    a section of the document and a topic of the record.
+    """
     assert tags.topics_of("Заголовок", "см. #физика и #матан") == ["заголовок"]
+    assert tags.topics_of("Заголовок", "#физика\nтекст страницы") == ["заголовок"]
 
 
 def test_every_heading_level_counts():
