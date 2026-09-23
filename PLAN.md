@@ -78,9 +78,10 @@ Blockers: none
 ## Where the quality work stands
 
 The recognition experiments are **paused, not finished** — the arms were
-stopped mid-question by decision. The findings themselves are in CLAUDE.md →
-"Established experimentally"; this section is the shortest path back in. Read
-it before running anything.
+stopped mid-question by decision. The conclusions are in CLAUDE.md →
+"Established experimentally" and the run-by-run record each of them came from
+is in FINDINGS.md; this section is the shortest path back in. Read it before
+running anything.
 
 **What production runs**, read off the startup log and the Railway variables on
 2026-09-23:
