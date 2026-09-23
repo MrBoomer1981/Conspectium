@@ -54,6 +54,12 @@ _WORD_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
 
 _UNREADABLE = "[неразборчиво]"
 
+_HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
+# A line that continues the heading as a list is a list under a heading, which
+# is what rule 8 asks for. Only prose running on in lower case is the failure.
+_LIST_RE = re.compile(r"^([-*•]|\d+[.)])\s")
+_LETTER_RE = re.compile(r"[^\W\d_]", re.UNICODE)
+
 # Two attempts, one pause. Recognition takes three because a lost page costs
 # the whole album; here a lost call costs the markup of a record that is
 # delivered either way, so the second attempt is insurance against a 429 or a
@@ -77,6 +83,10 @@ class Composition:
     # does not carry is *requested* — a guard here would refuse by design.
     # Measure the size of the drift first; decide what to do about it on data.
     drift: int = 0
+    # Headings the stage wrote and the repair took back. Reported for the same
+    # reason drift is: it is the size of a liberty, and nobody has decided yet
+    # what a large number here should mean.
+    demoted: int = 0
     stats: list[CallStats] = field(default_factory=list)
 
 
@@ -110,6 +120,63 @@ def _refusal(source: str, composed: str) -> str | None:
     if len(composed) < len(source) * _MIN_LENGTH_RATIO:
         return "too short"
     return None
+
+
+def _invented_heading(text: str, following: str) -> bool:
+    """Is this heading a section the page had, or one the composer decided on?
+
+    Three shapes, all of them found in the corpus before this existed. A
+    heading with no letters in it ("4.") is a number the composer promoted and
+    a topic nobody can search by. One that does not start with a word or a
+    number started as a formula line. And one whose next line of prose begins
+    in lower case is the first half of a sentence — the composer itself writes
+    that content correctly elsewhere, as a bold term and a colon, which is how
+    we know it is the markup and not the page that is wrong.
+    """
+    bare = text.replace("*", "").replace("_", "").strip()
+    if not _LETTER_RE.search(bare):
+        return True
+    if not bare[0].isalnum():
+        return True
+    if not following or following.startswith("#") or _LIST_RE.match(following):
+        return False
+    first = _LETTER_RE.search(following)
+    # The letter has to be the first thing on the line: "**Принцип**: если мы"
+    # opens with markup and is a sentence of its own, not a continuation.
+    return (
+        first is not None
+        and first.group().islower()
+        and following[: first.start()].strip("*_ ") == ""
+    )
+
+
+def _demote_invented_headings(composed: str) -> tuple[str, int]:
+    """Take the marker off every heading that is not one, and count them.
+
+    A repair rather than a refusal, and that is the whole decision here. One
+    invented heading in a document with ten good ones would cost all ten if it
+    refused, and the corpus says the ratio is about one in ten (11 headings of
+    111 on 2026-09-23). What is removed is markup the stage added; every word
+    stays on its line, so the numbers, the marks and the length the guards
+    below compare are untouched by construction.
+
+    It matters more than a tidy document: topics are read off headings, so an
+    invented section becomes a word the corpus is searched by — the one part
+    of the pipeline that interprets, feeding the part that has to be literal.
+    """
+    lines = composed.split("\n")
+    demoted = 0
+    for index, line in enumerate(lines):
+        found = _HEADING_RE.match(line)
+        if not found:
+            continue
+        following = next(
+            (later.strip() for later in lines[index + 1:] if later.strip()), ""
+        )
+        if _invented_heading(found.group(2), following):
+            lines[index] = found.group(2)  # the words stay, the marker goes
+            demoted += 1
+    return "\n".join(lines), demoted
 
 
 async def _one_call(markdown: str) -> tuple[str | None, CallStats, bool]:
@@ -202,16 +269,21 @@ async def compose(markdown: str) -> Composition:
     if composed is None:
         return Composition(markdown, refused="call failed", stats=all_stats)
 
+    # Before the guards, so that what they checked is what gets stored.
+    composed, demoted = _demote_invented_headings(composed)
     refused = _refusal(markdown, composed)
     drift = _drift(markdown, composed)
     logger.info(
-        "compose: %s, %d -> %d chars, word drift %d, model %s",
+        "compose: %s, %d -> %d chars, word drift %d, %d headings demoted, model %s",
         f"refused ({refused})" if refused else "accepted",
         len(markdown),
         len(composed),
         drift,
+        demoted,
         settings.COMPOSE_MODEL,
     )
     if refused:
-        return Composition(markdown, refused=refused, drift=drift, stats=all_stats)
-    return Composition(composed, drift=drift, stats=all_stats)
+        return Composition(
+            markdown, refused=refused, drift=drift, demoted=demoted, stats=all_stats
+        )
+    return Composition(composed, drift=drift, demoted=demoted, stats=all_stats)

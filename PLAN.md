@@ -66,13 +66,15 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 
 - [x] 27. Stage two waits on a ceiling of its own, and a 503 earns a second
       call — a page's timeout was being applied to a call over the whole record
+- [x] 28. A heading that is half a sentence is not a heading: the composer's
+      invented sections are taken back by code, so they stop becoming topics
 
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-27
+Done: 1-28
 Current task: none
 Next task: none
 Blockers: none
@@ -223,17 +225,31 @@ measured 43 s for three pages, and the stage makes a second call on a 429, a
 the same minutes buys the same answer and doubles the window a deploy can
 cancel the record in. Both attempts are written to `ai_calls`.
 
-### Known and unfixed in the composer
+### Fixed since: the sections the composer invented
 
 `prompts-compose-v2.md` on `gemini-3.8-flash` **over-structures**: it split
 `Спектры атомов (полосочки) для каждого атома уникальны` — one sentence — into
-a `##` heading and a body line. Rule 1 says a section heading and the model is
-deciding what a section is, which is interpretation, on a page it cannot see.
-No guard in `compose._refusal` looks for it; it is checkable by eye.
+a `##` heading and a body line, and promoted a line of body text
+(`$10^{-7}$ м и меньше — НАЧИНАЕТСЯ КВАНТОВАЯ МЕХАНИКА`) to a section of its
+own. Topics come from headings, so an invented section is an invented topic —
+a handle the corpus is searched by, produced by the one stage in the pipeline
+that interprets.
 
-That now costs more than it did when it was written down. Topics come from
-headings, so **an invented section is an invented topic** — a handle the corpus
-is searched by, produced by the one stage in the pipeline that interprets.
+`compose._demote_invented_headings` takes the marker off three shapes and
+leaves every word in place: no letters in the heading, a heading that does not
+open with a word or a number, and prose below it that begins in lower case.
+Measured over every record in production on 2026-09-23 it takes **11 headings
+of 111**, and the eleven are the cases named by hand in CLAUDE.md and here,
+plus `## 4.` from note 27, which normalised to the topic "4".
+
+It repairs rather than refuses because a refusal costs the whole composition —
+note 36 had two invented headings among nine good ones — and because what it
+removes is markup the stage added, never a word. `compose_demoted` in the
+`note_processed` payload is how often it fires.
+
+What is still not watched: a heading invented in a *shape* none of the three
+rules describe — a plausible two-word section the page never had. Nothing in
+code can see that one, and it stays a thing to check by eye.
 
 And it is expensive: 15079 thinking tokens for 593 of output, 41 seconds and
 $0.0298 on one album — more than all nine recognition calls of the same album

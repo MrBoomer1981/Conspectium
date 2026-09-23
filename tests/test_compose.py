@@ -359,6 +359,143 @@ async def test_a_failed_call_is_still_written_to_the_spend_log(monkeypatch):
     assert [s.kind for s in result.stats] == ["compose"]
 
 
+# ── a heading the page did not have ──────────────────────────────────────────
+
+
+async def _composing(monkeypatch, source: str, answer: str):
+    """Stage two over a source of the test's own choosing."""
+    monkeypatch.setattr(compose.settings, "COMPOSE_ENABLED", True)
+    monkeypatch.setattr(vision, "_client", _fake_client(_answering(answer)))
+    return await compose.compose(source)
+
+
+async def test_a_heading_that_is_half_a_sentence_loses_its_marker(monkeypatch):
+    """The failure this was built for, from notes 34 and 36: one sentence —
+    "Спектры атомов (полосочки) для каждого атома уникальны" — cut into a
+    section and a body line, which then became a topic the corpus is searched
+    by."""
+    source = "Спектры атомов (полосочки)\nдля каждого атома уникальны\n"
+    answer = "## Спектры атомов (полосочки)\n\nдля каждого атома уникальны\n"
+
+    result = await _composing(monkeypatch, source, answer)
+
+    assert result.demoted == 1
+    assert result.refused is None
+    assert "#" not in result.markdown
+    # Not a word was touched; only the marker went.
+    assert "Спектры атомов (полосочки)" in result.markdown
+    assert "для каждого атома уникальны" in result.markdown
+
+
+async def test_a_heading_with_no_letters_in_it_is_not_a_heading(monkeypatch):
+    # Note 27 carried "## 4.", which normalises to the topic "4".
+    source = "4.\nОбъединение множеств $A$ и $B$ состоит из элементов.\n"
+    answer = "## 4.\n\n**Объединение множеств $A$ и $B$** состоит из элементов.\n"
+
+    result = await _composing(monkeypatch, source, answer)
+
+    assert result.demoted == 1
+    assert result.markdown.startswith("4.")
+
+
+async def test_a_formula_line_promoted_to_a_heading_is_taken_back(monkeypatch):
+    # Note 36: body text in every earlier record of the same album, a section
+    # heading in this one, and a topic beginning "и меньше".
+    source = "$10^{-7}$ м и меньше — НАЧИНАЕТСЯ КВАНТОВАЯ МЕХАНИКА\nволновая функция\n"
+    answer = (
+        "# $10^{-7}$ м и меньше — НАЧИНАЕТСЯ КВАНТОВАЯ МЕХАНИКА\n\n"
+        "- **волновая функция**\n"
+    )
+
+    result = await _composing(monkeypatch, source, answer)
+
+    assert result.demoted == 1
+    assert not result.markdown.startswith("#")
+
+
+async def test_a_real_heading_keeps_the_maths_inside_it(monkeypatch):
+    """Note 37's headings are nine and ten words long because most of each one
+    is a formula. A rule that counted words would take them, which is why none
+    of the three counts words."""
+    source = (
+        "Матрица смежности $|V| * |V| = p * p$\n"
+        "Если существует ребро $(v_i, v_j)$ то $a_{ij} = 1$.\n"
+    )
+    answer = (
+        "## Матрица смежности $|V| * |V| = p * p$\n\n"
+        "Если существует ребро $(v_i, v_j)$ то $a_{ij} = 1$.\n"
+    )
+
+    result = await _composing(monkeypatch, source, answer)
+
+    assert result.demoted == 0
+    assert result.markdown.startswith("## Матрица смежности")
+
+
+async def test_a_list_under_a_heading_is_not_a_sentence_running_on(monkeypatch):
+    # Note 36 has exactly this, and it is what rule 8 asks the stage to do.
+    source = "Атомистические представления\nтеория из древней Греции\n"
+    answer = "## Атомистические представления\n\n- теория из древней Греции\n"
+
+    result = await _composing(monkeypatch, source, answer)
+
+    assert result.demoted == 0
+
+
+async def test_a_numbered_heading_survives(monkeypatch):
+    # "5. Отображение" is how the page itself numbers its sections.
+    source = "5. Отображение\nОтображение $\\varphi$ из множества $A$ в $B$.\n"
+    answer = "## 5. Отображение\n\nОтображение $\\varphi$ из множества $A$ в $B$.\n"
+
+    result = await _composing(monkeypatch, source, answer)
+
+    assert result.demoted == 0
+
+
+async def test_a_bold_term_below_a_heading_is_a_sentence_of_its_own(monkeypatch):
+    """The composer's own correct treatment of the content it splits elsewhere:
+    a bold term and a colon. The line opens with markup, so the test looks at
+    the first letter rather than the first character."""
+    source = "Модель атома Бора\nПринцип неопред. Гейзинга: если мы знаем.\n"
+    answer = (
+        "## Модель атома Бора\n\n"
+        "**Принцип неопред. Гейзинга**: если мы знаем.\n"
+    )
+
+    result = await _composing(monkeypatch, source, answer)
+
+    assert result.demoted == 0
+    assert result.markdown.startswith("## Модель атома Бора")
+
+
+async def test_a_demoted_heading_changes_no_word_and_no_number(monkeypatch):
+    """The repair is allowed to run before the guards precisely because it
+    cannot move anything they check."""
+    source = "Длина 0,75\nпри n = 12 всегда\n"
+    answer = "## Длина 0,75\n\nпри n = 12 всегда\n"
+
+    result = await _composing(monkeypatch, source, answer)
+
+    assert result.demoted == 1
+    assert result.refused is None
+    assert result.drift == 0
+    assert compose._numbers(result.markdown) == compose._numbers(source)
+
+
+def test_demotion_counts_only_what_it_took():
+    text = (
+        "# Дискретная математика\n\n"
+        "## Спектры атомов\n\nдля каждого атома уникальны\n\n"
+        "## Матрица смежности\n\nЕсли существует ребро, то $a_{ij} = 1$.\n"
+    )
+
+    repaired, demoted = compose._demote_invented_headings(text)
+
+    assert demoted == 1
+    assert repaired.count("\n## ") == 1
+    assert repaired.startswith("# Дискретная математика")
+
+
 # ── the ceiling, and the attempt after the first ─────────────────────────────
 
 

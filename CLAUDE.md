@@ -601,6 +601,33 @@ How long that call may take, and the one case where a second one is not made,
 are in "Concurrency ceilings" — the stage has its own ceiling because it is one
 call over the whole record rather than one call over a page.
 
+**One thing the stage produces is repaired rather than refused: a heading that
+is not one.** Rule 1 asks for a section heading and the model decides what a
+section is — interpretation, on a page it cannot see — and since topics are
+read off headings, an invented section becomes a word the corpus is searched
+by. `_demote_invented_headings` takes the marker off three shapes and leaves
+every word where it was: a heading with no letters in it (`## 4.`, which
+normalises to the topic "4"), one that does not start with a word or a number
+(a formula line promoted), and one whose next line of prose begins in lower
+case, which makes the heading the first half of a sentence. Measured against
+the whole corpus the day it was written, it takes **11 headings of 111**, and
+each one is a case this file or `PLAN.md` had already named by hand.
+
+A repair and not a guard, deliberately, and it is the one place the stage's
+output is edited rather than accepted or rejected. A refusal costs the whole
+composition — note 36 had two invented headings among nine good ones — and
+what the repair removes is markup this stage itself added, never a word, so
+the numbers, the marks and the length the guards compare cannot move. It runs
+**before** `_refusal` so that what was checked is what is stored. The count
+goes to the log and into `note_processed` as `compose_demoted`, beside the
+word drift, because nobody has yet decided what a large number there means.
+
+The split it catches is not a judgement call: the composer writes the same
+content correctly elsewhere in the same corpus — `**Принцип неопред.
+Гейзинга**: если мы знаем…` as a bold term and a colon in one record, and as
+a heading with the sentence running on below it in another. The page did not
+change; the markup did.
+
 Word drift is **measured and not refused on**, deliberately. Rule 6 of
 `prompts-compose-v1.md` asks for `### Определение` over a definition, so the
 stage is *required* to write a word the page does not carry; a word guard would
@@ -1038,7 +1065,7 @@ needs a database runs on in-memory SQLite.
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the one rule in photoguard this project has edited: a line height that could not be measured is not a small one |
-| `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, and which failures earn a second call |
+| `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, and which headings are taken back |
 | `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses, graphs read back from `[граф: ...]`, heading levels, callouts, and that nothing unreadable ever sinks the document |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
