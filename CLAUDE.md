@@ -371,6 +371,22 @@ a section is — interpretation, on a page it cannot see. It is the mild version
 of the failure this stage exists to avoid, it is checkable by eye, and no guard
 in `_refusal` looks for it.
 
+**A suspicion the arms left behind, deliberately not called a finding.** Across
+every album run on 22-23 September, mean `numeric_agreement` by prompt:
+
+| prompt | albums | mean of the means |
+|---|---|---:|
+| v4 | 0.846, 0.873 | 0.860 |
+| v5 | 0.889, 0.980, 1.000, 0.894 | **0.941** |
+
+Every v5 album scored above every v4 album, and the 0.08 gap is three times the
+0.027 the instrument wobbles by at rest. That is the shape of a real effect —
+and it is four observations against two, on one album of one subject, with one
+v5 page scored on two runs instead of three, which makes agreement easier. **It
+is a reason to run two more v4 albums, not a reason to believe v5 reads
+better.** Whoever picks this up: the arms are paused here on purpose, not
+finished.
+
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a
 discrepancy that didn't exist, duplicated it three times, and found none
