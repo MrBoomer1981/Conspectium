@@ -270,6 +270,55 @@ is quieter here, 0.005 between the two, which matches this file's earlier note
 that its mean reproduces to a thousandth. The two numbers do not have the same
 noise floor, and the noisier one is the one the arms are compared on.
 
+**Arm C was run, and the second stage accepted the text without composing
+it.** Same album again, `prompts-v5.md` and `COMPOSE_ENABLED=true` confirmed in
+the startup log, `compose_refused` null and `composed` true in the event. The
+guards passed it because there was nothing for them to object to:
+
+```
+compose: accepted, 1536 -> 1538 chars, word drift 0
+```
+
+Two characters on fifteen hundred and a word multiset that did not move is the
+signature of a stage that returned its input. The record it produced carries
+*less* markup than the one-stage record of the same album:
+
+| | headings | bold | display formulas |
+|---|---:|---:|---:|
+| arm A/B — v4, one stage | 7 | 1 | 5 |
+| arm C — v5 + compose | **2** | **0** | **2** |
+
+v5 did its half correctly: flat text is what it is for. Nothing lifted it back.
+So arm C says nothing about the two-stage architecture yet — it measured a
+composer that did not compose.
+
+On reading, arm C is inside the noise: mean `numeric_agreement` 0.889 against
+arm B's 0.873, a difference of 0.016 where two runs of one configuration
+differed by 0.027. `text_agreement` fell 0.974 → 0.922, which is the confound and not a
+finding — v5 changes the shape of the text and `compare_text` measures shape.
+
+**The diagnosis is the prompt's own shape, and it is the finding worth
+keeping.** Of ten rules in `prompts-compose-v1.md`, **eight are
+prohibitions** — don't change a number, don't fill in the mark, don't add
+words, don't touch the author's mistake, don't make a list of an ordinary
+phrase, leave this verbatim, keep that. Two say what to do. A model told eight
+times to change nothing satisfies all eight most safely by returning the input,
+which is exactly what the log shows.
+
+What makes that fixable rather than a dilemma: **the code already guards those
+prohibitions.** Numbers, `[неразборчиво]`, and length are `_refusal`'s job, and
+a rule the code enforces need not also occupy the prompt. This is the same
+economy as the recognition prompt — every extra rule steals attention from the
+main task — except here the main task is markup, and v1 barely spoke about it.
+`prompts-compose-v2.md` inverts the ratio: seven rules about what to do, one
+worked example, and only the three prohibitions nothing in code watches — don't
+write your own text, don't change words, leave `[граф: ...]` alone.
+
+**The next measurement is the same three markup counts on the same album.** If
+the headings are still 2, the prompt was not the cause and the next suspect is
+`COMPOSE_MODEL`, which is `gemini-3.5-flash-lite` — the weakest model in the
+system doing the job that was supposed to justify a second call.
+
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a
 discrepancy that didn't exist, duplicated it three times, and found none
@@ -819,6 +868,7 @@ prompts-v3.md        TRANSCRIBE_PROMPT, read from disk at import
 prompts-v4.md        the longer variant under test, behind PROMPT_FILE
 prompts-v5.md        extraction only — no rule about how a page should look
 prompts-compose-v1.md  stage two: markup over text already trusted
+prompts-compose-v2.md  the same job, said as instructions rather than bans
 ```
 
 The prompt files hold the recognition prompt as plain text. `vision.py`
