@@ -113,6 +113,103 @@ async def test_a_page_carries_both_agreements_off_the_consensus(monkeypatch):
     assert page.numeric_agreement == 0.60
 
 
+async def _page_from(monkeypatch, **result_fields):
+    """One page through process_page with a consensus of the test's choosing."""
+    monkeypatch.setattr(
+        albums.photoguard, "check_photo_bytes", lambda data: _frame_ok()
+    )
+    fields = {
+        "best": _transcription(
+            markdown=(
+                "Сумма степеней вершин связного графа равна удвоенному "
+                "числу его рёбер."
+            )
+        ),
+        "text_agreement": 0.99,
+        "numeric_agreement": 0.99,
+        "numeric_divergences": [],
+        "verdict": "clean",
+        **result_fields,
+    }
+
+    async def _runs(data):
+        return vision.TranscriptionResult(**fields), []
+
+    monkeypatch.setattr(albums.vision, "transcribe_consensus", _runs)
+    return await albums.process_page(_page_input(1), 1)
+
+
+async def test_runs_that_diverged_keep_the_page_and_mark_it(monkeypatch):
+    """The correction of 2026-09-23. A "rejected" band used to drop the page,
+    and the album with it — while the author, looking at the photographs behind
+    those refusals, said the text on them was perfectly legible. What the band
+    measures is the shape the runs gave the page, not whether they read it."""
+    page = await _page_from(monkeypatch, text_agreement=0.195, verdict="rejected")
+
+    assert page.ok  # not a skip any more
+    assert page.unverified_reason == texts.UNVERIFIED_DIVERGED
+    assert page.verdict == "needs_review"
+
+
+async def test_a_page_read_by_one_run_is_kept_and_says_so(monkeypatch):
+    # Agreement is a comparison; one reading has nothing to be compared with.
+    page = await _page_from(
+        monkeypatch,
+        text_agreement=None,
+        numeric_agreement=None,
+        verdict="needs_review",
+    )
+
+    assert page.ok
+    assert page.unverified_reason == texts.UNVERIFIED_ONE_RUN
+    assert page.text_agreement is None
+
+
+async def test_a_page_that_read_well_is_not_marked(monkeypatch):
+    page = await _page_from(monkeypatch)
+
+    assert page.unverified_reason is None
+    assert page.verdict == "clean"
+
+
+async def test_an_empty_page_is_still_dropped(monkeypatch):
+    # Three reasons remain to drop a page, and this is one of them: there is
+    # no text to keep.
+    page = await _page_from(monkeypatch, best=_transcription(markdown="—"))
+
+    assert page.skip_reason == texts.SKIP_NO_TEXT
+
+
+async def test_the_unverified_pages_reach_the_record(monkeypatch):
+    record = albums._assemble(
+        [
+            _page(1),
+            _page(2, verdict="needs_review", unverified_reason=texts.UNVERIFIED_ONE_RUN),
+        ],
+        [],
+    )
+
+    assert record.unverified_pages == [
+        {"page": 2, "reason": texts.UNVERIFIED_ONE_RUN}
+    ]
+    assert record.status == "needs_review"
+
+
+def test_an_album_agreement_ignores_a_page_that_has_none():
+    """A page read by a single run contributes no agreement, and the album's
+    number is the worst of those that do — not None, and not a zero."""
+    record = albums._assemble(
+        [
+            _page(1, text_agreement=0.95, numeric_agreement=0.90),
+            _page(2, text_agreement=None, numeric_agreement=None),
+        ],
+        [],
+    )
+
+    assert record.text_agreement == 0.95
+    assert record.numeric_agreement == 0.90
+
+
 async def test_a_matrix_contradicting_its_graph_sends_the_page_for_review(
     monkeypatch,
 ):

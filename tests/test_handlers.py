@@ -265,7 +265,9 @@ def _skipped(number: int, reason: str, line_height: float = 12.0) -> albums.Page
 
 
 def _record(
-    page_count: int, missing_pages: list[int] | None = None
+    page_count: int,
+    missing_pages: list[int] | None = None,
+    unverified_pages: list[dict] | None = None,
 ) -> albums.AssembledRecord:
     return albums.AssembledRecord(
         title="Теорема Кантора",
@@ -286,6 +288,7 @@ def _record(
         photo_contrast=0.8,
         page_count=page_count,
         missing_pages=missing_pages or [],
+        unverified_pages=unverified_pages or [],
     )
 
 
@@ -579,7 +582,9 @@ def _verdict_ok():
     )
 
 
-async def _run_photo(session, monkeypatch, composition, composed=None):
+async def _run_photo(
+    session, monkeypatch, composition, composed=None, **result_fields
+):
     """handle_photo with everything outside this test's subject stubbed out.
 
     The album harness above cannot cover the photo path: they are two separate
@@ -598,17 +603,17 @@ async def _run_photo(session, monkeypatch, composition, composed=None):
         unreadable_count=0,
     )
 
+    fields = {
+        "best": transcription,
+        "text_agreement": 0.95,
+        "numeric_agreement": 0.62,
+        "numeric_divergences": [],
+        "verdict": "clean",
+        **result_fields,
+    }
+
     async def fake_consensus(image_bytes):
-        return (
-            vision.TranscriptionResult(
-                best=transcription,
-                text_agreement=0.95,
-                numeric_agreement=0.62,
-                numeric_divergences=[],
-                verdict="clean",
-            ),
-            [],
-        )
+        return vision.TranscriptionResult(**fields), []
 
     async def fake_compose(markdown):
         if composed is not None:
@@ -630,6 +635,54 @@ async def _run_photo(session, monkeypatch, composition, composed=None):
     albums.reset()
     await handlers.handle_photo(_PhotoMessage(None, message_id=21), session, user, _FastBot())
     return transcription
+
+
+async def test_a_single_photo_whose_runs_diverged_is_saved_and_marked(
+    session, monkeypatch
+):
+    """It used to answer "переснимите" and keep nothing. The pages behind those
+    refusals carried legible text, and what the band measures is the shape the
+    runs gave the page rather than whether they could read it."""
+    message = _PhotoMessage(None, message_id=21)
+    await _run_photo(
+        session,
+        monkeypatch,
+        compose.Composition(_PHOTO_MD),
+        text_agreement=0.19,
+        verdict="rejected",
+    )
+
+    note = (await session.execute(select(Note))).scalars().one()
+
+    assert note.status == "needs_review"
+    assert note.unverified_pages == [
+        {"page": 1, "reason": texts.UNVERIFIED_DIVERGED}
+    ]
+
+
+async def test_a_single_photo_read_by_one_run_says_so(session, monkeypatch):
+    await _run_photo(
+        session,
+        monkeypatch,
+        compose.Composition(_PHOTO_MD),
+        text_agreement=None,
+        numeric_agreement=None,
+        verdict="needs_review",
+    )
+
+    note = (await session.execute(select(Note))).scalars().one()
+
+    assert note.unverified_pages == [{"page": 1, "reason": texts.UNVERIFIED_ONE_RUN}]
+    assert note.text_agreement is None
+
+
+async def test_a_photo_that_read_well_is_not_marked(session, monkeypatch):
+    await _run_photo(session, monkeypatch, compose.Composition(_PHOTO_MD))
+
+    note = (await session.execute(select(Note))).scalars().one()
+
+    assert note.unverified_pages == []
+    assert note.status == "ready"
 
 
 async def test_a_single_photo_stores_the_composed_text(session, monkeypatch):

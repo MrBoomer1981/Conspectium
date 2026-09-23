@@ -127,14 +127,27 @@ async def handle_photo(
     await vision.log_ai_calls(user.id, stats)  # always — the tokens were spent
 
     if result is None:
+        # Not one run came back readable: there is nothing to keep.
         await message.answer(texts.ERROR_GENERIC)
-        return
-    if result.verdict == "rejected":
-        await message.answer(texts.REJECTED_QUALITY)
         return
     if len(result.best.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
         await message.answer(texts.NO_TEXT_FOUND)
         return
+
+    # Disagreement between the runs used to end the photo here. It does not
+    # any more: the pages behind those refusals carried legible text, and what
+    # the disagreement measured was the shape the runs gave the page. The
+    # record is saved and says which page nobody could confirm.
+    unverified: list[dict] = []
+    if result.text_agreement is None:
+        unverified = [{"page": 1, "reason": texts.UNVERIFIED_ONE_RUN}]
+    elif result.verdict == "rejected":
+        unverified = [{"page": 1, "reason": texts.UNVERIFIED_DIVERGED}]
+        logger.warning(
+            "photo kept unverified: text_agreement %.3f", result.text_agreement
+        )
+    if unverified:
+        result.verdict = "needs_review"
 
     # Step 12: deterministic arithmetic check, no model call. mathcheck compares
     # physical constants against a reference table and checks that chains of
@@ -193,6 +206,7 @@ async def handle_photo(
         issues=[asdict(i) for i in report.issues],
         numeric_divergences=[asdict(d) for d in result.numeric_divergences],
         unreadable_count=result.best.unreadable_count,
+        unverified_pages=unverified,
         text_agreement=result.text_agreement,
         numeric_agreement=result.numeric_agreement,
         photo_sharpness=photo_verdict.sharpness,
@@ -247,6 +261,13 @@ async def handle_photo(
         lines = [texts.UNCERTAIN_HEADER]
         lines += [texts.uncertain_line(u.text, u.why) for u in result.best.uncertain]
         flags.append("\n".join(lines))
+    if unverified:
+        flags.append(
+            "\n".join(
+                [texts.UNVERIFIED_HEADER]
+                + [texts.unverified_line(u["page"], u["reason"]) for u in unverified]
+            )
+        )
 
     # The generic line only when there is nothing specific to say: above a list
     # of what actually diverged it repeats that list's own heading.
@@ -451,6 +472,7 @@ async def _process_album(
         numeric_divergences=rec.numeric_divergences,
         unreadable_count=rec.unreadable_count,
         missing_pages=rec.missing_pages,
+        unverified_pages=rec.unverified_pages,
         text_agreement=rec.text_agreement,
         numeric_agreement=rec.numeric_agreement,
         photo_sharpness=rec.photo_sharpness,
@@ -509,6 +531,16 @@ async def _process_album(
             for u in rec.uncertain
         ]
         flags.append("\n".join(lines))
+    if rec.unverified_pages:
+        flags.append(
+            "\n".join(
+                [texts.UNVERIFIED_HEADER]
+                + [
+                    texts.unverified_line(u["page"], u["reason"])
+                    for u in rec.unverified_pages
+                ]
+            )
+        )
     if outcome.skips:
         flags.append(
             texts.album_partial(

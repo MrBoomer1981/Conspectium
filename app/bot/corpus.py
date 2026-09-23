@@ -110,6 +110,18 @@ def _callouts(note: Note) -> list[pdf.Callout]:
     if divergences:
         boxes.append(pdf.Callout(texts.CALLOUT_DIVERGENCES, divergences))
 
+    if note.unverified_pages:
+        boxes.append(
+            pdf.Callout(
+                texts.CALLOUT_UNVERIFIED,
+                [
+                    texts.unverified_line(u["page"], u["reason"])
+                    for u in note.unverified_pages
+                ],
+                "warning",
+            )
+        )
+
     # First of the boxes by importance, last to be appended only because the
     # order here is the order they were built in. A hole is the one flag that
     # is about the record rather than about its text: the marker stands where

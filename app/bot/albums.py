@@ -196,6 +196,11 @@ class PageResult:
     page: int
     stats: list[CallStats]
     skip_reason: str | None = None
+    # Set when the page is in the record but nothing confirmed its reading:
+    # the runs disagreed badly, or only one came back. A skip and this are
+    # different answers to the same doubt — one throws the page away, the
+    # other keeps it and says so.
+    unverified_reason: str | None = None
     transcription: Transcription | None = None
     report: mathcheck.Report | None = None
     verdict: str | None = None
@@ -278,18 +283,36 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
 
     result, stats = await vision.transcribe_consensus(page_input.data)
     if result is None:
+        # Not one run came back readable: there is no text to keep.
         return refused(texts.SKIP_UNRECOGNIZED, stats)
-    if result.verdict == "rejected":
-        return refused(texts.SKIP_DIVERGED, stats)
     if len(result.best.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
         return refused(texts.SKIP_NO_TEXT, stats)
+
+    # A page is dropped for the frame, for nothing parsed, and for no text —
+    # and for nothing else. Disagreement between the runs used to drop it too,
+    # and the photographs behind those refusals turned out to carry perfectly
+    # legible text: what the disagreement measured was how the runs laid the
+    # page out, not whether they could read it. The page is kept and marked.
+    unverified = None
+    if result.text_agreement is None:
+        unverified = texts.UNVERIFIED_ONE_RUN
+    elif result.verdict == "rejected":
+        unverified = texts.UNVERIFIED_DIVERGED
+        logger.warning(
+            "album page %d kept unverified: text_agreement %.3f",
+            page,
+            result.text_agreement,
+        )
 
     report = mathcheck.Report(
         issues=mathcheck.check(result.best.markdown).issues
         + graphcheck.check(result.best.markdown)
     )
+    # Two things lower a verdict here and nothing raises one: a page nobody
+    # could check, and a critical arithmetic finding. "rejected" arrives as
+    # one of the first, because that band no longer removes anything.
     verdict = result.verdict
-    if verdict == "clean" and any(i.severity == "critical" for i in report.issues):
+    if unverified or any(i.severity == "critical" for i in report.issues):
         verdict = "needs_review"
 
     return PageResult(
@@ -298,6 +321,7 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
         transcription=result.best,
         report=report,
         verdict=verdict,
+        unverified_reason=unverified,
         text_agreement=result.text_agreement,
         numeric_agreement=result.numeric_agreement,
         numeric_divergences=result.numeric_divergences,
@@ -331,6 +355,8 @@ class AssembledRecord:
     # marker where each of them would have been; this is what the callout and
     # the chat message are built from, so neither counts anything of its own.
     missing_pages: list[int]
+    # The pages that are in the record with nothing to confirm their reading.
+    unverified_pages: list[dict]
 
 
 @dataclass
@@ -443,14 +469,21 @@ def _assemble(
             for note in p.transcription.margin_notes
         ],
         unreadable_count=sum(p.transcription.unreadable_count for p in pages_ok),
-        text_agreement=min(p.text_agreement for p in pages_ok),
-        numeric_agreement=min(p.numeric_agreement for p in pages_ok),
+        # None-tolerant now: a page read by a single run has no agreement to
+        # contribute, and the album's number is the worst of those that do.
+        text_agreement=_min_metric(pages_ok, "text_agreement"),
+        numeric_agreement=_min_metric(pages_ok, "numeric_agreement"),
         photo_sharpness=_min_metric(pages_ok, "photo_sharpness"),
         photo_line_height=_min_metric(pages_ok, "photo_line_height"),
         photo_paper_fraction=_min_metric(pages_ok, "photo_paper_fraction"),
         photo_contrast=_min_metric(pages_ok, "photo_contrast"),
         page_count=len(pages_ok),
         missing_pages=[p.page for p in skips],
+        unverified_pages=[
+            {"page": p.page, "reason": p.unverified_reason}
+            for p in pages_ok
+            if p.unverified_reason
+        ],
     )
 
 

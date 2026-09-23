@@ -378,6 +378,53 @@ async def _stub_runs(monkeypatch, markdowns: list[str]) -> None:
     monkeypatch.setattr(vision.settings, "VISION_RUNS", len(markdowns))
 
 
+async def _stub_partial_runs(monkeypatch, outcomes: list[str | None]) -> None:
+    """Some runs come back readable, some do not."""
+    remaining = list(outcomes)
+
+    async def fake_transcribe(image_bytes, model):
+        markdown = remaining.pop(0)
+        return (_transcription(markdown) if markdown else None), []
+
+    monkeypatch.setattr(vision, "transcribe", fake_transcribe)
+    monkeypatch.setattr(vision.settings, "VISION_RUNS", len(outcomes))
+
+
+async def test_one_readable_run_is_kept_and_says_it_was_not_checked(monkeypatch):
+    """One run is not a consensus and is not nothing either. Dropping it cost
+    the page, and a page used to cost the album — while the text on it was
+    perfectly legible."""
+    await _stub_partial_runs(monkeypatch, ["Степень вершины равна 5", None, None])
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert result.best.markdown == "Степень вершины равна 5"
+    assert result.text_agreement is None  # a comparison needs two of something
+    assert result.numeric_agreement is None
+    assert result.numeric_divergences == []
+    assert result.verdict == "needs_review"
+
+
+async def test_no_readable_run_is_still_nothing(monkeypatch):
+    await _stub_partial_runs(monkeypatch, [None, None, None])
+
+    result, stats = await vision.transcribe_consensus(b"x")
+
+    assert result is None
+
+
+async def test_two_readable_runs_are_compared_as_before(monkeypatch):
+    await _stub_partial_runs(
+        monkeypatch, ["Степень вершины равна 5", "Степень вершины равна 5", None]
+    )
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert result.text_agreement == 1.0
+
+
 async def test_consensus_does_not_report_alignment_noise(monkeypatch):
     # The third run drops the list numbering the other two kept. Nothing here
     # is a misreading, so nothing should reach the user.

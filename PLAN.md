@@ -77,26 +77,28 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
       what shape came back
 - [x] 31. An album with an unreadable page is delivered with the hole named in
       the document; only an album with nothing read asks to be taken again
-- [ ] 32. `photoguard._line_height` calibrated against real pages, so a large
+- [x] 32. A legible page is not dropped: disagreement between the runs marks
+      it instead, and one readable run is enough to keep it
+- [ ] 33. `photoguard._line_height` calibrated against real pages, so a large
       hand stops being read as small text
 
 **Phase B — the ideal record:**
 
-- [ ] 33. Stage three: hard passages explained and implied context restored,
+- [ ] 34. Stage three: hard passages explained and implied context restored,
       over the trusted text, with `google_search` and sources that are
       required rather than decorative
-- [ ] 34. The explanation as a marked box in the PDF, with its sources, never
+- [ ] 35. The explanation as a marked box in the PDF, with its sources, never
       in the body of the record
-- [ ] 35. A PDF that never prints raw LaTeX: `cases`, matrix environments and
+- [ ] 36. A PDF that never prints raw LaTeX: `cases`, matrix environments and
       whatever else mathtext refuses
 
 **Phase C — the group:**
 
-- [ ] 36. `groups` and `notes.group_id`: the bot lives in a course chat and a
+- [ ] 37. `groups` and `notes.group_id`: the bot lives in a course chat and a
       record belongs to the chat
-- [ ] 37. The tag question rebound to its record — the stateless trick does not
+- [ ] 38. The tag question rebound to its record — the stateless trick does not
       survive several people answering in one chat
-- [ ] 38. Limits and spend counted per group; the scale-debt rows that come due
+- [ ] 39. Limits and spend counted per group; the scale-debt rows that come due
       with a second person in the chat
 
 ## State
@@ -104,9 +106,9 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-31
+Done: 1-32
 Current task: none
-Next task: 32
+Next task: 33
 Blockers: none
 ```
 
@@ -591,8 +593,8 @@ question comes up while working on a task, the answer is here.
  7. three recognition runs (vision.transcribe_consensus)
  8. record spend (vision.log_ai_calls)                ← always, own session
  9. result is None                                    ← texts.ERROR_GENERIC, exit
-10. verdict == "rejected"                              ← texts.REJECTED_QUALITY, exit
-11. markdown shorter than MIN_MARKDOWN_LEN             ← texts.NO_TEXT_FOUND, exit
+ 10. markdown shorter than MIN_MARKDOWN_LEN            ← texts.NO_TEXT_FOUND, exit
+10a. verdict == "rejected", or one run only           ← kept, marked unverified
 12. check calculations (mathcheck.check, graphcheck.check)
 12a. limits again (pages=0), then stage two (compose.compose)  ← refused: the text from step 7
 13. save the Note
@@ -693,7 +695,8 @@ Live in `app/bot/texts.py`, in Russian.
 | `START` | the `/start` command |
 | `PROCESSING` | step 6: frame accepted, recognition starting |
 | `NO_TEXT_FOUND` | markdown shorter than `MIN_MARKDOWN_LEN` |
-| `REJECTED_QUALITY` | `verdict == "rejected"`; for an album — if no page passed |
+| `UNVERIFIED_HEADER` | the page is in the record and nothing confirmed its reading |
+| `ALBUM_INCOMPLETE` | an album where not one page was read |
 | `NEEDS_REVIEW` | `verdict == "needs_review"` |
 | `DIVERGENCES_HEADER` | header for the list of numeric discrepancies |
 | `UNCERTAIN_HEADER` | header for the list of uncertain spots |
@@ -1233,7 +1236,7 @@ Verdict boundaries, non-overlapping:
 |---|---|---|
 | `>= 0.90` | `clean` | accept, show numeric discrepancies |
 | `>= 0.70` and `< 0.90` | `needs_review` | accept, flag the whole record |
-| `< 0.70` | `rejected` | don't save, `texts.REJECTED_QUALITY` |
+| `< 0.70` | `rejected` | save, marked "прочитано без сверки" (task 32) |
 
 **Never splice pieces from different runs together.** You'd end up with
 text that no single model output produced, and the calculation check on
@@ -1253,8 +1256,8 @@ longer now. A second `log_ai_calls` call doesn't appear anywhere.
 7.  result, stats = await transcribe_consensus(compressed)
 8.  await log_ai_calls(user.id, stats)               # always
 9.  result is None                          -> texts.ERROR_GENERIC, exit
-10. result.verdict == "rejected"            -> texts.REJECTED_QUALITY, exit
-11. markdown shorter than MIN_MARKDOWN_LEN  -> texts.NO_TEXT_FOUND, exit
+10. markdown shorter than MIN_MARKDOWN_LEN  -> texts.NO_TEXT_FOUND, exit
+    (task 32: "rejected" no longer exits — the page is kept and marked)
 ```
 
 The length check moves to `result.best.markdown` and happens **after**

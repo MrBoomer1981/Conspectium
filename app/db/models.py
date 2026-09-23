@@ -91,6 +91,11 @@ class Note(Base):
     # now the record is delivered with the hole named in it, and the document
     # and the chat both read this column rather than counting anything.
     missing_pages: Mapped[list] = mapped_column(JSONB, server_default="[]")
+    # Pages that are in the record but were not confirmed by a second reading:
+    # the runs disagreed badly, or only one of them came back. They used to be
+    # dropped, which cost the page and often the album, while the text on them
+    # was legible. [{"page": n, "reason": "..."}]
+    unverified_pages: Mapped[list] = mapped_column(JSONB, server_default="[]")
     text_agreement: Mapped[float | None] = mapped_column(Float)
     numeric_agreement: Mapped[float | None] = mapped_column(Float)
     # The subject the user answered with when the bot asked, stored without

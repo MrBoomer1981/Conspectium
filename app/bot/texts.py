@@ -32,11 +32,6 @@ LIMIT_COST = (
 
 LIMIT_PAGES = "На сегодня лимит страниц исчерпан. Вернись завтра — счётчик обнулится."
 
-REJECTED_QUALITY = (
-    "Прогоны распознавания сильно разошлись — фото нечёткое или снято "
-    "издалека. Переснимите одну страницу крупным планом."
-)
-
 NEEDS_REVIEW = "Прогоны распознавания местами разошлись — перепроверьте текст."
 
 DIVERGENCES_HEADER = "Числа, прочитанные по-разному в разных прогонах:"
@@ -50,6 +45,7 @@ CALLOUT_MATH = "Проверка вычислений"
 CALLOUT_DIVERGENCES = "Числа прочитаны по-разному"
 CALLOUT_UNCERTAIN = "Спорные места"
 CALLOUT_MISSING = "Не хватает страниц"
+CALLOUT_UNVERIFIED = "Прочитано без сверки"
 
 
 def remark_label(page: int | None = None) -> str:
@@ -127,6 +123,9 @@ TOO_MANY_PAGES = (
 # Why a single album page was dropped while the rest of the batch went on.
 SKIP_UNRECOGNIZED = "не удалось распознать"
 SKIP_DIVERGED = "прогоны распознавания разошлись"
+# Not a skip: the page is in the record, and this says why to look at it.
+UNVERIFIED_DIVERGED = "прогоны распознавания сильно разошлись"
+UNVERIFIED_ONE_RUN = "прочитана одним прогоном, сверить было не с чем"
 SKIP_NO_TEXT = "на странице не найдено текста"
 SKIP_ERROR = "ошибка обработки"
 
@@ -174,6 +173,15 @@ def page_missing_marker(page: int) -> str:
     lecture.
     """
     return f"**[Страница {page} не прочитана]**"
+
+
+UNVERIFIED_HEADER = "Эти страницы стоит сверить с оригиналом:"
+
+
+def unverified_line(page: int, reason: str) -> str:
+    """One line of the box naming a page that is in the record but was not
+    confirmed by a second reading."""
+    return f"Страница {page}: {reason}."
 
 
 def missing_pages_line(page: int, reason: str) -> str:

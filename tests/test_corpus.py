@@ -136,6 +136,22 @@ async def test_a_record_with_every_page_says_nothing_about_pages(session):
     assert texts.CALLOUT_MISSING not in [b.title for b in corpus._callouts(note)]
 
 
+async def test_a_page_nobody_could_check_gets_its_own_box(session):
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        status="needs_review",
+        unverified_pages=[{"page": 3, "reason": texts.UNVERIFIED_DIVERGED}],
+    )
+
+    boxes = corpus._callouts(note)
+
+    assert [b.title for b in boxes] == [texts.CALLOUT_UNVERIFIED]
+    assert "Страница 3" in boxes[0].lines[0]
+    assert texts.UNVERIFIED_DIVERGED in boxes[0].lines[0]
+
+
 async def test_needs_review_becomes_a_warning_box(session):
     user = await _user(session)
     note = await _note(session, user, status="needs_review")

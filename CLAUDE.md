@@ -378,8 +378,31 @@ to get wrong:
 
 **`verdict` and `status` are different vocabularies.** `verdict` belongs to
 the pipeline and is `clean | needs_review | rejected`; `Note.status` is
-stored and is only `ready | needs_review`. A `rejected` verdict exits at
-step 10 and never reaches the database.
+stored and is only `ready | needs_review`.
+
+**A `rejected` verdict no longer removes anything.** It used to exit the
+pipeline and never reach the database, and that rule was checked against the
+photographs it was refusing: the text on them is perfectly legible. What
+`text_agreement` measures is the shape the runs gave the page, and
+`prompts-v5.md` deliberately leaves that shape free — so the band was reading
+layout and calling it illegibility, at the price of the page and, until the
+rule above changed, the album with it. The page is kept, its verdict becomes
+`needs_review`, and `notes.unverified_pages` names it as read without a
+second opinion. The same for a page only one run came back for:
+`transcribe_consensus` returns that single reading with both agreements
+`None` instead of returning nothing, because a comparison needs two of
+something and one reading is not nothing.
+
+A page is now dropped for three reasons and no others: the **frame** was
+refused, **not one run** parsed, or there is **no text** on it. Those are the
+cases where asking for the photograph again is the only useful answer.
+
+What this trades away should be said plainly, because it was bought with a
+reproduced failure: the band was the second line of defence against a page
+photographed from across the room coming back as a fluent retelling. The first
+line is `photoguard`, which runs before the model and must never be bypassed,
+and it is the one to strengthen — see `PLAN.md` task 33. A retelling now
+reaches the corpus wearing "прочитано без сверки" instead of being refused.
 
 Two findings downgrade `clean` → `needs_review`, both one way only. A critical
 `mathcheck` issue does it in the handlers — a warning is shown but leaves the
@@ -419,6 +442,11 @@ markdown rather than from the model's own `numeric_tokens`, for the reason
 this file distrusts every self-report. A vouched page is **saved and flagged**,
 never lifted to `clean`: the runs did disagree about something, and the reader
 should hear about it.
+
+Since a `rejected` band stopped dropping pages, this decides something
+narrower and still worth having: whether the page is *flagged* as unread-by-a
+-second-opinion. Numbers that vouch make it an ordinary `needs_review` page;
+numbers that do not put it in `unverified_pages` and in a box of its own.
 
 What this does *not* weaken is the failure the band exists for. A page
 photographed from across the room comes back as three different retellings,
@@ -1122,7 +1150,7 @@ needs a database runs on in-memory SQLite.
 | `test_limits.py` | `check_limits` / `consume` — the money-critical path |
 | `test_reliability.py` | retry classification, one owner per album batch, spend surviving a rollback |
 | `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, and what an unparseable answer says and earns |
-| `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, `process_batch` survivor logic |
+| `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, the three reasons a page is dropped and the two that only mark it, `process_batch` survivor logic |
 | `test_docx.py` | heading styles to markdown, title derivation |
 | `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
 | `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |

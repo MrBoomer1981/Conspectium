@@ -123,13 +123,16 @@ class TranscriptionResult:
     Not frozen: task 7 may downgrade `verdict` after the arithmetic check."""
 
     best: Transcription
-    text_agreement: float  # 0..1
+    # None when there was only one run to read: agreement is a comparison, and
+    # one reading has nothing to be compared with. The page is kept and marked
+    # rather than thrown away — see transcribe_consensus.
+    text_agreement: float | None  # 0..1
     # The two agreements answer different questions and neither stands in for
     # the other: text_agreement compares the markdown, so it moves when a
     # prompt changes how a page is laid out; this one compares the numbers,
     # and a number has no layout. Stored rather than logged only, because
     # comparing two prompts should be a query and Railway's logs roll off.
-    numeric_agreement: float  # 0..1
+    numeric_agreement: float | None  # 0..1
     numeric_divergences: list  # consensus.Divergence objects
     verdict: str  # "clean" | "needs_review" | "rejected"
 
@@ -746,8 +749,31 @@ async def transcribe_consensus(
         if transcription is not None:
             ok_runs.append(transcription)
 
-    if len(ok_runs) < 2:
+    if not ok_runs:
         return None, all_stats
+
+    if len(ok_runs) == 1:
+        # One run is not a consensus, and it is not nothing either. Dropping it
+        # used to cost the page, and a page used to cost the album; the text is
+        # usually perfectly legible, which is what the author said looking at
+        # the photographs this rule threw away. So it is kept, its agreements
+        # are None because a comparison needs two of something, and the verdict
+        # says out loud that nobody checked it.
+        logger.info(
+            "consensus: 1/%d runs ok, nothing to compare, verdict=needs_review",
+            settings.VISION_RUNS,
+        )
+        only = ok_runs[0]
+        return (
+            TranscriptionResult(
+                best=replace(only, uncertain=meaningful_uncertain(only.uncertain)),
+                text_agreement=None,
+                numeric_agreement=None,
+                numeric_divergences=[],
+                verdict="needs_review",
+            ),
+            all_stats,
+        )
 
     markdowns = [t.markdown for t in ok_runs]
     text_agreement = consensus.compare_text(markdowns).similarity
