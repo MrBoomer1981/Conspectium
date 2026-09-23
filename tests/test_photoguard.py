@@ -1,11 +1,17 @@
-"""The one rule in photoguard this project has edited.
+"""The two rules in photoguard this project has edited.
 
 The module is otherwise imported and called, never touched, and it arrived
-with its own tests that did not come with it. What is covered here is the
-change and its neighbourhood: `_line_height` returns 0.0 when it could not
-measure at all — a page of two lines of large writing, a sparse page, a page
-that is mostly a drawing — and that used to be read as a measurement of a very
-small line. A page written large was refused as a page written small.
+with its own tests that did not come with it. What is covered here is the two
+changes and their neighbourhood.
+
+The first: `_line_height` returns 0.0 when it could not measure at all — and
+that used to be read as a measurement of a very small line, so a page written
+large was refused as a page written small.
+
+The second: how it measures at all. The tests below build pages whose line
+pitch is known by construction and check the measurement against it, because
+that is the only way to tell a working estimator from one that returns a
+number.
 
 Reproduced on the deployed bot, three times with byte-identical numbers:
 
@@ -32,6 +38,46 @@ def _page(stroke: int = 11, pitch: int = 45, lines: int = 20) -> Image.Image:
         top = 120 + i * pitch
         array[top : top + stroke, 90:1000] = 40
     return Image.fromarray(array, mode="L")
+
+
+def _written_page(
+    pitch: int, lines: int, drawing: bool = False, ink: int = 60, paper: int = 235
+) -> Image.Image:
+    """A page of handwriting with a **known** line pitch.
+
+    Ragged strokes rather than solid bars: a bar of constant width is read by
+    any profile, and the estimator has to survive a line that starts and ends
+    where the hand happened to stop.
+    """
+    from PIL import ImageDraw, ImageFilter
+
+    rng = np.random.default_rng(7)
+    image = Image.new("L", (1200, 1500), paper)
+    draw = ImageDraw.Draw(image)
+    for index in range(lines):
+        top = 80 + index * pitch
+        if top + pitch > 1440:
+            break
+        left = 90
+        while left < 1080:
+            width = int(rng.integers(pitch // 3, pitch))
+            draw.line(
+                [(left, top + pitch // 2), (left + width, top + int(rng.integers(0, pitch // 2)))],
+                fill=ink,
+                width=max(2, pitch // 10),
+            )
+            left += width + max(3, pitch // 6)
+    if drawing:
+        draw.ellipse([340, 980, 860, 1440], outline=ink, width=4)
+        draw.line([340, 1210, 860, 1210], fill=ink, width=4)
+    return image.filter(ImageFilter.GaussianBlur(1.0))
+
+
+def _measured(image: Image.Image) -> float:
+    """What _line_height says about the paper region of this page."""
+    gray = np.asarray(image.convert("L"), dtype=np.float32)
+    top, left, bottom, right = photoguard._paper_box(gray)
+    return photoguard._line_height(gray[top:bottom, left:right])
 
 
 def _verdict(monkeypatch, line_height, image=None) -> photoguard.PhotoVerdict:
@@ -151,3 +197,74 @@ def test_check_photo_bytes_is_the_entry_point_the_bot_uses():
     verdict = photoguard.check_photo_bytes(buffer.getvalue())
 
     assert isinstance(verdict, photoguard.PhotoVerdict)
+
+
+# ── how it measures, against a pitch that is known by construction ───────────
+
+
+@pytest.mark.parametrize("pitch", [28, 40, 55, 120, 220])
+def test_the_measured_pitch_is_the_pitch_that_was_drawn(pitch):
+    """The claim the rewrite stands on. The old estimator answered 0.0 to every
+    one of these: it thresholded ink at the 35th percentile of brightness,
+    which on a page that is 5% ink lands on the paper, so the mask covered the
+    whole sheet and the profile came out flat."""
+    measured = _measured(_written_page(pitch=pitch, lines=1400 // pitch))
+
+    assert measured == pytest.approx(pitch, rel=0.05)
+
+
+def test_a_drawing_no_longer_stretches_the_measurement():
+    """Height-over-count measures the page, not the line: a drawing or an empty
+    margin inflates it by however large it is. On a page with a drawing the
+    mean and the median ran 2.5 to 16 times apart, which is what the median is
+    for."""
+    measured = _measured(_written_page(pitch=120, lines=7, drawing=True))
+
+    assert measured == pytest.approx(120, rel=0.05)
+
+
+def test_pale_ink_and_a_dark_photograph_are_measured_the_same():
+    # Otsu finds the valley between paper and ink wherever the two sit on the
+    # scale; a rank threshold moves with how much ink the page carries.
+    pale = _measured(_written_page(pitch=55, lines=22, ink=150, paper=225))
+    dark = _measured(_written_page(pitch=55, lines=22, ink=20, paper=90))
+
+    assert pale == pytest.approx(55, rel=0.05)
+    assert dark == pytest.approx(55, rel=0.05)
+
+
+def test_a_page_written_large_is_measured_rather_than_refused():
+    """Five lines on a sheet used to be fewer than the three the old estimator
+    demanded — no, fewer than it could resolve — and a page written large is
+    exactly the page that carries few lines."""
+    measured = _measured(_written_page(pitch=220, lines=5))
+
+    assert measured > photoguard.MIN_LINE_HEIGHT_PX
+
+
+def test_a_single_line_answers_with_its_own_height():
+    """Not the sentinel: one band cannot give a pitch, but its own height is a
+    lower bound on one, and a lower bound is what the threshold wants."""
+    measured = _measured(_written_page(pitch=260, lines=1))
+
+    assert measured > photoguard.MIN_LINE_HEIGHT_PX
+
+
+def test_a_blank_page_is_still_unmeasured():
+    assert _measured(_written_page(pitch=55, lines=0)) == (
+        photoguard.UNMEASURED_LINE_HEIGHT
+    )
+
+
+def test_text_too_small_to_read_is_still_refused():
+    """The rewrite must not cost the check its job: this is the page the whole
+    module exists for, photographed from too far away."""
+    # Darker ink than the other pages here, so that contrast — which is
+    # checked first — passes and the line-height rule is the one deciding.
+    verdict = photoguard._check(
+        _written_page(pitch=15, lines=90, ink=10, paper=250)
+    )
+
+    assert verdict.line_height_px < photoguard.MIN_LINE_HEIGHT_PX
+    assert verdict.ok is False
+    assert "мелкий" in verdict.reason

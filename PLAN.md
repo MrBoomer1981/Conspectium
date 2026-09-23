@@ -83,8 +83,9 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
       instead of coming out as two halves with a rule between them
 - [x] 34. A PDF that does not print raw LaTeX where `\substack` can draw it:
       `cases`, every matrix environment, `aligned`, `array`
-- [ ] 35. `photoguard._line_height` calibrated against real pages, so a large
-      hand stops being read as small text
+- [x] 35. `photoguard._line_height` rewritten against pages of known pitch:
+      Otsu instead of a rank, the median gap between bands instead of the page
+      height over a count, and no three-line minimum
 
 **Phase B — the ideal record:**
 
@@ -115,9 +116,9 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-34
+Done: 1-35
 Current task: none
-Next task: 35
+Next task: 36
 Blockers: none
 ```
 
@@ -2170,14 +2171,19 @@ lands *in the paper*, the mask takes 97-99% of the sheet, and the profile it
 builds is paper texture rather than lines. Fewer than three transitions
 follow, and the function returns its sentinel.
 
-Half of this is fixed. The sentinel is no longer read as a verdict — see
-CLAUDE.md → Ready-made modules for the one exception made to the
-"import and call" rule, and why. **The measurement is not fixed**: on a page
-with a drawing the band heights run 2.5x to 16x apart between their mean and
-their median, so if this is ever rewritten it takes the median, thresholds the
-ink by contrast rather than by rank, and drops the three-line minimum. The
-threshold `MIN_LINE_HEIGHT_PX` would move with it, and it cannot be chosen by
-reasoning — it needs a folder of real pages through `photoguard`'s own CLI.
+Both halves are fixed now. The sentinel stopped being read as a verdict first;
+the measurement was rewritten in task 35 along exactly the three lines this
+paragraph laid out — the median gap between bands of ink, Otsu instead of a
+rank, and no three-line minimum. It is checked against pages whose pitch is
+known by construction and lands within 5% from 28 px to 220 px, with a drawing
+on the page, on pale ink and on a dark photograph.
+
+`MIN_LINE_HEIGHT_PX` did **not** move, and that part of the paragraph still
+stands: 20 px is defensible reasoning rather than evidence, and settling it
+needs a folder of real pages through `photoguard`'s own CLI. The bench that
+replaced the measurement cannot replace that — a synthetic page says what the
+estimator measures, not what a student's handwriting looks like at arm's
+length.
 
 **A recognition run is sometimes lost to an answer that will not parse, and it
 is not our ceiling.** (Task 30 changed the second half of this: such a call is

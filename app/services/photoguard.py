@@ -23,6 +23,9 @@ from PIL import Image, ImageOps
 # ─── Пороги. Подбираются на своих данных, это разумные стартовые ───
 
 MIN_LINE_HEIGHT_PX = 20      # ниже — буквы мельче ~11 px, читать нечем
+# Единица не менялась при переписывании измерения: это по-прежнему шаг между
+# строками в пикселях сжатого кадра (IMAGE_MAX_SIDE). 20 px на странице в
+# 1500 px — это больше семидесяти строк на лист.
 # _line_height не всегда может измерить: у страницы с двумя строками крупной
 # формулы, у разреженной страницы, у страницы с рисунком профиль не даёт того,
 # что можно посчитать. Функция говорит об этом этим значением — и это
@@ -91,30 +94,87 @@ def _paper_box(gray: np.ndarray) -> tuple[int, int, int, int]:
     return int(rows[0]), int(cols[0]), int(rows[-1]) + 1, int(cols[-1]) + 1
 
 
-def _line_height(region: np.ndarray) -> float:
-    """Оценить высоту строки по горизонтальному профилю тёмных пикселей.
+# Доля ширины листа, которую строка обязана закрасить, чтобы считаться
+# строкой. Доля *кадра*, а не доля пикселей: порог по рангу уезжает вместе с
+# тем, сколько чернил на странице, а этот — нет. 0.02 выбрана прогоном по
+# страницам с известным шагом строк, от 28 px до 260.
+_LINE_ROW_SHARE = 0.02
+# Строка тоньше двух строк пикселей — это крапина, а не строка.
+_MIN_BAND_PX = 2
 
-    Строки текста дают чередование «есть чернила / нет чернил».
-    Считаем переходы — получаем число строк, делим высоту.
+
+def _ink_threshold(region: np.ndarray) -> float:
+    """Граница между бумагой и чернилами — метод Оцу, по гистограмме.
+
+    Порог по рангу («35-й перцентиль — это чернила») предполагает, что
+    чернила занимают треть страницы. На настоящей странице их около 5%, так
+    что порог садился на бумагу, маска захватывала весь лист, профиль
+    выходил плоским — и функция отвечала «не измерено» почти всегда. Оцу
+    ищет впадину между двумя горбами яркости и не знает заранее, какой из
+    них больше.
+    """
+    hist = np.histogram(region, bins=256, range=(0, 256))[0]
+    total = hist.sum()
+    if total == 0:
+        return 0.0
+    weight = np.cumsum(hist)
+    moment = np.cumsum(hist * np.arange(256))
+    usable = (weight > 0) & (total - weight > 0)
+    if not usable.any():
+        return 0.0
+    dark = weight[usable]
+    light = total - dark
+    between = dark * light * (moment[usable] / dark - (moment[-1] - moment[usable]) / light) ** 2
+    return float(np.arange(256)[usable][int(np.argmax(between))])
+
+
+def _ink_bands(active: np.ndarray) -> list[tuple[int, int]]:
+    """Полосы подряд идущих строк с чернилами — по одной на строку текста."""
+    found: list[tuple[int, int]] = []
+    start: int | None = None
+    for row, on in enumerate(active):
+        if on and start is None:
+            start = row
+        elif not on and start is not None:
+            found.append((start, row))
+            start = None
+    if start is not None:
+        found.append((start, len(active)))
+    return [band for band in found if band[1] - band[0] >= _MIN_BAND_PX]
+
+
+def _line_height(region: np.ndarray) -> float:
+    """Шаг между строками: медиана расстояний между полосами чернил.
+
+    Раньше считалось иначе — высота листа, делённая на число найденных
+    строк. Это меряет не строку, а страницу: один рисунок или пустое поле
+    внизу растягивают ответ во столько раз, во сколько они велики, и на
+    странице с рисунком среднее расходилось с медианой в 2.5-16 раз.
+    Медиана расстояний между соседними полосами не знает ни про поля, ни про
+    рисунок — она про то, как часто автор переносит руку на новую строку.
+
+    Ушёл и минимум в три строки: страница, написанная крупно, несёт их
+    меньше — и отбраковывалась как мелкий текст, ровно наоборот смыслу
+    проверки. Одна полоса теперь отвечает своей высотой: это заведомо не
+    больше шага, то есть оценка снизу, а проверка ищет как раз нижнюю
+    границу.
+
+    UNMEASURED_LINE_HEIGHT остаётся ответом на «полос нет вовсе» — пустая
+    страница или кадр, где чернил не видно.
     """
     if region.size == 0:
-        return 0.0
-    thr = np.percentile(region, 35)
-    ink = (region <= thr).sum(axis=1).astype(np.float32)
-    if ink.max() == 0:
-        return 0.0
-    ink = ink / ink.max()
-    # сглаживание, чтобы не считать шум за строки
-    k = np.ones(3) / 3
-    ink = np.convolve(ink, k, mode="same")
-    active = ink > ink.mean()
-    transitions = int(np.count_nonzero(active[1:] != active[:-1]))
-    n_lines = transitions // 2
-    if n_lines < 3:
-        # Строк не видно вовсе — либо это не текст, либо он слишком мелкий,
-        # чтобы дать различимый профиль. И то и другое = кадр не годится.
-        return 0.0
-    return float(region.shape[0] / n_lines)
+        return UNMEASURED_LINE_HEIGHT
+    ink = region <= _ink_threshold(region)
+    per_row = ink.sum(axis=1)
+    if per_row.max() == 0:
+        return UNMEASURED_LINE_HEIGHT
+    bands = _ink_bands(per_row > max(1.0, _LINE_ROW_SHARE * region.shape[1]))
+    if not bands:
+        return UNMEASURED_LINE_HEIGHT
+    if len(bands) == 1:
+        return float(bands[0][1] - bands[0][0])
+    centres = np.array([(top + bottom) / 2 for top, bottom in bands])
+    return float(np.median(np.diff(centres)))
 
 
 def check_photo(path: str) -> PhotoVerdict:

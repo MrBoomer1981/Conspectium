@@ -947,26 +947,46 @@ than different readings of one; and an identical line is printed once, since
 two cells of a matrix read "6 against 2" are indistinguishable in a message
 that never carries the position.
 
-**A second one is reported and not worked around: `photoguard._line_height`
-reads a large hand as small text.** It estimates the line pitch as the height
-of the paper region divided by the number of lines it detects, and if it
-detects fewer than three it returns **0.0** — below any threshold, printing
-"Текст мелкий — снимите одну страницу крупным планом". The larger the
-handwriting, the fewer lines a page carries, so a large hand sits *closer* to
-that cliff than a small one and the message it produces is exactly backwards.
-Reproduced on the deployed bot: a close-up of a page written large, refused as
-small text, and — since a record is all its pages or none — the whole
-three-page album lost with it.
+**The second exception is the same function, measured rather than argued.**
+`photoguard._line_height` estimated the pitch as the height of the paper region
+divided by the number of lines it detected, and returned **0.0** below three
+lines — so a large hand, which carries few lines, sat nearer that cliff than a
+small one and was refused as "Текст мелкий". The sentinel half was fixed
+first; the measurement itself is what this second edit replaces, and the
+replacement was chosen against pages whose pitch is known by construction
+rather than against anybody's impression of a photograph.
 
-Not fixed here, because these modules are only imported and called. What was
-built instead is the evidence: `albums.process_page` keeps all four frame
-metrics on every skip, logs a refusal against its thresholds, and the
-`album_incomplete` event carries the numbers per page. Before that the album
-was the one path where a page could be turned away leaving nothing but a
-Russian sentence to argue with, while a single photo wrote all four to
-`photo_rejected`.
+What the bench showed first is that the old estimator could not measure an
+ordinary page **at all**: it thresholded ink at the 35th percentile of
+brightness, and a real page is about 5% ink, so the threshold landed on the
+paper, the mask covered the whole sheet, the profile came out flat and the
+answer was the sentinel. Every synthetic page — 28 px pitch to 260 — came back
+0.0.
 
-The same function has a second edge worth knowing: `_paper_box` thresholds at
+Three changes, and each one is a line of the recorded design: the ink
+threshold is **Otsu** rather than a rank, so it finds the valley between paper
+and ink wherever those two sit on the scale; the pitch is the **median
+distance between bands of ink**, so a drawing or an empty margin no longer
+stretches it — that was the 2.5-to-16-fold spread between mean and median on a
+page with a drawing; and the **three-line minimum is gone**, with a single band
+answering with its own height, which is a lower bound on a pitch and therefore
+the right kind of answer for a threshold that looks for one. Measured against
+known pitches the estimator now lands within 5% from 28 px to 220 px, on pale
+ink, on a dark photograph and with a drawing on the page.
+
+`MIN_LINE_HEIGHT_PX` did not move and its unit did not change: it is still the
+pitch in pixels of the compressed frame. It is also still uncalibrated against
+real photographs — 20 px on a 1500 px page means seventy lines to a sheet,
+which is defensible and is not evidence. The module's own CLI over a folder of
+real pages is what would settle it.
+
+The evidence path built for this stands and is what a future calibration reads:
+`albums.process_page` keeps all four frame metrics on every skip, logs a
+refusal against its thresholds, and the `album_incomplete` event carries the
+numbers per page.
+
+**`_paper_box` is untouched and still has its edge**, which is the boundary of
+this exception: `_paper_box` thresholds at
 `0.82 x percentile99`, so a bright highlight raises the percentile, the mask
 shrinks to the glare, `paper_fraction` collapses into "подойдите ближе", and
 every metric after it is measured on the glare instead of the page. And all
@@ -1192,7 +1212,7 @@ needs a database runs on in-memory SQLite.
 | `test_tags.py` | what a #tag normalizes to, what counts as one, and which topics a record yields |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
-| `test_photoguard.py` | the one rule in photoguard this project has edited: a line height that could not be measured is not a small one |
+| `test_photoguard.py` | the two rules in photoguard this project has edited: a line height that could not be measured is not a small one, and what the measurement answers on pages whose pitch is known by construction |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, and which headings are taken back |
 | `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses, graphs read back from `[граф: ...]`, heading levels, callouts, and that nothing unreadable ever sinks the document |
 
