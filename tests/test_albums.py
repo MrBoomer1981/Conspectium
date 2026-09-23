@@ -293,13 +293,100 @@ def test_subject_is_none_when_no_page_has_one():
 def test_pages_are_joined_by_a_horizontal_rule():
     record = albums._assemble(
         [
-            _page(1, transcription=_transcription(markdown="первая")),
-            _page(2, transcription=_transcription(markdown="вторая")),
+            _page(1, transcription=_transcription(markdown="Первая страница.")),
+            _page(2, transcription=_transcription(markdown="Вторая страница.")),
         ],
         [],
     )
     # Whole runs are concatenated, never spliced.
-    assert record.markdown == "первая\n\n---\n\nвторая"
+    assert record.markdown == "Первая страница.\n\n---\n\nВторая страница."
+
+
+# ── the seam: a sentence that ran over the edge of the page ──────────────────
+
+
+def _joined(first: str, second: str) -> str:
+    return albums._assemble(
+        [
+            _page(1, transcription=_transcription(markdown=first)),
+            _page(2, transcription=_transcription(markdown=second)),
+        ],
+        [],
+    ).markdown
+
+
+def test_a_sentence_broken_by_the_page_edge_is_put_back_together():
+    """From the record of 2026-09-23: "Если граф ориентирован, то ребро" and
+    "учитывается один раз" came out as two halves with a horizontal line
+    between them, which is what made the document read as broken."""
+    markdown = _joined(
+        "### Доказательство\n\nЕсли граф ориентирован, то ребро",
+        "учитывается один раз как исходящее, другой как входящее.",
+    )
+
+    assert "---" not in markdown
+    assert "то ребро учитывается один раз" in markdown
+
+
+def test_a_finished_sentence_keeps_its_page_break():
+    markdown = _joined("Степень вершины равна 5.", "она же число рёбер.")
+
+    assert "---" in markdown
+
+
+def test_a_new_sentence_keeps_its_page_break():
+    markdown = _joined("Степень вершины равна", "Число рёбер равно четырём.")
+
+    assert "---" in markdown
+
+
+def test_a_table_is_never_joined_to_the_next_page():
+    # Joining two things that were not one sentence is worse than the seam.
+    markdown = _joined(
+        "| 1 | 2 |\n|---|---|\n| 0 | 1 |", "продолжение таблицы на следующей"
+    )
+
+    assert "\n\n---\n\n" in markdown
+
+
+def test_a_list_is_never_joined_to_the_next_page():
+    markdown = _joined("Свойства:\n\n- первое свойство", "второе свойство")
+
+    assert "\n\n---\n\n" in markdown
+
+
+def test_a_formula_is_never_joined_to_the_next_page():
+    markdown = _joined("$$\n\\sum_{i=1}^{p} \\rho(v_i) = 2q\n$$", "четная сумма")
+
+    assert "\n\n---\n\n" in markdown
+
+
+def test_a_page_that_could_not_be_read_is_never_joined():
+    record = albums._assemble(
+        [
+            _page(1, transcription=_transcription(markdown="и тогда ребро")),
+            _page(3, transcription=_transcription(markdown="считается дважды.")),
+        ],
+        [albums.PageResult(2, [], skip_reason=texts.SKIP_UNRECOGNIZED)],
+    )
+
+    # The marker stands between them, so neither half joins across the hole.
+    assert record.markdown.count("---") == 2
+    assert texts.page_missing_marker(2) in record.markdown
+
+
+def test_only_the_seam_that_continues_is_closed():
+    record = albums._assemble(
+        [
+            _page(1, transcription=_transcription(markdown="первое предложение,")),
+            _page(2, transcription=_transcription(markdown="которое продолжилось.")),
+            _page(3, transcription=_transcription(markdown="Новая страница.")),
+        ],
+        [],
+    )
+
+    assert record.markdown.count("---") == 1
+    assert "предложение, которое продолжилось." in record.markdown
 
 
 def test_page_count_counts_surviving_pages_only():

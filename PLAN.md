@@ -79,36 +79,45 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
       the document; only an album with nothing read asks to be taken again
 - [x] 32. A legible page is not dropped: disagreement between the runs marks
       it instead, and one readable run is enough to keep it
-- [ ] 33. `photoguard._line_height` calibrated against real pages, so a large
+- [x] 33. A sentence that ran over the edge of a page is put back together
+      instead of coming out as two halves with a rule between them
+- [ ] 34. A PDF that never prints raw LaTeX: `cases`, matrix environments and
+      whatever else mathtext refuses
+- [ ] 35. `photoguard._line_height` calibrated against real pages, so a large
       hand stops being read as small text
 
 **Phase B — the ideal record:**
 
-- [ ] 34. Stage three: hard passages explained and implied context restored,
+- [ ] 36. Stage three: hard passages explained and implied context restored,
       over the trusted text, with `google_search` and sources that are
       required rather than decorative
-- [ ] 35. The explanation as a marked box in the PDF, with its sources, never
+- [ ] 37. The explanation as a marked box in the PDF, with its sources, never
       in the body of the record
-- [ ] 36. A PDF that never prints raw LaTeX: `cases`, matrix environments and
-      whatever else mathtext refuses
 
 **Phase C — the group:**
 
-- [ ] 37. `groups` and `notes.group_id`: the bot lives in a course chat and a
+- [ ] 38. `groups` and `notes.group_id`: the bot lives in a course chat and a
       record belongs to the chat
-- [ ] 38. The tag question rebound to its record — the stateless trick does not
+- [ ] 39. The tag question rebound to its record — the stateless trick does not
       survive several people answering in one chat
-- [ ] 39. Limits and spend counted per group; the scale-debt rows that come due
+- [ ] 40. Limits and spend counted per group; the scale-debt rows that come due
       with a second person in the chat
+
+The order of 33-35 is the author's, made on three albums run through the
+deployed bot on 2026-09-23: the seam and the raw LaTeX were in the documents
+being read that evening, while the frame check refused nothing at all across
+twelve pages. Calibrating it is still worth doing — it is now the only guard
+left between a photograph taken from across the room and the corpus — but it
+was not what made those records read badly.
 
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-32
+Done: 1-33
 Current task: none
-Next task: 33
+Next task: 34
 Blockers: none
 ```
 

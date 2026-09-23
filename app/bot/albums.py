@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+import re
 import time
 from dataclasses import asdict, dataclass
 
@@ -487,10 +488,48 @@ def _assemble(
     )
 
 
+# A line that ends a sentence, and one that cannot continue somebody else's.
+_SENTENCE_END = ".!?:;…"
+# Prose, as opposed to everything the page break is allowed to interrupt: a
+# table row, a list item, a heading, a display formula, a drawing, a quote.
+_NOT_PROSE = ("|", "#", "-", "*", "•", ">", "$$", "[", "!")
+_LOWER_START = re.compile(r"^[^\W\dA-ZА-ЯЁ_]", re.UNICODE)
+
+
+def _is_prose(line: str) -> bool:
+    return bool(line) and not line.startswith(_NOT_PROSE)
+
+
+def _continues(before: str, after: str) -> bool:
+    """Does the next page finish a sentence this one began?
+
+    Pages are read one at a time and joined by a rule, so a sentence that ran
+    over the edge of the paper came out as two halves with a horizontal line
+    between them — "Если граф ориентирован, то ребро" / --- / "учитывается
+    один раз". Nothing downstream can repair that: the composing stage sees
+    the rule as the hard boundary it is, and by then it is right to.
+
+    The test is deliberately narrow, because joining two things that were not
+    one sentence is worse than the seam: both sides must be ordinary prose,
+    the first half must not end like a finished sentence, and the second must
+    begin in lower case.
+    """
+    last = next(
+        (line.strip() for line in reversed(before.splitlines()) if line.strip()), ""
+    )
+    first = next(
+        (line.strip() for line in after.splitlines() if line.strip()), ""
+    )
+    if not _is_prose(last) or not _is_prose(first):
+        return False
+    return last[-1] not in _SENTENCE_END and bool(_LOWER_START.match(first))
+
+
 def _markdown_with_holes(
     pages_ok: list[PageResult], skips: list[PageResult]
 ) -> str:
-    """The record, with a marker where each unread page would have been.
+    """The record, with a marker where each unread page would have been, and
+    with a sentence that ran over the edge of a page put back together.
 
     Ordered by page number over both lists at once, so a hole in the middle
     reads as a hole in the middle rather than as a note at the end.
@@ -498,7 +537,18 @@ def _markdown_with_holes(
     blocks = [(p.page, p.transcription.markdown) for p in pages_ok]
     blocks += [(p.page, texts.page_missing_marker(p.page)) for p in skips]
     blocks.sort(key=lambda block: block[0])
-    return "\n\n---\n\n".join(markdown for _, markdown in blocks)
+
+    out = ""
+    for index, (_, markdown) in enumerate(blocks):
+        if index == 0:
+            out = markdown
+        elif _continues(out, markdown):
+            # The rule goes with the seam: a horizontal line inside a sentence
+            # is exactly what made the record read as broken.
+            out = f"{out.rstrip()} {markdown.lstrip()}"
+        else:
+            out = f"{out}\n\n---\n\n{markdown}"
+    return out
 
 
 def _min_metric(pages_ok: list[PageResult], attr: str) -> float | None:

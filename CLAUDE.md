@@ -651,6 +651,23 @@ are not, and the four frame metrics of every skipped page ride the
 `note_processed` payload — that is now the only place they are kept, and they
 are the calibration data for the frame check.
 
+**A sentence that ran over the edge of a page is put back together, by code.**
+Pages are read one at a time and joined by a rule, so a sentence the author
+carried onto the next sheet came out as two halves with a horizontal line
+between them — "Если граф ориентирован, то ребро" / `---` / "учитывается один
+раз". Nothing downstream repairs that: the composing stage sees the rule as
+the hard boundary it is, and by then it is right to.
+
+`albums._continues` decides it deterministically and narrowly, because joining
+two things that were not one sentence is worse than the seam: both sides must
+be ordinary prose — not a table row, a list item, a heading, a display
+formula, a drawing or a missing-page marker — the first half must not end like
+a finished sentence, and the second must begin in lower case. When it fires,
+the page rule goes with the seam, because a horizontal line inside a sentence
+is exactly what made the record read as broken. Checked against the record
+that prompted it: the rule fires on that one seam and stays quiet on the other
+three of the same album.
+
 **A callout says what we already know, never what the model thinks.** The
 tinted boxes at the top of a record — needs review, arithmetic that doesn't
 add up, numbers the runs read differently, spots read two ways — are built by
