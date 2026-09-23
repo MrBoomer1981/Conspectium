@@ -950,6 +950,18 @@ chosen rather than stumbled into — the deploy log then carries a warning on
 every start. What still guards the spend in that state is
 `DAILY_PAGES_PER_USER` alone, so raising both at once leaves nothing.
 
+**That state was held for days and it is what the escape hatch costs.**
+`gemini-3.8-flash` ran unpriced from the model change until 2026-09-23, so
+every `ai_calls` row it wrote carries `cost_usd = NULL`, and no recomputation
+will recover them — the tokens are there, the price of the day is not. It is
+priced now at 0.375 in / 1.875 out per Mtok, which puts a three-page album at
+about **4.2 cents**: 14481 tokens in, 19807 out, and **two thirds of the bill
+is thinking**. At `DAILY_COST_LIMIT_USD=5` that is roughly 117 albums a day,
+so the cap is not binding at this volume — but it is a cap again, and the
+warning in the deploy log is gone. Turn `ALLOW_UNPRICED_MODEL` back off once
+a model is priced; left on, it is the one setting that disarms the next one
+silently.
+
 `COMPOSE_ENABLED` turns stage two on. Off by default, and `COMPOSE_MODEL` is
 priced by the same validator as `VISION_MODEL` — half the spend going out
 unpriced breaks the daily cap exactly as quietly as all of it.

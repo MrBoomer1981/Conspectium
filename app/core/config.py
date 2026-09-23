@@ -6,6 +6,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # (input, output) price in USD per million tokens.
 # A model missing from this dict means unknown cost, not an error.
 PRICE_PER_MTOK: dict[str, tuple[float, float]] = {
+    # The output rate is what the day's spend actually turns on: this model
+    # thinks about four times as long as it speaks, measured at 15778 thinking
+    # tokens against 4029 of answer over one three-page album, and thinking is
+    # billed as output. Roughly two thirds of an album's price is the part
+    # nobody could see until ai_calls.tokens_thought existed.
+    "gemini-3.8-flash": (0.375, 1.875),
     "gemini-3.5-flash-lite": (0.30, 2.50),
     # Retired: closed to new accounts since September 2026, kept for the
     # ai_calls rows already written against it and for any key that still

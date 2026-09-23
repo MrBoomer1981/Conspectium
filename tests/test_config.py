@@ -102,6 +102,22 @@ def test_the_current_model_is_priced_correctly():
     assert PRICE_PER_MTOK["gemini-3.5-flash-lite"] == (0.30, 2.50)
 
 
+def test_the_model_in_production_is_priced_correctly():
+    """Gemini 3.8 Flash: $0.375 in / $1.875 out per Mtok.
+
+    It ran unpriced for days, so every ai_calls row it wrote carries a NULL
+    cost and SUM skips NULL — DAILY_COST_LIMIT_USD was not a limit for the
+    whole of that time. Those rows stay NULL; this only fixes the ones from
+    here on.
+
+    The output rate is the one that matters, because four fifths of what this
+    model produces is thinking and thinking is billed as output. One
+    three-page album measures at 14481 tokens in and 19807 out, which is about
+    4.2 cents — two thirds of it thinking.
+    """
+    assert PRICE_PER_MTOK["gemini-3.8-flash"] == (0.375, 1.875)
+
+
 def test_the_retired_model_keeps_its_price():
     # ai_calls rows already reference it; dropping the entry would turn their
     # cost into NULL on any recomputation.
