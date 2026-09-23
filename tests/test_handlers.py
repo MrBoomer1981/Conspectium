@@ -13,7 +13,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.bot import albums, handlers, texts
 from app.services import compose, mathcheck, photoguard, vision
-from app.db.models import Base, Event, Note, User
+from app.db.models import Base, Event, Note, NoteTopic, User
 
 
 @pytest_asyncio.fixture
@@ -720,3 +720,47 @@ async def test_a_photo_record_stores_both_agreements(session, monkeypatch):
     note = (await session.execute(select(Note))).scalar_one()
     assert note.text_agreement == 0.95
     assert note.numeric_agreement == 0.62
+
+
+# ── the question that files a record ─────────────────────────────────────────
+
+# ask_for_tag is the last thing every capture path does, and it does two jobs:
+# it stores the topics the record can be found by, and it opens the question
+# whose answer the next "#word" is. Dropped from one of the two paths, records
+# taken that way would be findable by nothing and nothing would fail — the
+# same class of one-line omission the two paths have already paid for twice.
+
+
+async def test_a_photo_record_can_be_found_by_what_the_bot_read_off_it(
+    session, monkeypatch
+):
+    await _run_photo(session, monkeypatch, compose.Composition(_PHOTO_MD))
+
+    note = (await session.execute(select(Note))).scalar_one()
+    topics = (
+        await session.execute(
+            select(NoteTopic.topic).where(NoteTopic.note_id == note.id)
+        )
+    ).scalars().all()
+
+    assert topics  # at minimum the title, which every record has
+
+
+async def test_an_album_record_is_asked_which_subject_it_belongs_to(
+    session, monkeypatch
+):
+    message, _ = await _run_album(
+        session, monkeypatch, skips=[], pages_ok=[_ok_page(1)], record=_record(1)
+    )
+
+    note = (await session.execute(select(Note))).scalar_one()
+    topics = (
+        await session.execute(
+            select(NoteTopic.topic).where(NoteTopic.note_id == note.id)
+        )
+    ).scalars().all()
+
+    assert topics
+    # The question is last, so it is what the user is looking at when they
+    # reply — which is what makes the reply an answer and not a search.
+    assert "#" in message.replies[-1]

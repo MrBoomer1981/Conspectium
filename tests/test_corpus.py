@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.bot import corpus, texts
-from app.db.models import Base, Event, Note, User
+from app.db.models import Base, Event, Note, NoteTopic, User
 
 
 @pytest_asyncio.fixture
@@ -33,7 +33,8 @@ async def session():
 
 
 class _Message:
-    def __init__(self):
+    def __init__(self, text: str = ""):
+        self.text = text
         self.replies: list[str] = []
         self.documents: list[tuple[str, bytes, str | None]] = []
 
@@ -83,290 +84,7 @@ async def _events(session, type_: str) -> list[Event]:
     return list((await session.execute(stmt)).scalars().all())
 
 
-# ── argument parsing ─────────────────────────────────────────────────────────
-
-
-def test_page_defaults_to_one():
-    assert corpus._page_number(None) == 1
-    assert corpus._page_number("") == 1
-
-
-def test_page_is_parsed():
-    assert corpus._page_number("3") == 3
-    assert corpus._page_number("  2  ") == 2
-
-
-def test_a_nonsense_page_shows_the_first_one():
-    # A typo should show the first page, not an error message.
-    assert corpus._page_number("вторая") == 1
-    assert corpus._page_number("-4") == 1
-
-
-def test_note_id_is_parsed_with_or_without_a_hash():
-    assert corpus._note_id("42") == 42
-    assert corpus._note_id("#42") == 42
-    assert corpus._note_id(None) is None
-    assert corpus._note_id("сорок два") is None
-
-
-# ── /notes ───────────────────────────────────────────────────────────────────
-
-
-async def test_empty_corpus_invites_a_photo(session):
-    user = await _user(session)
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd(), session, user)
-
-    assert message.replies == [texts.CORPUS_EMPTY]
-
-
-async def test_records_are_listed_newest_first(session):
-    user = await _user(session)
-    now = datetime.now(timezone.utc)
-    await _note(session, user, title="Старая", created_at=now - timedelta(days=2))
-    await _note(session, user, title="Новая", created_at=now)
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd(), session, user)
-
-    body = message.replies[0]
-    assert body.index("Новая") < body.index("Старая")
-
-
-async def test_a_listed_record_shows_its_details(session):
-    user = await _user(session)
-    note = await _note(session, user, page_count=3)
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd(), session, user)
-
-    assert f"#{note.id}" in message.replies[0]
-    assert "Производная сложной функции" in message.replies[0]
-    assert "матан" in message.replies[0]
-    assert "3 с." in message.replies[0]
-
-
-async def test_a_record_needing_review_says_so(session):
-    user = await _user(session)
-    await _note(session, user, status="needs_review")
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd(), session, user)
-
-    assert texts.NEEDS_REVIEW_SHORT in message.replies[0]
-
-
-async def test_a_record_without_a_subject_has_no_empty_gap(session):
-    user = await _user(session)
-    await _note(session, user, subject=None)
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd(), session, user)
-
-    assert " ·  · " not in message.replies[0]
-
-
-async def test_a_full_page_offers_the_next_one(session):
-    user = await _user(session)
-    now = datetime.now(timezone.utc)
-    for i in range(15):
-        await _note(session, user, title=f"Запись {i}", created_at=now - timedelta(minutes=i))
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd(), session, user)
-
-    assert "/notes 2" in message.replies[0]
-    assert message.replies[0].count("#") == 10
-
-
-async def test_the_last_page_offers_nothing_further(session):
-    user = await _user(session)
-    now = datetime.now(timezone.utc)
-    for i in range(15):
-        await _note(session, user, created_at=now - timedelta(minutes=i))
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd("2"), session, user)
-
-    assert "/notes 3" not in message.replies[0]
-    assert message.replies[0].count("#") == 5
-
-
-async def test_a_page_past_the_end_says_so(session):
-    user = await _user(session)
-    await _note(session, user)
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd("9"), session, user)
-
-    assert message.replies == [texts.NOTES_PAGE_EMPTY]
-
-
-async def test_listing_only_shows_your_own_records(session):
-    mine = await _user(session, tg_id=1)
-    theirs = await _user(session, tg_id=2)
-    await _note(session, mine, title="Моя запись")
-    await _note(session, theirs, title="Чужая запись")
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd(), session, mine)
-
-    assert "Моя запись" in message.replies[0]
-    assert "Чужая запись" not in message.replies[0]
-
-
-async def test_listing_is_logged(session):
-    user = await _user(session)
-    await _note(session, user)
-
-    await corpus.cmd_notes(_Message(), _cmd(), session, user)
-
-    events = await _events(session, "corpus_listed")
-    assert events[0].payload == {"page": 1, "shown": 1}
-
-
-# ── /note ────────────────────────────────────────────────────────────────────
-
-
-async def test_note_without_an_id_explains_itself(session):
-    user = await _user(session)
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd(), session, user)
-
-    assert message.replies == [texts.NOTE_USAGE]
-
-
-async def test_a_missing_record_is_reported(session):
-    user = await _user(session)
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd("999"), session, user)
-
-    assert message.replies == [texts.NOTE_NOT_FOUND]
-
-
-async def test_someone_elses_record_looks_exactly_like_a_missing_one(session):
-    mine = await _user(session, tg_id=1)
-    theirs = await _user(session, tg_id=2)
-    foreign = await _note(session, theirs, title="Чужая запись")
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd(str(foreign.id)), session, mine)
-
-    # Same answer as for an id that was never used: confirming the record
-    # exists would leak the corpus of another user.
-    assert message.replies == [texts.NOTE_NOT_FOUND]
-
-
-async def test_opening_a_record_returns_its_text(session):
-    user = await _user(session)
-    note = await _note(session, user)
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd(str(note.id)), session, user)
-
-    assert "Производная сложной функции" in message.replies[0]
-    assert "Пусть дана функция f(g(x))." in message.replies[0]
-
-
-async def test_a_long_record_is_split(session):
-    user = await _user(session)
-    note = await _note(session, user, markdown="абзац\n\n" * 3000)
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd(str(note.id)), session, user)
-
-    assert len(message.replies) > 1
-    assert all(len(chunk) <= texts.MESSAGE_LIMIT for chunk in message.replies)
-
-
-async def test_opening_a_record_is_logged(session):
-    user = await _user(session)
-    note = await _note(session, user)
-
-    await corpus.cmd_note(_Message(), _cmd(str(note.id)), session, user)
-
-    events = await _events(session, "note_opened")
-    assert events[0].payload == {"note_id": note.id}
-
-
-# ── the flags stored with a record ───────────────────────────────────────────
-
-
-async def test_a_record_needing_review_carries_the_warning(session):
-    user = await _user(session)
-    note = await _note(session, user, status="needs_review")
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd(str(note.id)), session, user)
-
-    assert texts.NEEDS_REVIEW in message.replies[-1]
-
-
-async def test_stored_issues_are_rendered_by_mathcheck(session):
-    user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        issues=[
-            {
-                "kind": "constant",
-                "severity": "critical",
-                "message": "Постоянная Планка записана неверно",
-                "detail": "6.67e-34",
-                "suggestion": "",
-            }
-        ],
-    )
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd(str(note.id)), session, user)
-
-    assert "Постоянная Планка записана неверно" in message.replies[-1]
-    assert "❌" in message.replies[-1]  # critical, not a warning
-
-
-async def test_stored_divergences_and_uncertain_spots_come_back(session):
-    user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        numeric_divergences=[{"context": "g =", "variants": {"9.8": 2, "9.3": 1}}],
-        uncertain=[{"text": "щ", "why": "читается двояко"}],
-    )
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd(str(note.id)), session, user)
-
-    tail = message.replies[-1]
-    assert texts.DIVERGENCES_HEADER in tail and "9.8 (2 из 3)" in tail
-    assert texts.UNCERTAIN_HEADER in tail and "читается двояко" in tail
-
-
-async def test_the_generic_line_gives_way_to_anything_specific(session):
-    # Above a list of what actually diverged, "прогоны разошлись" repeats that
-    # list's own heading and costs a line.
-    user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        status="needs_review",
-        numeric_divergences=[{"context": "p", "variants": {"5": 2, "6": 1}}],
-    )
-
-    flags = corpus._flags(note)
-
-    assert texts.DIVERGENCES_HEADER in flags
-    assert texts.NEEDS_REVIEW not in flags
-
-
-async def test_the_generic_line_stays_when_there_is_nothing_else_to_say(session):
-    user = await _user(session)
-    note = await _note(session, user, status="needs_review")
-
-    assert corpus._flags(note) == texts.NEEDS_REVIEW
+# ── the flags a record carries ───────────────────────────────────────────────
 
 
 async def test_the_review_box_gives_way_the_same_way(session):
@@ -611,293 +329,6 @@ async def test_the_document_is_built_with_the_remarks_of_the_record(
     assert [r.anchor for r in seen[0]] == ["щ"]
 
 
-async def test_album_flags_keep_their_page_numbers(session):
-    user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        page_count=3,
-        uncertain=[{"text": "щ", "why": "двоится", "page": 2}],
-    )
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd(str(note.id)), session, user)
-
-    assert "с. 2 —" in message.replies[-1]
-
-
-async def test_an_unreadable_issues_payload_does_not_lose_the_record(session):
-    # Rows written by an older version must not make a record unopenable: the
-    # text is what the user asked for.
-    user = await _user(session)
-    note = await _note(session, user, issues=[{"совсем": "не то"}])
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd(str(note.id)), session, user)
-
-    assert "Пусть дана функция f(g(x))." in message.replies[0]
-
-
-async def test_a_clean_record_gets_no_trailing_flag_message(session):
-    user = await _user(session)
-    note = await _note(session, user)
-    message = _Message()
-
-    await corpus.cmd_note(message, _cmd(str(note.id)), session, user)
-
-    assert len(message.replies) == 1
-
-
-# ── /search ──────────────────────────────────────────────────────────────────
-# PostgreSQL full text cannot run on SQLite: to_tsvector does not exist there.
-# What is checkable without a server is the shape of the statement, and that
-# is worth checking — the regconfig has to be inlined rather than bound, or
-# asyncpg fails at run time on a query that looks perfectly fine here.
-
-import os  # noqa: E402
-
-import pytest  # noqa: E402
-from sqlalchemy.dialects import postgresql  # noqa: E402
-
-
-def _compiled() -> str:
-    return str(
-        corpus._search_stmt(1, "производная").compile(dialect=postgresql.dialect())
-    )
-
-
-def test_search_uses_the_russian_configuration():
-    # Inlined, not bound: asyncpg cannot infer regconfig for a placeholder.
-    assert "to_tsvector('russian'" in _compiled()
-    assert "plainto_tsquery('russian'" in _compiled()
-
-
-def test_search_covers_both_title_and_body():
-    sql = _compiled()
-    assert "notes.title" in sql and "notes.markdown" in sql
-
-
-def test_search_is_ranked_and_scoped_and_capped():
-    sql = _compiled()
-    assert "ts_rank(" in sql
-    assert "notes.user_id =" in sql  # never search another corpus
-    assert "LIMIT" in sql
-
-
-async def test_search_without_a_query_explains_itself(session):
-    user = await _user(session)
-    message = _Message()
-
-    await corpus.cmd_search(message, _cmd("   "), session, user)
-
-    assert message.replies == [texts.SEARCH_USAGE]
-
-
-_TEST_DB = os.environ.get("TEST_DATABASE_URL")
-
-pg_only = pytest.mark.skipif(
-    not _TEST_DB, reason="TEST_DATABASE_URL not set (full text needs PostgreSQL)"
-)
-
-
-@pytest_asyncio.fixture
-async def pg_session():
-    engine = create_async_engine(_TEST_DB)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-    maker = async_sessionmaker(engine, expire_on_commit=False)
-    async with maker() as s:
-        yield s
-    await engine.dispose()
-
-
-@pg_only
-async def test_a_declined_form_is_found(pg_session):
-    """The reason this is full text and not ILIKE: «производная» has to find
-    «производной». A search that misses the declined form of the word you just
-    typed is not a search."""
-    user = await _user(pg_session)
-    await _note(
-        pg_session, user, markdown="Вычисление производной сложной функции."
-    )
-    message = _Message()
-
-    await corpus.cmd_search(message, _cmd("производная"), pg_session, user)
-
-    assert "Производная сложной функции" in message.replies[0]
-
-
-@pg_only
-async def test_search_finds_nothing_politely(pg_session):
-    user = await _user(pg_session)
-    await _note(pg_session, user)
-    message = _Message()
-
-    await corpus.cmd_search(message, _cmd("фотосинтез"), pg_session, user)
-
-    assert message.replies == [texts.search_empty("фотосинтез")]
-
-
-@pg_only
-async def test_search_never_reaches_another_corpus(pg_session):
-    mine = await _user(pg_session, tg_id=1)
-    theirs = await _user(pg_session, tg_id=2)
-    await _note(pg_session, theirs, title="Чужая запись", markdown="производная")
-    message = _Message()
-
-    await corpus.cmd_search(message, _cmd("производная"), pg_session, mine)
-
-    assert message.replies == [texts.search_empty("производная")]
-
-
-@pg_only
-async def test_search_is_logged_with_the_query(pg_session):
-    user = await _user(pg_session)
-    await corpus.cmd_search(_Message(), _cmd("интеграл"), pg_session, user)
-
-    events = await _events(pg_session, "corpus_searched")
-    assert events[0].payload == {"query": "интеграл", "found": 0}
-
-
-# ── /retitle and /delete ─────────────────────────────────────────────────────
-
-
-def test_id_and_rest_splits_on_the_first_space():
-    assert corpus._id_and_rest("42 Новый заголовок") == (42, "Новый заголовок")
-    assert corpus._id_and_rest("#42 Заголовок") == (42, "Заголовок")
-    assert corpus._id_and_rest("42") == (42, "")
-    assert corpus._id_and_rest("сорок два Заголовок") == (None, "")
-    assert corpus._id_and_rest(None) == (None, "")
-
-
-async def test_retitle_without_a_title_explains_itself(session):
-    user = await _user(session)
-    note = await _note(session, user)
-    message = _Message()
-
-    await corpus.cmd_retitle(message, _cmd(str(note.id)), session, user)
-
-    assert message.replies == [texts.RETITLE_USAGE]
-
-
-async def test_retitle_changes_the_title(session):
-    user = await _user(session)
-    note = await _note(session, user)
-    message = _Message()
-
-    await corpus.cmd_retitle(
-        message, _cmd(f"{note.id} Дифференцирование"), session, user
-    )
-
-    assert note.title == "Дифференцирование"
-    assert "Дифференцирование" in message.replies[0]
-
-
-async def test_a_new_title_is_capped_at_60_characters(session):
-    user = await _user(session)
-    note = await _note(session, user)
-
-    await corpus.cmd_retitle(_Message(), _cmd(f"{note.id} " + "я" * 200), session, user)
-
-    assert len(note.title) == 60
-
-
-async def test_retitle_shows_up_in_the_listing(session):
-    user = await _user(session)
-    note = await _note(session, user)
-    await corpus.cmd_retitle(_Message(), _cmd(f"{note.id} Совсем другое"), session, user)
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd(), session, user)
-
-    assert "Совсем другое" in message.replies[0]
-
-
-async def test_retitle_cannot_reach_another_corpus(session):
-    mine = await _user(session, tg_id=1)
-    theirs = await _user(session, tg_id=2)
-    foreign = await _note(session, theirs, title="Чужая запись")
-    message = _Message()
-
-    await corpus.cmd_retitle(message, _cmd(f"{foreign.id} Моё"), session, mine)
-
-    assert message.replies == [texts.NOTE_NOT_FOUND]
-    assert foreign.title == "Чужая запись"
-
-
-async def test_retitle_is_logged(session):
-    user = await _user(session)
-    note = await _note(session, user)
-
-    await corpus.cmd_retitle(_Message(), _cmd(f"{note.id} Новое"), session, user)
-
-    events = await _events(session, "note_retitled")
-    assert events[0].payload == {"note_id": note.id}
-
-
-async def test_delete_without_an_id_explains_itself(session):
-    user = await _user(session)
-    message = _Message()
-
-    await corpus.cmd_delete(message, _cmd(), session, user)
-
-    assert message.replies == [texts.DELETE_USAGE]
-
-
-async def test_delete_removes_the_record(session):
-    user = await _user(session)
-    note = await _note(session, user)
-    note_id = note.id
-    message = _Message()
-
-    await corpus.cmd_delete(message, _cmd(str(note_id)), session, user)
-
-    assert "Производная сложной функции" in message.replies[0]
-    remaining = (await session.execute(select(Note))).scalars().all()
-    assert remaining == []
-
-
-async def test_a_deleted_record_leaves_the_listing(session):
-    user = await _user(session)
-    note = await _note(session, user)
-    await corpus.cmd_delete(_Message(), _cmd(str(note.id)), session, user)
-    message = _Message()
-
-    await corpus.cmd_notes(message, _cmd(), session, user)
-
-    assert message.replies == [texts.CORPUS_EMPTY]
-
-
-async def test_delete_cannot_reach_another_corpus(session):
-    mine = await _user(session, tg_id=1)
-    theirs = await _user(session, tg_id=2)
-    foreign = await _note(session, theirs)
-    message = _Message()
-
-    await corpus.cmd_delete(message, _cmd(str(foreign.id)), session, mine)
-
-    assert message.replies == [texts.NOTE_NOT_FOUND]
-    assert (await session.execute(select(Note))).scalars().all() != []
-
-
-async def test_the_event_outlives_the_record_it_describes(session):
-    # The row is gone, so whatever is worth knowing about it has to be in the
-    # event — that is the only trace left.
-    user = await _user(session)
-    note = await _note(session, user, page_count=4)
-    note_id = note.id
-
-    await corpus.cmd_delete(_Message(), _cmd(str(note_id)), session, user)
-
-    events = await _events(session, "note_deleted")
-    assert events[0].payload == {
-        "note_id": note_id,
-        "title": "Производная сложной функции",
-        "page_count": 4,
-    }
-
-
 # ── /stats ───────────────────────────────────────────────────────────────────
 
 from datetime import date  # noqa: E402
@@ -1073,8 +504,11 @@ async def test_a_record_is_delivered_as_a_pdf(session):
     filename, data, caption = message.documents[0]
     assert data.startswith(b"%PDF-")
     assert filename.startswith(f"{note.id}-")
-    # The caption points back into the corpus rather than away from it.
-    assert f"/note {note.id}" in caption
+    # The caption names the record and nothing else: it used to offer /note,
+    # and a caption pointing at a command the bot no longer answers is worse
+    # than one that points nowhere.
+    assert f"#{note.id}" in caption
+    assert "/" not in caption
 
 
 async def test_a_record_that_cannot_be_drawn_still_reaches_the_user(session):
@@ -1097,41 +531,216 @@ async def test_a_record_that_cannot_be_drawn_still_reaches_the_user(session):
     assert "Пусть дана функция f(g(x))." in "".join(message.replies)
 
 
-async def test_pdf_without_an_id_explains_itself(session):
+
+
+# ── tags: filing a record and finding it again ───────────────────────────────
+# The whole product in two gestures. A "#word" means one of two things and no
+# state machine decides which — the newest record does: untagged, and the
+# bot's question is still open; tagged, and nothing was asked.
+
+
+def _days_ago(n: int) -> datetime:
+    return datetime.now(timezone.utc) - timedelta(days=n)
+
+
+async def _with_topics(session, note: Note, *topics: str) -> Note:
+    session.add_all([NoteTopic(note_id=note.id, topic=t) for t in topics])
+    await session.flush()
+    return note
+
+
+async def test_a_tag_answers_the_question_the_bot_just_asked(session):
     user = await _user(session)
-    message = _Message()
+    note = await _note(session, user)  # no subject yet: the question is open
+    message = _Message(text="#физика")
 
-    await corpus.cmd_pdf(message, _cmd(), session, user)
+    await corpus.on_tag(message, session, user)
 
-    assert message.replies == [texts.PDF_USAGE]
-
-
-async def test_pdf_of_a_missing_record_is_reported(session):
-    user = await _user(session)
-    message = _Message()
-
-    await corpus.cmd_pdf(message, _cmd("999"), session, user)
-
-    assert message.replies == [texts.NOTE_NOT_FOUND]
+    assert note.tag == "физика"
+    assert "физика" in message.replies[0]
+    assert not message.documents  # filing is not finding
 
 
-async def test_pdf_cannot_reach_another_corpus(session):
-    mine = await _user(session, tg_id=1)
-    theirs = await _user(session, tg_id=2)
-    foreign = await _note(session, theirs)
-    message = _Message()
-
-    await corpus.cmd_pdf(message, _cmd(str(foreign.id)), session, mine)
-
-    assert message.replies == [texts.NOTE_NOT_FOUND]
-    assert message.documents == []
-
-
-async def test_sending_a_pdf_is_logged(session):
+async def test_filing_a_record_is_logged(session):
     user = await _user(session)
     note = await _note(session, user)
 
-    await corpus.cmd_pdf(_Message(), _cmd(str(note.id)), session, user)
+    await corpus.on_tag(_Message(text="#матан"), session, user)
 
-    events = await _events(session, "pdf_sent")
-    assert events[0].payload == {"note_id": note.id}
+    events = await _events(session, "note_tagged")
+    assert [e.payload["note_id"] for e in events] == [note.id]
+    assert events[0].payload["tag"] == "матан"
+
+
+async def test_a_tag_searches_once_nothing_is_waiting_to_be_filed(session):
+    user = await _user(session)
+    note = await _note(session, user, tag="физика", title="Спектры атомов")
+    message = _Message(text="#физика")
+
+    await corpus.on_tag(message, session, user)
+
+    assert note.tag == "физика"  # not overwritten
+    assert message.documents  # the record itself came back
+
+
+async def test_an_older_untagged_record_is_not_filed_by_a_later_search(session):
+    """The rule is about the newest record and only the newest.
+
+    An untagged record from last week is a question the user walked away from.
+    A search typed today must not answer it — that would file a record under a
+    subject nobody chose for it, and silently.
+    """
+    user = await _user(session)
+    forgotten = await _note(session, user, created_at=_days_ago(7))
+    await _note(session, user, tag="матан", created_at=_days_ago(0))
+
+    await corpus.on_tag(_Message(text="#физика"), session, user)
+
+    assert forgotten.tag is None
+
+
+async def test_a_record_is_found_by_a_topic_the_bot_wrote(session):
+    # The user never typed this word; the bot read it off a heading. That is
+    # the half of the search the user is not expected to remember.
+    user = await _user(session)
+    note = await _note(session, user, tag="матан", title="Производная")
+    await _with_topics(session, note, "производная_сложной_функции")
+
+    message = _Message(text="#производная_сложной_функции")
+    await corpus.on_tag(message, session, user)
+
+    assert message.documents
+
+
+async def test_one_match_is_the_record_and_not_a_line_about_it(session):
+    user = await _user(session)
+    note = await _note(session, user, tag="физика", markdown="Граф $G$ — пара.")
+
+    message = _Message(text="#физика")
+    await corpus.on_tag(message, session, user)
+
+    filename, data, _ = message.documents[0]
+    assert data.startswith(b"%PDF-")
+    assert filename.startswith(f"{note.id}-")
+
+
+async def test_several_matches_come_back_as_topics_to_choose_from(session):
+    user = await _user(session)
+    first = await _note(
+        session, user, tag="физика", title="Спектры атомов", created_at=_days_ago(2)
+    )
+    second = await _note(
+        session, user, tag="физика", title="Модель Бора", created_at=_days_ago(1)
+    )
+    await _with_topics(session, first, "спектры_атомов")
+    await _with_topics(session, second, "модель_бора")
+
+    message = _Message(text="#физика")
+    await corpus.on_tag(message, session, user)
+
+    assert not message.documents  # a choice, not a document
+    reply = message.replies[0]
+    assert "Спектры атомов" in reply and "Модель Бора" in reply
+    # Every line carries what to type next. A list you cannot act on just
+    # makes the user type the same tag again.
+    assert "#спектры_атомов" in reply and "#модель_бора" in reply
+
+
+async def test_nothing_under_a_tag_offers_the_tags_there_are(session):
+    user = await _user(session)
+    await _note(session, user, tag="матан")
+
+    message = _Message(text="#химия")
+    await corpus.on_tag(message, session, user)
+
+    assert "химия" in message.replies[0]
+    assert "#матан" in message.replies[0]
+
+
+async def test_searching_is_logged_with_what_was_looked_for(session):
+    user = await _user(session)
+    await _note(session, user, tag="матан")
+
+    await corpus.on_tag(_Message(text="#химия"), session, user)
+
+    events = await _events(session, "topic_searched")
+    assert events[0].payload == {"tag": "химия", "found": 0}
+
+
+async def test_a_search_never_reaches_another_corpus(session):
+    # The invariant this module exists to keep: one user today is not a reason
+    # to write a query that returns someone else's record tomorrow.
+    mine = await _user(session, tg_id=1)
+    theirs = await _user(session, tg_id=2)
+    await _note(session, mine, tag="матан")
+    hidden = await _note(session, theirs, tag="физика", title="Чужая запись")
+    await _with_topics(session, hidden, "чужая_тема")
+
+    message = _Message(text="#чужая_тема")
+    await corpus.on_tag(message, session, mine)
+
+    assert not message.documents
+    assert "Чужая запись" not in message.replies[0]
+
+
+async def test_a_message_that_is_not_a_readable_tag_says_so(session):
+    user = await _user(session)
+    message = _Message(text="#!!!")
+
+    await corpus.on_tag(message, session, user)
+
+    assert message.replies == [texts.TAG_UNREADABLE]
+
+
+async def test_known_tags_come_back_most_used_first(session):
+    user = await _user(session)
+    for _ in range(3):
+        await _note(session, user, tag="матан")
+    await _note(session, user, tag="физика")
+
+    assert await corpus.known_tags(session, user) == ["матан", "физика"]
+
+
+async def test_known_tags_are_this_users_own(session):
+    mine = await _user(session, tg_id=1)
+    theirs = await _user(session, tg_id=2)
+    await _note(session, mine, tag="матан")
+    await _note(session, theirs, tag="химия")
+
+    assert await corpus.known_tags(session, mine) == ["матан"]
+
+
+async def test_topics_are_stored_where_the_record_is_made(session):
+    user = await _user(session)
+    note = await _note(
+        session, user, title="Квантовая механика", markdown="## Модель Бора\n\nтекст"
+    )
+
+    stored = await corpus.save_topics(session, note)
+    await session.flush()
+
+    rows = (
+        await session.execute(
+            select(NoteTopic.topic).where(NoteTopic.note_id == note.id)
+        )
+    ).scalars().all()
+    assert stored == ["квантовая_механика", "модель_бора"]
+    assert set(rows) == set(stored)
+
+
+async def test_the_question_shows_the_topics_and_the_subjects_in_use(session):
+    """The bot wrote those topics, and something the bot wrote should be read
+    by the person it belongs to on the day it was made — not discovered months
+    later in a search that missed."""
+    user = await _user(session)
+    await _note(session, user, tag="матан")
+    note = await _note(
+        session, user, title="Квантовая механика", markdown="## Модель Бора\n"
+    )
+
+    message = _Message()
+    await corpus.ask_for_tag(message, session, user, note)
+
+    reply = message.replies[0]
+    assert "#квантовая_механика" in reply and "#модель_бора" in reply
+    assert "#матан" in reply  # so a second spelling of it never gets created

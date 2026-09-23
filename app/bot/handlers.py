@@ -254,6 +254,10 @@ async def handle_photo(
     if flags:
         await message.answer("\n\n".join(flags))
 
+    # Step 17: which subject does this belong to. Last, so the question is
+    # what the user is looking at when they reply.
+    await corpus.ask_for_tag(message, session, user, note)
+
 
 @router.message(F.document)
 async def handle_document(
@@ -330,6 +334,7 @@ async def handle_document(
 
     await session.flush()  # note.id, for the file name and the caption
     await corpus.send_record(message, note)
+    await corpus.ask_for_tag(message, session, user, note)
 
 
 async def _process_album(
@@ -505,6 +510,8 @@ async def _process_album(
         )
     if flags:
         await message.answer("\n\n".join(flags))
+
+    await corpus.ask_for_tag(message, session, user, note)
 
 
 # Registered last on purpose: aiogram matches handlers in registration order,

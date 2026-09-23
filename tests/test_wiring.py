@@ -28,18 +28,24 @@ def test_corpus_commands_are_registered_before_the_catch_all():
     assert routers.index(corpus.router) < routers.index(handlers.router)
 
 
-def test_every_corpus_command_is_reachable():
+def test_every_corpus_handler_is_reachable():
+    """Seven commands used to stand here. The event table said none of them
+    had ever been used, and they were replaced by one gesture — so this list
+    is short on purpose, and a name creeping back into it is a question worth
+    asking rather than a test to update."""
     registered = {h.callback.__name__ for h in corpus.router.message.handlers}
-    assert registered == {
-        "cmd_notes",
-        "cmd_note",
-        "cmd_search",
-        "cmd_retitle",
-        "cmd_delete",
-        "cmd_stats",
-        "cmd_help",
-        "cmd_pdf",
-    }
+    assert registered == {"cmd_stats", "cmd_help", "on_tag"}
+
+
+def test_a_tag_is_caught_before_the_catch_all():
+    """on_tag has no Command filter, so nothing but router order keeps it from
+    being swallowed by handle_unsupported — the same rule as the commands, and
+    a rule that now guards the product's only way back into the corpus."""
+    routers = list(app.main.dp.sub_routers)
+    assert routers.index(corpus.router) < routers.index(handlers.router)
+
+    names = [h.callback.__name__ for h in corpus.router.message.handlers]
+    assert "on_tag" in names
 
 
 # ── the command menu ─────────────────────────────────────────────────────────

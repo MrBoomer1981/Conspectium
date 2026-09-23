@@ -88,6 +88,10 @@ class Note(Base):
     unreadable_count: Mapped[int] = mapped_column(Integer, server_default="0")
     text_agreement: Mapped[float | None] = mapped_column(Float)
     numeric_agreement: Mapped[float | None] = mapped_column(Float)
+    # The subject the user answered with when the bot asked, stored without
+    # its "#". NULL means the question has not been answered yet, and that is
+    # what tells the next "#word" from this user to tag rather than to search.
+    tag: Mapped[str | None] = mapped_column(String, index=True)
     photo_sharpness: Mapped[float | None] = mapped_column(Float)
     photo_line_height: Mapped[float | None] = mapped_column(Float)
     photo_paper_fraction: Mapped[float | None] = mapped_column(Float)
@@ -95,3 +99,27 @@ class Note(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
+
+
+class NoteTopic(Base):
+    """A topic the bot derived from a record's own headings.
+
+    A row per topic rather than a JSONB list on `Note`, because the question
+    asked of it is "which records carry this topic" — a join on an indexed
+    column, which reads the same on PostgreSQL and on the SQLite the suite
+    runs against. JSONB containment would be neither indexable here nor
+    expressible there.
+
+    Kept apart from `Note.tag` for the reason this project keeps everything
+    machine-written apart from everything a person wrote: the subject is the
+    user's answer, these are the bot's reading of the record, and a table they
+    do not share is the cheapest way to never confuse the two.
+    """
+
+    __tablename__ = "note_topics"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    note_id: Mapped[int] = mapped_column(
+        ForeignKey("notes.id", ondelete="CASCADE"), index=True
+    )
+    topic: Mapped[str] = mapped_column(String, index=True)

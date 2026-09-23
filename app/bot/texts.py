@@ -3,8 +3,10 @@
 from datetime import date, datetime
 
 START = (
-    "Привет! Пришли фотографию конспекта — верну структурированную запись.\n\n"
-    "Записи накапливаются: со временем из них соберётся твой личный корпус.\n\n"
+    "Привет! Пришли фотографию конспекта — верну структурированную запись "
+    "и спрошу, под каким тегом её сохранить.\n\n"
+    "Записи накапливаются: со временем из них соберётся твой личный корпус, "
+    "и найти в нём нужное можно будет по тегу — #физика или #производная.\n\n"
     "Что ещё умею — /help"
 )
 
@@ -163,47 +165,50 @@ def uncertain_line(text: str, why: str, page: int | None = None) -> str:
     return f'{prefix}"{text}" — {why}'
 
 
-# ── The corpus — app/bot/corpus.py ───────────────────────────────────────────
-
-CORPUS_EMPTY = (
-    "Корпус пока пуст. Пришли фотографию страницы конспекта — появится "
-    "первая запись."
-)
-
-NOTE_NOT_FOUND = "Записи с таким номером нет."
-
-NOTE_USAGE = "Укажи номер записи: /note 42"
-
-NOTES_PAGE_EMPTY = "На этой странице записей нет."
+# ── Tags — app/bot/corpus.py ─────────────────────────────────────────────────
 
 NEEDS_REVIEW_SHORT = "нужна проверка"
 
-
-def note_line(
-    note_id: int,
-    created_at: datetime,
-    title: str,
-    subject: str | None,
-    page_count: int,
-    needs_review: bool,
-) -> str:
-    """One record in a listing. Subject is omitted when the model didn't name
-    one, so a record without it doesn't show an empty gap."""
-    parts = [f"#{note_id}", created_at.strftime("%d.%m"), title]
-    if subject:
-        parts.append(subject)
-    parts.append(f"{page_count} с.")
-    if needs_review:
-        parts.append(NEEDS_REVIEW_SHORT)
-    return " · ".join(parts)
+TAG_UNREADABLE = "Не разобрал тег. Напиши его одним сообщением, например: #физика"
 
 
-def notes_footer(total: int, page: int, per_page: int) -> str | None:
-    """The line under a listing, or None when everything already fits."""
-    shown = min(page * per_page, total)
-    if shown >= total:
-        return None
-    return f"Показано {shown} из {total}. Дальше — /notes {page + 1}"
+def ask_tag(topics: list[str], known: list[str]) -> str:
+    """Asked straight after a record is delivered.
+
+    The topics are shown rather than kept: they are what the record will be
+    found by later, the bot wrote them, and something the bot wrote should be
+    read by the person it belongs to on the day it was made — not discovered
+    months later in a search that missed.
+    """
+    lines = ["Под каким тегом сохранить? Ответь одним словом с решёткой: #физика"]
+    if known:
+        lines += ["", "Уже в ходу: " + " ".join("#" + t for t in known)]
+    if topics:
+        lines += ["", "Темы этой записи: " + " ".join("#" + t for t in topics)]
+    return "\n".join(lines)
+
+
+def tagged(tag: str) -> str:
+    return f"Сохранил под #{tag}. Чтобы найти — пришли #{tag} или название темы."
+
+
+def nothing_tagged(tag: str, known: list[str]) -> str:
+    text = f"По #{tag} ничего не нашлось."
+    if known:
+        text += "\n\nЕсть записи под: " + " ".join("#" + t for t in known)
+    return text
+
+
+def several_tagged(tag: str, rows: list[tuple[str, list[str]]]) -> str:
+    """Several records under one tag. Each line carries the record's own
+    topics, because the next message is expected to be one of them — a list
+    you cannot act on is a list that made the user type the tag again."""
+    lines = [f"По #{tag} нашлось несколько. Уточни темой:", ""]
+    for title, topics in rows:
+        hint = " ".join("#" + t for t in topics[:4])
+        lines.append(f"{title}\n{hint}" if hint else title)
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
 # Telegram rejects messages over 4096 characters. Split on blank lines; hard-cut
@@ -231,26 +236,6 @@ def split_message(text: str, limit: int = MESSAGE_LIMIT) -> list[str]:
     if current:
         chunks.append(current)
     return chunks
-
-
-SEARCH_USAGE = "Что искать? Например: /search производная"
-
-
-def search_empty(query: str) -> str:
-    return f'По запросу «{query}» ничего не нашлось.'
-
-
-RETITLE_USAGE = "Укажи номер и новый заголовок: /retitle 42 Производная функции"
-
-DELETE_USAGE = "Укажи номер записи: /delete 42"
-
-
-def retitled(title: str) -> str:
-    return f'Заголовок изменён: «{title}»'
-
-
-def deleted(title: str) -> str:
-    return f'Запись удалена: «{title}»'
 
 
 STATS_EMPTY = (
@@ -311,12 +296,6 @@ def stats(
 
 COMMANDS: tuple[tuple[str, str, str | None], ...] = (
     ("start", "начать", None),
-    ("notes", "последние записи", "/notes 2"),
-    ("note", "открыть запись", "/note 42"),
-    ("search", "поиск по корпусу", "/search производная"),
-    ("retitle", "переименовать запись", "/retitle 42 Новый заголовок"),
-    ("delete", "удалить запись", "/delete 42"),
-    ("pdf", "запись файлом", "/pdf 42"),
     ("stats", "сколько накопилось", None),
     ("help", "что я умею", None),
 )
@@ -328,24 +307,38 @@ def _help_line(name: str, description: str, usage: str | None) -> str:
     return f"{usage or '/' + name} — {description}"
 
 
+# The two gestures that carry the product are not commands, so /help has to
+# say them outright: a hash is not on the menu Telegram shows.
 HELP = "\n".join(
-    ["Пришли фотографию страницы конспекта — верну структурированную запись.", ""]
+    [
+        "Пришли фотографию страницы конспекта — верну структурированную "
+        "запись и спрошу, под каким тегом её сохранить.",
+        "",
+        "Чтобы найти запись позже — пришли тег: #физика, или название "
+        "темы, например #производная.",
+        "",
+        ".docx тоже приму — его распознавать не нужно.",
+        "",
+    ]
     + [_help_line(*command) for command in COMMANDS]
 )
 
 
 # ── The record as a file — app/bot/corpus.py send_record_pdf ─────────────────
 
-PDF_USAGE = "Укажи номер записи: /pdf 42"
-
-PDF_FAILED = "Не смог собрать PDF. Текст записи цел — открой её через /note."
+PDF_FAILED = "Не смог собрать PDF — вот текст записи."
 
 
 def record_caption(note_id: int, page_count: int) -> str:
-    """The line under the file. It carries the record number on purpose: the
-    document should lead back into the corpus, not away from it."""
+    """The line under the file.
+
+    It used to end with "открыть текстом: /note 42". That command is gone, and
+    a caption pointing at a command the bot no longer answers is worse than a
+    caption that points nowhere — so what is left is what identifies the
+    record.
+    """
     pages = f"{page_count} {_plural(page_count, 'страница', 'страницы', 'страниц')}"
-    return f"#{note_id} · {pages}\nОткрыть текстом: /note {note_id}"
+    return f"#{note_id} · {pages}"
 
 
 def byline(margin_notes: list[str]) -> str | None:
