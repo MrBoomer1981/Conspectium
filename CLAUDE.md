@@ -386,7 +386,10 @@ and it is four observations against two, on one album of one subject, with one
 v5 page scored on two runs instead of three, which makes agreement easier. **It
 is a reason to run two more v4 albums, not a reason to believe v5 reads
 better.** Whoever picks this up: the arms are paused here on purpose, not
-finished.
+finished. `PLAN.md` → "Where the quality work stands" is the way back in — what
+the deploy is running, how to run that arm as a one-variable one, what must not
+move while it runs, and the three gaps in the instrument found while writing it
+down.
 
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a

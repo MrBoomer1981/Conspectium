@@ -50,16 +50,200 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 21. Remarks beside the line, figure rows, and readable flags
 - [x] 22. The matrix checked against the graph, by code
 
+**The six-item quality plan, and what real use asked for after it:**
+
+- [x] 23. A row names its own model; a page refused by the frame check keeps
+      its numbers; a line height that could not be measured is not a small one
+- [x] 24. Stage two — the trusted transcription, formatted (`compose.py`),
+      its guards, and two prompts for it
+- [x] 25. The instrument: `numeric_agreement` as a column, the thinking half
+      of the budget recorded, the output ceiling raised, `gemini-3.8-flash`
+      priced, and an unparseable answer that names why the model stopped
+- [x] 26. Seven commands deleted, one gesture kept: a subject you choose, five
+      topics the bot reads, and a "#word" that files or finds
+
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-22
+Done: 1-26
 Current task: none
 Next task: none
 Blockers: none
 ```
+
+---
+
+## Where the quality work stands
+
+The recognition experiments are **paused, not finished** — the arms were
+stopped mid-question by decision. The findings themselves are in CLAUDE.md →
+"Established experimentally"; this section is the shortest path back in. Read
+it before running anything.
+
+**What production runs**, read off the startup log and the Railway variables on
+2026-09-23:
+
+```
+Prompt:  prompts-v5.md, 235 words
+Compose: on, gemini-3.8-flash, prompts-compose-v2.md, 226 words
+Call:    media_resolution=unset, thinking_level=unset
+Timeouts: call 90s, consensus 354s, album 1064s
+VISION_MODEL=gemini-3.8-flash       ← not in the startup log; see the gaps below
+VISION_RUNS=3, IMAGE_MAX_SIDE=1500, IMAGE_QUALITY=85
+DAILY_PAGES_PER_USER=1000, DAILY_COST_LIMIT_USD=5, ALLOW_UNPRICED_MODEL=true
+```
+
+### The open question: v4 against v5
+
+Every v5 album so far scored above every v4 album on the mean of
+`numeric_agreement` — 0.941 against 0.860, a gap three times the 0.027 the
+instrument wobbles by between two runs of one configuration. That is the shape
+of a real effect and it is four observations against two, on one album of one
+subject. CLAUDE.md calls it a suspicion on purpose. **Two more v4 albums settle
+it.**
+
+The arm is cleaner than the ones already run, and that is worth knowing before
+designing a wider one. `numeric_agreement` is computed inside
+`transcribe_consensus`, from the three recognition runs, **before `compose` ever
+sees the text** — so the composing stage cannot move this number and does not
+have to be switched off to keep the arm one-variable. The whole arm is:
+
+```
+PROMPT_FILE=prompts-v4.md      # everything else left exactly as it is
+```
+
+two albums, then compare the means. Switch it back afterwards.
+
+### How to read the result
+
+- **The mean, never the minimum.** The per-page minimum of `numeric_agreement`
+  wobbles by ~0.02 between two runs of the same prompt; the mean reproduces to
+  a thousandth for `text_agreement` and to ~0.03 for `numeric_agreement`.
+- **0.027 is the floor.** An arm that moves the numeric mean by less than that
+  on one album has said nothing.
+- **`numeric_agreement`, not `text_agreement`,** whenever a prompt changes how
+  a page is laid out. `compare_text` measures shape; v5 changes shape by
+  design, and that confound made the first v5 measurement unreadable.
+- **Never against a threshold.** A page of matrices scores low because a
+  repetitive sequence has many equally good alignments, not because it was read
+  badly. Compare arms with each other.
+
+### What must not move while an arm is running
+
+- `VISION_MEDIA_RESOLUTION` — measured inert on this model at this image size
+  (`tokens_in` identical at 1809). Carrying it in an arm makes that arm compare
+  a setting against itself.
+- `VISION_THINKING_LEVEL` — stays `unset` until `ai_calls.tokens_thought` has a
+  few albums in it. Turning it down is a change to how the model reads, made to
+  solve a budget problem.
+- `seed` and `temperature` — deliberately not settings. Three runs made
+  identical would send `text_agreement` up without touching accuracy: the
+  instrument inverted rather than merely broken.
+- `IMAGE_MAX_SIDE` — it silently recalibrates all four `photoguard`
+  thresholds, which are applied to the compressed image.
+
+### The queries
+
+Agreements of the albums of the last day, newest first:
+
+```sql
+SELECT id, created_at, status,
+       round(text_agreement::numeric, 3)    AS txt,
+       round(numeric_agreement::numeric, 3) AS num,
+       pages
+FROM notes
+WHERE created_at > now() - interval '1 day'
+ORDER BY id DESC;
+```
+
+What a day of calls cost and how much of it was thinking:
+
+```sql
+SELECT model, kind, count(*),
+       round(avg(tokens_in))      AS avg_in,
+       round(avg(tokens_out))     AS avg_answer,
+       round(avg(tokens_thought)) AS avg_thinking,
+       round(sum(cost_usd)::numeric, 4) AS spend
+FROM ai_calls
+WHERE created_at > now() - interval '1 day'
+GROUP BY 1, 2;
+```
+
+### Gaps in the instrument, found on 2026-09-23 and not fixed
+
+1. **`VISION_MODEL` is never printed at startup.** The prompt is, the compose
+   model is, both knobs are — the model that actually reads the photograph is
+   not. Every quality finding in CLAUDE.md is attributed to a model, and the
+   model has already changed twice under this project, invalidating a page of
+   them. One line in `app/main.py`.
+2. **The unpriced warning covers `VISION_MODEL` only.** The validator in
+   `config.py` refuses to start on either model being unpriced; the warning that
+   replaces it under `ALLOW_UNPRICED_MODEL` looks at `VISION_MODEL` alone. So
+   swapping `COMPOSE_MODEL` for an unpriced one starts silently with the daily
+   cost cap disarmed. Same line as (1).
+3. **A record does not carry the prompt that produced it.** `numeric_agreement`
+   was made a column precisely so that comparing two prompts would be a query
+   rather than a grep through logs that roll off — and the half that says
+   *which prompt* is still only in the logs. Until `notes` carries it, an arm is
+   attributed by the wall clock. Decide this before the next arm, not after.
+4. **`ALLOW_UNPRICED_MODEL=true` is still set** while both models are priced, so
+   it is currently protecting nothing and disarming the next model swap. CLAUDE.md
+   → Environment variables says to turn it off once a model is priced.
+
+### Known and unfixed in the composer
+
+`prompts-compose-v2.md` on `gemini-3.8-flash` **over-structures**: it split
+`Спектры атомов (полосочки) для каждого атома уникальны` — one sentence — into
+a `##` heading and a body line. Rule 1 says a section heading and the model is
+deciding what a section is, which is interpretation, on a page it cannot see.
+No guard in `compose._refusal` looks for it; it is checkable by eye.
+
+That now costs more than it did when it was written down. Topics come from
+headings, so **an invented section is an invented topic** — a handle the corpus
+is searched by, produced by the one stage in the pipeline that interprets.
+
+And it is expensive: 15079 thinking tokens for 593 of output, 41 seconds and
+$0.0298 on one album — more than all nine recognition calls of the same album
+together. `compose._one_call` builds its own config and sends no
+`thinking_config`, so `VISION_THINKING_LEVEL` does not reach it. If a thinking
+cap is ever worth having, this is the call that wants one first: transformation
+over trusted text is the job in this system with the least to think about.
+
+**It has already reached the corpus, and that is no longer a prediction.** Note
+36 in production carries eight topics, and two of them are the failure:
+`спектры_атомов_полосочки` is the sentence CLAUDE.md names, and
+`и_меньше_начинается_квантовая_механика` was the line
+`$10^{-4}$ м / $10^{-8}$ м и меньше — НАЧИНАЕТСЯ КВАНТОВАЯ МЕХАНИКА`, body
+text in every earlier record of the same album, promoted to a section here. The
+record is searched by that word now.
+
+### What production says, read on 2026-09-23
+
+Three facts worth having before the next arm, all from the deployed database
+rather than from reasoning.
+
+**The `photoguard` sentinel fix is confirmed on real traffic.** Six albums were
+lost between 17:49 and 19:01 UTC on 22-09, four of them to
+`"Текст мелкий — снимите одну страницу крупным планом"` on pages whose numbers
+say the opposite: `sharpness 1736` against a threshold of 90, `paper_fraction
+0.967` against 0.18, `contrast 54.7` against 28 — and `line_height_px 0.0`, the
+sentinel. The fix deployed at 19:23 UTC and there has not been one since; the
+six albums after it went through. Those four metric sets are also the only real
+calibration data this project has for the rewrite PLAN.md → Known risks
+describes, and they live in `events` where they do not roll off.
+
+**The five-topic cap has never run on the deployed bot.** Note 36 was created at
+06:09 and the cap deployed at 06:18, so its eight topics are the old behaviour.
+One photographed page next session confirms it.
+
+**`ai_calls` cannot be summed across 22-23 September.** 115 of 133 recognition
+rows from that day carry `cost_usd = NULL`, written while the model was
+unpriced, and `SUM` skips them — any day total spanning the change reads far
+too low. The per-call figures from the 18 priced rows are the usable ones:
+recognition **$0.00504**, composition on `gemini-3.8-flash` **$0.03145**. One
+formatting call costs what six recognitions cost.
 
 ---
 
@@ -1948,15 +2132,16 @@ requirement and not a default, and why the buffer goes to Postgres rather
 than Redis when it has to leave the process. Both in `CLAUDE.md` → Scale
 debt.
 
-**`CallStats` does not carry its model.** `transcribe` prices a call with
-`_cost_usd(settings.VISION_MODEL, …)` and `log_ai_calls` writes
-`model=settings.VISION_MODEL` for every row. Today that is correct, because
-there is only one model. The moment a page is retried on a stronger one —
-the obvious next move for a page whose three runs disagree — those calls are
-recorded under the cheap model's name and **priced at the cheap model's
-rate**, understating the day's spend and weakening the cap that is supposed
-to stop it. Escalation therefore starts by putting the model on `CallStats`,
-not by adding a second model.
+**Escalating a disagreed page to a stronger model is still not built, and the
+groundwork for it now is.** This entry used to read "`CallStats` does not carry
+its model"; it does, along with its `kind`, and `log_ai_calls` writes what the
+stats say rather than what the settings say — so a second stage on another
+model is already recorded and priced as itself, which is what `compose` needed
+and got. What remains is the escalation itself: a page whose three runs disagree
+is the obvious candidate for a re-read on a stronger model, and nothing does it.
+Deferred rather than forgotten — the reason it is not automatic is that
+`meaningful_divergences` has never been calibrated against how often a second
+opinion would actually change the text.
 
 **A graph read off a drawing is unchecked.** Rule 6 of the prompt asks for
 `[граф: 1-2, 2->3]` and `pdf.py` draws it. Reading the structure of a
