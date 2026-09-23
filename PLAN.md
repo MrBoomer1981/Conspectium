@@ -1628,6 +1628,12 @@ parallel execution the sum isn't the real elapsed time.
 
 ## `cost_usd`
 
+- a call's own cost is `(tokens_in × price_in + (tokens_out + tokens_thought)
+  × price_out)`. **Thinking is billed at the output rate**, because that is how
+  it is priced; left out, a call that thinks fifteen times as long as it speaks
+  is recorded at a fifteenth of its price. An absent `tokens_thought` counts as
+  zero rather than voiding the price: the field is missing exactly when the
+  model did not think
 - only values other than `None` are summed
 - if **all** the terms are `None` — the result is `None`, not zero
 - if at least one is known — the result equals the sum of the known ones
@@ -1832,13 +1838,30 @@ stores. So every truncated call looks innocent in our own table, and the
 historical query was blind to the half of the budget that actually overflowed.
 
 `VISION_THINKING_LEVEL` is `unset`, so this is `gemini-3.8-flash`'s own default
-thinking, and it is evidently large. The lesson is about the instrument before
-it is about the ceiling: **record `thoughts_token_count` before choosing
-between raising the budget and capping the thinking**, because those two
-choices cost different things and nothing in the table currently tells them
-apart.
+thinking, and it is evidently large.
 
-The query, for when it is next worth asking:
+**Both halves are fixed; the third is deliberately not.**
+`ai_calls.tokens_thought` records the thinking on every call, and
+`MAX_OUTPUT_TOKENS` went 8192 → 32768 for recognition and composition alike — a
+cap costs nothing until it is reached, and the one that was reached cost a
+whole run. What is *not* done is capping the thinking itself.
+`VISION_THINKING_LEVEL` stays `unset` until the new column says how much of it
+there is: turning it down is a change to how the model reads, made to solve a
+budget problem, and every quality finding in this project was made with that
+field absent.
+
+The query that settles it, once a few albums have run:
+
+```sql
+SELECT model,
+       count(*), round(avg(tokens_out)) AS avg_answer,
+       round(avg(tokens_thought)) AS avg_thinking, max(tokens_thought)
+FROM ai_calls
+WHERE kind = 'transcribe' AND created_at > now() - interval '1 day'
+GROUP BY 1;
+```
+
+And the one for the failures themselves:
 
 ```sql
 SELECT coalesce(error, 'ok') AS what, count(*),

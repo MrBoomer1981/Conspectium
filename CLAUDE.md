@@ -433,6 +433,17 @@ model". The essentials, because this shapes every handler:
    be recorded and priced as the first one, and rule 4 would stop holding
    with nothing failing to show it.
 
+   **And each row carries two output counts, not one.** `tokens_out` is
+   `candidates_token_count`, the visible answer; `tokens_thought` is
+   `thoughts_token_count`, which comes out of the same `max_output_tokens` and
+   is billed at the same output rate. One column made a truncation invisible
+   for a week — a call stopping at the ceiling with 498 visible tokens looks
+   exactly like a short answer — and it understated the price of that call
+   fifteenfold, which is the cap's problem rather than the log's. Both are in
+   `_cost_usd` now. `MAX_OUTPUT_TOKENS` is one constant for both calls: a cap
+   is billed only when reached, so the two sites sharing it costs nothing and
+   the two drifting apart costs a run.
+
 4. **`note_failed` is the only event written standalone**
    (`log_event_standalone`), because the global error handler runs while the
    main transaction is already rolling back. Every other event uses
@@ -955,6 +966,19 @@ checkable from our own data: raising it raises the input tokens per image, and
 `ai_calls.tokens_in` is written on every call. An unknown value is refused at
 startup rather than ignored, because a knob that silently does nothing is how
 an experiment comes to compare a setting against itself.
+
+**It was measured and it does nothing.** `high` left `tokens_in` at exactly the
+value `unset` produced — see arm B above. Leave it `unset`; it is not a lever
+on this model at this image size, and carrying it in an arm makes that arm
+compare a setting against itself, which is the failure this paragraph was
+written to prevent.
+
+`VISION_THINKING_LEVEL` is the one still untouched, and it is now *visible*
+rather than merely settable: `ai_calls.tokens_thought` says how much thinking
+every call actually does. Leave it `unset` until that column has a few albums
+in it. Turning it down is a change to how the model reads, and it would be
+made to solve a budget problem — the wrong reason, and every quality finding
+in this file was made with the field absent.
 
 What is deliberately *not* a setting is `seed`, and `temperature` stays at
 1.0. Three runs made identical would send `text_agreement` up without touching

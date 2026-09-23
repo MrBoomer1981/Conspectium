@@ -146,6 +146,34 @@ async def test_the_call_goes_to_the_compose_model_and_is_billed_as_one(
     assert result.stats[0].cost_usd is not None
 
 
+async def test_the_thinking_of_the_second_stage_is_billed_too(monkeypatch):
+    """COMPOSE_MODEL is priced where VISION_MODEL currently is not, so this is
+    the call actually feeding DAILY_COST_LIMIT_USD. Billed by its visible half
+    alone, a stage that thinks fifteen times as long as it speaks goes into
+    ai_calls at a fifteenth of its price and the cap quietly stops capping."""
+
+    async def thinking(**kwargs):
+        return SimpleNamespace(
+            text=SOURCE + "\n\n**жирным**",
+            usage_metadata=SimpleNamespace(
+                prompt_token_count=1000,
+                candidates_token_count=500,
+                thoughts_token_count=7700,
+            ),
+        )
+
+    monkeypatch.setattr(compose.settings, "COMPOSE_ENABLED", True)
+    monkeypatch.setattr(compose.settings, "COMPOSE_MODEL", "gemini-2.5-flash-lite")
+    monkeypatch.setattr(vision, "_client", _fake_client(thinking))
+
+    result = await compose.compose(SOURCE)
+
+    assert result.stats[0].tokens_thought == 7700
+    assert result.stats[0].cost_usd == pytest.approx(
+        (1000 * 0.10 + 8200 * 0.40) / 1_000_000
+    )
+
+
 # ── the guards ───────────────────────────────────────────────────────────────
 
 
