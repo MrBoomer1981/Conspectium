@@ -171,26 +171,35 @@ WHERE created_at > now() - interval '1 day'
 GROUP BY 1, 2;
 ```
 
-### Gaps in the instrument, found on 2026-09-23 and not fixed
+### Gaps in the instrument, found on 2026-09-23
 
-1. **`VISION_MODEL` is never printed at startup.** The prompt is, the compose
-   model is, both knobs are — the model that actually reads the photograph is
-   not. Every quality finding in CLAUDE.md is attributed to a model, and the
-   model has already changed twice under this project, invalidating a page of
-   them. One line in `app/main.py`.
-2. **The unpriced warning covers `VISION_MODEL` only.** The validator in
-   `config.py` refuses to start on either model being unpriced; the warning that
-   replaces it under `ALLOW_UNPRICED_MODEL` looks at `VISION_MODEL` alone. So
-   swapping `COMPOSE_MODEL` for an unpriced one starts silently with the daily
-   cost cap disarmed. Same line as (1).
-3. **A record does not carry the prompt that produced it.** `numeric_agreement`
-   was made a column precisely so that comparing two prompts would be a query
-   rather than a grep through logs that roll off — and the half that says
-   *which prompt* is still only in the logs. Until `notes` carries it, an arm is
-   attributed by the wall clock. Decide this before the next arm, not after.
+Two of the four are closed; the one that matters most for the next arm is not.
+
+1. ~~**`VISION_MODEL` is never printed at startup.**~~ Fixed. The line reads
+   `Recognition: <model>, N runs`, and the run count is on it because a page
+   scored on two runs agrees more easily than one scored on three.
+2. ~~**The unpriced warning covers `VISION_MODEL` only.**~~ Fixed, and not by
+   editing the second loop: `PRICED_MODEL_SETTINGS` is one list,
+   `Settings.unpriced_models()` reads it, and both the validator that refuses to
+   start and the warning that replaces it under `ALLOW_UNPRICED_MODEL` go
+   through that one method. A test asserts the two cover the same settings, so
+   a third priced setting added to one and not the other fails.
+3. **A record does not carry the prompt that produced it.** Still open, and it
+   is the one to decide before the next arm rather than after.
+   `numeric_agreement` was made a column precisely so that comparing two prompts
+   would be a query rather than a grep through logs that roll off — and the half
+   that says *which prompt* is still only in the logs. Until `notes` carries it,
+   an arm is attributed by the wall clock.
+
+   What it costs to leave open: the v4/v5 question is four albums against two,
+   so the arm that settles it has to pool albums run on different days, and
+   every one of them is attributed by remembering what the variable was set to
+   at the time. That is the failure mode this whole section exists to prevent.
 4. **`ALLOW_UNPRICED_MODEL=true` is still set** while both models are priced, so
-   it is currently protecting nothing and disarming the next model swap. CLAUDE.md
-   → Environment variables says to turn it off once a model is priced.
+   it is currently protecting nothing and disarming the next model swap. The
+   deploy log now names whichever model is unpriced, which makes the state
+   visible — but visible is not the same as chosen. CLAUDE.md → Environment
+   variables says to turn it off once a model is priced.
 
 ### Known and unfixed in the composer
 

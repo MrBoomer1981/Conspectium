@@ -1070,6 +1070,15 @@ silently.
 priced by the same validator as `VISION_MODEL` — half the spend going out
 unpriced breaks the daily cap exactly as quietly as all of it.
 
+**The refusal and the warning read one list, and that is load-bearing.** They
+did not: the validator checked both models from the day `compose` shipped,
+while the warning that stands in for it under `ALLOW_UNPRICED_MODEL` named
+`VISION_MODEL` alone, so swapping `COMPOSE_MODEL` for an unpriced one started
+in silence with half the day's spend writing `NULL`. `PRICED_MODEL_SETTINGS`
+and `Settings.unpriced_models()` are one list read twice, and a test asserts
+the two paths cover the same settings. Any future setting that names a model
+goes in that tuple and nowhere else.
+
 `VISION_MEDIA_RESOLUTION` and `VISION_THINKING_LEVEL` are the two knobs on
 *how* the model is asked, as opposed to what it is asked. Both default to
 `unset`, which means the field is not sent at all — Gemini's own default, and
@@ -1115,6 +1124,16 @@ variable, and it is the only honest way to compare two prompts: the startup
 log says which file and how many words, so a record can be attributed to the
 prompt that produced it. A name that isn't in the repo kills the process at
 startup, deliberately.
+
+**The startup log is the instrument's label, and what it leaves out is
+unmeasurable.** It named the prompt, the compose model, both call knobs and all
+three timeouts — and not `VISION_MODEL`, the attribute every finding in this
+file carries and the one that has already changed twice here, retiring a page
+of them. `Recognition: <model>, N runs` is the first line now, the run count on
+it because a page scored on two runs agrees more easily than one scored on
+three. What is still missing is the other direction: a **record** does not say
+which prompt made it, so pooling albums across days rests on remembering. See
+`PLAN.md` → "Where the quality work stands" → gap 3.
 
 ---
 
