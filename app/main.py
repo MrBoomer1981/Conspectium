@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import albums, corpus, texts
 from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
-from app.core.config import PRICE_PER_MTOK, settings
+from app.core.config import settings
 from app.core.events import log_event_standalone
 from app.services import compose, pdf, vision
 from app.db.models import User
@@ -124,6 +124,15 @@ async def lifespan(app: FastAPI):
     await bot.set_webhook(url, secret_token=settings.WEBHOOK_SECRET)
     logger.info("Webhook set")
 
+    # The model that reads the photograph, and how many times. Every quality
+    # finding in CLAUDE.md is attributed to a model, and this one has already
+    # changed twice under this project, retiring a page of them — while the
+    # startup log named the compose model and not this one. The run count is
+    # on the same line because a page scored on two runs agrees more easily
+    # than one scored on three, so an agreement without it is unattributable.
+    logger.info(
+        "Recognition: %s, %d runs", settings.VISION_MODEL, settings.VISION_RUNS
+    )
     # Which prompt produced a record is only answerable from the logs, and
     # only if the deploy says which file it read and how long it was.
     logger.info(
@@ -156,13 +165,16 @@ async def lifespan(app: FastAPI):
         vision._CONSENSUS_TIMEOUT_S,
         albums._ALBUM_TIMEOUT_S,
     )
-    if settings.VISION_MODEL not in PRICE_PER_MTOK:
-        # Allowed by ALLOW_UNPRICED_MODEL; said out loud on every deploy so it
-        # cannot become the state nobody remembers choosing.
+    # Allowed by ALLOW_UNPRICED_MODEL; said out loud on every deploy so it
+    # cannot become the state nobody remembers choosing. Both models, from the
+    # same list the validator refuses on — this used to name VISION_MODEL
+    # alone, so swapping COMPOSE_MODEL for an unpriced one started in silence.
+    for name, model in settings.unpriced_models():
         logger.warning(
-            "VISION_MODEL=%s has no price: ai_calls.cost_usd will be NULL and "
-            "DAILY_COST_LIMIT_USD is not enforced",
-            settings.VISION_MODEL,
+            "%s=%s has no price: its ai_calls rows carry cost_usd NULL, SUM "
+            "skips them, and DAILY_COST_LIMIT_USD undercounts the day's spend",
+            name,
+            model,
         )
 
     # Unlike the webhook, this one must not stop startup: a bot without a

@@ -19,6 +19,14 @@ PRICE_PER_MTOK: dict[str, tuple[float, float]] = {
     "gemini-2.5-flash-lite": (0.10, 0.40),
 }
 
+# The settings whose model has to be priced for DAILY_COST_LIMIT_USD to mean
+# anything. Both of them: half the spend going out unpriced breaks the cap just
+# as quietly as all of it. One list, because the validator below refuses to
+# start on it and the startup log warns about it, and two loops that have to
+# agree is how they came to disagree — the warning looked at VISION_MODEL alone
+# while the validator looked at both.
+PRICED_MODEL_SETTINGS = ("VISION_MODEL", "COMPOSE_MODEL")
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -81,6 +89,19 @@ class Settings(BaseSettings):
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
         return v
 
+    def unpriced_models(self) -> list[tuple[str, str]]:
+        """The (variable, model) pairs whose price is unknown, in order.
+
+        Read twice for the same reason: the validator below refuses to start on
+        this list, and under ALLOW_UNPRICED_MODEL the startup log warns about
+        it instead. One list rather than two so they cannot drift apart.
+        """
+        return [
+            (name, getattr(self, name))
+            for name in PRICED_MODEL_SETTINGS
+            if getattr(self, name) not in PRICE_PER_MTOK
+        ]
+
     @model_validator(mode="after")
     def _model_is_priced_or_deliberately_not(self) -> "Settings":
         """A model missing from PRICE_PER_MTOK makes every ai_calls row cost
@@ -90,17 +111,13 @@ class Settings(BaseSettings):
         a real thing to want, and the page cap still stands."""
         if self.ALLOW_UNPRICED_MODEL:
             return self
-        # Both of them: half the spend going out unpriced breaks the cap just
-        # as quietly as all of it.
-        for name in ("VISION_MODEL", "COMPOSE_MODEL"):
-            model = getattr(self, name)
-            if model not in PRICE_PER_MTOK:
-                raise ValueError(
-                    f"{name}={model} has no price in PRICE_PER_MTOK "
-                    "(app/core/config.py). Add its cost per million tokens as "
-                    "(input, output), or set ALLOW_UNPRICED_MODEL=true to run "
-                    "with DAILY_COST_LIMIT_USD not enforced."
-                )
+        for name, model in self.unpriced_models():
+            raise ValueError(
+                f"{name}={model} has no price in PRICE_PER_MTOK "
+                "(app/core/config.py). Add its cost per million tokens as "
+                "(input, output), or set ALLOW_UNPRICED_MODEL=true to run "
+                "with DAILY_COST_LIMIT_USD not enforced."
+            )
         return self
 
     @field_validator("VISION_RUNS")

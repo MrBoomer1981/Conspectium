@@ -8,7 +8,7 @@ development because a hand-written .env usually already says +asyncpg.
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import PRICE_PER_MTOK, Settings
+from app.core.config import PRICE_PER_MTOK, PRICED_MODEL_SETTINGS, Settings
 from app.services import vision
 
 _REQUIRED = {
@@ -383,3 +383,50 @@ def test_the_refusal_names_which_model_has_no_price():
 
 def test_the_default_compose_model_is_priced():
     assert _settings().COMPOSE_MODEL in PRICE_PER_MTOK
+
+
+# ── the list the refusal and the startup warning share ───────────────────────
+
+
+def test_a_priced_pair_of_models_leaves_nothing_to_warn_about():
+    assert _settings().unpriced_models() == []
+
+
+def test_the_compose_model_is_named_when_only_it_has_no_price():
+    """The asymmetry this list was extracted to remove.
+
+    The validator has always checked both models; the warning that replaces it
+    under ALLOW_UNPRICED_MODEL looked at VISION_MODEL alone, so swapping
+    COMPOSE_MODEL for an unpriced one started the process in silence with half
+    the day's spend writing cost_usd NULL.
+    """
+    s = _settings(COMPOSE_MODEL="gemini-9.9-imaginary", ALLOW_UNPRICED_MODEL=True)
+    assert s.unpriced_models() == [("COMPOSE_MODEL", "gemini-9.9-imaginary")]
+
+
+def test_both_are_named_when_neither_has_a_price():
+    s = _settings(
+        VISION_MODEL="gemini-9.9-imaginary",
+        COMPOSE_MODEL="gemini-8.8-imaginary",
+        ALLOW_UNPRICED_MODEL=True,
+    )
+    assert s.unpriced_models() == [
+        ("VISION_MODEL", "gemini-9.9-imaginary"),
+        ("COMPOSE_MODEL", "gemini-8.8-imaginary"),
+    ]
+
+
+def test_the_refusal_and_the_warning_cover_the_same_settings():
+    """One list, read two ways, and this is what says so.
+
+    Whatever the escape hatch lets through is exactly what refuses to start
+    without it — a new priced setting added to one and not the other is the
+    drift that produced the bug above.
+    """
+    for name in PRICED_MODEL_SETTINGS:
+        allowed = _settings(**{name: "gemini-9.9-imaginary"}, ALLOW_UNPRICED_MODEL=True)
+        assert allowed.unpriced_models() == [(name, "gemini-9.9-imaginary")]
+
+        with pytest.raises(ValidationError) as caught:
+            _settings(**{name: "gemini-9.9-imaginary"})
+        assert name in str(caught.value)
