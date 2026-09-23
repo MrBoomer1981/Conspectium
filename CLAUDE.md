@@ -335,6 +335,42 @@ next suspect is `COMPOSE_MODEL`, which is `gemini-3.5-flash-lite` — the
 weakest model in the system doing the job that was supposed to justify a
 second call.
 
+**It was the model. `COMPOSE_MODEL=gemini-3.8-flash` composes.**
+
+| | headings | bold | display formulas |
+|---|---:|---:|---:|
+| v4, one stage | 7 | 1 | 5 |
+| v5 + v2, flash-lite | 4 | 0-1 | 3-5 |
+| **v5 + v2, 3.8-flash** | **7** | **6** | 4 |
+
+Same prompt, same album, same everything else: the headings match what one
+stage produces and the bold lands on six terms instead of one. The two-stage
+architecture works, and what it was waiting on was neither the prompt's length
+nor its shape but a model strong enough to hold ten rules at once.
+
+**What it costs is the finding to keep.** That single formatting call thought
+**15079 tokens to produce 593** — twenty-five to one, 41 seconds, and
+**$0.0298**, which is more than half again what all nine recognition calls of
+the same album cost together ($0.0450). The album went from about 4.7 to 7.5
+cents and from 22 to 61 seconds, for markup over text that was already correct.
+Note also that 15672 output tokens would have been **truncated under the old
+8192 ceiling**: the raise made an hour earlier for recognition is the only
+reason this call returned at all, and a truncated composition would have been
+refused by the length guard and silently thrown away.
+
+`VISION_THINKING_LEVEL` does not reach this call — `compose._one_call` builds
+its own config and sends no `thinking_config`. If a thinking cap is ever worth
+having, this is the call that wants one first: transformation over trusted text
+is the job in this system with the least to think about.
+
+**And it over-structures, which is the predicted failure and worth watching.**
+`Спектры атомов (полосочки) для каждого атома уникальны` is one sentence; the
+composer split it into a `##` heading and a body line. Same for `Волновая
+ф-ция ($\Psi$)`. Rule 1 says a section heading, and the model is deciding what
+a section is — interpretation, on a page it cannot see. It is the mild version
+of the failure this stage exists to avoid, it is checkable by eye, and no guard
+in `_refusal` looks for it.
+
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a
 discrepancy that didn't exist, duplicated it three times, and found none
