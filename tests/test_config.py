@@ -241,6 +241,34 @@ def test_the_extraction_prompt_stays_the_shortest_one():
     assert words["prompts-v5.md"] == min(words.values())
 
 
+# ── COMPOSE_CALL_TIMEOUT_S: the second one, and why it is not the first ──────
+
+
+def test_the_two_call_timeouts_are_separate_settings():
+    """Recognition is one call per page, composition one call per record, so
+    the two ceilings scale with different things. They were one number until a
+    four-page album hit the page ceiling at exactly 90 s and its markup was
+    thrown away."""
+    settings = _settings()
+
+    assert settings.COMPOSE_CALL_TIMEOUT_S == 240
+    assert settings.COMPOSE_CALL_TIMEOUT_S != settings.VISION_CALL_TIMEOUT_S
+
+
+def test_both_ends_of_the_compose_timeout_are_accepted():
+    assert _settings(COMPOSE_CALL_TIMEOUT_S=30).COMPOSE_CALL_TIMEOUT_S == 30
+    assert _settings(COMPOSE_CALL_TIMEOUT_S=600).COMPOSE_CALL_TIMEOUT_S == 600
+
+
+def test_a_compose_timeout_outside_the_range_is_refused():
+    # Under 30 s the stage refuses itself: the shortest composition measured on
+    # a model strong enough to compose took 41 s. Over 600 s the wait outlives
+    # the background task it runs in.
+    for value in (29, 0, -1, 601, 3600):
+        with pytest.raises(ValidationError):
+            _settings(COMPOSE_CALL_TIMEOUT_S=value)
+
+
 # ── VISION_CALL_TIMEOUT_S: the one timeout that is a setting ─────────────────
 
 

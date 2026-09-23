@@ -59,15 +59,20 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 25. The instrument: `numeric_agreement` as a column, the thinking half
       of the budget recorded, the output ceiling raised, `gemini-3.8-flash`
       priced, and an unparseable answer that names why the model stopped
-- [x] 26. Seven commands deleted, one gesture kept: a subject you choose, five
+- [x] 26. Six commands deleted, one gesture kept: a subject you choose, five
       topics the bot reads, and a "#word" that files or finds
+
+**What production asked for next:**
+
+- [x] 27. Stage two waits on a ceiling of its own, and a 503 earns a second
+      call — a page's timeout was being applied to a call over the whole record
 
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-26
+Done: 1-27
 Current task: none
 Next task: none
 Blockers: none
@@ -202,6 +207,22 @@ Two of the four are closed; the one that matters most for the next arm is not.
    visible — but visible is not the same as chosen. CLAUDE.md → Environment
    variables says to turn it off once a model is priced.
 
+### Fixed since: the ceiling the composer waited on
+
+`compose` waited on `VISION_CALL_TIMEOUT_S`, the ceiling of one recognition
+call over **one page**, while being itself one call over **the whole record**.
+On 2026-09-23 a four-page album reached exactly 90 s (`ai_calls` id 361,
+`latency_ms` 90000, `TimeoutError`) and note 37 went into the corpus with the
+flat text `prompts-v5.md` produces: three headings over 2866 characters,
+against nine over 1603 in note 36, which composed. Topics come from headings,
+so the record is also the harder one to find again.
+
+`COMPOSE_CALL_TIMEOUT_S` is its own setting now, 240 s by default against a
+measured 43 s for three pages, and the stage makes a second call on a 429, a
+503 or a dropped connection — but never on a timeout, where a second wait of
+the same minutes buys the same answer and doubles the window a deploy can
+cancel the record in. Both attempts are written to `ai_calls`.
+
 ### Known and unfixed in the composer
 
 `prompts-compose-v2.md` on `gemini-3.8-flash` **over-structures**: it split
@@ -243,6 +264,12 @@ sentinel. The fix deployed at 19:23 UTC and there has not been one since; the
 six albums after it went through. Those four metric sets are also the only real
 calibration data this project has for the rewrite PLAN.md → Known risks
 describes, and they live in `events` where they do not roll off.
+
+**One compose call in three timed out, and that is what task 27 fixed.** The
+three calls on `gemini-3.8-flash` read 41.3 s, 43.7 s and one at exactly
+90000 ms with `TimeoutError` — the four-page album. The two that returned were
+three-page albums, so the successful case was already at half the ceiling it
+was given.
 
 **The five-topic cap has never run on the deployed bot.** Note 36 was created at
 06:09 and the cap deployed at 06:18, so its eight topics are the old behaviour.

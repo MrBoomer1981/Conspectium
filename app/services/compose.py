@@ -54,6 +54,13 @@ _WORD_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
 
 _UNREADABLE = "[неразборчиво]"
 
+# Two attempts, one pause. Recognition takes three because a lost page costs
+# the whole album; here a lost call costs the markup of a record that is
+# delivered either way, so the second attempt is insurance against a 429 or a
+# 503 and not a machine for getting an answer out of the model.
+_ATTEMPTS = 2
+_RETRY_PAUSE_S = 2
+
 
 @dataclass
 class Composition:
@@ -105,11 +112,8 @@ def _refusal(source: str, composed: str) -> str | None:
     return None
 
 
-async def _one_call(markdown: str) -> tuple[str | None, CallStats]:
-    """One call, no retries. A failure here is not a lost record — the caller
-    already holds the text this was meant to format — so the machinery that
-    guards a recognition run would be paying for a path that already degrades
-    correctly.
+async def _one_call(markdown: str) -> tuple[str | None, CallStats, bool]:
+    """One call, and whether the failure that ended it is worth another.
 
     None means the call itself never came back. An answer that arrived empty
     is returned as the empty string: the call happened, it was billed, and
@@ -129,11 +133,18 @@ async def _one_call(markdown: str) -> tuple[str | None, CallStats]:
                         max_output_tokens=vision.MAX_OUTPUT_TOKENS,
                     ),
                 ),
-                timeout=vision._CALL_TIMEOUT_S,
+                timeout=settings.COMPOSE_CALL_TIMEOUT_S,
             )
     except Exception as exc:
         latency_ms = int((time.monotonic() - started) * 1000)
-        logger.warning("compose failed: %s", vision._short_error(exc))
+        # A timeout is the one transient failure not worth calling again, and
+        # vision._should_retry says the opposite — rightly, for a page: there
+        # the ceiling is tens of seconds and a hung connection is the usual
+        # cause. Here the ceiling is minutes and sized for the whole record, so
+        # a call that reached it was working rather than hanging. Waiting the
+        # same minutes again buys the same answer and doubles the window in
+        # which a deploy cancels the background task holding the record.
+        retryable = vision._should_retry(exc) and not isinstance(exc, TimeoutError)
         return None, CallStats(
             kind="compose",
             model=model,
@@ -144,7 +155,7 @@ async def _one_call(markdown: str) -> tuple[str | None, CallStats]:
             latency_ms=latency_ms,
             success=False,
             error=vision._short_error(exc),
-        )
+        ), retryable
 
     tokens_in, tokens_out, tokens_thought = vision._usage(response)
     text = vision._response_text(response).strip()
@@ -159,7 +170,7 @@ async def _one_call(markdown: str) -> tuple[str | None, CallStats]:
         latency_ms=latency_ms,
         success=bool(text),
         error=None if text else "empty model response",
-    )
+    ), False
 
 
 async def compose(markdown: str) -> Composition:
@@ -167,9 +178,29 @@ async def compose(markdown: str) -> Composition:
     if not settings.COMPOSE_ENABLED:
         return Composition(markdown)
 
-    composed, stats = await _one_call(markdown)
+    all_stats: list[CallStats] = []
+    composed: str | None = None
+    for attempt in range(_ATTEMPTS):
+        composed, stats, retryable = await _one_call(markdown)
+        all_stats.append(stats)  # rule 4: a call that failed was still a call
+        if composed is not None:
+            break
+        last = attempt == _ATTEMPTS - 1
+        # stats.error and not the exception, for the reason vision.transcribe
+        # gives: str(TimeoutError()) is "", and the line used to end in a colon.
+        logger.warning(
+            "compose attempt %d/%d failed, %s: %s",
+            attempt + 1,
+            _ATTEMPTS,
+            "retrying" if retryable and not last else "no retry",
+            stats.error,
+        )
+        if last or not retryable:
+            break
+        await asyncio.sleep(_RETRY_PAUSE_S)
+
     if composed is None:
-        return Composition(markdown, refused="call failed", stats=[stats])
+        return Composition(markdown, refused="call failed", stats=all_stats)
 
     refused = _refusal(markdown, composed)
     drift = _drift(markdown, composed)
@@ -182,5 +213,5 @@ async def compose(markdown: str) -> Composition:
         settings.COMPOSE_MODEL,
     )
     if refused:
-        return Composition(markdown, refused=refused, drift=drift, stats=[stats])
-    return Composition(composed, drift=drift, stats=[stats])
+        return Composition(markdown, refused=refused, drift=drift, stats=all_stats)
+    return Composition(composed, drift=drift, stats=all_stats)

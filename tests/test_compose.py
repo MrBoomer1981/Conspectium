@@ -11,8 +11,32 @@ reported rather than refused on.
 from types import SimpleNamespace
 
 import pytest
+from google.genai import errors as genai_errors
 
 from app.services import compose, vision
+
+
+def _api_error(code: int) -> genai_errors.APIError:
+    """A Gemini APIError with a chosen status, built without the SDK
+    constructor — its signature shifts between versions."""
+    err = genai_errors.APIError.__new__(genai_errors.APIError)
+    err.code = code
+    err.message = "test"
+    err.details = None
+    return err
+
+
+def _failing_then_answering(errors: list[Exception], text: str):
+    """A client that raises its way down the list and then answers."""
+    attempts: list[dict] = []
+
+    async def generate_content(**kwargs):
+        attempts.append(kwargs)
+        if len(attempts) <= len(errors):
+            raise errors[len(attempts) - 1]
+        return SimpleNamespace(text=text, usage_metadata=None)
+
+    return generate_content, attempts
 
 SOURCE = (
     "Теорема Кантора о вложенных отрезках\n"
@@ -333,6 +357,98 @@ async def test_a_failed_call_is_still_written_to_the_spend_log(monkeypatch):
     result = await compose.compose(SOURCE)
 
     assert [s.kind for s in result.stats] == ["compose"]
+
+
+# ── the ceiling, and the attempt after the first ─────────────────────────────
+
+
+async def test_the_stage_waits_on_its_own_ceiling_and_not_the_page_one(
+    monkeypatch,
+):
+    """The failure this setting was added for: stage two is one call over the
+    whole record, VISION_CALL_TIMEOUT_S is the ceiling of one call over one
+    page, and a four-page album composed on the second number was thrown away
+    at exactly 90 s with its markup (production, 2026-09-23)."""
+    waited: list[float] = []
+
+    async def capture(awaitable, timeout=None):
+        waited.append(timeout)
+        return await awaitable
+
+    monkeypatch.setattr(compose.asyncio, "wait_for", capture)
+
+    await _run(monkeypatch, SOURCE + "\n\n**жирным**")
+
+    assert waited == [compose.settings.COMPOSE_CALL_TIMEOUT_S]
+    assert waited[0] != vision._CALL_TIMEOUT_S
+
+
+async def test_a_503_is_tried_once_more_and_the_second_answer_ships(monkeypatch):
+    composed = SOURCE + "\n\n**жирным**"
+    generate_content, attempts = _failing_then_answering(
+        [_api_error(503)], composed
+    )
+    monkeypatch.setattr(compose.settings, "COMPOSE_ENABLED", True)
+    monkeypatch.setattr(compose, "_RETRY_PAUSE_S", 0)
+    monkeypatch.setattr(vision, "_client", _fake_client(generate_content))
+
+    result = await compose.compose(SOURCE)
+
+    assert len(attempts) == 2
+    assert result.refused is None
+    assert result.markdown == composed.strip()
+    # Rule 4 has no exception for the attempt that failed: it was a call.
+    assert [s.success for s in result.stats] == [False, True]
+
+
+async def test_a_timeout_is_not_waited_out_twice(monkeypatch):
+    """vision._should_retry says a timeout is retryable, and for a page it is.
+    Here the ceiling is minutes and sized for the whole record, so a call that
+    reached it was working — a second wait buys the same answer and doubles
+    the window in which a deploy cancels the task holding the record."""
+    generate_content, attempts = _failing_then_answering(
+        [TimeoutError(), TimeoutError()], SOURCE
+    )
+    monkeypatch.setattr(compose.settings, "COMPOSE_ENABLED", True)
+    monkeypatch.setattr(compose, "_RETRY_PAUSE_S", 0)
+    monkeypatch.setattr(vision, "_client", _fake_client(generate_content))
+
+    result = await compose.compose(SOURCE)
+
+    assert len(attempts) == 1
+    assert result.refused == "call failed"
+    assert result.markdown == SOURCE
+
+
+async def test_a_400_is_not_tried_again(monkeypatch):
+    # The same classification recognition uses: a logical refusal repeats.
+    generate_content, attempts = _failing_then_answering(
+        [_api_error(400)], SOURCE
+    )
+    monkeypatch.setattr(compose.settings, "COMPOSE_ENABLED", True)
+    monkeypatch.setattr(compose, "_RETRY_PAUSE_S", 0)
+    monkeypatch.setattr(vision, "_client", _fake_client(generate_content))
+
+    result = await compose.compose(SOURCE)
+
+    assert len(attempts) == 1
+    assert result.refused == "call failed"
+
+
+async def test_both_attempts_failing_still_gives_back_the_source(monkeypatch):
+    generate_content, attempts = _failing_then_answering(
+        [_api_error(503), _api_error(429)], SOURCE
+    )
+    monkeypatch.setattr(compose.settings, "COMPOSE_ENABLED", True)
+    monkeypatch.setattr(compose, "_RETRY_PAUSE_S", 0)
+    monkeypatch.setattr(vision, "_client", _fake_client(generate_content))
+
+    result = await compose.compose(SOURCE)
+
+    assert len(attempts) == compose._ATTEMPTS == 2
+    assert result.markdown == SOURCE
+    assert result.refused == "call failed"
+    assert len(result.stats) == 2
 
 
 # ── the prompt that ships ────────────────────────────────────────────────────

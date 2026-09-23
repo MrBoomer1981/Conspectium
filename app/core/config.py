@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     COMPOSE_ENABLED: bool = False
     COMPOSE_MODEL: str = "gemini-3.5-flash-lite"
     COMPOSE_PROMPT_FILE: str = "prompts-compose-v1.md"
+    # Stage two is one call over the whole record; VISION_CALL_TIMEOUT_S is the
+    # ceiling of one call over one page. They scale with different things, so
+    # they cannot be the same number — and for a while they were. Measured on
+    # gemini-3.8-flash: three pages compose in about 43 s, four pages ran past
+    # 90 s and the album's markup was thrown away (ai_calls id 361).
+    COMPOSE_CALL_TIMEOUT_S: int = 240
     # Which prompt file vision.py loads at import. A variant can be tried on
     # the deployed bot by changing this one variable, and rolled back the same
     # way, without a code change in between.
@@ -148,6 +154,20 @@ class Settings(BaseSettings):
         if v not in allowed:
             raise ValueError(
                 f"VISION_THINKING_LEVEL must be one of {sorted(allowed)}"
+            )
+        return v
+
+    @field_validator("COMPOSE_CALL_TIMEOUT_S")
+    @classmethod
+    def _compose_timeout_is_workable(cls, v: int) -> int:
+        """Under 30 s the stage refuses itself by construction: the shortest
+        composition ever measured on a model strong enough to compose took
+        41 s. Over 600 s the wait outlives what it runs in — an update is a
+        background task that any deploy cancels, and a record whose formatting
+        was cancelled goes out unformatted anyway."""
+        if not 30 <= v <= 600:
+            raise ValueError(
+                "COMPOSE_CALL_TIMEOUT_S must be between 30 and 600"
             )
         return v
 

@@ -597,6 +597,10 @@ first because rule 8 lets the composer renumber a list; the count of
 shorter. Any of those, and the record is the one stage one produced. Off,
 refused, or failed, the worst case of the stage is the pipeline without it.
 
+How long that call may take, and the one case where a second one is not made,
+are in "Concurrency ceilings" — the stage has its own ceiling because it is one
+call over the whole record rather than one call over a page.
+
 Word drift is **measured and not refused on**, deliberately. Rule 6 of
 `prompts-compose-v1.md` asks for `### Определение` over a definition, so the
 stage is *required* to write a word the page does not carry; a word guard would
@@ -657,14 +661,15 @@ already machine text. Only the empty-text gate (step 11) still applies.
 
 ## Concurrency ceilings
 
-**One of these is a setting; two are computed from it.** That arithmetic used
-to live in comments across two files, where raising one number on its own left
-the other two quietly cutting the work short:
+**Two of these are settings; three are computed from one of them.** That
+arithmetic used to live in comments across two files, where raising one number
+on its own left the other two quietly cutting the work short:
 
 | Constant | Where | Value |
 |---|---|---|
 | `API_SLOTS` | `services/vision.py` | `10` — Gemini answers a bigger burst with 429s. The semaphore is built from it and `albums.py` counts waves with it |
-| `VISION_CALL_TIMEOUT_S` | environment | **The only one anybody sets.** 30 s, the range is 5–180 |
+| `VISION_CALL_TIMEOUT_S` | environment | 30 s, the range is 5–180. One call over **one page**; the three ceilings below are computed from it |
+| `COMPOSE_CALL_TIMEOUT_S` | environment | 240 s, the range is 30–600. One call over **the whole record**, so nothing derives from it and it derives from nothing |
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)` — every attempt timing out. 93 s at the default |
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s at the default |
 | `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × `VISION_RUNS` ÷ `API_SLOTS`⌉ — 362 s at the default. Normative: raising it is allowed, lowering it is not |
@@ -675,8 +680,31 @@ the other two quietly cutting the work short:
 `TIMEOUT_MARGIN = 1.3` is the ratio the hand-written 120 s held to 93 s, so the
 defaults land back on the numbers they replaced — `_ALBUM_TIMEOUT_S` is the one
 that moves, 300 → 362, in the direction the rule permits. The startup log
-prints all three: two are computed now, and the only way to know what a deploy
+prints all four: three are computed now, and the only way to know what a deploy
 is running on is for it to say so.
+
+**The two settings are not interchangeable, and treating them as one cost a
+record.** Recognition is one call per page, so its ceiling is about a page and
+every album ceiling is derived from it. Composition is one call over the whole
+assembled record, so its wait grows with the album while the page ceiling does
+not. `compose` waited on `VISION_CALL_TIMEOUT_S` until a four-page album hit
+exactly 90 s (`ai_calls` id 361, 2026-09-23) and the record went into the
+corpus with the flat text `prompts-v5.md` produces — three headings over 2866
+characters, where the composed record of the previous album had nine over
+1603. Topics are read off headings, so the record came out both flatter and
+harder to find. Measured on `gemini-3.8-flash`: three pages compose in about
+43 s, which is where the 240 s default comes from.
+
+**And the second attempt is not the same policy as recognition's.** `compose`
+makes at most two calls and **does not retry a timeout** — `vision._should_retry`
+says it should, which is right for a page, where the ceiling is tens of seconds
+and a hung connection is the usual cause. At a ceiling of minutes, sized for
+the whole record, a call that reached it was working rather than hanging:
+waiting those minutes again buys the same answer and doubles the window in
+which a deploy cancels the background task. The retry is there for a 429, a
+503 or a dropped connection, which is what the second attempt can actually
+fix. Every attempt is written to `ai_calls` — rule 4 has no exception for the
+one that failed.
 
 Raising `VISION_CALL_TIMEOUT_S` is what a slower or thinking model needs, and
 the cost is not linear — at 90 s the album ceiling becomes 1064 s. That is a
@@ -868,6 +896,7 @@ VISION_THINKING_LEVEL=unset
 COMPOSE_ENABLED=false
 COMPOSE_MODEL=gemini-3.5-flash-lite
 COMPOSE_PROMPT_FILE=prompts-compose-v1.md
+COMPOSE_CALL_TIMEOUT_S=240
 PROMPT_FILE=prompts-v3.md
 IMAGE_MAX_SIDE=1500
 IMAGE_QUALITY=85
@@ -910,6 +939,15 @@ silently.
 priced by the same validator as `VISION_MODEL` — half the spend going out
 unpriced breaks the daily cap exactly as quietly as all of it.
 
+`COMPOSE_CALL_TIMEOUT_S` is the second timeout that is a setting, and the
+reason it is not `VISION_CALL_TIMEOUT_S` is in "Concurrency ceilings": one
+call over a page against one call over a record. The range is 30–600. Under
+30 s the stage refuses itself by construction — the shortest composition ever
+measured on a model strong enough to compose took 41 s — and over 600 s the
+wait outlives the background task it runs in, where a deploy cancels it and
+the record goes out unformatted anyway, which is the outcome the wait was
+meant to prevent.
+
 **The refusal and the warning read one list, and that is load-bearing.** They
 did not: the validator checked both models from the day `compose` shipped,
 while the warning that stands in for it under `ALLOW_UNPRICED_MODEL` named
@@ -935,9 +973,8 @@ an experiment comes to compare a setting against itself.
 **It was measured and it does nothing.** `high` left `tokens_in` at exactly the
 value `unset` produced — see `FINDINGS.md` → "Arm B". Leave it `unset`; it is
 not a lever on this model at this image size, and carrying it in an arm makes
-that arm
-compare a setting against itself, which is the failure this paragraph was
-written to prevent.
+that arm compare a setting against itself, which is the failure this paragraph
+was written to prevent.
 
 `VISION_THINKING_LEVEL` is the one still untouched, and it is now *visible*
 rather than merely settable: `ai_calls.tokens_thought` says how much thinking
@@ -968,7 +1005,7 @@ startup, deliberately.
 
 **The startup log is the instrument's label, and what it leaves out is
 unmeasurable.** It named the prompt, the compose model, both call knobs and all
-three timeouts — and not `VISION_MODEL`, the attribute every finding in this
+four timeouts — and not `VISION_MODEL`, the attribute every finding in this
 file carries and the one that has already changed twice here, retiring a page
 of them. `Recognition: <model>, N runs` is the first line now, the run count on
 it because a page scored on two runs agrees more easily than one scored on
@@ -1001,7 +1038,7 @@ needs a database runs on in-memory SQLite.
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the one rule in photoguard this project has edited: a line height that could not be measured is not a small one |
-| `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, and every guard that makes it refuse itself |
+| `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, and which failures earn a second call |
 | `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses, graphs read back from `[граф: ...]`, heading levels, callouts, and that nothing unreadable ever sinks the document |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
