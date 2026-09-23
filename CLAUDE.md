@@ -9,28 +9,42 @@ Project context. Read at the start of every session.
 
 ## What this is
 
-A Telegram bot for students. The user photographs a lecture note and gets
-back a structured record, which accumulates in their personal corpus.
-Later, the records are turned into spaced-repetition flashcards.
+A Telegram bot for a **university group**. One person photographs a
+handwritten page of a lecture; everyone in the group gets back a PDF they can
+study from without having been there. The record is not merely transcribed:
+hard passages are explained, context the page only implied is restored, and
+**everything the bot added stands in a marked box with its sources** — never
+woven into the author's own text. The records accumulate into the group's
+corpus, and a "#word" finds one again by its subject or by a topic read off
+its own headings.
 
-**The core value is the accumulated corpus, not the flashcards.** Flashcards
-give a reason to keep feeding in notes regularly; the corpus gives a reason
-not to leave. When choosing between "improve the flashcards" and "improve
-work with the corpus," choose the corpus.
+**The core value is the document the group gets.** The corpus is what those
+documents accumulate into, and it grows more valuable with every lecture — but
+it is a consequence, not the goal. When choosing between "make the document
+better" and "build another way into the corpus", choose the document. Four
+days of production said this plainly: 133 pages went in and exactly one search
+came back out, by the author, minutes after the search shipped.
 
-This is a product meant for **many users**. It runs for one today, and the
-stage governs what gets built, but "there is only one user" is never a reason
-a design is correct — when a shortcut only breaks under concurrency, say so
-and record it under "Scale debt" rather than calling it done.
+**Marked is the whole licence to add.** The reference document the author works
+from puts every addition of its own in a box that says what the manuscript
+actually had. Adding is not forbidden; adding unmarked is. In a group this
+stops being a matter of taste: the reader who most needs the explanation is the
+one who was not at the lecture and therefore cannot tell an invented sentence
+from a remembered one.
 
-**Stage:** second week, one user — the author. Week 1 (capture: photo to
-structured record) is built and unit-tested, but has never been confirmed
-end to end on the deployed bot — the "Definition of week-ready" checklist in
-`PLAN.md` is still open. Week 2 gave the corpus a way out — reading, search,
-correction, statistics — and then six of those seven commands turned out never
-to have been used at all, and were deleted; only `/stats` survived, and it had
-been used once. What remains is one gesture: a tag in, a tag back. The question the whole thing exists to answer is still whether
-the author uses this daily. Not launch, not growth, not revenue, not scale.
+This is a product meant for **many users** — now literally, since a group is
+several of them around one chat. "There is only one user" is never a reason a
+design is correct: when a shortcut only breaks under concurrency, say so and
+record it under "Scale debt" rather than calling it done.
+
+**Stage:** the pipeline runs in production for one chat — the author's. Capture
+works (133 pages over four days, 37 records), and it still loses about one
+album in five. The three phases in `PLAN.md` are, in order: **reliability** (a
+record has to exist), **the ideal record** (the explaining stage and a PDF that
+never prints raw LaTeX), and **the group** (the bot in a course chat, a record
+owned by the chat rather than by a person). The question the whole thing exists
+to answer is whether a group uses this weekly. Not launch, not growth, not
+revenue, not scale.
 
 ---
 
@@ -150,6 +164,19 @@ No linter is configured yet — don't add one without an explicit request.
    `max_output_tokens` and the JSON ends mid-string, `STOP` means the model
    finished and simply did not return JSON, `SAFETY` means it refused. Three
    different problems that used to arrive as one sentence.
+
+   The row also names the **shape** of what came back — `not json`, or the
+   answer's own top-level keys — because "not JSON at all" and "JSON without a
+   `markdown` field" have different fixes and read identically otherwise. Keys
+   only: the values are a student's lecture page and do not belong in a log.
+
+   **And the call is made again**, unless the finish reason says a second one
+   is pointless: `SAFETY` is a refusal that repeats, `MAX_TOKENS` is our own
+   ceiling and the next call walks into the same wall. This used to be "never
+   retried", reasoned from a cost the pipeline no longer has — a lost run cost
+   a tap of "try again" then, and costs the album now. One album on 2026-09-23
+   spent four of its fifteen runs on unparseable answers, one page lost all
+   three, and nothing was saved; eleven calls in the same minute parsed fine.
 
 ---
 
@@ -1079,7 +1106,7 @@ needs a database runs on in-memory SQLite.
 | `test_parse_response.py` | the model's reply: garbage, the ```json fence, missing fields, wrong types |
 | `test_limits.py` | `check_limits` / `consume` — the money-critical path |
 | `test_reliability.py` | retry classification, one owner per album batch, spend surviving a rollback |
-| `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict`, `_short_error` |
+| `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, and what an unparseable answer says and earns |
 | `test_albums.py` | `_assemble` aggregates, `process_batch` survivor logic |
 | `test_docx.py` | heading styles to markdown, title derivation |
 | `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
@@ -1113,7 +1140,8 @@ tests, and they went out with `/search`; the tag search that replaced it joins
 an indexed column and reads the same on SQLite, which is half the reason
 `note_topics` is a table.
 
-Still to write: the FSRS schedule calculation (third week, not started).
+Still to write: nothing is scheduled. The FSRS schedule calculation used to
+stand here; flashcards are dropped for a long time and the tests go with them.
 
 ---
 
@@ -1142,7 +1170,10 @@ Still to write: the FSRS schedule calculation (third week, not started).
 Everything below is deliberately postponed. Don't suggest or implement:
 
 - A Mini App or any interface other than the bot
-- Flashcards and spaced repetition (third week)
+- Flashcards and spaced repetition. Dropped for a long time, not scheduled:
+  they were the reason to come back daily in a product whose corpus was the
+  goal, and the goal is the document now. Nothing in the schema forbids them
+  later; nothing plans for them either
 - Video and lecture transcription
 - Payments, subscriptions, pricing tiers
 - Custom registration and passwords — identity already comes from Telegram

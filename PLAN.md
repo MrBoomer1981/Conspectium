@@ -71,16 +71,83 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [x] 29. A page is no longer thrown away for its layout: when the runs'
       numbers are identical, `rejected` becomes `needs_review`
 
+**Phase A — reliability. A record has to exist:**
+
+- [x] 30. An answer that would not parse is asked for again, and the log says
+      what shape came back
+- [ ] 31. Decide what an album with one unreadable page becomes: lost as now,
+      or delivered with the hole named inside the document
+- [ ] 32. `photoguard._line_height` calibrated against real pages, so a large
+      hand stops being read as small text
+
+**Phase B — the ideal record:**
+
+- [ ] 33. Stage three: hard passages explained and implied context restored,
+      over the trusted text, with `google_search` and sources that are
+      required rather than decorative
+- [ ] 34. The explanation as a marked box in the PDF, with its sources, never
+      in the body of the record
+- [ ] 35. A PDF that never prints raw LaTeX: `cases`, matrix environments and
+      whatever else mathtext refuses
+
+**Phase C — the group:**
+
+- [ ] 36. `groups` and `notes.group_id`: the bot lives in a course chat and a
+      record belongs to the chat
+- [ ] 37. The tag question rebound to its record — the stateless trick does not
+      survive several people answering in one chat
+- [ ] 38. Limits and spend counted per group; the scale-debt rows that come due
+      with a second person in the chat
+
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-29
+Done: 1-30
 Current task: none
-Next task: none
+Next task: 31
 Blockers: none
 ```
+
+---
+
+## Where this is going, decided 2026-09-23
+
+The product is a bot **in a university group chat**. One person photographs a
+handwritten page; the chat gets a PDF it can study from. `CLAUDE.md` → "What
+this is" carries the definition; this section carries the decisions behind it
+and what they cost.
+
+**A record belongs to the chat, not to the person who sent it.** Any member
+searches it by tag and gets the PDF. That is one line to say and it undoes an
+assumption the schema is built on: every query today is scoped by `user_id`,
+and a test asserts that none of them can reach another user's records. Phase C
+replaces the owner, it does not add a sharing feature.
+
+**What the explaining stage may add: hard passages and the context the page
+implied.** Not only the places the record already marks as doubtful — a
+classmate who missed the lecture is not helped by knowing that one word was
+illegible — and not a self-contained textbook chapter either, which is the
+shape of the worst failure this project has reproduced. Explain what is hard,
+restore what was assumed, say where it came from.
+
+**Sources are the guard, because the reader cannot be one.** We cannot check a
+claim by code. We can require that every added box carries the links Gemini's
+grounding metadata returns, and refuse to print one that carries none. In a
+group this matters more than it did for one author: the person who most needs
+the explanation is the one who was not there.
+
+**Order: reliability, then the record, then the group.** Eight albums of
+forty-five attempts have been lost, two of them this evening. In a group a lost
+album is not one person's inconvenience, it is a course without a lecture.
+
+**Known to break in phase C, and worth designing around now.** The tag question
+is stateless on purpose: if the newest record has no subject, the question is
+open. In a chat the newest record is everyone's, and the person who answers may
+not be the one who sent it. The answer will have to be bound to its record —
+a reply, or a button under the message — and that is a change to `corpus.py`,
+not a setting.
 
 ---
 
@@ -2101,8 +2168,11 @@ threshold `MIN_LINE_HEIGHT_PX` would move with it, and it cannot be chosen by
 reasoning — it needs a folder of real pages through `photoguard`'s own CLI.
 
 **A recognition run is sometimes lost to an answer that will not parse, and it
-is not our ceiling.** `unparseable model response` costs a whole run, because a
-200 that parsed badly is never retried; three runs become two. The suspect was
+is not our ceiling.** (Task 30 changed the second half of this: such a call is
+asked again now, unless the finish reason is `SAFETY` or `MAX_TOKENS`. The
+diagnosis below stands and is what made the difference between the two
+legible.) `unparseable model response` cost a whole run, because a
+200 that parsed badly was never retried; three runs became two. The suspect was
 `max_output_tokens=8192`. **It is our ceiling, and the column we checked it
 against cannot see why.**
 

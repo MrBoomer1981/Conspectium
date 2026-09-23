@@ -961,7 +961,9 @@ async def test_an_answer_cut_off_at_our_ceiling_says_so(monkeypatch):
     assert stats.success is False
     assert "unparseable model response" in stats.error
     assert "MAX_TOKENS" in stats.error
-    assert retryable is False  # a 200 that parsed badly is never retried
+    # The one parse failure not worth asking again: the ceiling is ours, and
+    # the second call walks into the same wall having paid the same way there.
+    assert retryable is False
 
 
 async def test_an_enum_finish_reason_is_recorded_by_name(monkeypatch):
@@ -994,13 +996,87 @@ async def test_a_response_with_no_candidates_still_records_the_failure(
         monkeypatch, _response("не json", candidates=False)
     )
 
-    assert stats.error == "unparseable model response"
+    assert stats.error == "unparseable model response (not json)"
 
 
 async def test_an_absent_finish_reason_adds_nothing(monkeypatch):
     _, stats, _ = await _attempt(monkeypatch, _response("не json", None))
 
-    assert stats.error == "unparseable model response"
+    assert stats.error == "unparseable model response (not json)"
+
+
+# ── what came back instead of a record, and whether to ask again ─────────────
+
+
+def test_the_shape_names_the_keys_and_not_the_page():
+    """Diagnosis without content: "json without markdown" and "not json at
+    all" have different fixes, and a student's notes do not belong in a log."""
+    shape = vision._answer_shape(
+        '{"title": "Графы", "text": "Степень вершины равна 5"}'
+    )
+
+    assert shape == "json keys: text,title"
+    assert "Графы" not in shape
+    assert "Степень" not in shape
+
+
+def test_the_shape_of_everything_that_is_not_an_object():
+    assert vision._answer_shape("Конечно! Вот текст:") == "not json"
+    assert vision._answer_shape("   ") == "empty answer"
+    assert vision._answer_shape("[1, 2, 3]") == "json list"
+    assert vision._answer_shape("{}") == "json object with no keys"
+    assert vision._answer_shape('"просто строка"') == "json str"
+
+
+def test_the_shape_reads_a_fenced_answer_like_the_parser_does():
+    assert vision._answer_shape(
+        '```json\n{"markdown": "текст"}\n```'
+    ) == "json keys: markdown"
+
+
+def test_the_shape_names_at_most_eight_keys():
+    many = "{" + ",".join(f'"k{i}": 1' for i in range(20)) + "}"
+
+    assert vision._answer_shape(many).count(",") == vision._SHAPE_KEYS - 1
+
+
+async def test_an_answer_that_stopped_of_its_own_accord_is_asked_again(
+    monkeypatch,
+):
+    """The loss of 2026-09-23: four of one album's fifteen runs came back
+    unparseable with finish_reason=STOP, one page lost all three, and the
+    five-page record was never made — while eleven calls in the same minute
+    parsed. At temperature 1.0 the next call is an independent draw."""
+    _, _, retryable = await _attempt(
+        monkeypatch, _response('{"title": "Графы"}', "STOP")
+    )
+
+    assert retryable is True
+
+
+async def test_a_refusal_is_not_asked_again(monkeypatch):
+    # SAFETY is the model declining. It declines the second time too.
+    _, _, retryable = await _attempt(monkeypatch, _response("", "SAFETY"))
+
+    assert retryable is False
+
+
+async def test_an_unknown_finish_reason_is_asked_again(monkeypatch):
+    _, _, retryable = await _attempt(monkeypatch, _response("не json", None))
+
+    assert retryable is True
+
+
+async def test_an_answer_that_parsed_is_never_retryable(monkeypatch):
+    good = _response(
+        '{"markdown": "Степень вершины равна 5", "title": "Графы"}', "STOP"
+    )
+
+    result, stats, retryable = await _attempt(monkeypatch, good)
+
+    assert result is not None
+    assert stats.success is True
+    assert retryable is False
 
 
 async def test_a_response_that_parsed_carries_no_error_whatever_it_finished_on(
@@ -1039,7 +1115,7 @@ async def test_a_response_without_candidates_at_all_does_not_crash(monkeypatch):
 
     _, stats, _ = await _attempt(monkeypatch, no_candidates)
 
-    assert stats.error == "unparseable model response"
+    assert stats.error == "unparseable model response (not json)"
     assert (stats.tokens_in, stats.tokens_out) == (7, 11)  # the spend survives
 
 
@@ -1054,7 +1130,7 @@ async def test_a_candidate_without_a_finish_reason_does_not_crash(monkeypatch):
 
     _, stats, _ = await _attempt(monkeypatch, bare)
 
-    assert stats.error == "unparseable model response"
+    assert stats.error == "unparseable model response (not json)"
     assert stats.tokens_out == 11
 
 
@@ -1084,7 +1160,9 @@ async def test_the_thinking_a_call_did_is_recorded(monkeypatch):
 
     assert stats.tokens_thought == 7700
     assert stats.tokens_out == 498
-    assert stats.error == "unparseable model response (finish_reason=MAX_TOKENS)"
+    assert stats.error == (
+        "unparseable model response (finish_reason=MAX_TOKENS, not json)"
+    )
 
 
 async def test_a_model_that_does_not_think_reports_none_not_zero(monkeypatch):

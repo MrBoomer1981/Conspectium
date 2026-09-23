@@ -299,18 +299,62 @@ def _finish_reason(response: object) -> str | None:
     return getattr(reason, "name", None) or str(reason)
 
 
+# How many keys of the answer are named. Enough to tell an envelope from a
+# stranger; not a dump of the object.
+_SHAPE_KEYS = 8
+# A parse failure earns another draw, with two exceptions. SAFETY is a refusal
+# and repeats. MAX_TOKENS is our own ceiling: the second call hits the same
+# wall, having spent the same tokens walking into it.
+_FINISH_NOT_WORTH_REPEATING = frozenset({"SAFETY", "MAX_TOKENS", "RECITATION"})
+
+
+def _answer_shape(raw: str) -> str:
+    """What came back, said without saying what was on the page.
+
+    "Not JSON at all" and "JSON without a markdown field" are two different
+    failures with two different fixes, and the error column said the same
+    sentence for both. Keys are structure and diagnose it; the values are a
+    student's lecture notes and have no business in a log.
+    """
+    if not raw.strip():
+        return "empty answer"
+    data = _load_json(raw)
+    if data is None:
+        return "not json"
+    if not isinstance(data, dict):
+        return f"json {type(data).__name__}"
+    if not data:
+        return "json object with no keys"
+    return "json keys: " + ",".join(sorted(str(k) for k in data)[:_SHAPE_KEYS])
+
+
+def _worth_asking_again(response: object) -> bool:
+    """Is a 200 that would not parse worth one more call?
+
+    It used to never be, and that was reasoned from a cost this pipeline no
+    longer has: "an extra call costs money, an extra rejection costs one tap of
+    try again". Since "a record is all its pages or none", a lost run costs a
+    page and a lost page costs the album. On 2026-09-23 one album spent four of
+    its fifteen runs on unparseable answers, one page lost all three, and the
+    five-page record was never made — while eleven calls in the same minute
+    parsed fine. At temperature 1.0 the next call is an independent draw.
+    """
+    return _finish_reason(response) not in _FINISH_NOT_WORTH_REPEATING
+
+
 def _unparseable(response: object) -> str:
     """The error for a 200 whose body would not parse.
 
     Naming why the model stopped is the whole difference between "it came back
     wrong" and an answer: MAX_TOKENS is our ceiling, STOP is the model
-    returning something that is not JSON, SAFETY is a refusal.
+    returning something that is not JSON, SAFETY is a refusal. The shape says
+    what arrived instead of the record.
     """
     reason = _finish_reason(response)
-    text = "unparseable model response"
-    if reason:
-        text = f"{text} (finish_reason={reason})"
-    return text[:500]
+    said = ([f"finish_reason={reason}"] if reason else []) + [
+        _answer_shape(_response_text(response))
+    ]
+    return f"unparseable model response ({', '.join(said)})"[:500]
 
 
 def _short_error(exc: BaseException) -> str:
@@ -349,9 +393,9 @@ _THINKING_LEVEL = {
 }
 
 # A cap, not a reservation: tokens are billed as produced, so a ceiling nobody
-# reaches costs nothing. A ceiling that is reached costs a whole run — a 200
-# whose JSON stopped mid-string is not retried, so three runs become two on
-# exactly the densest page.
+# reaches costs nothing. A ceiling that is reached still costs a whole run: a
+# 200 whose JSON stopped mid-string is the one parse failure not worth asking
+# again, because the second call walks into the same wall.
 #
 # 8192 was reached. `finish_reason=MAX_TOKENS` arrived on a call whose visible
 # answer was 498 tokens and whose latency was 37 s: the budget went on
@@ -391,8 +435,9 @@ async def _one_attempt(
     model: str,
 ) -> tuple[Transcription | None, CallStats, bool]:
     """A single Gemini call plus the parsing that follows it. The third element
-    says whether a retry is worth it: True only for a transient exception. A
-    200 that parsed badly is never retried (PLAN.md -> Contracts).
+    says whether a retry is worth it: a transient exception, or a 200 whose
+    body would not parse and whose finish reason leaves room for a different
+    answer — see _worth_asking_again for why that stopped being "never".
 
     The model is a parameter, not a read of settings: the row this produces
     has to name the model that was actually called."""
@@ -447,7 +492,7 @@ async def _one_attempt(
         success=result is not None,
         error=None if result is not None else _unparseable(response),
     )
-    return result, stats, False
+    return result, stats, result is None and _worth_asking_again(response)
 
 
 async def transcribe(
