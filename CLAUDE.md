@@ -1276,6 +1276,8 @@ Everything below is deliberately postponed. Don't suggest or implement:
   one PDF when a tag matches it — that is presentation, not an exit door, and
   it is not licence to add "download everything"
 - A language trainer, text rewriting, or any second feature
-- Visual design and styling of bot responses
+- Visual design and styling of **bot responses** — the chat stays plain text.
+  This is not the document: the PDF is what the group receives, so its design
+  and readability are the product itself and are task 36 in `PLAN.md`
 - Social features, sharing, friends
 - Caching, queues, microservices, Docker, CI

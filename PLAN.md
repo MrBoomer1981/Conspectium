@@ -89,20 +89,50 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 
 **Phase B — the ideal record:**
 
-- [ ] 36. Stage three: hard passages explained and implied context restored,
+- [ ] 36. The document's design and readability: the typographic scale and the
+      rhythm it sets, the page's furniture, callouts and remarks as one system,
+      tables and figures that sit on the page rather than float through it
+- [ ] 37. Stage three: hard passages explained and implied context restored,
       over the trusted text, with `google_search` and sources that are
       required rather than decorative
-- [ ] 37. The explanation as a marked box in the PDF, with its sources, never
-      in the body of the record
+- [ ] 38. The explanation as a marked box in the PDF, with its sources, never
+      in the body of the record — in the system task 36 establishes
 
 **Phase C — the group:**
 
-- [ ] 38. `groups` and `notes.group_id`: the bot lives in a course chat and a
+- [ ] 39. `groups` and `notes.group_id`: the bot lives in a course chat and a
       record belongs to the chat
-- [ ] 39. The tag question rebound to its record — the stateless trick does not
+- [ ] 40. The tag question rebound to its record — the stateless trick does not
       survive several people answering in one chat
-- [ ] 40. Limits and spend counted per group; the scale-debt rows that come due
+- [ ] 41. Limits and spend counted per group; the scale-debt rows that come due
       with a second person in the chat
+
+### Why the design comes before the explaining stage
+
+The author asked for it as a mandatory item, and it goes first in phase B for
+three reasons, of which the third is the one that decides.
+
+The document **is** the deliverable. A group does not receive a pipeline; it
+receives a PDF, and how readable that PDF is *is* the product rather than a
+coat of paint on it.
+
+It has a feedback loop that needs nobody: records 37, 39 and 40 are in
+production with headings, formulas, tables, graphs, callouts and remarks in
+them, so a change can be rendered before and after and looked at.
+
+And task 38 inherits it. An explanation box designed before there is a system
+to put it in is a box designed twice — once on its own, once again when the
+page around it is settled.
+
+**The boundary, because design is work that absorbs whatever time it is
+given.** In scope: the scale of body, headings, tables and captions and the
+vertical rhythm between them; margins and the page's furniture (the title
+block, page numbers, what a continued record looks like on page four); the
+callouts and the anchored remarks as one visual system rather than two; how a
+figure, a table and a display formula sit in the column. Out of scope: any
+font beyond the DejaVu family already bundled, a colour system wider than the
+tones that exist, anything per-subject or per-user, and the styling of chat
+messages — those stay plain on purpose.
 
 The order of 33-35 is the author's, made on three albums run through the
 deployed bot on 2026-09-23: the seam and the raw LaTeX were in the documents
