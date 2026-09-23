@@ -110,6 +110,21 @@ def _callouts(note: Note) -> list[pdf.Callout]:
     if divergences:
         boxes.append(pdf.Callout(texts.CALLOUT_DIVERGENCES, divergences))
 
+    # First of the boxes by importance, last to be appended only because the
+    # order here is the order they were built in. A hole is the one flag that
+    # is about the record rather than about its text: the marker stands where
+    # the page would have been, and this says so on the first page, where a
+    # reader decides whether they are holding the whole lecture.
+    if note.missing_pages:
+        boxes.insert(
+            0,
+            pdf.Callout(
+                texts.CALLOUT_MISSING,
+                [texts.page_missing_marker(page) for page in note.missing_pages],
+                "warning",
+            ),
+        )
+
     # Same rule as the message: the generic box only when nothing more exact
     # is there to fill it. The subtitle already carries "нужна проверка".
     if note.status == "needs_review" and not boxes:

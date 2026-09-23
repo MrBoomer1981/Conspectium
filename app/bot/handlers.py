@@ -338,6 +338,22 @@ async def handle_document(
     await corpus.ask_for_tag(message, session, user, note)
 
 
+def _skip_payload(skips: list[albums.PageResult]) -> list[dict]:
+    """What a refused page leaves behind: its number, its reason, and the four
+    frame metrics the refusal was made on."""
+    return [
+        {
+            "page": p.page,
+            "reason": p.skip_reason,
+            "line_height_px": p.photo_line_height,
+            "sharpness": p.photo_sharpness,
+            "paper_fraction": p.photo_paper_fraction,
+            "contrast": p.photo_contrast,
+        }
+        for p in skips
+    ]
+
+
 async def _process_album(
     message: Message,
     session: AsyncSession,
@@ -386,37 +402,22 @@ async def _process_album(
     await vision.log_ai_calls(user.id, outcome.stats)  # once, every page's calls
 
     if outcome.record is None:
-        await message.answer(texts.REJECTED_QUALITY)
-        return
-
-    if outcome.skips:
-        # A record missing a page still reads as a whole one, and nothing in it
-        # says which page is gone — the corpus would quietly carry a hole. The
-        # pages that were recognised are charged for either way: the model
-        # calls behind them were made and billed.
-        await limits.consume(session, user, pages=len(outcome.pages_ok))
+        # Not one page was read, so there is nothing to deliver and nothing to
+        # charge: `record is None` is exactly `pages_ok == []`. An album with
+        # *some* pages read is saved with the holes named in it — see
+        # albums._assemble for why that replaced "all its pages or none".
         await log_event(
             session,
             user.id,
             "album_incomplete",
             {
                 "pages": len(ordered),
-                "pages_ok": len(outcome.pages_ok),
+                "pages_ok": 0,
                 # The metrics, not just the reasons. A page turned away by the
-                # frame check is a whole album lost, and "Текст мелкий" on a
-                # page written in a large hand is a claim that has to be
-                # checkable after the fact rather than argued from memory.
-                "skipped": [
-                    {
-                        "page": p.page,
-                        "reason": p.skip_reason,
-                        "line_height_px": p.photo_line_height,
-                        "sharpness": p.photo_sharpness,
-                        "paper_fraction": p.photo_paper_fraction,
-                        "contrast": p.photo_contrast,
-                    }
-                    for p in outcome.skips
-                ],
+                # frame check has to be arguable after the fact rather than
+                # from memory — "Текст мелкий" on a page written in a large
+                # hand is a claim, and these four numbers are the evidence.
+                "skipped": _skip_payload(outcome.skips),
                 "latency_ms": int((time.monotonic() - started) * 1000),
                 "cost_usd": vision.total_cost(outcome.stats),
             },
@@ -449,6 +450,7 @@ async def _process_album(
         issues=rec.issues,
         numeric_divergences=rec.numeric_divergences,
         unreadable_count=rec.unreadable_count,
+        missing_pages=rec.missing_pages,
         text_agreement=rec.text_agreement,
         numeric_agreement=rec.numeric_agreement,
         photo_sharpness=rec.photo_sharpness,
@@ -469,6 +471,10 @@ async def _process_album(
             "page_count": rec.page_count,
             "source_type": "photo",
             "pages_skipped": len(outcome.skips),
+            # The same four numbers as in album_incomplete, and for the same
+            # reason: a page is turned away on these, and now that the record
+            # is saved anyway this is the only place they would be kept.
+            "skipped": _skip_payload(outcome.skips),
             "composed": composition.refused is None and bool(composition.stats),
             "compose_refused": composition.refused,
             "compose_drift": composition.drift,
@@ -505,9 +511,8 @@ async def _process_album(
         flags.append("\n".join(lines))
     if outcome.skips:
         flags.append(
-            "\n".join(
-                texts.page_skipped(number, reason)
-                for number, reason in outcome.skips
+            texts.album_partial(
+                [(p.page, p.skip_reason) for p in outcome.skips]
             )
         )
     if flags:

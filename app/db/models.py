@@ -86,6 +86,11 @@ class Note(Base):
     issues: Mapped[list] = mapped_column(JSONB, server_default="[]")
     numeric_divergences: Mapped[list] = mapped_column(JSONB, server_default="[]")
     unreadable_count: Mapped[int] = mapped_column(Integer, server_default="0")
+    # The pages of the album that could not be read, by number. A record used
+    # to be all its pages or none, so this was always empty by construction;
+    # now the record is delivered with the hole named in it, and the document
+    # and the chat both read this column rather than counting anything.
+    missing_pages: Mapped[list] = mapped_column(JSONB, server_default="[]")
     text_agreement: Mapped[float | None] = mapped_column(Float)
     numeric_agreement: Mapped[float | None] = mapped_column(Float)
     # The subject the user answered with when the bot asked, stored without

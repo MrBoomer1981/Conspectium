@@ -600,13 +600,28 @@ own heading. The capture handlers and `corpus._callouts` add it only when
 nothing more exact is there to say; the subtitle of the document carries
 "нужна проверка" either way.
 
-**A record is all its pages or none of them.** A page that could not be read
-used to be named in the reply and left out, and the record went into the
-corpus regardless — reading as a whole one, with nothing in it to say which
-page is missing. An album with any skipped page now saves nothing, writes
-`album_incomplete`, and names the pages to photograph again. The pages that
-*were* recognised are still charged against the daily quota: the model calls
-behind them were made and billed, and that rule did not change.
+**A record names the pages it is missing; it is thrown away only when there
+are none left.** The rule used to be all its pages or none, and the reason was
+sound: a page that was silently left out made the record read as a whole one,
+with nothing in it to say what was gone. The cost turned out to be worse than
+the disease — on 2026-09-23 two five-page albums were lost in one evening over
+a single page each, and in a group chat a lost album is a course without its
+lecture.
+
+So the reason is kept and the remedy is not. `albums._assemble` puts a marker
+at the position of every page that could not be read, `notes.missing_pages`
+holds their numbers, and the document opens with a box naming them — the
+`corpus._callouts` rule again, where the chat and the document are built from
+one column and cannot come to disagree. A record with a hole is always
+`needs_review`, whatever the pages that were read scored.
+
+Only when **not one page** was read is there nothing to deliver: then the
+album writes `album_incomplete` and the reply names the pages with their
+reasons. `record is None` is exactly that case, by construction. The pages
+that *were* recognised are still charged against the daily quota, skipped ones
+are not, and the four frame metrics of every skipped page ride the
+`note_processed` payload — that is now the only place they are kept, and they
+are the calibration data for the frame check.
 
 **A callout says what we already know, never what the model thinks.** The
 tinted boxes at the top of a record — needs review, arithmetic that doesn't
@@ -1107,7 +1122,7 @@ needs a database runs on in-memory SQLite.
 | `test_limits.py` | `check_limits` / `consume` — the money-critical path |
 | `test_reliability.py` | retry classification, one owner per album batch, spend surviving a rollback |
 | `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, and what an unparseable answer says and earns |
-| `test_albums.py` | `_assemble` aggregates, `process_batch` survivor logic |
+| `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, `process_batch` survivor logic |
 | `test_docx.py` | heading styles to markdown, title derivation |
 | `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
 | `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |

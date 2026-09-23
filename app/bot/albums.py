@@ -327,6 +327,10 @@ class AssembledRecord:
     photo_paper_fraction: float | None
     photo_contrast: float | None
     page_count: int
+    # The pages that were not read, by number. The markdown already carries a
+    # marker where each of them would have been; this is what the callout and
+    # the chat message are built from, so neither counts anything of its own.
+    missing_pages: list[int]
 
 
 @dataclass
@@ -387,22 +391,37 @@ async def process_batch(pages: list[PageInput]) -> AlbumOutcome:
     results.sort(key=lambda r: r.page)
     pages_ok = [r for r in results if r.ok]
     skips = [r for r in results if not r.ok]
-    record = _assemble(pages_ok) if pages_ok else None
+    record = _assemble(pages_ok, skips) if pages_ok else None
     return AlbumOutcome(stats=stats, skips=skips, pages_ok=pages_ok, record=record)
 
 
-def _assemble(pages_ok: list[PageResult]) -> AssembledRecord:
-    """Combine successful pages into one record. Every aggregate is over these
-    pages only — skipped pages contribute nothing. Whole runs are concatenated,
-    never spliced."""
-    needs_review = any(p.verdict == "needs_review" for p in pages_ok)
+def _assemble(
+    pages_ok: list[PageResult], skips: list[PageResult]
+) -> AssembledRecord:
+    """Combine successful pages into one record. Every aggregate is over the
+    pages that were read — a skipped page contributes no text, no uncertainty
+    and no metric. Whole runs are concatenated, never spliced.
+
+    What a skipped page does contribute is a marker at its own position. The
+    rule used to be that a record is all its pages or none, because a record
+    missing a page reads as a whole one and nothing in it says which page is
+    gone. The second half of that sentence is the part worth keeping: the hole
+    is named, in place, and the record is delivered. Two five-page albums were
+    lost in one evening over a single page each, and in a group chat a lost
+    album is a course without its lecture.
+    """
+    # A record with a hole always needs a reader's eye, whatever the pages
+    # that were read scored.
+    needs_review = bool(skips) or any(
+        p.verdict == "needs_review" for p in pages_ok
+    )
     return AssembledRecord(
         title=pages_ok[0].transcription.title,
         subject=next(
             (p.transcription.subject for p in pages_ok if p.transcription.subject),
             None,
         ),
-        markdown="\n\n---\n\n".join(p.transcription.markdown for p in pages_ok),
+        markdown=_markdown_with_holes(pages_ok, skips),
         status="needs_review" if needs_review else "ready",
         verdict="needs_review" if needs_review else "clean",
         uncertain=[
@@ -431,7 +450,22 @@ def _assemble(pages_ok: list[PageResult]) -> AssembledRecord:
         photo_paper_fraction=_min_metric(pages_ok, "photo_paper_fraction"),
         photo_contrast=_min_metric(pages_ok, "photo_contrast"),
         page_count=len(pages_ok),
+        missing_pages=[p.page for p in skips],
     )
+
+
+def _markdown_with_holes(
+    pages_ok: list[PageResult], skips: list[PageResult]
+) -> str:
+    """The record, with a marker where each unread page would have been.
+
+    Ordered by page number over both lists at once, so a hole in the middle
+    reads as a hole in the middle rather than as a note at the end.
+    """
+    blocks = [(p.page, p.transcription.markdown) for p in pages_ok]
+    blocks += [(p.page, texts.page_missing_marker(p.page)) for p in skips]
+    blocks.sort(key=lambda block: block[0])
+    return "\n\n---\n\n".join(markdown for _, markdown in blocks)
 
 
 def _min_metric(pages_ok: list[PageResult], attr: str) -> float | None:

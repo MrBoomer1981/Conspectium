@@ -75,8 +75,8 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 
 - [x] 30. An answer that would not parse is asked for again, and the log says
       what shape came back
-- [ ] 31. Decide what an album with one unreadable page becomes: lost as now,
-      or delivered with the hole named inside the document
+- [x] 31. An album with an unreadable page is delivered with the hole named in
+      the document; only an album with nothing read asks to be taken again
 - [ ] 32. `photoguard._line_height` calibrated against real pages, so a large
       hand stops being read as small text
 
@@ -104,9 +104,9 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-30
+Done: 1-31
 Current task: none
-Next task: 31
+Next task: 32
 Blockers: none
 ```
 

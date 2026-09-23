@@ -264,7 +264,9 @@ def _skipped(number: int, reason: str, line_height: float = 12.0) -> albums.Page
     )
 
 
-def _record(page_count: int) -> albums.AssembledRecord:
+def _record(
+    page_count: int, missing_pages: list[int] | None = None
+) -> albums.AssembledRecord:
     return albums.AssembledRecord(
         title="Теорема Кантора",
         subject=None,
@@ -283,6 +285,7 @@ def _record(page_count: int) -> albums.AssembledRecord:
         photo_paper_fraction=0.9,
         photo_contrast=0.8,
         page_count=page_count,
+        missing_pages=missing_pages or [],
     )
 
 
@@ -310,9 +313,13 @@ async def _run_album(session, monkeypatch, skips, pages_ok, record):
     return message, user
 
 
-async def test_an_album_that_lost_a_page_is_not_saved(session, monkeypatch):
-    # A record missing a page still reads as a whole one, and nothing in it
-    # says which page is gone.
+async def test_an_album_that_lost_a_page_is_saved_with_the_hole_named(
+    session, monkeypatch
+):
+    """The rule used to be that a record is all its pages or none, and two
+    five-page albums were lost in one evening over a single page each. What
+    survives of it is the reason: a record missing a page must not read as a
+    whole one."""
     message, _ = await _run_album(
         session,
         monkeypatch,
@@ -321,11 +328,13 @@ async def test_an_album_that_lost_a_page_is_not_saved(session, monkeypatch):
             _skipped(3, texts.SKIP_DIVERGED),
         ],
         pages_ok=[_ok_page(1), _ok_page(4)],
-        record=_record(2),
+        record=_record(2, missing_pages=[2, 3]),
     )
 
-    assert (await session.execute(select(Note))).scalars().all() == []
-    assert message.documents == []
+    notes = (await session.execute(select(Note))).scalars().all()
+    assert len(notes) == 1
+    assert notes[0].missing_pages == [2, 3]
+    assert message.documents
 
 
 async def test_the_reply_names_every_page_that_has_to_be_taken_again(
@@ -339,21 +348,42 @@ async def test_the_reply_names_every_page_that_has_to_be_taken_again(
             _skipped(3, texts.SKIP_DIVERGED),
         ],
         pages_ok=[_ok_page(1), _ok_page(4)],
-        record=_record(2),
+        record=_record(2, missing_pages=[2, 3]),
     )
-    reply = message.replies[-1]
+    # Not the last reply any more: the record goes out first, and the question
+    # about the subject comes after.
+    said = "\n".join(message.replies)
 
-    assert "Страница 2" in reply and "Страница 3" in reply
-    assert texts.ALBUM_RESEND in reply
+    assert "Страница 2" in said and "Страница 3" in said
+    assert texts.ALBUM_SEND_MISSING in said
+
+
+async def test_an_album_with_nothing_read_asks_for_it_again(
+    session, monkeypatch
+):
+    """`record is None` is exactly "not one page was read". Then there is no
+    document to deliver and the only useful answer is which pages to take
+    again."""
+    message, _ = await _run_album(
+        session,
+        monkeypatch,
+        skips=[_skipped(i, texts.SKIP_UNRECOGNIZED) for i in range(1, 5)],
+        pages_ok=[],
+        record=None,
+    )
+
+    assert (await session.execute(select(Note))).scalars().all() == []
+    assert message.documents == []
+    assert texts.ALBUM_RESEND in message.replies[-1]
 
 
 async def test_an_incomplete_album_is_written_to_events(session, monkeypatch):
     await _run_album(
         session,
         monkeypatch,
-        skips=[_skipped(2, texts.SKIP_UNRECOGNIZED)],
-        pages_ok=[_ok_page(i) for i in (1, 3, 4)],
-        record=_record(3),
+        skips=[_skipped(i, texts.SKIP_UNRECOGNIZED) for i in (1, 2, 3, 4)],
+        pages_ok=[],
+        record=None,
     )
 
     events = (
@@ -363,32 +393,54 @@ async def test_an_incomplete_album_is_written_to_events(session, monkeypatch):
     )
     assert len(events) == 1
     assert events[0].payload["pages"] == 4
-    assert events[0].payload["pages_ok"] == 3
+    assert events[0].payload["pages_ok"] == 0
 
     # The metrics, not only the reason. "Текст мелкий" on a page written in a
-    # large hand costs a whole album, and the claim has to be checkable after
-    # the fact rather than argued from memory.
-    assert events[0].payload["skipped"] == [
-        {
-            "page": 2,
-            "reason": texts.SKIP_UNRECOGNIZED,
-            "line_height_px": 12.0,
-            "sharpness": 150.0,
-            "paper_fraction": 0.9,
-            "contrast": 40.0,
-        }
-    ]
+    # large hand costs the page, and the claim has to be checkable after the
+    # fact rather than argued from memory.
+    assert events[0].payload["skipped"][0] == {
+        "page": 1,
+        "reason": texts.SKIP_UNRECOGNIZED,
+        "line_height_px": 12.0,
+        "sharpness": 150.0,
+        "paper_fraction": 0.9,
+        "contrast": 40.0,
+    }
+
+
+async def test_a_saved_album_keeps_the_metrics_of_the_page_it_lost(
+    session, monkeypatch
+):
+    """Now that the record is delivered anyway, note_processed is the only
+    place those four numbers would be kept — and they are the calibration data
+    for the frame check."""
+    await _run_album(
+        session,
+        monkeypatch,
+        skips=[_skipped(2, texts.SKIP_UNRECOGNIZED, line_height=126.5)],
+        pages_ok=[_ok_page(i) for i in (1, 3, 4)],
+        record=_record(3, missing_pages=[2]),
+    )
+
+    event = (
+        (await session.execute(select(Event).where(Event.type == "note_processed")))
+        .scalars()
+        .one()
+    )
+
+    assert event.payload["pages_skipped"] == 1
+    assert event.payload["skipped"][0]["line_height_px"] == 126.5
 
 
 async def test_the_pages_that_were_read_are_still_charged(session, monkeypatch):
-    # The model calls behind them were made and billed. Only the record
-    # stopped being written; the quota rule did not change.
+    # The model calls behind them were made and billed, and the pages that
+    # were skipped are not charged for.
     _, user = await _run_album(
         session,
         monkeypatch,
         skips=[_skipped(2, texts.SKIP_UNRECOGNIZED)],
         pages_ok=[_ok_page(i) for i in (1, 3, 4)],
-        record=_record(3),
+        record=_record(3, missing_pages=[2]),
     )
 
     assert user.pages_used_today == 3

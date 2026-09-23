@@ -49,6 +49,7 @@ CALLOUT_REVIEW = "Нужна проверка"
 CALLOUT_MATH = "Проверка вычислений"
 CALLOUT_DIVERGENCES = "Числа прочитаны по-разному"
 CALLOUT_UNCERTAIN = "Спорные места"
+CALLOUT_MISSING = "Не хватает страниц"
 
 
 def remark_label(page: int | None = None) -> str:
@@ -136,12 +137,17 @@ def page_skipped(page: int, reason: str) -> str:
 
 
 ALBUM_INCOMPLETE = (
-    "Не разобрались все страницы, поэтому конспект не сохранён: запись без "
-    "страницы читается как целая, и ничего в ней не говорит, какой страницы "
-    "не хватает."
+    "Ни одна страница не разобралась, поэтому сохранять нечего."
 )
 
 ALBUM_RESEND = "Переснимите эти страницы и пришлите альбом заново."
+
+ALBUM_PARTIAL = (
+    "Конспект сохранён без этих страниц — в документе на их месте стоит "
+    "пометка, чтобы пропуск нельзя было прочитать как целую запись."
+)
+
+ALBUM_SEND_MISSING = "Пришлите их отдельно, и они станут отдельной записью."
 
 
 def album_incomplete(skips: list[tuple[int, str]]) -> str:
@@ -150,6 +156,29 @@ def album_incomplete(skips: list[tuple[int, str]]) -> str:
     lines += [page_skipped(page, reason) for page, reason in skips]
     lines += ["", ALBUM_RESEND]
     return "\n".join(lines)
+
+
+def album_partial(skips: list[tuple[int, str]]) -> str:
+    """The record is saved; these pages are not in it."""
+    lines = [ALBUM_PARTIAL, ""]
+    lines += [page_skipped(page, reason) for page, reason in skips]
+    lines += ["", ALBUM_SEND_MISSING]
+    return "\n".join(lines)
+
+
+def page_missing_marker(page: int) -> str:
+    """The hole, at the position the page would have had.
+
+    Bold rather than a heading: a heading here would become a topic, and this
+    is the one line in a record that is about the record instead of about the
+    lecture.
+    """
+    return f"**[Страница {page} не прочитана]**"
+
+
+def missing_pages_line(page: int, reason: str) -> str:
+    """One line of the box that names the hole inside the document."""
+    return f"Страница {page}: {reason}."
 
 
 def page_prefix(page: int, body: str) -> str:

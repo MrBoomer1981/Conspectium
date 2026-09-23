@@ -107,6 +107,35 @@ async def test_a_clean_record_has_no_callouts(session):
     assert corpus._callouts(await _note(session, user)) == []
 
 
+async def test_a_hole_in_the_record_is_the_first_box(session):
+    """A record missing a page must not read as a whole one. The marker stands
+    where the page would have been; this box is what the reader sees before
+    deciding they are holding the whole lecture, so it goes above the rest."""
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        status="needs_review",
+        missing_pages=[2, 5],
+        numeric_divergences=[{"context": "p", "variants": {"5": 2, "6": 1}}],
+    )
+
+    boxes = corpus._callouts(note)
+
+    assert boxes[0].title == texts.CALLOUT_MISSING
+    assert boxes[0].tone == "warning"
+    assert "2" in boxes[0].lines[0] and "5" in boxes[0].lines[1]
+    # And it does not swallow the box that was already there.
+    assert texts.CALLOUT_DIVERGENCES in [b.title for b in boxes]
+
+
+async def test_a_record_with_every_page_says_nothing_about_pages(session):
+    user = await _user(session)
+    note = await _note(session, user, status="needs_review")
+
+    assert texts.CALLOUT_MISSING not in [b.title for b in corpus._callouts(note)]
+
+
 async def test_needs_review_becomes_a_warning_box(session):
     user = await _user(session)
     note = await _note(session, user, status="needs_review")

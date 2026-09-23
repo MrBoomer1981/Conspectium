@@ -156,7 +156,8 @@ def test_title_comes_from_the_first_page():
         [
             _page(1, transcription=_transcription(title="Первая")),
             _page(2, transcription=_transcription(title="Вторая")),
-        ]
+        ],
+        [],
     )
     assert record.title == "Первая"
 
@@ -167,7 +168,8 @@ def test_subject_is_the_first_non_empty_one():
             _page(1, transcription=_transcription(subject=None)),
             _page(2, transcription=_transcription(subject="Физика")),
             _page(3, transcription=_transcription(subject="Химия")),
-        ]
+        ],
+        [],
     )
     assert record.subject == "Физика"
 
@@ -180,13 +182,14 @@ def test_margin_notes_of_every_page_end_up_in_the_record():
             _page(1, transcription=_transcription(margin_notes=["Шиманская Г. С."])),
             _page(2, transcription=_transcription(margin_notes=[])),
             _page(3, transcription=_transcription(margin_notes=["с. 4", "важно"])),
-        ]
+        ],
+        [],
     )
     assert record.margin_notes == ["Шиманская Г. С.", "с. 4", "важно"]
 
 
 def test_subject_is_none_when_no_page_has_one():
-    record = albums._assemble([_page(1), _page(2)])
+    record = albums._assemble([_page(1), _page(2)], [])
     assert record.subject is None
 
 
@@ -195,27 +198,28 @@ def test_pages_are_joined_by_a_horizontal_rule():
         [
             _page(1, transcription=_transcription(markdown="первая")),
             _page(2, transcription=_transcription(markdown="вторая")),
-        ]
+        ],
+        [],
     )
     # Whole runs are concatenated, never spliced.
     assert record.markdown == "первая\n\n---\n\nвторая"
 
 
 def test_page_count_counts_surviving_pages_only():
-    assert albums._assemble([_page(1), _page(3)]).page_count == 2
+    assert albums._assemble([_page(1), _page(3)], []).page_count == 2
 
 
 # ── _assemble: verdict ───────────────────────────────────────────────────────
 
 
 def test_one_page_needing_review_marks_the_whole_record():
-    record = albums._assemble([_page(1), _page(2, verdict="needs_review")])
+    record = albums._assemble([_page(1), _page(2, verdict="needs_review")], [])
     assert record.status == "needs_review"
     assert record.verdict == "needs_review"
 
 
 def test_all_clean_pages_give_a_ready_record():
-    record = albums._assemble([_page(1), _page(2)])
+    record = albums._assemble([_page(1), _page(2)], [])
     assert record.status == "ready"
     assert record.verdict == "clean"
 
@@ -233,7 +237,8 @@ def test_uncertain_entries_carry_their_page_number():
                     uncertain=[Uncertain("щ", "поле", "двоится", [])]
                 ),
             ),
-        ]
+        ],
+        [],
     )
     assert record.uncertain == [
         {"text": "щ", "where": "поле", "why": "двоится", "alternatives": [], "page": 2}
@@ -242,14 +247,14 @@ def test_uncertain_entries_carry_their_page_number():
 
 def test_issues_carry_their_page_number():
     issue = mathcheck.Issue(kind="constant", severity="critical", message="не сходится")
-    record = albums._assemble([_page(1, report=mathcheck.Report(issues=[issue]))])
+    record = albums._assemble([_page(1, report=mathcheck.Report(issues=[issue]))], [])
     assert record.issues[0]["page"] == 1
     assert record.issues[0]["severity"] == "critical"
 
 
 def test_divergences_carry_their_page_number():
     divergence = consensus.Divergence(position=0, variants={"5": 2, "6": 1}, context="x")
-    record = albums._assemble([_page(4, numeric_divergences=[divergence])])
+    record = albums._assemble([_page(4, numeric_divergences=[divergence])], [])
     assert record.numeric_divergences[0]["page"] == 4
     assert record.numeric_divergences[0]["variants"] == {"5": 2, "6": 1}
 
@@ -262,7 +267,8 @@ def test_unreadable_counts_are_summed():
         [
             _page(1, transcription=_transcription(unreadable_count=2)),
             _page(2, transcription=_transcription(unreadable_count=3)),
-        ]
+        ],
+        [],
     )
     assert record.unreadable_count == 5
 
@@ -270,7 +276,8 @@ def test_unreadable_counts_are_summed():
 def test_text_agreement_is_the_worst_page():
     # The record is only as trustworthy as its least certain page.
     record = albums._assemble(
-        [_page(1, text_agreement=0.99), _page(2, text_agreement=0.72)]
+        [_page(1, text_agreement=0.99), _page(2, text_agreement=0.72)],
+        [],
     )
     assert record.text_agreement == 0.72
 
@@ -287,7 +294,8 @@ def test_the_worst_page_by_text_is_not_the_worst_page_by_numbers():
         [
             _page(1, text_agreement=0.917, numeric_agreement=0.939),
             _page(2, text_agreement=0.990, numeric_agreement=0.600),
-        ]
+        ],
+        [],
     )
 
     assert record.text_agreement == 0.917
@@ -299,7 +307,8 @@ def test_frame_metrics_take_the_worst_page():
         [
             _page(1, photo_sharpness=500.0, photo_contrast=0.9),
             _page(2, photo_sharpness=120.0, photo_contrast=0.4),
-        ]
+        ],
+        [],
     )
     assert record.photo_sharpness == 120.0
     assert record.photo_contrast == 0.4
@@ -307,13 +316,14 @@ def test_frame_metrics_take_the_worst_page():
 
 def test_missing_metrics_are_skipped_not_treated_as_zero():
     record = albums._assemble(
-        [_page(1, photo_sharpness=None), _page(2, photo_sharpness=300.0)]
+        [_page(1, photo_sharpness=None), _page(2, photo_sharpness=300.0)],
+        [],
     )
     assert record.photo_sharpness == 300.0
 
 
 def test_metric_is_none_when_no_page_reported_it():
-    record = albums._assemble([_page(1, photo_sharpness=None)])
+    record = albums._assemble([_page(1, photo_sharpness=None)], [])
     assert record.photo_sharpness is None
 
 
