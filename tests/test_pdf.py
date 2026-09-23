@@ -305,6 +305,95 @@ def test_every_translation_in_the_table_is_one_mathtext_draws():
             assert formulas.display(latex, 10.0) is not None, spelling
 
 
+# ── the environments mathtext refuses outright ───────────────────────────────
+
+
+def test_a_piecewise_definition_becomes_a_braced_stack():
+    """`cases` is the one CLAUDE.md said would be missed: a piecewise
+    definition is ordinary mathematics and it printed as its own source. It has
+    no \begin at all, but \substack stacks rows at full size and
+    \left...\right puts the brace around them."""
+    out = pdf.for_mathtext(r"\begin{cases} x, & x > 0 \\ -x, & x \le 0 \end{cases}")
+
+    assert out.startswith(r"\left\{\substack{")
+    assert out.endswith(r"}\right.")
+    assert r"\\" in out  # the rows are still rows
+
+
+def test_every_matrix_environment_keeps_its_own_delimiters():
+    for name, opening in (
+        ("pmatrix", "("),
+        ("bmatrix", "["),
+        ("vmatrix", "|"),
+    ):
+        out = pdf.for_mathtext(
+            rf"\begin{{{name}}} 1 & 2 \\ 3 & 4 \end{{{name}}}"
+        )
+        assert out.startswith(rf"\left{opening}\substack{{")
+
+
+def test_a_column_separator_becomes_a_wide_space():
+    out = pdf.for_mathtext(r"\begin{pmatrix} 1 & 2 \end{pmatrix}")
+
+    assert r"1 \quad" in out
+
+
+def test_an_alignment_marker_is_removed_rather_than_widened():
+    # "&" in aligned marks where two lines line up, inside one expression. A
+    # \quad there opens a gap the page does not have.
+    out = pdf.for_mathtext(r"\begin{aligned} a &= 1 \\ b &= 2 \end{aligned}")
+
+    assert out == r"\substack{a = 1 \\ b = 2}"
+
+
+def test_the_column_spec_of_an_array_is_dropped():
+    out = pdf.for_mathtext(r"\begin{array}{cc} 1 & 2 \end{array}")
+
+    assert "cc" not in out
+    assert out.startswith(r"\substack{")
+
+
+def test_a_starred_environment_is_recognised():
+    out = pdf.for_mathtext(r"\begin{align*} a &= 1 \end{align*}")
+
+    assert out == r"\substack{a = 1}"
+
+
+def test_an_environment_nobody_taught_it_is_left_alone():
+    # Unchanged behaviour: the formula falls back to its own source, which is
+    # what the log now says out loud.
+    source = r"\begin{equation} a = 1 \end{equation}"
+
+    assert pdf.for_mathtext(source) == source
+
+
+def test_every_environment_in_the_table_is_one_mathtext_draws():
+    """The same rule as the synonym table: a wrong rewrite would be invisible,
+    because the formula would fall back to its source exactly as it does now."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        for name in pdf._ENVIRONMENT_DELIMITERS:
+            latex = rf"\begin{{{name}}} 1 & 2 \\ 3 & 4 \end{{{name}}}"
+            assert formulas.display(latex, 10.0) is not None, name
+
+
+def test_the_formula_that_went_out_as_source_now_draws():
+    """From the record of 2026-09-23, logged by the warning that says which
+    command mathtext refused."""
+    import tempfile
+
+    latex = (
+        r"\begin{cases} a_1 b_1 - a_2 b_2 = 1 \\ a_1 b_2 + a_2 b_1 = 0 "
+        r"\end{cases} \quad z = (z_1, z_2) \text{ тогда } z^{-1} = "
+        r"\left(\frac{z_1}{z_1^2 + z_2^2}, -\frac{z_2}{z_1^2 + z_2^2}\right)"
+    )
+
+    with tempfile.TemporaryDirectory() as directory:
+        assert pdf._Formulas(directory).display(latex, 10.0) is not None
+
+
 def test_a_formula_with_limits_is_drawn_rather_than_dumped_as_source():
     # Proves the shim is wired into the drawing path, not merely correct on
     # its own: without it this returns None and the source goes on the page.
@@ -963,7 +1052,10 @@ def test_the_diagnosis_survives_the_blank_first_line(caplog):
     with tempfile.TemporaryDirectory() as directory:
         formulas = pdf._Formulas(directory)
         with caplog.at_level(logging.WARNING, logger="app.services.pdf"):
-            formulas.display(r"\begin{cases} a \\ b \end{cases}", 10.0)
+            # mhchem is a language of its own, not a command, and it is what
+            # is left of the set nothing can rescue now that the environments
+            # go through \substack.
+            formulas.display(r"\ce{H2O + NaCl}", 10.0)
 
     line = next(r.getMessage() for r in caplog.records if "refused" in r.getMessage())
     assert not line.rstrip().endswith(":")  # a diagnosis follows the colon

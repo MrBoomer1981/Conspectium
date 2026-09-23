@@ -81,8 +81,8 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
       it instead, and one readable run is enough to keep it
 - [x] 33. A sentence that ran over the edge of a page is put back together
       instead of coming out as two halves with a rule between them
-- [ ] 34. A PDF that never prints raw LaTeX: `cases`, matrix environments and
-      whatever else mathtext refuses
+- [x] 34. A PDF that does not print raw LaTeX where `\substack` can draw it:
+      `cases`, every matrix environment, `aligned`, `array`
 - [ ] 35. `photoguard._line_height` calibrated against real pages, so a large
       hand stops being read as small text
 
@@ -115,9 +115,9 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-33
+Done: 1-34
 Current task: none
-Next task: 34
+Next task: 35
 Blockers: none
 ```
 

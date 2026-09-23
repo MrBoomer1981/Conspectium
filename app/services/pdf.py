@@ -439,8 +439,69 @@ _SYNONYM_RE = re.compile(
 )
 
 
+# The environments mathtext refuses outright. It has no \begin at all — but it
+# does have \substack, which stacks rows at full size, and \left...\right,
+# which puts a delimiter around them. Between the two, a piecewise definition
+# and a matrix draw properly instead of printing as their own source.
+#
+# What is lost is column alignment: \substack centres each row, so a wide
+# matrix comes out ragged. A ragged matrix is readable and a page of
+# backslashes is not.
+_ENVIRONMENT_DELIMITERS = {
+    "cases": (r"\{", "."),
+    "pmatrix": ("(", ")"),
+    "bmatrix": ("[", "]"),
+    "Bmatrix": (r"\{", r"\}"),
+    "vmatrix": ("|", "|"),
+    "Vmatrix": (r"\|", r"\|"),
+    "matrix": (None, None),
+    "smallmatrix": (None, None),
+    "aligned": (None, None),
+    "align": (None, None),
+    "alignedat": (None, None),
+    "gathered": (None, None),
+    "gather": (None, None),
+    "split": (None, None),
+    "array": (None, None),
+}
+_ENVIRONMENT_RE = re.compile(
+    r"\\begin\{(" + "|".join(_ENVIRONMENT_DELIMITERS) + r")\*?\}"
+    r"(?:\{[^{}]*\})?"  # \begin{array}{cc} — the column spec, which we drop
+    r"(.*?)"
+    r"\\end\{\1\*?\}",
+    re.DOTALL,
+)
+# & separates columns in a matrix and marks the alignment point in aligned.
+# Both become \quad: mathtext knows neither, and a wide space is what each one
+# looks like once the alignment is gone. Not \; — the thin-space rule below
+# strips that one, and two cells of a determinant then touch.
+_COLUMN_SEPARATOR_RE = re.compile(r"(?<!\\)&")
+# ...except where & is not a column at all. In the aligned family it marks the
+# point two lines line up on, inside one expression: "a &= 1" is "a = 1" with
+# a note about where to put it. A \quad there would widen a gap that is not
+# there on the page.
+_ALIGNMENT_ONLY = {"aligned", "align", "alignedat", "gathered", "gather", "split"}
+
+
+def _environment(found: re.Match) -> str:
+    """One \begin...\end turned into a stack of rows, with its delimiters."""
+    name = found.group(1)
+    left, right = _ENVIRONMENT_DELIMITERS[name]
+    # Doubled for re.sub's replacement template, which reads \q as an escape.
+    between = "" if name in _ALIGNMENT_ONLY else r"\\quad "
+    rows = [
+        _COLUMN_SEPARATOR_RE.sub(between, row).strip()
+        for row in re.split(r"\\\\", found.group(2))
+    ]
+    stacked = r"\substack{" + r" \\ ".join(row for row in rows if row) + "}"
+    if left is None:
+        return stacked
+    return rf"\left{left}{stacked}\right{right}"
+
+
 def for_mathtext(latex: str) -> str:
     """LaTeX as close to it as matplotlib's mathtext will accept."""
+    latex = _ENVIRONMENT_RE.sub(_environment, latex)
     latex = _LABELLED_ARROW_RE.sub(_labelled_arrow, latex)
     latex = _UNSUPPORTED_RE.sub("", latex)
     latex = _SYNONYM_RE.sub(lambda found: "\\" + _SYNONYMS[found.group(1)], latex)

@@ -575,6 +575,7 @@ refused. The six below are built; `pdf.for_mathtext` does them and
 | `\big(` `\Big(` `\bigg(` `\Bigg(` | drop the modifier, the delimiter renders |
 | `\xrightarrow{t}` | `\overset{t}{\to}` — needs a braced argument, not a word swap |
 | `\overbrace` / `\underbrace` | `\overline` / `\underline`; the grouping survives, the brace does not |
+| `\begin{cases}`, `pmatrix`, `bmatrix`, `vmatrix`, `array`, `aligned`, … | `\left<delimiter>\substack{row \\ row}\right<delimiter>` — see below |
 
 `\xrightarrow` is the one that mattered most for these notes: an arrow with
 its condition written above is most of the reactions on a page of biology. It
@@ -583,14 +584,27 @@ level of nesting so `\xrightarrow{\text{фермент}}` works; deeper than tha
 does not match and the formula goes out as its own source, which is what
 happened before.
 
-**And the set nothing can rescue**, which is a different kind of fact:
-`\ce{H2O}` is mhchem, a language of its own rather than a command;
-`\begin{cases}`, `\begin{aligned}`, `\begin{array}` and every matrix
-environment are refused outright. For those there are two paths and neither is
-a rewrite — a rule in the prompt that forbids them, or the drawing contract,
-where a matrix arrives as a markdown table and `pdf.blocks` turns it into a
-picture. `cases` is the one that will be missed: a piecewise definition is
-ordinary mathematics, and it currently prints as its own source.
+**The environments were on the list of things nothing could rescue, and they
+are off it.** mathtext has no `\begin` at all, so `\begin{cases}`,
+`\begin{aligned}`, `\begin{array}` and every matrix environment printed as
+their own source — and `cases` is ordinary mathematics, so it went out on a
+real record on 2026-09-23 as a line of backslashes. What was missed is that
+mathtext *does* have `\substack`, which stacks rows **at full size**, and
+`\left...\right`, which puts a delimiter around them. Between the two,
+`\begin{cases} A \\ B \end{cases}` becomes `\left\{\substack{A \\ B}\right.`
+and draws as a proper piecewise brace; `pmatrix` keeps its parentheses,
+`vmatrix` its bars, and `array` loses only its column spec.
+
+Two things are lost and both are worth stating. Column **alignment** goes:
+`\substack` centres each row, so a wide matrix comes out ragged — readable,
+which a page of backslashes is not. And `&` means two different things, so it
+is translated twice: a column separator becomes `\quad`, while in the aligned
+family it marks where two lines line up inside one expression and is simply
+removed, because a `\quad` there opens a gap the page does not have.
+
+**What is left of that set is `\ce{...}`** — mhchem is a language of its own
+rather than a command, and there are still only two paths for it: a rule in
+the prompt that forbids it, or the drawing contract.
 
 **A formula mathtext refuses now says so in the log.** All three rounds went
 the other way: the author noticed a broken page, and only then did anyone
