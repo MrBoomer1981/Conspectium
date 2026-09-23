@@ -1810,20 +1810,33 @@ reasoning — it needs a folder of real pages through `photoguard`'s own CLI.
 **A recognition run is sometimes lost to an answer that will not parse, and it
 is not our ceiling.** `unparseable model response` costs a whole run, because a
 200 that parsed badly is never retried; three runs become two. The suspect was
-`max_output_tokens=8192` — a long page whose JSON is cut mid-string cannot
-parse and looks identical to a model that answered with prose. **Measured
-2026-09-22 and cleared:** across 298 calls in three days, 12 came back
-unparseable with `tokens_out` between 312 and 714, averaging **518** against
-**520** for the calls that succeeded. Not one row anywhere near 8192. The
-failures are the same length as the successes, so nothing was truncated, and
-raising the ceiling would have spent a change on a guess.
+`max_output_tokens=8192`. **It is our ceiling, and the column we checked it
+against cannot see why.**
 
-That leaves the other branch, and it is still open: the model answers at normal
-length with something that is not JSON. All 12 rows predate the deploy that
-started recording `finish_reason`, and no unparseable answer has arrived since,
-so the distinction the log now draws — `STOP` (answered, not JSON) against
-`SAFETY` (refused) — has no sample yet. **Wait for one rather than guessing**;
-the instrumentation is in place and the next occurrence names itself.
+The first reading of the evidence said otherwise and was wrong. Across 298
+calls in three days, 12 came back unparseable with `tokens_out` between 312 and
+714, averaging 518 against 520 for the calls that succeeded — no row anywhere
+near 8192, which reads as "nothing was truncated". Then the instrumentation
+caught its first live sample and the model named the reason itself:
+
+```
+unparseable model response (finish_reason=MAX_TOKENS)
+tokens_out 498, latency 37440 ms
+```
+
+498 visible tokens, 37 seconds, and the answer stopped because it ran out of
+budget. The missing ~7700 tokens went to **thinking**, which draws on the same
+`max_output_tokens` and is reported as `thoughts_token_count` — a field
+separate from `candidates_token_count`, which is what `ai_calls.tokens_out`
+stores. So every truncated call looks innocent in our own table, and the
+historical query was blind to the half of the budget that actually overflowed.
+
+`VISION_THINKING_LEVEL` is `unset`, so this is `gemini-3.8-flash`'s own default
+thinking, and it is evidently large. The lesson is about the instrument before
+it is about the ceiling: **record `thoughts_token_count` before choosing
+between raising the budget and capping the thinking**, because those two
+choices cost different things and nothing in the table currently tells them
+apart.
 
 The query, for when it is next worth asking:
 

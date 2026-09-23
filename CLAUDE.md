@@ -314,10 +314,26 @@ main task — except here the main task is markup, and v1 barely spoke about it.
 worked example, and only the three prohibitions nothing in code watches — don't
 write your own text, don't change words, leave `[граф: ...]` alone.
 
-**The next measurement is the same three markup counts on the same album.** If
-the headings are still 2, the prompt was not the cause and the next suspect is
-`COMPOSE_MODEL`, which is `gemini-3.5-flash-lite` — the weakest model in the
-system doing the job that was supposed to justify a second call.
+**`prompts-compose-v2.md` moved it, and not far enough.** Same album a fourth
+time, `compose: accepted, 1505 -> 1519 chars, word drift 2`:
+
+| | headings | bold | display formulas |
+|---|---:|---:|---:|
+| v4, one stage | 7 | 1 | 5 |
+| v5 + compose v1 | 2 | 0 | 2 |
+| v5 + compose v2 | **4** | **1** | **3** |
+
+So the prompt's shape was a real cause: inverting the ratio of bans to
+instructions doubled the structure the stage produces. It is still short of
+what one stage does on its own, and the way it falls short is the tell — the
+rules are applied in some places and not others. Two sections keep their
+heading and two do not; one pair of lines is joined into a sentence and the
+next pair is left broken; the bold lands on `Волновая **ф-ция в квант.
+механике**` instead of on the term. That is not a prompt that failed to say
+something, it is a model applying what it was told about half the time. The
+next suspect is `COMPOSE_MODEL`, which is `gemini-3.5-flash-lite` — the
+weakest model in the system doing the job that was supposed to justify a
+second call.
 
 **A verification model call doesn't work.** The request "compare the
 transcription with the photo and find discrepancies" invented a
