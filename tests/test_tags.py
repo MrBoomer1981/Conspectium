@@ -100,6 +100,54 @@ _RECORD = """# Квантовая механика
 """
 
 
+def test_only_the_five_main_topics_are_kept():
+    # A record findable under a dozen words is a record whose words each find
+    # half the corpus.
+    markdown = "".join(f"## Раздел {i}\n\n" for i in range(1, 9))
+
+    topics = tags.topics_of("Заголовок", markdown)
+
+    assert len(topics) == tags.TOPIC_LIMIT == 5
+    assert topics[0] == "заголовок"  # the title keeps its place at the front
+
+
+def test_a_section_outranks_a_subsection_written_above_it():
+    """"Main" is doing real work here, and it means heading level.
+
+    Rule 6 of the composing prompt asks for "### Определение" over a
+    definition, so nearly every record carries one. Left in reading order, the
+    five slots on a subsection-heavy page go to words every record has — which
+    match everything and therefore find nothing.
+    """
+    markdown = (
+        "## Спектры атомов\n\n### Определение\n\n### Пример\n\n"
+        "## Модель Бора\n\n## Волновая функция\n\n## Оператор импульса\n"
+    )
+
+    topics = tags.topics_of("Квантовая механика", markdown)
+
+    assert topics == [
+        "квантовая_механика",
+        "спектры_атомов",
+        "модель_бора",
+        "волновая_функция",
+        "оператор_импульса",
+    ]
+    assert "определение" not in topics
+
+
+def test_a_subsection_is_kept_when_there_is_room_for_it():
+    # The rule is an order, not a ban: a page of two sections still yields its
+    # subsections rather than coming back with three topics.
+    markdown = "## Раздел\n\n### Определение\n"
+
+    assert tags.topics_of("Заголовок", markdown) == [
+        "заголовок",
+        "раздел",
+        "определение",
+    ]
+
+
 def test_the_title_comes_first_and_every_heading_follows_in_order():
     assert tags.topics_of("Олимпиадные задачи", _RECORD) == [
         "олимпиадные_задачи",

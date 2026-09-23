@@ -22,10 +22,16 @@ import re
 # by. The same 60 characters vision.py caps a title at.
 TAG_LIMIT = 60
 
+# Five topics a record, and they are the *main* five — see topics_of for what
+# decides that. A page of notes can carry a dozen headings, and a record
+# findable under a dozen words is a record whose words each find half the
+# corpus.
+TOPIC_LIMIT = 5
+
 # Inline maths inside a heading — "Волновая ф-ция ($\Psi$)" — is stripped
 # before anything else, or the tag comes back carrying "psi".
 _MATH = re.compile(r"\$[^$]*\$")
-_HEADING = re.compile(r"(?m)^#{1,6}[ \t]+(.+?)[ \t]*$")
+_HEADING = re.compile(r"(?m)^(#{1,6})[ \t]+(.+?)[ \t]*$")
 # Everything that is not a letter, a digit or a gap. Markdown's own markers go
 # here too: "**Определение**" and "Определение" are one topic.
 _PUNCTUATION = re.compile(r"[^\w\s-]", re.UNICODE)
@@ -59,16 +65,32 @@ def parse(text: str | None) -> str | None:
 
 
 def topics_of(title: str, markdown: str) -> list[str]:
-    """A record's topics: its title, then every heading, in the order they
-    appear on the page and without repeats.
+    """A record's five main topics: its title, then its headings.
 
-    The title comes first because it is the one a record always has — a
+    The title comes first because it is the one thing a record always has — a
     transcription made without the composing stage carries almost no headings,
     and a record with no topic at all could never be found again.
+
+    The headings that follow are ordered by **level**, not by position on the
+    page, and that is what makes the five "main" rather than "first". A page of
+    notes has sections and subsections, and the subsections are where words
+    like «Определение» and «Пример» live — rule 6 of the composing prompt asks
+    for them by name, so nearly every record has one. Left in reading order,
+    the five slots on a subsection-heavy page go to words every record carries,
+    which match everything and therefore find nothing.
     """
+    ranked: list[tuple[int, int, str]] = [(0, 0, title)]
+    for position, found in enumerate(_HEADING.finditer(markdown), start=1):
+        ranked.append((len(found.group(1)), position, found.group(2)))
+    # Position breaks the tie, so headings of one level keep the order they
+    # were written in. The title is level 0 and therefore always first.
+    ranked.sort(key=lambda row: (row[0], row[1]))
+
     topics: list[str] = []
-    for raw in [title, *_HEADING.findall(markdown)]:
+    for _, _, raw in ranked:
         topic = normalize(raw)
         if topic and topic not in topics:
             topics.append(topic)
+        if len(topics) == TOPIC_LIMIT:
+            break
     return topics

@@ -205,7 +205,7 @@ def several_tagged(tag: str, rows: list[tuple[str, list[str]]]) -> str:
     you cannot act on is a list that made the user type the tag again."""
     lines = [f"По #{tag} нашлось несколько. Уточни темой:", ""]
     for title, topics in rows:
-        hint = " ".join("#" + t for t in topics[:4])
+        hint = " ".join("#" + t for t in topics)
         lines.append(f"{title}\n{hint}" if hint else title)
         lines.append("")
     return "\n".join(lines).strip()

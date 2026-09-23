@@ -594,7 +594,13 @@ file it under a subject nobody chose.
 
 Topics come from the headings the pipeline has already produced —
 `tags.topics_of` reads them, no second model call, and nothing here interprets
-anything. The consequence is that topics are exactly as good as the headings:
+anything. **Five of them, and they are the main five**: the title, then the
+headings ordered by *level* rather than by position on the page. That ordering
+is the whole of the word "main", and it earns its place — rule 6 of the
+composing prompt asks for `### Определение` over a definition, so nearly every
+record carries one. Ranked by position, the five slots on a subsection-heavy
+page go to words every record has, which match everything and therefore find
+nothing. The consequence is that topics are exactly as good as the headings:
 a composing stage that splits a sentence into a section invents a topic with
 it. That failure is visible in the reply the user gets straight away, which is
 the only reason it is acceptable. They are stored where the record is made
