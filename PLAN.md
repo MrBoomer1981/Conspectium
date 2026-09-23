@@ -68,13 +68,15 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
       call — a page's timeout was being applied to a call over the whole record
 - [x] 28. A heading that is half a sentence is not a heading: the composer's
       invented sections are taken back by code, so they stop becoming topics
+- [x] 29. A page is no longer thrown away for its layout: when the runs'
+      numbers are identical, `rejected` becomes `needs_review`
 
 ## State
 
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-28
+Done: 1-29
 Current task: none
 Next task: none
 Blockers: none
@@ -280,6 +282,20 @@ sentinel. The fix deployed at 19:23 UTC and there has not been one since; the
 six albums after it went through. Those four metric sets are also the only real
 calibration data this project has for the rewrite PLAN.md → Known risks
 describes, and they live in `events` where they do not roll off.
+
+**An album of five pages was lost to a measure of layout, and that is what
+task 29 fixed.** 17:37 UTC, `album_incomplete`: `pages_ok 3`, `cost_usd
+0.085437`, nothing saved. Pages 2 and 3 were refused for "прогоны распознавания
+разошлись" at `text_agreement` 0.428 and 0.419 — while `sharpness` read 4033
+and 3257 against a threshold of 90, `paper_fraction` 0.958 and 0.971, and
+`numeric_agreement` 0.881 and 0.959 with **zero** reported divergences. The
+runs read the same page and laid it out differently, which is exactly what
+`prompts-v5.md` leaves them free to do.
+
+What cannot be checked afterwards, and is the instrument gap to fix next: the
+runs' own texts are not stored anywhere, and a rejected album stores nothing at
+all, so "what did the three runs actually disagree about" is answerable only
+while the lines are still in Railway's log.
 
 **One compose call in three timed out, and that is what task 27 fixed.** The
 three calls on `gemini-3.8-flash` read 41.3 s, 43.7 s and one at exactly

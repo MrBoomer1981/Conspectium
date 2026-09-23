@@ -371,6 +371,33 @@ exactly as authoritative as a right one. What makes it safe to act on is
 produced eight divergences of which one was genuine, and every record would
 have worn the flag.
 
+**And one finding lifts `rejected` → `needs_review`: the numbers vouching for
+the page.** The bands are `text_agreement`, which compares markdown and
+therefore measures how a page was laid out rather than how it was read. That
+was sound while the prompt prescribed the layout. `prompts-v5.md` deliberately
+hands layout to the composing stage, and the bands stayed where task 6 put
+them — so on 2026-09-23 a five-page album lost two pages at `text_agreement`
+0.428 and 0.419, and under "a record is all its pages or none" the other three
+went with them. $0.085 of paid calls, five photographed pages, nothing saved.
+The frames were fine: sharpness 4033 and 3257 against a threshold of 90, the
+page filling 96% of the frame. The numbers those runs extracted were
+**identical** — `consensus.compare` reported not one divergence, not even a
+number against a gap.
+
+`vision.numbers_vouch` is that test in code: no reported divergence at all, on
+the unfiltered list, and at least `_VOUCH_MIN_NUMBERS` = 5 numbers in every
+run. Five because the corpus's median page carries 7.5 and its thinnest albums
+5.7, while agreement on one or two numbers is cheap. The count comes from the
+markdown rather than from the model's own `numeric_tokens`, for the reason
+this file distrusts every self-report. A vouched page is **saved and flagged**,
+never lifted to `clean`: the runs did disagree about something, and the reader
+should hear about it.
+
+What this does *not* weaken is the failure the band exists for. A page
+photographed from across the room comes back as three different retellings,
+and invention does not produce the same five numbers in the same order three
+times.
+
 **The webhook answers before it works.** Telegram delivers the updates of one
 chat **strictly in sequence** — it does not send the next until the current
 request ends; updates from different chats are already concurrent. Processing

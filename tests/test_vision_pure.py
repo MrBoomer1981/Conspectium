@@ -150,12 +150,48 @@ def test_total_cost_of_no_calls_is_none():
 
 
 def test_verdict_bands():
-    assert vision._verdict(1.0) == "clean"
-    assert vision._verdict(0.90) == "clean"
-    assert vision._verdict(0.8999) == "needs_review"
-    assert vision._verdict(0.70) == "needs_review"
-    assert vision._verdict(0.6999) == "rejected"
-    assert vision._verdict(0.0) == "rejected"
+    assert vision._verdict(1.0, False) == "clean"
+    assert vision._verdict(0.90, False) == "clean"
+    assert vision._verdict(0.8999, False) == "needs_review"
+    assert vision._verdict(0.70, False) == "needs_review"
+    assert vision._verdict(0.6999, False) == "rejected"
+    assert vision._verdict(0.0, False) == "rejected"
+
+
+def test_vouching_numbers_move_only_the_bottom_band():
+    """A page whose runs read the same numbers is saved and flagged, never
+    thrown away — and never called clean either, because they did disagree
+    about something."""
+    assert vision._verdict(0.6999, True) == "needs_review"
+    assert vision._verdict(0.0, True) == "needs_review"
+    # Above the bottom band the vouch changes nothing at all.
+    assert vision._verdict(0.70, True) == "needs_review"
+    assert vision._verdict(0.95, True) == "clean"
+
+
+def test_numbers_vouch_only_for_a_page_that_has_enough_of_them():
+    five = ["Рёбра 1, 0 и степени 2, 3, 4"] * 3
+    four = ["Рёбра 1, 0 и степени 2, 3"] * 3
+
+    assert vision.numbers_vouch(five, []) is True
+    assert vision.numbers_vouch(four, []) is False
+    assert vision.numbers_vouch(["Текста без чисел"] * 3, []) is False
+
+
+def test_one_reported_divergence_is_enough_to_refuse_the_vouch():
+    """The unfiltered list, deliberately. meaningful_divergences drops a number
+    against a gap as an alignment artefact, which is right when the question is
+    "tell the reader"; here the question is whether the runs read the same
+    page, and a gap means one of them read something the others did not."""
+    runs = [
+        "Рёбра 1, 0 и степени 2, 3, 4",
+        "Рёбра 1, 0 и степени 2, 3, 4",
+        "Рёбра 1, 0 и степени 2, 3, 9",
+    ]
+    reported = consensus.compare(runs).divergences
+
+    assert reported
+    assert vision.numbers_vouch(runs, reported) is False
 
 
 # ── _short_error ─────────────────────────────────────────────────────────────
@@ -791,7 +827,7 @@ async def test_a_divergent_number_lowers_a_clean_verdict(monkeypatch):
     result, _ = await vision.transcribe_consensus(b"x")
 
     assert result is not None
-    assert vision._verdict(result.text_agreement) == "clean"  # the band alone
+    assert vision._verdict(result.text_agreement, False) == "clean"  # the band
     assert result.numeric_divergences  # but the numbers did not agree
     assert result.verdict == "needs_review"
 
@@ -824,7 +860,7 @@ async def test_an_alignment_artefact_does_not_lower_the_verdict(monkeypatch):
     result, _ = await vision.transcribe_consensus(b"x")
 
     assert result is not None
-    assert vision._verdict(result.text_agreement) == "clean"
+    assert vision._verdict(result.text_agreement, False) == "clean"
     assert result.numeric_divergences == []
     assert result.verdict == "clean"
 
@@ -845,8 +881,35 @@ async def test_a_divergence_never_lifts_a_rejected_page(monkeypatch):
     result, _ = await vision.transcribe_consensus(b"x")
 
     assert result is not None
-    assert vision._verdict(result.text_agreement) == "rejected"
-    assert result.verdict == "rejected"
+    assert vision._verdict(result.text_agreement, False) == "rejected"
+    assert result.verdict == "rejected"  # and the numbers did not vouch either
+
+
+async def test_layout_alone_no_longer_throws_a_page_away(monkeypatch):
+    """The loss of 2026-09-23, as a test. Five pages were photographed, two
+    came back at text_agreement 0.428 and 0.419 with their numbers agreeing
+    exactly, and "a record is all its pages or none" took the other three with
+    them. The bands measure markdown; prompts-v5.md gave the markdown away to
+    the composing stage and the bands stayed where they were."""
+    runs = [
+        "# Матрица смежности $|V| \\times |V|$\n\n"
+        "**Если существует ребро**, то $a_{ij} = 1$, иначе 0.\n\n"
+        "- степени вершин: 2, 3, 4\n",
+        "Матрица смежности размера V на V\n"
+        "если существует ребро то a = 1 иначе 0\n"
+        "степени вершин 2 3 4\n",
+        "## Представление графов\n\n"
+        "Матрица смежности. Ребро даёт 1, отсутствие даёт 0.\n"
+        "Степени вершин равны 2, 3 и 4 соответственно.\n",
+    ]
+    await _stub_runs(monkeypatch, runs)
+
+    result, _ = await vision.transcribe_consensus(b"x")
+
+    assert result is not None
+    assert result.text_agreement < 0.70  # the band on its own says rejected
+    assert result.verdict == "needs_review"  # the numbers say otherwise
+    assert result.numeric_divergences == []
 
 
 async def test_the_downgrade_is_the_one_the_record_is_built_from(monkeypatch):

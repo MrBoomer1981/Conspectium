@@ -590,13 +590,54 @@ def numeric_agreement(runs: list[list[str]]) -> float:
     return sum(ratios) / len(pairs)
 
 
-def _verdict(text_agreement: float) -> str:
-    """Non-overlapping bands from PLAN.md task 6."""
+# How many numbers a page must carry before their agreement counts as
+# evidence. Measured over the corpus on 2026-09-23: the median page carries
+# 7.5 and the thinnest albums about 5.7, so five keeps an ordinary page
+# eligible. Below that the agreement is cheap — two runs that both write
+# "1905" have said little — and above it, three independent runs producing the
+# same numbers in the same order is not something invention does.
+_VOUCH_MIN_NUMBERS = 5
+
+
+def numbers_vouch(markdowns: list[str], reported: list) -> bool:
+    """Did the runs read the same page, whatever they did with its layout?
+
+    `reported` is `consensus.compare`'s unfiltered list, so an empty one means
+    the numeric sequences of every run aligned with no difference at all — not
+    even a number against a gap. The count is taken from the markdown rather
+    than from the model's own `numeric_tokens`, for the reason this project
+    distrusts every self-report: one is computed from the text that will be
+    stored, the other is a field the model fills in about itself.
+    """
+    if reported:
+        return False
+    return min(len(consensus.extract_numbers(m)) for m in markdowns) >= (
+        _VOUCH_MIN_NUMBERS
+    )
+
+
+def _verdict(text_agreement: float, numbers_vouched: bool) -> str:
+    """Non-overlapping bands from PLAN.md task 6, with one way out of the
+    bottom one.
+
+    The bands are `text_agreement`, which compares the markdown and therefore
+    measures how a page was laid out rather than how it was read. That was
+    sound while the prompt prescribed the layout; `prompts-v5.md` deliberately
+    gives layout away to the composing stage, and the bands stayed where they
+    were. On 2026-09-23 a five-page album lost two pages — and with them, under
+    "all its pages or none", the other three — at `text_agreement` 0.428 and
+    0.419 while their numbers agreed exactly and the frames were nineteen times
+    over the sharpness threshold.
+
+    So a page whose numbers vouch for it is never *rejected*: it is saved and
+    flagged. It is not lifted to clean either, because the runs did disagree
+    about something, and a reader should hear about it.
+    """
     if text_agreement >= 0.90:
         return "clean"
     if text_agreement >= 0.70:
         return "needs_review"
-    return "rejected"
+    return "needs_review" if numbers_vouched else "rejected"
 
 
 async def transcribe_consensus(
@@ -676,7 +717,8 @@ async def transcribe_consensus(
     # produced them, and nothing here needs to be the one place that edits one.
     best = replace(chosen, uncertain=meaningful_uncertain(chosen.uncertain))
 
-    verdict = _verdict(text_agreement)
+    vouched = numbers_vouch(markdowns, reported)
+    verdict = _verdict(text_agreement, vouched)
     if verdict == "clean" and numeric_divergences:
         # A kept divergence means at least two runs read one position as
         # different *numbers* — meaningful_divergences has already dropped the
@@ -704,13 +746,16 @@ async def transcribe_consensus(
     )
     logger.info(
         "consensus: %d/%d runs ok, text_agreement=%.3f, "
-        "numeric_agreement=%.3f, verdict=%s, "
+        "numeric_agreement=%.3f, verdict=%s%s, "
         "divergences %d of %d kept, uncertain %d of %d kept",
         len(ok_runs),
         settings.VISION_RUNS,
         result.text_agreement,
         result.numeric_agreement,
         result.verdict,
+        # Only when it changed the outcome, so the line does not carry a word
+        # about a rule that did not fire.
+        " (numbers vouched)" if vouched and text_agreement < 0.70 else "",
         len(numeric_divergences),
         len(reported),
         len(best.uncertain),
