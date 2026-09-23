@@ -484,7 +484,7 @@ _ALIGNMENT_ONLY = {"aligned", "align", "alignedat", "gathered", "gather", "split
 
 
 def _environment(found: re.Match) -> str:
-    """One \begin...\end turned into a stack of rows, with its delimiters."""
+    r"""One \begin...\end turned into a stack of rows, with its delimiters."""
     name = found.group(1)
     left, right = _ENVIRONMENT_DELIMITERS[name]
     # Doubled for re.sub's replacement template, which reads \q as an escape.

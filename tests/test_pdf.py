@@ -308,6 +308,23 @@ def test_every_translation_in_the_table_is_one_mathtext_draws():
 # ── the environments mathtext refuses outright ───────────────────────────────
 
 
+def test_no_file_carries_an_invalid_escape_sequence():
+    """A docstring about LaTeX is where this bites: "\\begin" in a plain string
+    is a backspace and a SyntaxWarning, and the deployed process printed one on
+    every start. Python 3.12 warns; a later one will refuse to compile."""
+    import pathlib
+    import warnings
+
+    found = []
+    for path in sorted(pathlib.Path("app").rglob("*.py")):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", SyntaxWarning)
+            compile(path.read_text(encoding="utf-8"), str(path), "exec")
+            found += [f"{path}:{w.lineno}" for w in caught]
+
+    assert found == []
+
+
 def test_a_piecewise_definition_becomes_a_braced_stack():
     """`cases` is the one CLAUDE.md said would be missed: a piecewise
     definition is ordinary mathematics and it printed as its own source. It has
