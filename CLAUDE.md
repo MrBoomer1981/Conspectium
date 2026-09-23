@@ -115,8 +115,8 @@ Create a new migration:
     alembic revision -m "description"
 
 Revision ids are hand-written, not the generated hash — `001_users_events`
-through `007_tags_and_topics`, which is the current head. Continue the
-numbering: the next one is `008_`.
+through `009_unverified_pages`, which is the current head. Continue the
+numbering: the next one is `010_`.
 
 Apply migrations:
 
@@ -401,8 +401,11 @@ What this trades away should be said plainly, because it was bought with a
 reproduced failure: the band was the second line of defence against a page
 photographed from across the room coming back as a fluent retelling. The first
 line is `photoguard`, which runs before the model and must never be bypassed,
-and it is the one to strengthen — see `PLAN.md` task 33. A retelling now
-reaches the corpus wearing "прочитано без сверки" instead of being refused.
+and it is the one that was strengthened in answer: `photoguard._line_height`
+measures a line now instead of answering "could not measure" to every ordinary
+page (task 35). A retelling still reaches the corpus wearing "прочитано без
+сверки" rather than being refused — what changed is that the frame check in
+front of it works.
 
 Two findings downgrade `clean` → `needs_review`, both one way only. A critical
 `mathcheck` issue does it in the handlers — a warning is shown but leaves the
@@ -1214,7 +1217,7 @@ needs a database runs on in-memory SQLite.
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the two rules in photoguard this project has edited: a line height that could not be measured is not a small one, and what the measurement answers on pages whose pitch is known by construction |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, and which headings are taken back |
-| `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses, graphs read back from `[граф: ...]`, heading levels, callouts, and that nothing unreadable ever sinks the document |
+| `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]`, heading levels, callouts, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the

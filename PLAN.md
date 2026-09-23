@@ -205,14 +205,18 @@ running anything.
 2026-09-23:
 
 ```
+Recognition: gemini-3.8-flash, 3 runs
 Prompt:  prompts-v5.md, 235 words
 Compose: on, gemini-3.8-flash, prompts-compose-v2.md, 226 words
 Call:    media_resolution=unset, thinking_level=unset
-Timeouts: call 90s, consensus 354s, album 1064s
-VISION_MODEL=gemini-3.8-flash       ← not in the startup log; see the gaps below
+Timeouts: call 90s, compose 240s, consensus 354s, album 1064s
 VISION_RUNS=3, IMAGE_MAX_SIDE=1500, IMAGE_QUALITY=85
-DAILY_PAGES_PER_USER=1000, DAILY_COST_LIMIT_USD=5, ALLOW_UNPRICED_MODEL=true
+DAILY_PAGES_PER_USER=1000, DAILY_COST_LIMIT_USD=5, ALLOW_UNPRICED_MODEL=false
 ```
+
+Read again at 19:25 UTC, after the evening's deploys. Three lines moved:
+`Recognition:` exists now (gap 1), the compose call has a ceiling of its own
+(task 27), and `ALLOW_UNPRICED_MODEL` is off (gap 4).
 
 ### The open question: v4 against v5
 
@@ -292,7 +296,8 @@ GROUP BY 1, 2;
 
 ### Gaps in the instrument, found on 2026-09-23
 
-Two of the four are closed; the one that matters most for the next arm is not.
+Three of the four are closed; the one that matters most for the next arm is
+not — a record still does not carry the prompt that made it.
 
 1. ~~**`VISION_MODEL` is never printed at startup.**~~ Fixed. The line reads
    `Recognition: <model>, N runs`, and the run count is on it because a page
@@ -314,11 +319,11 @@ Two of the four are closed; the one that matters most for the next arm is not.
    so the arm that settles it has to pool albums run on different days, and
    every one of them is attributed by remembering what the variable was set to
    at the time. That is the failure mode this whole section exists to prevent.
-4. **`ALLOW_UNPRICED_MODEL=true` is still set** while both models are priced, so
-   it is currently protecting nothing and disarming the next model swap. The
-   deploy log now names whichever model is unpriced, which makes the state
-   visible — but visible is not the same as chosen. CLAUDE.md → Environment
-   variables says to turn it off once a model is priced.
+4. ~~**`ALLOW_UNPRICED_MODEL=true` is still set**~~ Fixed on 2026-09-23: it is
+   `false` in the Railway variables now, both models are priced, and the daily
+   cost cap is a cap again. The rule it was breaking is the one to keep:
+   turning it on is a decision, and leaving it on after a model is priced
+   disarms the next swap silently.
 
 ### Fixed since: the ceiling the composer waited on
 
@@ -405,6 +410,29 @@ What cannot be checked afterwards, and is the instrument gap to fix next: the
 runs' own texts are not stored anywhere, and a rejected album stores nothing at
 all, so "what did the three runs actually disagree about" is answerable only
 while the lines are still in Railway's log.
+
+**Two things seen in the records of 19:06 and 19:09 and not fixed.** Both were
+found by reading the documents rather than the logs, and neither has a test
+that would have caught it.
+
+*Topics go generic on a page with many subsections.* Record 39 came back with
+`основные_понятия` and `практика` among its five. The ranking prefers deeper
+heading levels, which is what makes the five "main" — but on a page where
+`### Пример` and `### Определение` repeat, the deep levels are exactly the
+words every record carries, and a handle that matches everything finds
+nothing. The fix is not obvious: ranking by position brings back the problem
+that ordering was invented to solve. Worth measuring first — how often a topic
+in the corpus is a word shared by more than half the records.
+
+*`graphcheck` is structurally blind on the page it was built for.* Record 39's
+adjacency matrix sits in the case the check refuses to judge — 5 vertices, 5
+edges and a 5×5 table read as either matrix with equal force — and its cells
+are half dashes, which `_value` reads as "could not make this out". Row 3 is
+all dashes while row 1 says $a_{13} = 1$; nothing reported the asymmetry. The
+silence is deliberate and still right, but a square table could be settled by
+trying both readings and speaking only when **neither** agrees with the graph.
+That keeps the "never confidently wrong" property and is a real check on the
+page type this album is made of.
 
 **One compose call in three timed out, and that is what task 27 fixed.** The
 three calls on `gemini-3.8-flash` read 41.3 s, 43.7 s and one at exactly
@@ -1397,6 +1425,9 @@ class Note(Base):
     numeric_divergences: list    # JSONB, not null, default []
     unreadable_count: int        # not null, default 0
     text_agreement: float | None
+    # Added after this task, in the order the migrations did it:
+    #   numeric_agreement (005), tag (007) and the note_topics table,
+    #   missing_pages (008), unverified_pages (009).
     photo_sharpness: float | None
     photo_line_height: float | None
     photo_paper_fraction: float | None
@@ -1624,6 +1655,15 @@ with the page number and the reason.
 
 If **not a single** page passes → `texts.REJECTED_QUALITY`, no record is
 created, no quota is debited.
+
+> Changed by tasks 31 and 32, and this paragraph is kept as what was planned.
+> A page that was read is no longer lost to its neighbours: the record is
+> delivered with a marker where each unread page would have been and their
+> numbers in `notes.missing_pages`. Only an album where **nothing** was read
+> asks to be taken again, and the text it asks with is `texts.ALBUM_INCOMPLETE`
+> — `REJECTED_QUALITY` went out with the rule that used it. Fewer pages are
+> skipped, too: disagreement between the runs marks a page instead of dropping
+> it (`notes.unverified_pages`).
 
 **Record fields for an album** — computed only from successfully
 processed pages:
