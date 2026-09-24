@@ -416,6 +416,44 @@ three capture paths finish with `corpus.send_record`. Rendering is CPU-bound
 and runs in a thread; if it fails for any reason the record is sent as plain
 text. A record is never lost over its presentation.
 
+**The document's look is one system, decided in `pdf.py` (task 36).** It is
+what the group receives, so none of it is left to reportlab's defaults:
+
+- **One scale and one rhythm.** Every size is a step from `_BODY_PT`, and the
+  space between two blocks comes from `_space_before`, which knows what both
+  of them are: lines of one paragraph sit at the leading alone, a blank line
+  opens a paragraph, a display formula, a table or a drawing is set apart, and
+  a run of display formulas is one close block.
+- **Formulas in DejaVu Serif, text in DejaVu Sans** — the reference's pairing,
+  inside the one bundled family; Computer Modern has no Cyrillic. An inline
+  formula is lowered by its measured depth, so its baseline is the line's,
+  and one wider than the column is shrunk to fit rather than run off the page.
+  A zero-width space after an inline formula, where the page had a space,
+  is the only place reportlab will break a line after an image.
+- **A heading is held back and set in one group with what it heads**, a
+  remark with its line, a table whole. The groups are built by hand and flat:
+  reportlab's own `keepWithNext` nests one `KeepTogether` in another, the inner
+  one reports an effectively infinite height, and the heading stays behind.
+- **Every box beside the text has one anatomy** — a rule down the left, a
+  label in capitals, the lines — and no panel behind it. A callout about the
+  record and a remark about one line differ in their accent only; the
+  explanation of task 38 is the same box in a tone of its own.
+- **A graph is cut to what is drawn**, at one scale for every graph. A graph
+  or a matrix name ("A =") followed directly by a table is set beside it — a
+  blank line may stand between them, a line of text may not. A table is ruled
+  under its header, and after its first column when that column names the
+  rows; never caged in a grid.
+- **From page two the record's title stands over the text, and a record of
+  more than one page is numbered "2 / 5"** — not "с. 2", which inside a
+  record means a photographed page.
+- **Markup never prints as its source.** `$$` on lines of their own is a
+  display formula, `$$…$$` inside a line is a formula, emphasis pairs across
+  a formula, and `~~…~~` is drawn struck through, the way the author crossed
+  it out. A remark's quoted LaTeX goes through `pdf.as_formula`; its anchor
+  stays raw, because it has to be found in the record as it stands.
+
+→ "The document as the group got it"
+
 **mathtext is not LaTeX, and a formula it refuses prints as its own source.**
 `pdf.for_mathtext` rewrites what the model writes into what mathtext draws. It
 drops the commands that do nothing to the layout (`\limits`, `\nolimits`,
@@ -465,7 +503,7 @@ drawing should be. Reading a drawing's structure is interpretation, and
 nothing yet compares the runs' edge lists — `PLAN.md` → Known risks.
 
 **A callout says what we already know, never what the model thinks.** The
-tinted boxes at the top of a record are built by `corpus._callouts` from the
+boxes at the top of a record are built by `corpus._callouts` from the
 `Note`'s own columns, so the document and the chat cannot disagree; `pdf.py`
 receives a list of `Callout` and knows nothing about where a record came
 from. A generic flag gives way to a specific one: the capture handlers and
@@ -851,13 +889,13 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_handlers.py` | `_split_message`, the catch-all reply |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
 | `test_graphcheck.py` | the matrix against the graph: what it must catch, and — the longer half — every shape it must stay quiet about |
-| `test_corpus.py` | filing a record under a subject, finding it by a topic, statistics, the flags rebuilt from JSONB as callouts and as anchored remarks — and that no query reaches another user's records |
+| `test_corpus.py` | filing a record under a subject, finding it by a topic, statistics, the flags rebuilt from JSONB as callouts and as anchored remarks, the LaTeX a remark quotes marked to be drawn while its anchor stays raw — and that no query reaches another user's records |
 | `test_tags.py` | what a #tag normalizes to, what counts as one, and which topics a record yields |
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the two rules in photoguard this project has edited: a line height that could not be measured is not a small one, and what the measurement answers on pages whose pitch is known by construction |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, and which headings are taken back |
-| `test_pdf.py` | how a page is parsed into blocks, escaping, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]`, heading levels, callouts, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
+| `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the
@@ -917,6 +955,6 @@ Everything below is deliberately postponed. Don't suggest or implement:
 - A language trainer, text rewriting, or any second feature
 - Visual design and styling of **bot responses** — the chat stays plain text.
   This is not the document: the PDF is what the group receives, so its design
-  and readability are the product itself and are task 36 in `PLAN.md`
+  and readability are the product itself — see "The document"
 - Social features, sharing, friends
 - Caching, queues, microservices, Docker, CI

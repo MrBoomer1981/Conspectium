@@ -155,15 +155,20 @@ def _remarks(note: Note) -> list[pdf.Remark]:
     it is also the anchor: whichever line of the record contains it gets the
     remark. One that anchors nowhere is not lost — `pdf.render` puts it at the
     end.
+
+    What was read, why it is doubtful and what else it might be are quoted as
+    the page was transcribed — inside a formula that is LaTeX with no dollars
+    round it — so their LaTeX is marked to be drawn. The anchor stays the raw
+    text: it has to be found in the record exactly as it stands there.
     """
     return [
         pdf.Remark(
             anchor=str(u.get("text", "")),
             label=texts.remark_label(u.get("page")),
             lines=texts.uncertain_remark(
-                str(u.get("text", "")),
-                str(u.get("why", "")),
-                u.get("alternatives") or [],
+                pdf.as_formula(str(u.get("text", ""))),
+                pdf.as_formula(str(u.get("why", ""))),
+                [pdf.as_formula(str(a)) for a in u.get("alternatives") or []],
             ),
         )
         for u in note.uncertain

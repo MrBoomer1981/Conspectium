@@ -282,6 +282,29 @@ async def test_a_remark_carries_the_other_readings(session):
     assert corpus._remarks(note)[-1].lines[-1] == "другое прочтение: дсv, ∂cu"
 
 
+async def test_the_latex_a_remark_quotes_is_marked_to_be_drawn(session):
+    # «\rho^-(v)» went out on a remark as its own source. The anchor stays the
+    # raw text: it has to be found in the record exactly as it stands there.
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        uncertain=[
+            {
+                "text": r"\rho^-(v)",
+                "why": r"похоже на \chi",
+                "alternatives": [r"\rho^+(v)"],
+            }
+        ],
+    )
+
+    remark = corpus._remarks(note)[0]
+
+    assert remark.anchor == r"\rho^-(v)"
+    assert remark.lines[0] == r"«$\rho^-(v)$» — похоже на $\chi$"
+    assert remark.lines[-1] == r"другое прочтение: $\rho^+(v)$"
+
+
 async def test_a_remark_without_a_page_says_so_without_one(session):
     user = await _user(session)
     note = await _note(session, user, uncertain=[{"text": "щ", "why": "двоится"}])

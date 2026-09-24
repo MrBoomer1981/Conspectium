@@ -490,3 +490,38 @@ read twice.
 knobs and all four timeouts — and not `VISION_MODEL`, the attribute every
 finding carries and the one that had already changed twice, retiring a page
 of them.
+
+## The document as the group got it
+
+Records 37–40, rendered on 2026-09-24 with the code of the day and laid beside
+the author's own write-up of the same lecture on graphs, before task 36:
+
+- **Markup printed as its source.** Record 39 carried seven display formulas
+  as `$$`, the LaTeX, `$$` again: the composing stage writes the dollars on
+  lines of their own, and the parser read line by line. `$$…$$ — формула
+  Ридберга` left a dollar at either end (records 30, 32, 33), `~~она~~` went
+  out with its tildes on six records of twelve, and `**…$n$…**` with its
+  asterisks. A remark quoted `\rho^-(v)` as source, because `uncertain`
+  quotes the inside of a formula without its dollars.
+- **A line could not be told from a paragraph.** 4 pt under every line and
+  9 pt under a paragraph, at a leading of 1.7: a record composed line by line
+  read as double-spaced.
+- **Ten records of twelve were `needs_review`**, so nearly every document
+  opened on a tinted panel, and the tint had stopped meaning anything.
+- **Things came apart across pages.** "Пример" stood at the foot of a page
+  with its graph on the next one; "A =" sat alone on a line with its matrix
+  further down.
+- **A graph was drawn in a square as wide as its layout circle**, a third of a
+  triangle's picture empty under it, and a matrix was a wall of boxed cells.
+- **Nothing on a printed page four said which lecture it was.**
+
+Two traps in reportlab were met while fixing those, and each shaped the code.
+`keepWithNext` wraps a heading and the flowable after it in a `KeepTogether`;
+when that flowable is itself a `KeepTogether` — a line with its remark, a
+whole table — the inner one reports its height as 0xffffff and the heading
+stays behind. "Пример" was still orphaned with `keepWithNext` set on its
+style, which is why the groups are built by hand and never nested. And a line
+is not broken at a space that follows an inline image: once a long formula was
+shrunk to the column, the word after it stayed on its line and ran off the
+paper, 15 pt past the edge in a bench case. A zero-width space, which DejaVu
+carries at zero width, is a place reportlab does break.

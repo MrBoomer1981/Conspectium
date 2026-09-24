@@ -89,7 +89,7 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 
 **Phase B — the ideal record:**
 
-- [ ] 36. The document's design and readability: the typographic scale and the
+- [x] 36. The document's design and readability: the typographic scale and the
       rhythm it sets, the page's furniture, callouts and remarks as one system,
       tables and figures that sit on the page rather than float through it
 - [ ] 37. Stage three: hard passages explained and implied context restored,
@@ -146,9 +146,9 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-35
+Done: 1-36
 Current task: none
-Next task: 36
+Next task: 37
 Blockers: none
 ```
 
@@ -2379,6 +2379,16 @@ read as vertices, which catches prose, not a plausible wrong edge. The fix
 is the one that already works for numbers: compare the three runs' edge
 lists and mark the record `needs_review` when they disagree. Deferred on
 purpose — its own task.
+
+**A remark whose anchor is a single character lands on the first line that
+contains it.** `corpus._remarks` anchors a remark on the text the model read,
+and `render` sets it under the first block containing that text. An anchor of
+"f" found `\frac` in a formula line above the word it was about (record 36),
+and "2" stands in half the lines of a page on graphs (record 39). Task 36
+stopped a graph's edge list from catching one, which is as far as the layout
+can go without guessing. The fix is upstream — `uncertain` carrying the line
+it was read on, or a shortest anchor below which a remark goes to the end —
+and it is its own task.
 
 ---
 

@@ -162,6 +162,43 @@ def test_an_empty_record_has_no_blocks():
     assert pdf.blocks("   \n\n  ") == []
 
 
+# ── a formula between lines of dollars ───────────────────────────────────────
+
+
+def test_a_formula_between_lines_of_dollars_is_display_math():
+    # How the composing stage writes one. Read line by line it went out as
+    # "$$", the LaTeX, "$$" — seven times on one record.
+    result = pdf.blocks("$$\n\\sum_{i=1}^p \\rho(v_i) = 2q\n$$")
+    assert result == [pdf.Block("math", r"\sum_{i=1}^p \rho(v_i) = 2q")]
+
+
+def test_each_line_between_the_dollars_is_a_formula_of_its_own():
+    assert pdf.blocks("$$\na = b\nc = d\n$$") == [
+        pdf.Block("math", "a = b"),
+        pdf.Block("math", "c = d"),
+    ]
+
+
+def test_an_environment_between_the_dollars_stays_one_formula():
+    result = pdf.blocks("$$\n\\begin{cases} a \\\\\nb \\end{cases}\n$$")
+    assert [b.kind for b in result] == ["math"]
+    assert r"\begin{cases}" in result[0].text and r"\end{cases}" in result[0].text
+
+
+def test_a_formula_may_open_on_the_line_of_its_dollars():
+    assert pdf.blocks("$$ a = b\n$$") == [pdf.Block("math", "a = b")]
+
+
+def test_dollars_that_never_close_stay_text():
+    # A blank line before the closing "$$" means it was never a block, and the
+    # dollars must not swallow the rest of the record.
+    assert _kinds("$$\nтекст\n\nдальше") == ["text", "text", "gap", "text"]
+
+
+def test_the_text_around_a_display_block_is_untouched():
+    assert _kinds("до\n$$\nx\n$$\nпосле") == ["text", "math", "text"]
+
+
 # ── parse_graph: a drawing read back as data ─────────────────────────────────
 
 
@@ -456,6 +493,23 @@ def test_an_unclosed_dollar_stays_text():
     assert pdf.split_inline("цена $5 рублей") == [("text", "цена $5 рублей")]
 
 
+def test_a_double_dollar_formula_inside_a_line_leaves_no_dollar_behind():
+    # "$$v = cR$$ — формула Ридберга": read as the single form, a stray dollar
+    # was left at either end, on three records.
+    assert pdf.split_inline("$$v = cR$$ — формула Ридберга") == [
+        ("math", "v = cR"),
+        ("text", " — формула Ридберга"),
+    ]
+
+
+def test_a_line_that_is_one_double_dollar_formula_is_still_display_math():
+    assert pdf.blocks("$$ \\varphi(ab) = \\varphi(a) $$")[0].kind == "math"
+
+
+def test_two_inline_formulas_side_by_side_are_both_read():
+    assert [kind for kind, _ in pdf.split_inline("$a$$b$")] == ["math", "math"]
+
+
 # ── markup: the text has to survive reportlab's mini-HTML ────────────────────
 
 
@@ -470,6 +524,25 @@ def test_ampersand_is_escaped():
 
 def test_bold_survives_escaping():
     assert pdf._markup("**важно** и <тег>") == "<b>важно</b> и &lt;тег&gt;"
+
+
+def test_struck_through_text_is_drawn_struck_through():
+    # A word the author crossed out stays crossed out. Printed with its tildes
+    # it read as noise, on six records of twelve.
+    assert pdf._markup("с какой V ~~она~~ туда") == "с какой V <strike>она</strike> туда"
+
+
+def test_an_unpaired_marker_is_printed_as_it_stands():
+    assert pdf._markup("a ** b") == "a ** b"
+    assert pdf._markup("**a** **b") == "<b>a</b> **b"
+
+
+def test_crossed_spans_still_make_well_formed_markup():
+    # Malformed markup is an exception inside reportlab, and a record is never
+    # worth losing over its emphasis.
+    markup = pdf._markup("**a ~~b** c~~")
+    assert markup == "<b>a <strike>b</strike></b><strike> c</strike>"
+    assert pdf.render("Т", "**a ~~b** c~~").startswith(b"%PDF-")
 
 
 class _FakeFormulas:
@@ -497,6 +570,25 @@ def test_an_unrenderable_formula_falls_back_to_its_source():
     formulas = _FakeFormulas(renderable=False)
     result = pdf._line_markup(r"дано $\begin{matrix}1\end{matrix}$", formulas, 10.0)
     assert r"$\begin{matrix}1\end{matrix}$" in result
+
+
+def test_bold_may_run_across_a_formula():
+    # "**Регулярный граф степени $n$**" is one bold span with a formula in it;
+    # paired run by run, it went out with its asterisks showing.
+    result = pdf._line_markup("**степени $n$** - граф", _FakeFormulas(), 10.0)
+    assert result == "<b>степени <img:n></b> - граф"
+
+
+def test_a_space_after_a_formula_is_a_place_to_break():
+    # reportlab will not break at a space that follows an image, and the word
+    # after a long formula ran off the paper.
+    result = pdf._line_markup("$x$ Ассоциативность", _FakeFormulas(), 10.0)
+    assert result == "<img:x>​ Ассоциативность"
+
+
+def test_a_formula_and_its_comma_are_never_parted():
+    result = pdf._line_markup("$x$, то", _FakeFormulas(), 10.0)
+    assert "​" not in result
 
 
 # ── render: a real document, and never a crash ───────────────────────────────
@@ -607,13 +699,14 @@ def test_a_heading_is_set_at_the_size_of_its_level(monkeypatch):
     # heading at one size, which made "#" and "###" the same thing on a page.
     sizes = _sizes(monkeypatch)
     pdf.render("Заголовок", "# Раз\n## Два\n### Три")
-    assert sizes == [14.0, 12.5, 11.0]
+    assert sizes == [pdf._HEADING_PT[1], pdf._HEADING_PT[2], pdf._HEADING_PT[3]]
+    assert sizes[0] > sizes[1] > sizes[2] >= pdf._BODY_PT
 
 
 def test_a_heading_deeper_than_three_is_set_like_the_third(monkeypatch):
     sizes = _sizes(monkeypatch)
     pdf.render("Заголовок", "###### Глубоко")
-    assert sizes == [11.0]
+    assert sizes == [pdf._HEADING_PT[3]]
 
 
 def test_render_draws_a_callout():
@@ -662,27 +755,48 @@ def _panel(box: pdf.Callout) -> list[str]:
 def test_a_panel_holds_its_title_and_every_line():
     panel = _panel(pdf.Callout("Спорные места", ["раз", "два"]))
     assert len(panel) == 3
-    assert "Спорные места" in panel[0]
+    # The label is set in capitals, the way the reference sets "ЗАМЕЧАНИЕ".
+    assert "СПОРНЫЕ МЕСТА" in panel[0]
     assert panel[1:] == ["раз", "два"]
 
 
 def test_a_warning_panel_is_titled_in_the_warning_colour():
-    assert pdf._CALLOUT_TONES["warning"][1] in _panel(
+    assert pdf._CALLOUT_TONES["warning"] in _panel(
         pdf.Callout("Нужна проверка", [], "warning")
     )[0]
-    assert pdf._CALLOUT_TONES["info"][1] in _panel(pdf.Callout("Спорные", []))[0]
+    assert pdf._CALLOUT_TONES["info"] in _panel(pdf.Callout("Спорные", []))[0]
 
 
 def test_an_unknown_tone_is_titled_like_an_ordinary_one():
-    assert pdf._CALLOUT_TONES["info"][1] in _panel(
+    assert pdf._CALLOUT_TONES["info"] in _panel(
         pdf.Callout("Раз", [], "лиловый")
     )[0]
 
 
 def test_a_panel_escapes_its_title_and_its_lines():
+    # Capitals first, escaping after: "&lt;" upper-cased is "&LT;", which is
+    # not an entity at all.
     panel = _panel(pdf.Callout("a < b", ["c & d"]))
-    assert "a &lt; b" in panel[0]
+    assert "A &lt; B" in panel[0]
     assert panel[1] == "c &amp; d"
+
+
+def test_a_callout_and_a_remark_are_one_anatomy():
+    # Two systems, a tinted panel and a grey note, became one: a rule down the
+    # left, a label, the lines. Nothing behind either of them.
+    import tempfile
+
+    pdf._register_fonts()
+    styles = pdf._styles()
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        boxes = [
+            pdf._callout(pdf.Callout("Нужна проверка", ["a"], "warning"), formulas, styles),
+            pdf._remark(pdf.Remark("x", "В рукописи", ["b"]), formulas, styles),
+        ]
+    for box in boxes:
+        assert [cmd[0] for cmd in box._linecmds] == ["LINEBEFORE"]
+        assert box._bkgrndcmds == []
 
 
 def test_a_formula_in_a_panel_line_is_drawn():
@@ -831,12 +945,24 @@ def _story(monkeypatch, *args, **kwargs) -> list:
         def __init__(self, *a, **k):
             pass
 
-        def build(self, story):
+        def build(self, story, **kwargs):
             captured.extend(story)
 
     monkeypatch.setattr(pdf, "SimpleDocTemplate", _Doc)
     pdf.render(*args, **kwargs)
     return captured
+
+
+def _flat(story: list) -> list:
+    """The story with every group opened: what is kept together is still in
+    the order it will be set in."""
+    out: list = []
+    for flowable in story:
+        if type(flowable).__name__ == "KeepTogether":
+            out.extend(_flat(flowable._content))
+        else:
+            out.append(flowable)
+    return out
 
 
 def _where(story: list, needle: str) -> int:
@@ -846,6 +972,16 @@ def _where(story: list, needle: str) -> int:
     return -1
 
 
+def _group_of(story: list, needle: str):
+    """The KeepTogether that holds the paragraph containing `needle`."""
+    for flowable in story:
+        if type(flowable).__name__ == "KeepTogether" and _where(
+            _flat(flowable._content), needle
+        ) >= 0:
+            return flowable
+    return None
+
+
 def test_a_remark_is_set_directly_under_the_line_it_belongs_to(monkeypatch):
     story = _story(
         monkeypatch,
@@ -853,11 +989,25 @@ def test_a_remark_is_set_directly_under_the_line_it_belongs_to(monkeypatch):
         "первая строка\nвторая строка про щуку\nтретья строка",
         remarks=[pdf.Remark("щуку", "В рукописи", ["двоится"])],
     )
-    anchor = _where(story, "щуку")
+    flat = [f for f in _flat(story) if type(f).__name__ != "Spacer"]
+    anchor = _where(flat, "щуку")
 
     assert anchor > 0
-    assert type(story[anchor + 1]).__name__ == "Table"
-    assert _where(story, "третья") > anchor + 1
+    assert type(flat[anchor + 1]).__name__ == "Table"
+    assert _where(flat, "третья") > anchor + 1
+
+
+def test_a_remark_is_kept_on_the_page_of_its_line(monkeypatch):
+    story = _story(
+        monkeypatch,
+        "Графы",
+        "первая строка\nвторая строка про щуку",
+        remarks=[pdf.Remark("щуку", "В рукописи", ["двоится"])],
+    )
+    group = _group_of(story, "щуку")
+
+    assert group is not None
+    assert type(group._content[-1]).__name__ == "Table"
 
 
 def test_a_remark_that_anchors_nowhere_goes_to_the_end(monkeypatch):
@@ -889,17 +1039,73 @@ def test_a_heading_repeating_the_title_is_dropped(monkeypatch):
     # The commonest shape a page takes: the record is called "Графы" and the
     # page is headed "Графы". Printing both says nothing twice.
     story = _story(monkeypatch, "Графы", "# Графы\nтекст записи")
-    assert sum(1 for f in story if getattr(f, "text", "") == "Графы") == 1
+    assert sum(1 for f in _flat(story) if getattr(f, "text", "") == "Графы") == 1
 
 
 def test_a_repeated_heading_is_matched_past_case_and_spaces(monkeypatch):
     story = _story(monkeypatch, "Графы", "#   графы  \nтекст записи")
-    assert _where(story, "рафы") == 0
+    assert _where(_flat(story), "рафы") == 0
 
 
 def test_a_heading_that_is_not_the_title_survives(monkeypatch):
     story = _story(monkeypatch, "Графы", "# Основные понятия\nтекст записи")
-    assert _where(story, "Основные понятия") > 0
+    assert _where(_flat(story), "Основные понятия") > 0
+
+
+def test_a_heading_is_set_in_one_group_with_what_it_heads(monkeypatch):
+    # "Пример" at the foot of page three, its graph on page four, read as a
+    # heading over nothing.
+    story = _story(monkeypatch, "Т", "### Пример\nтекст примера\nдальше")
+    group = _group_of(story, "Пример")
+
+    assert group is not None
+    assert _where(_flat(group._content), "текст примера") >= 0
+    assert _where(_flat(group._content), "дальше") < 0
+
+
+def test_headings_in_a_row_wait_together_for_the_text(monkeypatch):
+    story = _story(monkeypatch, "Т", "# Раздел\n## Подраздел\nтекст")
+    group = _group_of(story, "Раздел")
+
+    assert group is not None
+    assert _where(_flat(group._content), "Подраздел") >= 0
+    assert _where(_flat(group._content), "текст") >= 0
+
+
+def test_no_group_is_ever_nested_in_another(monkeypatch):
+    """The failure this rule was written after: reportlab's keepWithNext put a
+    heading and the next group in a KeepTogether, the inner one reported an
+    effectively infinite height, and the heading stayed behind anyway."""
+    story = _story(
+        monkeypatch,
+        "Т",
+        "### Пример\nстрока про щуку\n\n## Таблица\n| 1 | 2 |\n| 3 | 4 |",
+        remarks=[pdf.Remark("щуку", "В рукописи", ["двоится"])],
+    )
+    for flowable in story:
+        if type(flowable).__name__ == "KeepTogether":
+            assert all(
+                type(inner).__name__ != "KeepTogether" for inner in flowable._content
+            )
+
+
+def test_a_table_is_kept_whole(monkeypatch):
+    story = _story(monkeypatch, "Т", "текст\n\n| 1 | 2 |\n| 3 | 4 |")
+    groups = [f for f in story if type(f).__name__ == "KeepTogether"]
+
+    assert any(type(f).__name__ == "Table" for g in groups for f in g._content)
+
+
+def test_a_graph_does_not_catch_a_remark_with_its_edge_list(monkeypatch):
+    # An anchor "2" is in "1-2, 2-3", and a remark about a word was pinned to
+    # a drawing. The spec is not text anyone reads.
+    story = _story(
+        monkeypatch,
+        "Т",
+        "[граф: 1-2, 2-3]\nтекст\nстрока 2 про вершины",
+        remarks=[pdf.Remark("2", "В рукописи", ["двоится"])],
+    )
+    assert _group_of(story, "строка 2") is not None
 
 
 def test_adjacent_drawings_are_set_in_one_row(monkeypatch):
@@ -944,13 +1150,13 @@ def test_a_crowded_row_gives_way_to_the_page():
 
 def test_a_caption_is_set_under_its_drawing():
     row = pdf._figure_row([("Ориентированный", "1->2")], pdf._styles())
-    cell = row[1]._cellvalues[0][0]
+    cell = row[0]._cellvalues[0][0]
     assert cell[-1].text == "Ориентированный"
 
 
 def test_a_drawing_that_cannot_be_read_still_leaves_a_row():
     row = pdf._figure_row([("", "тут была какая то схема")], pdf._styles())
-    assert "граф:" in row[1]._cellvalues[0][0][0].text
+    assert "граф:" in row[0]._cellvalues[0][0][0].text
 
 
 def test_render_draws_a_hairline_under_the_title(monkeypatch):
@@ -959,8 +1165,8 @@ def test_render_draws_a_hairline_under_the_title(monkeypatch):
 
 
 def test_a_top_level_heading_gets_a_hairline_and_a_deeper_one_does_not(monkeypatch):
-    with_rule = _story(monkeypatch, "Т", "# Раздел\nтекст")
-    without = _story(monkeypatch, "Т", "## Подраздел\nтекст")
+    with_rule = _flat(_story(monkeypatch, "Т", "# Раздел\nтекст"))
+    without = _flat(_story(monkeypatch, "Т", "## Подраздел\nтекст"))
     assert sum(1 for f in with_rule if type(f).__name__ == "HRFlowable") == 2
     assert sum(1 for f in without if type(f).__name__ == "HRFlowable") == 1
 
@@ -1106,3 +1312,268 @@ def test_two_different_broken_formulas_are_both_reported(caplog):
 
     refusals = [r for r in caplog.records if "refused" in r.getMessage()]
     assert len(refusals) == 2
+
+
+# ── as_formula: the LaTeX a remark quotes ────────────────────────────────────
+
+
+def test_a_fragment_that_is_all_latex_becomes_one_formula():
+    # «\rho^-(v)» went out on a remark as its own source.
+    assert pdf.as_formula(r"\rho^-(v)") == r"$\rho^-(v)$"
+    assert pdf.as_formula("V_i, V_j") == "$V_i, V_j$"
+
+
+def test_prose_keeps_every_word_and_marks_only_its_commands():
+    assert pdf.as_formula(r"похожа на греческую \chi, либо \varphi") == (
+        r"похожа на греческую $\chi$, либо $\varphi$"
+    )
+
+
+def test_a_fragment_with_nothing_latex_in_it_is_left_alone():
+    for untouched in ("верш", "A =", "∂cv", "[неразборчиво], b_1 c_2", "$x$", ""):
+        assert pdf.as_formula(untouched) == untouched
+
+
+# ── the rhythm: space between two kinds of block ─────────────────────────────
+
+
+def test_lines_of_one_paragraph_are_set_at_the_leading_alone():
+    # A lecture note is written line by line; 4 pt under every one of them
+    # made a page of them read as double-spaced.
+    assert pdf._space_before("text", "text", False) == 0.0
+
+
+def test_a_blank_line_opens_a_paragraph():
+    assert pdf._space_before("text", "text", True) == pdf._PARAGRAPH_GAP
+
+
+def test_a_run_of_display_formulas_is_set_close():
+    # A chain of equalities is one thing on paper.
+    assert pdf._space_before("math", "math", False) < pdf._space_before(
+        "text", "math", False
+    )
+
+
+def test_a_heading_brings_its_own_space():
+    assert pdf._space_before("text", "heading", True) == 0.0
+    assert pdf._space_before("heading", "text", False) == 0.0
+
+
+def test_the_first_thing_on_the_page_needs_no_space():
+    assert pdf._space_before(None, "math", True) == 0.0
+
+
+# ── drawings: cut to size, and set beside their matrix ───────────────────────
+
+
+def test_a_graph_is_cut_to_what_is_drawn():
+    # A square as wide as the layout circle left a third of a triangle's
+    # picture empty under it.
+    _, width, height = pdf._graph_png(
+        ["1", "2", "3"], [("1", "2"), ("2", "3"), ("3", "1")], False
+    )
+    assert height < width * 0.95
+
+
+def test_every_graph_is_drawn_at_one_scale():
+    # Two vertices stand one above the other; cut to what is drawn, the
+    # picture is narrow rather than stretched to the width of a hexagon.
+    _, width, height = pdf._graph_png(["1", "2"], [("1", "2")], False)
+    assert width < height
+    assert width < pdf._GRAPH_WIDTH_PT / 3
+
+
+def test_a_graph_is_shrunk_only_to_fit():
+    _, width, _ = pdf._graph_png(
+        [str(i) for i in range(1, 7)],
+        [(str(i), str(i % 6 + 1)) for i in range(1, 7)],
+        False,
+        width_pt=60.0,
+    )
+    assert width <= 60.0
+
+
+def _matrix(size: int = 3) -> str:
+    head = "| |" + "|".join(f" {i} " for i in range(1, size + 1)) + "|"
+    rule = "|---|" + "|".join("---" for _ in range(size)) + "|"
+    rows = [
+        f"| {r} |" + "|".join(" 0 " for _ in range(size)) + "|"
+        for r in range(1, size + 1)
+    ]
+    return "\n".join([head, rule, *rows])
+
+
+def _besides(monkeypatch) -> list:
+    seen: list = []
+    monkeypatch.setattr(
+        pdf,
+        "_beside",
+        lambda graph, name, table, formulas, styles: seen.append(
+            (graph.text if graph else None, name.text if name else None)
+        )
+        or [],
+    )
+    return seen
+
+
+def test_a_graph_and_its_matrix_are_set_side_by_side(monkeypatch):
+    seen = _besides(monkeypatch)
+    pdf.render("Т", f"[граф: 1-2, 2-3]\n\n$A =$\n\n{_matrix()}")
+    assert seen == [("1-2, 2-3", "A =")]
+
+
+def test_a_matrix_name_is_set_beside_its_matrix(monkeypatch):
+    seen = _besides(monkeypatch)
+    pdf.render("Т", f"$B =$\n{_matrix()}")
+    assert seen == [(None, "B =")]
+
+
+def test_a_line_of_text_keeps_a_graph_and_a_table_apart(monkeypatch):
+    # The layout never moves a word of the record to put two pictures together.
+    seen = _besides(monkeypatch)
+    pdf.render("Т", f"[граф: 1-2, 2-3]\nтекст между ними\n{_matrix()}")
+    assert seen == []
+
+
+def test_a_graph_and_a_matrix_too_wide_to_share_the_column_are_stacked():
+    import tempfile
+
+    wide = pdf.blocks("| " + " | ".join(f"столбец {i}" for i in range(9)) + " |\n"
+                      "| " + " | ".join("0" for _ in range(9)) + " |")[0]
+    graph = pdf.Block("graph", "1-2, 2-3")
+    pdf._register_fonts()
+    with tempfile.TemporaryDirectory() as directory:
+        assert pdf._beside(graph, None, wide, pdf._Formulas(directory), pdf._styles()) is None
+
+
+def test_a_record_with_a_graph_beside_its_matrix_renders():
+    assert pdf.render("Т", f"[граф: 1-2, 2-3]\n$A =$\n{_matrix()}").startswith(b"%PDF-")
+
+
+def _rules(rows: list[list[str]], header: bool) -> list[str]:
+    import tempfile
+
+    pdf._register_fonts()
+    with tempfile.TemporaryDirectory() as directory:
+        table = pdf._table(rows, header, pdf._Formulas(directory), pdf._styles())
+    return [cmd[0] for cmd in table._linecmds]
+
+
+def test_a_matrix_is_ruled_not_caged():
+    # A grid round every cell made noughts and ones a wall of boxes; a matrix
+    # is ruled under its column names and after its row names.
+    rules = _rules([["", "1", "2"], ["1", "0", "1"], ["2", "1", "0"]], header=True)
+    assert "GRID" not in rules
+    assert "LINEBELOW" in rules and "LINEAFTER" in rules
+
+
+def test_a_table_of_records_is_ruled_between_its_rows():
+    rules = _rules(
+        [["Вершина", "Степень"], ["первая вершина", "1"], ["вторая вершина", "2"]],
+        header=True,
+    )
+    assert "GRID" not in rules
+    assert "LINEAFTER" not in rules
+
+
+# ── formulas: the serif, the baseline, the column ────────────────────────────
+
+
+def test_formulas_are_set_in_the_serif(monkeypatch):
+    import matplotlib.figure
+
+    seen: list = []
+    original = matplotlib.figure.Figure.text
+
+    def spy(self, *args, **kwargs):
+        seen.append(kwargs.get("math_fontfamily"))
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(matplotlib.figure.Figure, "text", spy)
+    pdf._formula_png("x^2", 10.0)
+    assert seen == ["dejavuserif"]
+
+
+def test_a_deep_formula_sits_lower_on_the_line():
+    # A fixed fraction of the height lifted a subscript off the line and sank
+    # a fraction through it; the depth is measured instead.
+    assert pdf._formula_png(r"\frac{a}{b}", 10.0)[3] > pdf._formula_png("x", 10.0)[3]
+
+
+def test_an_inline_formula_is_lowered_by_its_own_depth():
+    import tempfile
+
+    depth = pdf._formula_png("x_i", 10.0)[3]
+    with tempfile.TemporaryDirectory() as directory:
+        tag = pdf._Formulas(directory).inline("x_i", 10.0)
+    assert f'valign="-{depth:.2f}"' in tag
+
+
+def test_a_formula_wider_than_the_column_is_shrunk_to_fit():
+    # At its own size a long chain of equalities ran off the paper.
+    import re
+    import tempfile
+
+    long = " + ".join(f"a_{{{i}}} b_{{{i}}} c_{{{i}}}" for i in range(40))
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        shown = formulas.display(long, pdf._DISPLAY_PT)
+        tag = formulas.inline(long, pdf._BODY_PT)
+    assert shown.drawWidth <= pdf._TEXT_WIDTH_PT + 0.01
+    assert float(re.search(r'width="([\d.]+)"', tag).group(1)) <= pdf._INLINE_MAX_PT + 0.01
+
+
+# ── the page's furniture ─────────────────────────────────────────────────────
+
+
+class _Canvas:
+    """Records what the furniture writes and ignores how it writes it."""
+
+    def __init__(self):
+        self.written: list[str] = []
+
+    def drawString(self, x, y, text):  # noqa: N802 — reportlab's name
+        self.written.append(text)
+
+    def drawCentredString(self, x, y, text):  # noqa: N802 — reportlab's name
+        self.written.append(text)
+
+    def __getattr__(self, name):
+        return lambda *args, **kwargs: None
+
+
+def test_every_page_of_a_long_record_is_numbered_out_of_the_whole(monkeypatch):
+    seen: list[tuple[int, int]] = []
+    monkeypatch.setattr(
+        pdf,
+        "_draw_furniture",
+        lambda canvas, number, total, title: seen.append((number, total)),
+    )
+    pdf.render("Графы", "\n".join(f"строка {i}" for i in range(200)))
+
+    total = len(seen)
+    assert total >= 2
+    assert seen == [(number, total) for number in range(1, total + 1)]
+
+
+def test_a_one_page_record_carries_no_furniture():
+    canvas = _Canvas()
+    pdf._draw_furniture(canvas, 1, 1, "Графы")
+    assert canvas.written == []
+
+
+def test_the_running_title_starts_on_the_second_page():
+    first, later = _Canvas(), _Canvas()
+    pdf._draw_furniture(first, 1, 3, "Графы")
+    pdf._draw_furniture(later, 2, 3, "Графы")
+
+    # "2 / 3", not "с. 2": inside a record "с. 2" is a photographed page.
+    assert first.written == ["1 / 3"]
+    assert later.written == ["Графы", "2 / 3"]
+
+
+def test_a_long_running_title_is_cut_to_the_column():
+    cut = pdf._fit("очень длинное название " * 20, 100.0, pdf._FURNITURE_PT)
+
+    assert cut.endswith("…")
+    assert pdf.pdfmetrics.stringWidth(cut, "DejaVu", pdf._FURNITURE_PT) <= 100.0
