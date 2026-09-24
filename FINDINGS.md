@@ -540,3 +540,40 @@ beside vector Lato, which a quarter-point stroke evens out; and reportlab's
 frame pads its content by 6 pt inside the page margins, so the column had
 always been 12 pt narrower than every width computed from it, and a box as
 wide as the column ran past its right edge by that much.
+
+## What the model did with a search tool
+
+Stage three was built as one call with Google Search switched on, and on
+2026-09-24 it was run against record 43 from inside the production container
+before being turned on for anyone. `gemini-3.8-flash` answered well — seven
+explanations and an accurate summary in 30 s for $0.014 — and searched for
+nothing: no grounding metadata at all, so every explanation would have been
+dropped by the rule that an explanation needs a source.
+
+Three variants and the same answer. Telling it to check every explanation
+with a search changed nothing. Asking for a verbatim quote from the found
+source produced quotes — one read "U(1) (унитарная группа порядка 1) в
+математике — мультипликативная абелева группа всех комплексных чисел, равных
+по модулю единице", in the voice of an encyclopedia — with, again, no search
+behind any of them: text from memory, formatted as a citation. That is the
+failure the source rule exists for, and the rule caught it, because it reads
+sources from the grounding metadata and not from the answer. A single call
+asking for sources for all seven explanations at once came back empty.
+
+The same model searches reliably when a short question asks it to — "what is
+today's rate", "find the definition on Wikipedia" — and one call per
+explanation, "find a source that confirms this", grounded seven of seven:
+mccme.ru, spbu.ru, bmstu.ru, mephi.ru, wikipedia.org and others, 26 s in
+parallel, $0.041 of tokens. That is the design now: one call writes, one call
+per explanation searches.
+
+One more thing the live runs showed. Without the strict JSON mode, which the
+search tool cannot be combined with, the model now and then wrote LaTeX into
+a JSON string with a single backslash: "\varphi" made an answer unparseable,
+and "\frac", "\rho", "\text", "\nu" are escapes JSON has, which parse into a
+form feed, a carriage return, a tab and a newline without a word. The writing
+call is strict JSON now, and the parser repairs lone backslashes anyway.
+
+Of the diagnostic calls made that evening, one is not in `ai_calls`: the
+script that made it failed on the unparseable answer before writing its row.
+About $0.015, and no row was invented to stand in for it.

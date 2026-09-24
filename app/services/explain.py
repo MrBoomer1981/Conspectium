@@ -8,13 +8,22 @@ box of its own tone: adding is not forbidden, adding unmarked is.
 
 It runs over the text the runs agreed on and the composer marked up, and like
 the composer it never sees the photograph — the worst failure this project
-has reproduced needs an image to invent from. What it may add is held by two
-guards, both in code:
+has reproduced needs an image to invent from.
 
-- An explanation carries the sources Google Search gave for it, attributed
-  from the answer's own grounding metadata rather than from anything the
-  model wrote about its sources. One with no source behind it is not printed
-  — the reader cannot check a claim, so the page has to say where it is from.
+Two steps, because one did not work. Asked to explain and search in a single
+call, the model searched for nothing: it knows complex numbers and said so
+from memory, and asked for a quote from a found source it wrote plausible
+textbook quotes without a single search behind them. A short question of its
+own — "find a source for this" — it does search. So the first call writes the
+explanations and the summary, and each explanation then gets a call of its
+own with Google Search switched on.
+
+What may be printed is held by two guards, both in code:
+
+- An explanation carries the sources its own search call returned, read from
+  that call's grounding metadata — never from anything the model writes about
+  its sources. One whose search returned nothing is not printed. The reader
+  cannot check a claim, so the page has to say where it is from.
 - The summary restates the record and may not state a number the record does
   not carry: a new number there would be the model inventing inside the one
   box that claims to say what the lecture said.
@@ -42,14 +51,18 @@ logger = logging.getLogger(__name__)
 
 EXPLAIN_PROMPT = vision.load_prompt(settings.EXPLAIN_PROMPT_FILE)
 EXPLAIN_PROMPT_WORDS = len(EXPLAIN_PROMPT.split())
+# The question each explanation is searched with. Short on purpose: a short,
+# direct request to find something is what makes the model actually search.
+SOURCE_PROMPT = vision.load_prompt("prompts-explain-source-v1.md")
 
 # The prompt asks for one or two a section and eight at most; this is where
 # "at most" is kept.
 _MAX_EXPLANATIONS = 8
 # Three links under an explanation say where it is from; more is a list.
 _MAX_SOURCES = 3
-# A grounding segment shorter than this matches too much to attribute by.
-_MIN_SEGMENT_CHARS = 12
+# One search over one short claim. The whole-record ceiling would let a hung
+# call hold its slot for minutes.
+_SOURCE_TIMEOUT_S = 90
 # The composer's retry policy, for the composer's reasons: a call over the
 # whole record, where a timeout means it was working and a second wait buys
 # the same answer.
@@ -58,7 +71,16 @@ _RETRY_PAUSE_S = 2
 
 _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
 _FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$")
-_PLAIN_RE = re.compile(r"[\s\\$\"'«»{}]+")
+# A LaTeX command written into a JSON string with one backslash instead of
+# two. "\varphi" is an escape JSON does not have and the whole answer failed
+# to parse, while "\frac", "\rho", "\text" and "\nu" are escapes it does
+# have — a form feed, a carriage return, a tab, a newline — and parsed into
+# garbage without a word. A lone backslash before two or more Latin letters
+# is a command, not an escape, and is doubled; one before any other character
+# JSON does not know is doubled too. The strict JSON mode the first call asks
+# for should make this rare; the parser does not rely on it.
+_LONE_COMMAND_RE = re.compile(r"(?<!\\)\\(?=[A-Za-z]{2,})")
+_BAD_ESCAPE_RE = re.compile(r'(?<!\\)\\(?![\\"/bfnrtu])')
 
 
 @dataclass
@@ -81,10 +103,9 @@ class Explaining:
 
     explanations: list[Explanation] = field(default_factory=list)
     summary: str | None = None
-    # Why nothing, or less than asked, came back: None when the stage ran
-    # and its answer was read.
+    # Why nothing came back: None when the stage ran and its answer was read.
     refused: str | None = None
-    # Explanations written with no source behind them, and so not printed.
+    # Explanations whose search found nothing, and so were not printed.
     unsourced: int = 0
     # A summary thrown away for stating a number the record does not carry.
     summary_refused: bool = False
@@ -93,18 +114,15 @@ class Explaining:
 
 def parse(text: str) -> tuple[list[dict], str | None] | None:
     """The answer's explanations and summary, or None when it is not the JSON
-    asked for. Never raises — rule 7, the same as recognition's answers.
-
-    The answer comes without response_mime_type, which cannot be combined with
-    the search tool, so a fence or a sentence round the JSON is tolerated and
-    the outermost braces are what is read.
-    """
+    asked for. Never raises — rule 7, the same as recognition's answers."""
     stripped = _FENCE_RE.sub("", text.strip())
     start, end = stripped.find("{"), stripped.rfind("}")
     if start == -1 or end <= start:
         return None
+    body = _LONE_COMMAND_RE.sub(r"\\\\", stripped[start : end + 1])
+    body = _BAD_ESCAPE_RE.sub(r"\\\\", body)
     try:
-        data = json.loads(stripped[start : end + 1])
+        data = json.loads(body)
     except (ValueError, TypeError):
         return None
     if not isinstance(data, dict):
@@ -126,115 +144,93 @@ def parse(text: str) -> tuple[list[dict], str | None] | None:
     return explanations, summary
 
 
-def _plain(text: str) -> str:
-    """Text reduced to what survives JSON escaping and LaTeX's backslashes, so
-    a grounding segment of the raw answer can be found in a parsed field."""
-    return _PLAIN_RE.sub("", text).lower()
-
-
-def _grounding(response: object) -> tuple[list[Source], list[tuple[str, list[int]]]]:
-    """The sources the search returned, and which stretch of the answer each
-    one supports. Empty when the call was not grounded. Never raises."""
+def _sources(response: object) -> list[Source]:
+    """The pages a search call returned, from its grounding metadata. Empty
+    when the call did not search. Never raises."""
     try:
         meta = response.candidates[0].grounding_metadata
     except Exception:
-        return [], []
-    if meta is None:
-        return [], []
-    sources: list[Source] = []
-    for chunk in getattr(meta, "grounding_chunks", None) or []:
+        return []
+    found: list[Source] = []
+    for chunk in (getattr(meta, "grounding_chunks", None) or []) if meta else []:
         web = getattr(chunk, "web", None)
         uri = getattr(web, "uri", None) if web else None
-        title = (getattr(web, "title", None) or getattr(web, "domain", None) or "") if web else ""
-        sources.append(Source(title=title or (uri or ""), uri=uri or ""))
-    supports: list[tuple[str, list[int]]] = []
-    for support in getattr(meta, "grounding_supports", None) or []:
-        segment = getattr(support, "segment", None)
-        text = getattr(segment, "text", None) if segment else None
-        indices = list(getattr(support, "grounding_chunk_indices", None) or [])
-        if text and indices:
-            supports.append((text, indices))
-    return sources, supports
-
-
-def _attribute(
-    item: dict, sources: list[Source], supports: list[tuple[str, list[int]]]
-) -> list[Source]:
-    """The sources behind one explanation: those of every grounding support
-    whose segment of the answer lies inside this explanation's text."""
-    body = _plain(item["text"])
-    found: list[Source] = []
-    for segment, indices in supports:
-        plain = _plain(segment)
-        if len(plain) < _MIN_SEGMENT_CHARS or plain not in body:
+        if not uri or any(uri == kept.uri for kept in found):
             continue
-        for index in indices:
-            if 0 <= index < len(sources) and sources[index].uri:
-                source = sources[index]
-                if all(source.uri != kept.uri for kept in found):
-                    found.append(source)
+        title = getattr(web, "title", None) or getattr(web, "domain", None) or uri
+        found.append(Source(title=title, uri=uri))
     return found[:_MAX_SOURCES]
 
 
-def _grounded(response: object) -> bool:
-    try:
-        meta = response.candidates[0].grounding_metadata
-    except Exception:
-        return False
-    return bool(meta and (getattr(meta, "web_search_queries", None) or getattr(meta, "grounding_chunks", None)))
-
-
-async def _one_call(text: str) -> tuple[object | None, CallStats, bool]:
-    """One call, and whether the failure that ended it is worth another."""
-    started = time.monotonic()
+def _stats(
+    kind: str, response: object | None, started: float, exc: Exception | None = None
+) -> CallStats:
     model = settings.EXPLAIN_MODEL
+    latency_ms = int((time.monotonic() - started) * 1000)
+    if response is None:
+        return CallStats(
+            kind=kind, model=model, tokens_in=None, tokens_out=None,
+            tokens_thought=None, cost_usd=None, latency_ms=latency_ms,
+            success=False, error=vision._short_error(exc) if exc else "no response",
+        )
+    tokens_in, tokens_out, tokens_thought = vision._usage(response)
+    cost = vision._cost_usd(model, tokens_in, tokens_out, tokens_thought)
+    # A search is billed per grounded call on top of the tokens, and the
+    # daily cap has to see it.
+    if cost is not None and _sources(response):
+        cost += GROUNDING_USD_PER_CALL
+    answered = bool(vision._response_text(response).strip())
+    return CallStats(
+        kind=kind, model=model, tokens_in=tokens_in, tokens_out=tokens_out,
+        tokens_thought=tokens_thought, cost_usd=cost, latency_ms=latency_ms,
+        success=answered, error=None if answered else "empty model response",
+    )
+
+
+async def _write(text: str) -> tuple[object | None, CallStats, bool]:
+    """The first call: the explanations and the summary, as strict JSON, with
+    no tool — the model does not search in a call like this one anyway."""
+    started = time.monotonic()
     try:
         async with vision._API_SLOTS:
             response = await asyncio.wait_for(
                 vision._client.aio.models.generate_content(
-                    model=model,
+                    model=settings.EXPLAIN_MODEL,
                     contents=[EXPLAIN_PROMPT, text],
+                    config=types.GenerateContentConfig(
+                        temperature=1.0,
+                        max_output_tokens=vision.MAX_OUTPUT_TOKENS,
+                        response_mime_type="application/json",
+                    ),
+                ),
+                timeout=settings.EXPLAIN_CALL_TIMEOUT_S,
+            )
+    except Exception as exc:
+        retryable = vision._should_retry(exc) and not isinstance(exc, TimeoutError)
+        return None, _stats("explain", None, started, exc), retryable
+    return response, _stats("explain", response, started), False
+
+
+async def _search(item: dict) -> tuple[list[Source], CallStats]:
+    """One explanation searched for: the sources its call returned."""
+    started = time.monotonic()
+    try:
+        async with vision._API_SLOTS:
+            response = await asyncio.wait_for(
+                vision._client.aio.models.generate_content(
+                    model=settings.EXPLAIN_MODEL,
+                    contents=[f"{SOURCE_PROMPT}\n{item['title']}: {item['text']}"],
                     config=types.GenerateContentConfig(
                         temperature=1.0,
                         max_output_tokens=vision.MAX_OUTPUT_TOKENS,
                         tools=[types.Tool(google_search=types.GoogleSearch())],
                     ),
                 ),
-                timeout=settings.EXPLAIN_CALL_TIMEOUT_S,
+                timeout=_SOURCE_TIMEOUT_S,
             )
     except Exception as exc:
-        latency_ms = int((time.monotonic() - started) * 1000)
-        retryable = vision._should_retry(exc) and not isinstance(exc, TimeoutError)
-        return None, CallStats(
-            kind="explain",
-            model=model,
-            tokens_in=None,
-            tokens_out=None,
-            tokens_thought=None,
-            cost_usd=None,
-            latency_ms=latency_ms,
-            success=False,
-            error=vision._short_error(exc),
-        ), retryable
-
-    tokens_in, tokens_out, tokens_thought = vision._usage(response)
-    cost = vision._cost_usd(model, tokens_in, tokens_out, tokens_thought)
-    # The search is billed per grounded call on top of the tokens, and the
-    # daily cap has to see it.
-    if cost is not None and _grounded(response):
-        cost += GROUNDING_USD_PER_CALL
-    answered = bool(vision._response_text(response).strip())
-    return response, CallStats(
-        kind="explain",
-        model=model,
-        tokens_in=tokens_in,
-        tokens_out=tokens_out,
-        tokens_thought=tokens_thought,
-        cost_usd=cost,
-        latency_ms=int((time.monotonic() - started) * 1000),
-        success=answered,
-        error=None if answered else "empty model response",
-    ), False
+        return [], _stats("source", None, started, exc)
+    return _sources(response), _stats("source", response, started)
 
 
 async def explain(markdown: str) -> Explaining:
@@ -248,7 +244,7 @@ async def explain(markdown: str) -> Explaining:
     all_stats: list[CallStats] = []
     response = None
     for attempt in range(_ATTEMPTS):
-        response, stats, retryable = await _one_call(text)
+        response, stats, retryable = await _write(text)
         all_stats.append(stats)  # rule 4: a call that failed was still a call
         if response is not None:
             break
@@ -273,15 +269,18 @@ async def explain(markdown: str) -> Explaining:
         return Explaining(refused="unparseable", stats=all_stats)
 
     items, summary = parsed
-    sources, supports = _grounding(response)
+    items = items[:_MAX_EXPLANATIONS]
+    searched = await asyncio.gather(*(_search(item) for item in items))
     explanations: list[Explanation] = []
     unsourced = 0
-    for item in items[:_MAX_EXPLANATIONS]:
-        backed = _attribute(item, sources, supports)
-        if not backed:
+    for item, (sources, stats) in zip(items, searched):
+        all_stats.append(stats)
+        if not sources:
             unsourced += 1
             continue
-        explanations.append(Explanation(item["anchor"], item["title"], item["text"], backed))
+        explanations.append(
+            Explanation(item["anchor"], item["title"], item["text"], sources)
+        )
 
     summary_refused = False
     if summary is not None:
@@ -292,12 +291,11 @@ async def explain(markdown: str) -> Explaining:
             summary = None
 
     logger.info(
-        "explain: %d explanations kept, %d without a source dropped, "
-        "summary %s, %d sources, model %s",
+        "explain: %d explanations kept, %d without a source dropped, summary %s, "
+        "model %s",
         len(explanations),
         unsourced,
         "refused" if summary_refused else ("kept" if summary else "absent"),
-        len(sources),
         settings.EXPLAIN_MODEL,
     )
     return Explaining(

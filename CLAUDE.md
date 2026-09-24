@@ -616,18 +616,28 @@ The stage's own ceiling and retry policy are in "Concurrency ceilings".
 it as the bot's.** The reader was not at the lecture: a step skipped, a
 symbol never introduced, the lecturer's context left unsaid. The stage adds
 what a classmate who was there would add, in the flow of the material, and a
-short summary at the end — the author's decision, 2026-09-24. It is one call
-over the composed text, numbered by `pdf.numbered_for_reading` the way the
-page will be numbered, so "(3)" in an answer is "(3)" on the page. Like the
+short summary at the end — the author's decision, 2026-09-24. Like the
 composer, it never sees the photograph.
+
+**Two steps, because one did not work on the live model.** Asked to explain
+and search in one call, `gemini-3.8-flash` searched for nothing — asked for a
+quote from a found source, it wrote plausible textbook quotes from memory
+with no search behind them. A short request of its own, "find a source for
+this", it does search. So one call writes the explanations and the summary
+as strict JSON, over the composed text numbered by `pdf.numbered_for_reading`
+the way the page will be numbered ("(3)" in an answer is "(3)" on the page),
+and each explanation then gets a call of its own with Google Search on
+(`prompts-explain-source-v1.md`), in parallel. → "What the model did with a
+search tool"
 
 **Two guards, both in code, hold what it may add.**
 
-- An explanation is printed only with the sources Google Search gave for it,
-  attributed from the answer's own grounding metadata — which segment of the
-  answer each source supports — never from anything the model writes about
-  its sources. One with none is dropped and counted (`explain_unsourced`).
-  The reader cannot check a claim, so the page has to say where it is from.
+- An explanation is printed only with the sources its own search call
+  returned, read from that call's grounding metadata — never from anything
+  the model writes about its sources, which is how the quotes from memory
+  above would have got onto the page. One whose search found nothing is
+  dropped and counted (`explain_unsourced`). The reader cannot check a claim,
+  so the page has to say where it is from.
 - The summary restates the record and may not state a number the record does
   not carry; one that does is dropped (`summary_refused`). A new number in the
   one box that claims to say what the lecture said is the model inventing.
@@ -673,7 +683,8 @@ one number never leaves another quietly cutting the work short:
 | `API_SLOTS` | `services/vision.py` | `10` — Gemini answers a bigger burst with 429s. The semaphore is built from it and `albums.py` counts waves with it |
 | `VISION_CALL_TIMEOUT_S` | environment | 30 s, the range is 5–180. One call over **one page**; the three ceilings below are computed from it |
 | `COMPOSE_CALL_TIMEOUT_S` | environment | 240 s, the range is 30–600. One call over **the whole record**, so nothing derives from it and it derives from nothing |
-| `EXPLAIN_CALL_TIMEOUT_S` | environment | 240 s, the range is 30–600. One grounded call over **the whole record**, sized like the composing stage's and for the same reasons; it takes an `API_SLOTS` slot the same way and also runs after `process_batch` |
+| `EXPLAIN_CALL_TIMEOUT_S` | environment | 240 s, the range is 30–600. The writing call over **the whole record**, sized like the composing stage's and for the same reasons; it takes an `API_SLOTS` slot the same way and also runs after `process_batch` |
+| `_SOURCE_TIMEOUT_S` | `services/explain.py` | 90 s — one search over one short claim. Up to eight of them run at once, each on an `API_SLOTS` slot |
 | compose's slot | `services/compose.py` | one of the `API_SLOTS`, taken from the same semaphore and held for the whole call — about 40 s measured, up to `COMPOSE_CALL_TIMEOUT_S` per attempt, where a page holds one for seconds. It runs after `process_batch`, so `_ALBUM_TIMEOUT_S` does not cover it |
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)` — every attempt timing out. 93 s at the default |
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s at the default |
@@ -729,6 +740,7 @@ here instead.
 | `limits.consume` takes no row lock | **concurrent uploads by one user** | the page quota undercounts |
 | DB pool is 5 + 15 | **~20 updates in flight** | connection checkout starts timing out |
 | `_API_SLOTS` is a per-process `Semaphore(10)` | **tens of active chats** | the queue to Gemini grows into timeouts |
+| Stage three searches up to eight explanations at once | **two records finishing together** | the searches hold most of the ten slots for ~20 s, and another chat's pages queue behind them |
 | Photos are held whole in memory | **many parallel downloads** | container memory |
 
 **One replica is a requirement, not a default.** The album buffer lives in the
@@ -842,7 +854,8 @@ prompts-v5.md        extraction only — no rule about how a page should look
 prompts-compose-v1.md  stage two: markup over text already trusted
 prompts-compose-v2.md  the same job, said as instructions rather than bans
 prompts-compose-v3.md  v2, and the main formula of a section framed
-prompts-explain-v1.md  stage three: explanations with sources, and a summary
+prompts-explain-v1.md  stage three: explanations and a summary, as JSON
+prompts-explain-source-v1.md  stage three: the search for one explanation's source
 prompts-v6.md        v5, and the author's frames written as \boxed{...}
 ```
 
@@ -982,7 +995,7 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the two rules in photoguard this project has edited: a line height that could not be measured is not a small one, and what the measurement answers on pages whose pitch is known by construction |
-| `test_explain.py` | stage three: off by default, only text sent and the search switched on, the record sent numbered, sources attributed from grounding and an unsourced explanation dropped, the summary's numbers guard, never more than eight, parsing that never raises, the grounding fee in the bill, and a timeout not waited out twice |
+| `test_explain.py` | stage three: off by default, only text ever sent, a writing call in strict JSON with no search and a search call per explanation, the record sent numbered, sources read from each search's grounding and an explanation whose search found nothing dropped, the summary's numbers guard, never more than eight, LaTeX with single backslashes surviving the JSON, the grounding fee in the bill, and a failed search costing only its own explanation |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, which headings are taken back, and the two main-formula marks a section it may keep while the author's frames are never touched |
 | `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
 
