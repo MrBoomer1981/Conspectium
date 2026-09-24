@@ -1808,3 +1808,109 @@ def test_a_record_with_frames_of_every_kind_renders():
         "$$z = x \\quad \\begin{array}{|l|} \\hline a \\\\ b \\\\ \\hline \\end{array}$$\n"
     )
     assert pdf.render("Т", markdown).startswith(b"%PDF-")
+
+
+# ── what the bot adds: explanations in the flow, the summary at the end ──────
+
+
+def test_the_record_is_numbered_for_a_reader_the_way_render_numbers_it():
+    markdown = "текст\n$$\\boxed{a = 1}$$\n$$b = 2$$\n[рамка: $c = 3$]\n$$\\boxed{d = 4}$$"
+    numbered = pdf.numbered_for_reading(markdown).splitlines()
+    assert numbered[1].endswith("(1)")
+    assert not numbered[2].endswith(")")
+    assert numbered[3].endswith("(2)") and numbered[4].endswith("(3)")
+
+
+def test_a_formula_between_dollar_lines_is_numbered_on_its_own_line():
+    numbered = pdf.numbered_for_reading("$$\n\\boxed{a = 1}\n$$").splitlines()
+    assert numbered[1].endswith("(1)")
+
+
+def _explained(anchor: str) -> pdf.Explanation:
+    return pdf.Explanation(
+        anchor=anchor,
+        label="Пояснение бота",
+        lines=["**Формула Эйлера.** поворот на угол"],
+        sources=[("wikipedia.org", "https://ru.wikipedia.org/x")],
+    )
+
+
+def test_an_explanation_is_set_under_the_line_it_quotes(monkeypatch):
+    story = _story(
+        monkeypatch, "Т", "первая строка\nвторая строка про поворот\nтретья",
+        explanations=[_explained("строка про поворот")],
+    )
+    group = _group_of(story, "про поворот")
+    assert group is not None
+    assert type(group._content[-1]).__name__ == "Table"
+
+
+def test_an_explanation_finds_its_formula_by_number(monkeypatch):
+    story = _story(
+        monkeypatch, "Т", "текст\n$$\\boxed{e^{i\\varphi} = 1}$$\nдальше",
+        explanations=[_explained("(1)")],
+    )
+    groups = [f for f in story if type(f).__name__ == "KeepTogether"]
+    assert any(
+        hasattr(inner, "main_number") and inner.main_number == 1
+        for group in groups
+        for inner in group._content
+    )
+
+
+def test_an_explanation_that_anchors_nowhere_goes_to_the_end(monkeypatch):
+    story = _story(
+        monkeypatch, "Т", "первая\nвторая", explanations=[_explained("нет такой строки")]
+    )
+    assert type(story[-1]).__name__ == "Table"
+
+
+def test_the_summary_is_last_after_the_section_rule(monkeypatch):
+    story = _story(
+        monkeypatch, "Т", "первая\nвторая",
+        summary=pdf.Summary("Итог", ["Введена тригонометрическая форма."]),
+    )
+    assert type(story[-1]).__name__ == "Table"
+    assert any(
+        type(f).__name__ == "HRFlowable" and f.lineWidth == 1.5 for f in story[-4:]
+    )
+
+
+def test_an_explanation_carries_its_sources_as_links():
+    import tempfile
+
+    pdf._register_fonts()
+    with tempfile.TemporaryDirectory() as directory:
+        box = pdf._explanation(_explained("x"), pdf._Formulas(directory), pdf._styles())
+    cell = box._cellvalues[0][0]
+    assert cell[0].text == "ПОЯСНЕНИЕ БОТА"
+    assert cell[0].color == pdf._ADDED_TONE
+    assert '<a href="https://ru.wikipedia.org/x"' in cell[-1].text
+
+
+def test_an_explanation_is_drawn_in_a_tone_no_other_box_has():
+    assert pdf._ADDED_TONE not in pdf._CALLOUT_TONES.values()
+    assert pdf._ADDED_TONE != pdf._MUTED
+
+
+def test_a_record_with_explanations_and_a_summary_renders():
+    data = pdf.render(
+        "Т",
+        "## Раздел\n$$\\boxed{e^{i\\varphi} = \\cos\\varphi + i\\sin\\varphi}$$\nстрока",
+        explanations=[_explained("(1)"), _explained("строка")],
+        summary=pdf.Summary("Итог", ["Итог по тексту записи."]),
+    )
+    assert data.startswith(b"%PDF-")
+
+
+def test_a_formula_in_a_drawing_note_is_drawn(monkeypatch):
+    # "[схема: окружность с вершинами $x_0 = 1$, $x_1$]" printed its dollars.
+    seen: list[str] = []
+    original = pdf._line_markup
+    monkeypatch.setattr(
+        pdf,
+        "_line_markup",
+        lambda text, formulas, size: seen.append(text) or original(text, formulas, size),
+    )
+    pdf.render("Т", "[схема: окружность с вершинами $x_0 = 1$, $x_1$]")
+    assert any("$x_0 = 1$" in text for text in seen)

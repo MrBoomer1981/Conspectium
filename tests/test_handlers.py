@@ -521,7 +521,7 @@ async def test_composition_gets_its_own_limits_check(session, monkeypatch):
     """Rule 6: limits before the model call, not after. The check at the top
     of the record covers recognition; this is a second model call and a
     second check, and a cost cap hit between them has to stop it."""
-    answers = [None, texts.LIMIT_COST]
+    answers = [None, texts.LIMIT_COST, texts.LIMIT_COST]
     seen: list[int] = []
 
     async def fake_check(session_, user_, pages):
@@ -548,7 +548,8 @@ async def test_composition_gets_its_own_limits_check(session, monkeypatch):
 
     assert called is False
     # Not a page: the page budget was already debited for the recognition.
-    assert seen == [4, 0]
+    # The third check is the explaining stage's, a third call with its own.
+    assert seen == [4, 0, 0]
 
     notes = (await session.execute(select(Note))).scalars().all()
     assert notes[0].markdown == _record(4).markdown
@@ -736,7 +737,7 @@ async def test_composition_on_a_photo_gets_its_own_limits_check(
     # The same bargain as the album path: rule 6 admits no exception for a
     # second model call, and pages=0 because the page budget belongs to the
     # recognition that has already been debited.
-    answers = [None, texts.LIMIT_COST]
+    answers = [None, texts.LIMIT_COST, texts.LIMIT_COST]
     seen: list[int] = []
 
     async def fake_check(session_, user_, pages):
@@ -754,7 +755,7 @@ async def test_composition_on_a_photo_gets_its_own_limits_check(
     )
 
     assert composed == []
-    assert seen == [1, 0]
+    assert seen == [1, 0, 0]
 
     notes = (await session.execute(select(Note))).scalars().all()
     assert notes[0].markdown == _PHOTO_MD

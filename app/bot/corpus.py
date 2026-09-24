@@ -176,6 +176,43 @@ def _remarks(note: Note) -> list[pdf.Remark]:
     ]
 
 
+def _explanations(note: Note) -> list[pdf.Explanation]:
+    """What the explaining stage added, as boxes to set in the document.
+
+    Each keeps the sources it was stored with; a stored shape this version
+    cannot read is skipped rather than allowed to sink the document.
+    """
+    boxes: list[pdf.Explanation] = []
+    for item in note.explanations or []:
+        if not isinstance(item, dict) or not str(item.get("text", "")).strip():
+            continue
+        sources = [
+            (str(s.get("title", "")) or str(s.get("uri", "")), str(s.get("uri", "")))
+            for s in item.get("sources") or []
+            if isinstance(s, dict) and s.get("uri")
+        ]
+        boxes.append(
+            pdf.Explanation(
+                anchor=str(item.get("anchor", "")),
+                label=texts.EXPLANATION_LABEL,
+                lines=[
+                    texts.explanation_line(
+                        str(item.get("title", "")), str(item.get("text", ""))
+                    )
+                ],
+                sources=sources,
+                sources_label=texts.SOURCES_LABEL,
+            )
+        )
+    return boxes
+
+
+def _summary(note: Note) -> pdf.Summary | None:
+    if not note.summary:
+        return None
+    return pdf.Summary(label=texts.SUMMARY_LABEL, lines=[note.summary])
+
+
 def _utc_date(value: datetime) -> date:
     """SQLite hands back naive datetimes, PostgreSQL aware ones. Both are UTC
     by construction — every timestamp in this project is server_default now()."""
@@ -274,6 +311,8 @@ async def send_record_pdf(message: Message, note: Note) -> bool:
             _callouts(note),
             texts.byline(note.margin_notes),
             _remarks(note),
+            _explanations(note),
+            _summary(note),
         )
     except Exception:
         logger.exception("could not build a PDF for note %s", note.id)

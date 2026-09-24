@@ -15,7 +15,7 @@ from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
 from app.core.events import log_event_standalone
-from app.services import compose, pdf, vision
+from app.services import compose, explain, pdf, vision
 from app.db.models import User
 from app.db.session import async_session_maker, get_session
 
@@ -154,15 +154,25 @@ async def lifespan(app: FastAPI):
         settings.COMPOSE_PROMPT_FILE,
         compose.COMPOSE_PROMPT_WORDS,
     )
+    # Stage three writes into the group's document, so the deploy says out
+    # loud whether it is on, on which model, and with which prompt.
+    logger.info(
+        "Explain: %s, %s, %s, %d words",
+        "on" if settings.EXPLAIN_ENABLED else "off",
+        settings.EXPLAIN_MODEL,
+        settings.EXPLAIN_PROMPT_FILE,
+        explain.EXPLAIN_PROMPT_WORDS,
+    )
     logger.info(
         "Model call: media_resolution=%s, thinking_level=%s",
         settings.VISION_MEDIA_RESOLUTION,
         settings.VISION_THINKING_LEVEL,
     )
     logger.info(
-        "Timeouts: call %ds, compose %ds, consensus %ds, album %ds",
+        "Timeouts: call %ds, compose %ds, explain %ds, consensus %ds, album %ds",
         settings.VISION_CALL_TIMEOUT_S,
         settings.COMPOSE_CALL_TIMEOUT_S,
+        settings.EXPLAIN_CALL_TIMEOUT_S,
         vision._CONSENSUS_TIMEOUT_S,
         albums._ALBUM_TIMEOUT_S,
     )

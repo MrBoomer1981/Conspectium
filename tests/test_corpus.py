@@ -305,6 +305,37 @@ async def test_the_latex_a_remark_quotes_is_marked_to_be_drawn(session):
     assert remark.lines[-1] == r"другое прочтение: $\rho^+(v)$"
 
 
+async def test_what_the_bot_added_is_built_into_boxes_with_their_sources(session):
+    user = await _user(session)
+    note = await _note(session, user)
+    note.explanations = [
+        {
+            "anchor": "(1)",
+            "title": "Формула Эйлера.",
+            "text": "поворот на угол",
+            "sources": [{"title": "wikipedia.org", "uri": "https://ru.wikipedia.org/x"}],
+        },
+        "мусор",
+        {"anchor": "x", "text": ""},
+    ]
+    note.summary = "Введена тригонометрическая форма."
+
+    boxes = corpus._explanations(note)
+
+    assert len(boxes) == 1
+    assert boxes[0].label == texts.EXPLANATION_LABEL
+    assert boxes[0].lines == ["**Формула Эйлера.** поворот на угол"]
+    assert boxes[0].sources == [("wikipedia.org", "https://ru.wikipedia.org/x")]
+    assert corpus._summary(note).label == texts.SUMMARY_LABEL
+
+
+async def test_a_record_without_additions_has_no_boxes_and_no_summary(session):
+    user = await _user(session)
+    note = await _note(session, user)
+    assert corpus._explanations(note) == []
+    assert corpus._summary(note) is None
+
+
 async def test_a_remark_without_a_page_says_so_without_one(session):
     user = await _user(session)
     note = await _note(session, user, uncertain=[{"text": "щ", "why": "двоится"}])
@@ -337,9 +368,9 @@ async def test_the_document_is_built_with_the_boxes_of_the_record(session, monke
     seen: list[list] = []
     original = corpus.pdf.render
 
-    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=()):
+    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=(), *rest):
         seen.append(list(callouts))
-        return original(title, markdown, subtitle, callouts, byline, remarks)
+        return original(title, markdown, subtitle, callouts, byline, remarks, *rest)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
     await corpus.send_record_pdf(_Message(), note)
@@ -369,9 +400,9 @@ async def test_the_document_is_built_with_the_byline_of_the_record(
     seen: list[str | None] = []
     original = corpus.pdf.render
 
-    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=()):
+    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=(), *rest):
         seen.append(byline)
-        return original(title, markdown, subtitle, callouts, byline, remarks)
+        return original(title, markdown, subtitle, callouts, byline, remarks, *rest)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
     await corpus.send_record_pdf(_Message(), note)
@@ -387,9 +418,9 @@ async def test_the_document_is_built_with_the_remarks_of_the_record(
     seen: list[list] = []
     original = corpus.pdf.render
 
-    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=()):
+    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=(), *rest):
         seen.append(list(remarks))
-        return original(title, markdown, subtitle, callouts, byline, remarks)
+        return original(title, markdown, subtitle, callouts, byline, remarks, *rest)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
     await corpus.send_record_pdf(_Message(), note)

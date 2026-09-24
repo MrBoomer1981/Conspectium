@@ -25,7 +25,14 @@ PRICE_PER_MTOK: dict[str, tuple[float, float]] = {
 # start on it and the startup log warns about it, and two loops that have to
 # agree is how they came to disagree — the warning looked at VISION_MODEL alone
 # while the validator looked at both.
-PRICED_MODEL_SETTINGS = ("VISION_MODEL", "COMPOSE_MODEL")
+PRICED_MODEL_SETTINGS = ("VISION_MODEL", "COMPOSE_MODEL", "EXPLAIN_MODEL")
+
+# A call grounded in Google Search is billed per call on top of its tokens:
+# the published $35 per 1,000 grounded prompts. Counted into cost_usd, or the
+# explaining stage would spend outside DAILY_COST_LIMIT_USD. If the price page
+# says less for a newer model, this overstates the spend, which is the safe
+# side of a cap to err on.
+GROUNDING_USD_PER_CALL = 0.035
 
 
 class Settings(BaseSettings):
@@ -65,6 +72,16 @@ class Settings(BaseSettings):
     # gemini-3.8-flash: three pages compose in about 43 s, four pages ran past
     # 90 s and the album's markup was thrown away (ai_calls id 361).
     COMPOSE_CALL_TIMEOUT_S: int = 240
+    # Stage three: hard places explained, with the sources Google Search gave
+    # for them, and the record summed up — the bot's own words, printed as the
+    # bot's. Off by default for the reason stage two is: turning on a stage
+    # that adds text to the group's document is a decision, not a deploy.
+    EXPLAIN_ENABLED: bool = False
+    EXPLAIN_MODEL: str = "gemini-3.5-flash-lite"
+    EXPLAIN_PROMPT_FILE: str = "prompts-explain-v1.md"
+    # One call over the whole record, searching as it goes: sized like the
+    # composing stage's ceiling, and for the same reasons.
+    EXPLAIN_CALL_TIMEOUT_S: int = 240
     # Which prompt file vision.py loads at import. A variant can be tried on
     # the deployed bot by changing this one variable, and rolled back the same
     # way, without a code change in between.
@@ -169,6 +186,15 @@ class Settings(BaseSettings):
             raise ValueError(
                 "COMPOSE_CALL_TIMEOUT_S must be between 30 and 600"
             )
+        return v
+
+    @field_validator("EXPLAIN_CALL_TIMEOUT_S")
+    @classmethod
+    def _explain_timeout_is_workable(cls, v: int) -> int:
+        """The composing stage's bounds, for the composing stage's reasons: a
+        call over the whole record, in a background task a deploy cancels."""
+        if not 30 <= v <= 600:
+            raise ValueError("EXPLAIN_CALL_TIMEOUT_S must be between 30 and 600")
         return v
 
     @field_validator("VISION_CALL_TIMEOUT_S")

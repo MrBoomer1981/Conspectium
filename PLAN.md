@@ -98,10 +98,12 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
       numbered — the author's frames read by recognition (`prompts-v6.md`),
       a section's result marked by the composer (`prompts-compose-v3.md`),
       two a section at most
-- [ ] 37. Stage three: hard passages explained and implied context restored,
+- [x] 37. Stage three: hard passages explained and implied context restored,
       over the trusted text, with `google_search` and sources that are
-      required rather than decorative
-- [ ] 38. The explanation as a marked box in the PDF, with its sources, never
+      required rather than decorative. Built as the author decided on
+      2026-09-24: explanations in the flow of the material, and a short
+      summary at the end whose numbers must all be the record's
+- [x] 38. The explanation as a marked box in the PDF, with its sources, never
       in the body of the record — in the system task 36 establishes
 
 **Phase C — the group:**
@@ -156,9 +158,9 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-36
+Done: 1-38
 Current task: none
-Next task: 37
+Next task: 39
 Blockers: none
 ```
 

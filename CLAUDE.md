@@ -106,8 +106,8 @@ interpreter path, bypassing the shim — nothing under `tests/` needs 3.12:
     .venv/bin/pytest
 
 Revision ids are hand-written, not the generated hash — `001_users_events`
-through `009_unverified_pages`, which is the current head. The next one is
-`010_`.
+through `010_explanations`, which is the current head. The next one is
+`011_`.
 
 No linter is configured — don't add one without an explicit request.
 
@@ -552,12 +552,11 @@ nowhere goes to the end rather than nowhere.
 **Adding is not forbidden; adding unmarked is.** The reference document puts
 every addition in a marked box that says what the manuscript actually had —
 *"в рукописи матрица плохо читается …, поэтому она восстановлена по рисунку
-графа"*. The remarks are the first half of that standard. The second —
-commentary on the material — is not built; when it is, it comes from a
-separate call over the **trusted transcription**, in a column of its own,
-marked as machine-written on the page. Never from the call that reads the
-photo: a box of "the main points" written from a photograph is exactly the
-fluent retelling of a bad shot.
+графа"*. The remarks are the first half of that standard; the second is stage
+three, below — a separate call over the **trusted transcription**, in columns
+of their own, printed as the bot's. Never from the call that reads the photo:
+a box of "the main points" written from a photograph is exactly the fluent
+retelling of a bad shot.
 
 **A sentence that ran over a page edge is put back together, by code.**
 `albums._continues` joins it only when both sides are ordinary prose — not a
@@ -611,6 +610,40 @@ until someone decides what a large one means.
 
 The stage's own ceiling and retry policy are in "Concurrency ceilings".
 
+### Stage three: what the bot adds
+
+**`explain.py` explains the hard places and sums the record up — and prints
+it as the bot's.** The reader was not at the lecture: a step skipped, a
+symbol never introduced, the lecturer's context left unsaid. The stage adds
+what a classmate who was there would add, in the flow of the material, and a
+short summary at the end — the author's decision, 2026-09-24. It is one call
+over the composed text, numbered by `pdf.numbered_for_reading` the way the
+page will be numbered, so "(3)" in an answer is "(3)" on the page. Like the
+composer, it never sees the photograph.
+
+**Two guards, both in code, hold what it may add.**
+
+- An explanation is printed only with the sources Google Search gave for it,
+  attributed from the answer's own grounding metadata — which segment of the
+  answer each source supports — never from anything the model writes about
+  its sources. One with none is dropped and counted (`explain_unsourced`).
+  The reader cannot check a claim, so the page has to say where it is from.
+- The summary restates the record and may not state a number the record does
+  not carry; one that does is dropped (`summary_refused`). A new number in the
+  one box that claims to say what the lecture said is the model inventing.
+
+**Stored apart, printed as the bot's.** `notes.explanations` (JSONB, with the
+sources) and `notes.summary` (text), never mixed into `markdown`. The PDF sets
+each explanation under the line it quotes or the formula it numbers — after
+the remarks of that line — and the summary last, after a section rule, both
+in a green no other box has, labelled "Пояснение бота" and "Итог · составлен
+ботом по тексту записи". At most eight explanations; an anchor found nowhere
+puts its box at the end, like a remark's. Rule 6 holds for the third call as
+for the second: limits before it, `pages=0`. A grounded call is billed per
+call on top of its tokens (`GROUNDING_USD_PER_CALL`), so the daily cap sees
+it. Off, refused or failed, the record goes out as it would have without the
+stage. `.docx` does not go through it: that path bypasses the model entirely.
+
 ### The matrix against the graph
 
 **`graphcheck.check` checks a matrix against the graph drawn beside it.**
@@ -640,6 +673,7 @@ one number never leaves another quietly cutting the work short:
 | `API_SLOTS` | `services/vision.py` | `10` — Gemini answers a bigger burst with 429s. The semaphore is built from it and `albums.py` counts waves with it |
 | `VISION_CALL_TIMEOUT_S` | environment | 30 s, the range is 5–180. One call over **one page**; the three ceilings below are computed from it |
 | `COMPOSE_CALL_TIMEOUT_S` | environment | 240 s, the range is 30–600. One call over **the whole record**, so nothing derives from it and it derives from nothing |
+| `EXPLAIN_CALL_TIMEOUT_S` | environment | 240 s, the range is 30–600. One grounded call over **the whole record**, sized like the composing stage's and for the same reasons; it takes an `API_SLOTS` slot the same way and also runs after `process_batch` |
 | compose's slot | `services/compose.py` | one of the `API_SLOTS`, taken from the same semaphore and held for the whole call — about 40 s measured, up to `COMPOSE_CALL_TIMEOUT_S` per attempt, where a page holds one for seconds. It runs after `process_batch`, so `_ALBUM_TIMEOUT_S` does not cover it |
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)` — every attempt timing out. 93 s at the default |
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s at the default |
@@ -782,6 +816,7 @@ app/
     images.py         compression
     limits.py         spend limits
     compose.py        stage two: the trusted transcription, formatted
+    explain.py        stage three: hard places explained with sources, a summary
     docx.py           .docx -> markdown, no model call
     pdf.py            a record as a PDF: formulas, graphs, tables, remarks
     photoguard.py     ready-made
@@ -807,6 +842,7 @@ prompts-v5.md        extraction only — no rule about how a page should look
 prompts-compose-v1.md  stage two: markup over text already trusted
 prompts-compose-v2.md  the same job, said as instructions rather than bans
 prompts-compose-v3.md  v2, and the main formula of a section framed
+prompts-explain-v1.md  stage three: explanations with sources, and a summary
 prompts-v6.md        v5, and the author's frames written as \boxed{...}
 ```
 
@@ -844,6 +880,10 @@ COMPOSE_ENABLED=false
 COMPOSE_MODEL=gemini-3.5-flash-lite
 COMPOSE_PROMPT_FILE=prompts-compose-v1.md
 COMPOSE_CALL_TIMEOUT_S=240
+EXPLAIN_ENABLED=false
+EXPLAIN_MODEL=gemini-3.5-flash-lite
+EXPLAIN_PROMPT_FILE=prompts-explain-v1.md
+EXPLAIN_CALL_TIMEOUT_S=240
 PROMPT_FILE=prompts-v3.md
 IMAGE_MAX_SIDE=1500
 IMAGE_QUALITY=85
@@ -874,7 +914,10 @@ both at once leaves nothing. Turn it back off once the model is priced: left
 on, it disarms the next swap silently, and the rows written meanwhile can
 never be priced. → "What a model change broke"
 
-`COMPOSE_ENABLED` turns stage two on; it is off by default.
+`COMPOSE_ENABLED` turns stage two on and `EXPLAIN_ENABLED` stage three; both
+are off by default, and `EXPLAIN_MODEL` is priced by the same validator as the
+other two — it is in `PRICED_MODEL_SETTINGS`. `EXPLAIN_CALL_TIMEOUT_S` has the
+composing stage's range, for its reasons.
 `COMPOSE_CALL_TIMEOUT_S` ranges 30–600: under 30 s the stage refuses itself
 by construction — the shortest composition ever measured on a model strong
 enough to compose took 41 s — and over 600 s the wait outlives the background
@@ -930,7 +973,7 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, the three reasons a page is dropped and the two that only mark it, `process_batch` survivor logic |
 | `test_docx.py` | heading styles to markdown, title derivation |
 | `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
-| `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |
+| `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, stage three off by default with its model priced and its timeout bounded, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |
 | `test_handlers.py` | `_split_message`, the catch-all reply |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user |
 | `test_graphcheck.py` | the matrix against the graph: what it must catch, and — the longer half — every shape it must stay quiet about |
@@ -939,6 +982,7 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the two rules in photoguard this project has edited: a line height that could not be measured is not a small one, and what the measurement answers on pages whose pitch is known by construction |
+| `test_explain.py` | stage three: off by default, only text sent and the search switched on, the record sent numbered, sources attributed from grounding and an unsourced explanation dropped, the summary's numbers guard, never more than eight, parsing that never raises, the grounding fee in the bill, and a timeout not waited out twice |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, which headings are taken back, and the two main-formula marks a section it may keep while the author's frames are never touched |
 | `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
 

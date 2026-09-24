@@ -96,6 +96,13 @@ class Note(Base):
     # dropped, which cost the page and often the album, while the text on them
     # was legible. [{"page": n, "reason": "..."}]
     unverified_pages: Mapped[list] = mapped_column(JSONB, server_default="[]")
+    # What the bot added of its own, kept apart from the author's text so the
+    # document can print it as the bot's: hard places explained, each with
+    # the sources the search gave for it, and the record summed up.
+    # [{"anchor": "...", "title": "...", "text": "...",
+    #   "sources": [{"title": "...", "uri": "..."}]}]
+    explanations: Mapped[list] = mapped_column(JSONB, server_default="[]")
+    summary: Mapped[str | None] = mapped_column(Text)
     text_agreement: Mapped[float | None] = mapped_column(Float)
     numeric_agreement: Mapped[float | None] = mapped_column(Float)
     # The subject the user answered with when the bot asked, stored without

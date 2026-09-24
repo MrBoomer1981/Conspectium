@@ -151,6 +151,10 @@ _CALLOUT_TONES = {
     "info": "#3f6f9f",
     "warning": "#a8742c",
 }
+# What the bot adds of its own — an explanation, the summary — in an accent no
+# other box has, so it is never read as the author's text, as a remark about
+# how the page was read, or as a warning.
+_ADDED_TONE = "#2e7d5b"
 
 # ── Drawings ─────────────────────────────────────────────────────────────────
 # Three of them still fit across the reference's narrower column at full size.
@@ -256,6 +260,33 @@ class Remark:
 
 
 @dataclass
+class Explanation:
+    """Something the bot adds of its own: a hard place explained, with the
+    sources the search gave for it. Printed as the bot's, in a tone no other
+    box has, under the line or the numbered formula it explains — the
+    reference document's way with its own additions.
+
+    `anchor` is a quote from the record or a formula's number, "(3)". One
+    that anchors nowhere goes to the end rather than nowhere, like a remark.
+    """
+
+    anchor: str
+    label: str
+    lines: list[str]
+    sources: list[tuple[str, str]]  # (title, uri)
+    sources_label: str = "Источники"
+
+
+@dataclass
+class Summary:
+    """The record summed up by the bot, last in the document and marked as
+    the bot's. It restates the record; it is not a source of anything."""
+
+    label: str
+    lines: list[str]
+
+
+@dataclass
 class Block:
     # heading | bullet | text | math | note | framed | gap | rule | table | graph
     kind: str
@@ -268,6 +299,9 @@ class Block:
     # A formula that matters more than the ones round it: the author framed
     # it, or the composing stage marked it as the section's result.
     main: bool = False
+    # The line of the record the block was read from, so a number given to it
+    # here can be written back beside it for a model to point at.
+    line: int = field(default=-1, compare=False, repr=False)
 
 
 def _latex(match: re.Match) -> str:
@@ -347,7 +381,9 @@ def _is_whole_formula(line: str) -> str | None:
     return _latex(match) if match else None
 
 
-def _display_lines(lines: list[str], start: int) -> tuple[list[str], int] | None:
+def _display_lines(
+    lines: list[str], start: int
+) -> tuple[list[tuple[str, int]], int] | None:
     """A formula set between lines of "$$", the way the composing stage writes
     one, with the index just past the closing line — or None if `start` does
     not open such a block.
@@ -363,18 +399,18 @@ def _display_lines(lines: list[str], start: int) -> tuple[list[str], int] | None
     first = lines[start].strip()
     if not first.startswith("$$") or _MATH_RE.fullmatch(first):
         return None
-    body = [first[2:].strip()]
+    body = [(first[2:].strip(), start)]
     for end in range(start + 1, len(lines)):
         line = lines[end].strip()
         if not line:
             return None
         if line.endswith("$$"):
-            body.append(line[:-2].strip())
-            content = [part for part in body if part]
-            if any("\\begin" in part for part in content):
-                return [" ".join(content)], end + 1
+            body.append((line[:-2].strip(), end))
+            content = [(part, at) for part, at in body if part]
+            if any("\\begin" in part for part, _ in content):
+                return [(" ".join(part for part, _ in content), end)], end + 1
             return content, end + 1
-        body.append(line)
+        body.append((line, end))
     return None
 
 
@@ -491,18 +527,24 @@ def blocks(markdown: str) -> list[Block]:
         display = _display_lines(lines, index)
         if display is not None:
             formulas, index = display
-            out.extend(_math_block(formula) for formula in formulas)
+            for formula, at in formulas:
+                block = _math_block(formula)
+                block.line = at
+                out.append(block)
             continue
 
         frame = _frame_lines(lines, index)
         if frame is not None:
             block, index = frame
+            block.line = index - 1
             out.append(block)
             continue
 
         table = _read_table(lines, index)
         if table is not None:
-            block, index = table
+            block, end = table
+            block.line = index
+            index = end
             out.append(block)
             continue
 
@@ -521,7 +563,9 @@ def blocks(markdown: str) -> list[Block]:
 
         formula = _is_whole_formula(line)
         if formula:
-            out.append(_math_block(formula))
+            block = _math_block(formula)
+            block.line = index
+            out.append(block)
             index += 1
             continue
 
@@ -552,7 +596,7 @@ def blocks(markdown: str) -> list[Block]:
                     Block("graph", drawing.group(2).strip(), caption=drawing.group(1).strip())
                 )
             elif framed and framed.group(1).strip():
-                out.append(Block("framed", framed.group(1).strip()))
+                out.append(Block("framed", framed.group(1).strip(), line=index))
             else:
                 out.append(Block("note", inner))
             index += 1
@@ -564,6 +608,28 @@ def blocks(markdown: str) -> list[Block]:
     while out and out[-1].kind == "gap":
         out.pop()
     return out
+
+
+def _is_numbered(block: Block) -> bool:
+    """Whether render gives this block a number: a main formula, or a frame
+    round a formula."""
+    return (block.kind == "math" and block.main) or (
+        block.kind == "framed" and "$" in block.text
+    )
+
+
+def numbered_for_reading(markdown: str) -> str:
+    """The record with each main formula's number written after it, "(3)",
+    exactly as render will number it — so that a model reading the record can
+    point at a formula by the number the reader sees on the page."""
+    lines = markdown.splitlines()
+    number = 0
+    for block in blocks(markdown):
+        if _is_numbered(block):
+            number += 1
+            if 0 <= block.line < len(lines):
+                lines[block.line] = f"{lines[block.line]}   ({number})"
+    return "\n".join(lines)
 
 
 def split_inline(text: str) -> list[tuple[str, str]]:
@@ -1246,6 +1312,10 @@ def _styles() -> dict[str, ParagraphStyle]:
             "number", parent=base, fontSize=_NUMBER_PT, leading=_NUMBER_PT * 1.3,
             textColor=_MUTED, alignment=TA_RIGHT,
         ),
+        "sources": ParagraphStyle(
+            "sources", parent=muted, fontSize=9.5, leading=9.5 * 1.45,
+            spaceBefore=3,
+        ),
         "cell": ParagraphStyle(
             "cell", parent=base, fontSize=_TABLE_PT, leading=_TABLE_PT * 1.35,
             alignment=TA_CENTER,
@@ -1417,6 +1487,7 @@ def _box(
     bar: str,
     body: ParagraphStyle,
     formulas: _Formulas,
+    extra: list | None = None,
 ) -> Table:
     """The one shape every box beside the text takes: a bar down the left,
     a label in spaced capitals, the lines under it. No panel behind it.
@@ -1434,6 +1505,7 @@ def _box(
     inside += [
         Paragraph(_line_markup(line, formulas, _BODY_PT), body) for line in lines
     ]
+    inside += extra or []
     table = Table([[inside]], colWidths=[_TEXT_WIDTH_PT], hAlign="LEFT")
     table.setStyle(
         TableStyle(
@@ -1466,6 +1538,56 @@ def _remark(
     louder and a page of ordinary reading becomes a page of warnings."""
     return _box(
         remark.label, remark.lines, _MUTED, _BAR, styles["remark_body"], formulas,
+    )
+
+
+def _explanation(
+    item: Explanation, formulas: _Formulas, styles: dict[str, ParagraphStyle]
+) -> Table:
+    """An explanation in the bot's own tone, its sources under it as links.
+    An explanation with none is never built — explain.py drops it first."""
+    links = ", ".join(
+        f'<a href="{escape(uri, {chr(34): "&quot;"})}" color="{_MUTED}">{_text(title)}</a>'
+        for title, uri in item.sources
+    )
+    extra = (
+        [Paragraph(f"{_text(item.sources_label)}: {links}", styles["sources"])]
+        if links
+        else []
+    )
+    return _box(
+        item.label, item.lines, _ADDED_TONE, _ADDED_TONE, styles["callout_body"],
+        formulas, extra,
+    )
+
+
+def _summary(
+    item: Summary, formulas: _Formulas, styles: dict[str, ParagraphStyle]
+) -> Table:
+    return _box(
+        item.label, item.lines, _ADDED_TONE, _ADDED_TONE, styles["callout_body"],
+        formulas,
+    )
+
+
+_SQUASH_RE = re.compile(r"[\s$]+")
+_NUMBER_ANCHOR_RE = re.compile(r"\(?\s*(\d{1,3})\s*\)?")
+
+
+def _anchored(anchor: str, members: list[Block], numbers: set[int]) -> bool:
+    """Whether an explanation belongs under this unit: its anchor is the
+    number of a formula in it, or a quote from one of its lines. Compared
+    without spaces and dollars, since a model quoting a formula writes them
+    as it pleases; never against a graph's edge list, which nobody reads."""
+    found = _NUMBER_ANCHOR_RE.fullmatch(anchor.strip())
+    if found:
+        return int(found.group(1)) in numbers
+    wanted = _SQUASH_RE.sub("", anchor).lower()
+    if len(wanted) < 3:
+        return False
+    return any(
+        member.kind != "graph" and wanted in _SQUASH_RE.sub("", member.text).lower()
+        for member in members
     )
 
 
@@ -1773,7 +1895,9 @@ def _flowables(
         ]
 
     if block.kind == "note":
-        return [Paragraph(_markup(block.text), styles["note"])]
+        # A description of a drawing names its points in LaTeX as often as
+        # not — "$x_0 = 1$" — and printed as markup those were source.
+        return [Paragraph(_line_markup(block.text, formulas, _SMALL_PT), styles["note"])]
 
     if block.kind == "math":
         image = formulas.display(block.text, _DISPLAY_PT)
@@ -1966,6 +2090,8 @@ def render(
     callouts: Sequence[Callout] = (),
     byline: str | None = None,
     remarks: Sequence[Remark] = (),
+    explanations: Sequence[Explanation] = (),
+    summary: Summary | None = None,
 ) -> bytes:
     """A record as PDF bytes. Never raises on the content of the record."""
     _register_fonts()
@@ -2010,6 +2136,13 @@ def render(
             story.append(Spacer(1, 4))
 
         pending = list(remarks)
+        unexplained = list(explanations)
+        # The number each numbered block will carry, known before the loop so
+        # an explanation anchored on "(3)" finds the unit that holds it.
+        numbered: dict[int, int] = {}
+        for block in parsed:
+            if _is_numbered(block):
+                numbered[id(block)] = len(numbered) + 1
         previous: str | None = None
         paragraph_break = False
         # Headings waiting for what they head. A heading is never the last
@@ -2053,6 +2186,17 @@ def render(
                 # thing on a page whose line was the last on the one before.
                 pending.remove(remark)
                 group += [Spacer(1, 4), _remark(remark, formulas, styles)]
+            unit_numbers = {numbered[id(m)] for m in members if id(m) in numbered}
+            explained = [
+                item for item in unexplained
+                if _anchored(item.anchor, members, unit_numbers)
+            ]
+            for item in explained:
+                # After the remarks: first how the page was read, then what
+                # the bot has to add to it.
+                unexplained.remove(item)
+                group += [Spacer(1, 6), _explanation(item, formulas, styles)]
+            attached = attached + explained
 
             # A new top-level section after something else is set off by the
             # broader rule the reference puts between two of its sections.
@@ -2085,10 +2229,20 @@ def render(
         story.extend(held)
 
         # A remark whose anchor was never found is still worth reading; it
-        # goes at the end rather than nowhere.
+        # goes at the end rather than nowhere. So does an explanation.
         for remark in pending:
             story.append(Spacer(1, _SET_APART_GAP))
             story.append(_remark(remark, formulas, styles))
+        for item in unexplained:
+            story.append(Spacer(1, _SET_APART_GAP))
+            story.append(_explanation(item, formulas, styles))
+
+        # The summary last, after the rule that separates sections: it is
+        # about the whole record, not about its last line.
+        if summary is not None and summary.lines:
+            story.append(_section_rule())
+            story.append(Spacer(1, 8))
+            story.append(_summary(summary, formulas, styles))
 
         SimpleDocTemplate(
             buffer,

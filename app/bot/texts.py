@@ -47,6 +47,20 @@ CALLOUT_UNCERTAIN = "Спорные места"
 CALLOUT_MISSING = "Не хватает страниц"
 CALLOUT_UNVERIFIED = "Прочитано без сверки"
 
+# What the bot adds of its own to a record, in the document. The labels say
+# whose words these are: a reader who missed the lecture cannot tell an added
+# sentence from a remembered one unless the page tells them.
+EXPLANATION_LABEL = "Пояснение бота"
+SUMMARY_LABEL = "Итог · составлен ботом по тексту записи"
+SOURCES_LABEL = "Источники"
+
+
+def explanation_line(title: str, text: str) -> str:
+    """One explanation as the text of its box: what it is about, in bold,
+    then what it says."""
+    title = title.strip().rstrip(".:")
+    return f"**{title}.** {text}" if title else text
+
 
 def remark_label(page: int | None = None) -> str:
     """The heading of a remark set beside a line of the record."""

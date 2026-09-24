@@ -17,6 +17,7 @@ from app.db.models import Note, User
 from app.services import (
     compose,
     docx,
+    explain,
     graphcheck,
     images,
     limits,
@@ -190,6 +191,16 @@ async def handle_photo(
         composition = await compose.compose(result.best.markdown)
         await vision.log_ai_calls(user.id, composition.stats)
 
+    # Step 12b: stage three, what the bot adds of its own — hard places
+    # explained, each with the sources the search gave, and the record summed
+    # up. Over the composed text and never the photograph, stored apart from
+    # the author's text and printed as the bot's. Rule 6 again: a third call
+    # is still a call, and the kill switch and the cost cap decide first.
+    explaining = explain.Explaining()
+    if await limits.check_limits(session, user, pages=0) is None:
+        explaining = await explain.explain(composition.markdown)
+        await vision.log_ai_calls(user.id, explaining.stats)
+
     # Step 13: persist the record. "rejected" already exited at step 10, so the
     # verdict here is "clean" or "needs_review". Dataclasses are flattened to
     # plain dicts — JSONB won't take them as they are.
@@ -198,6 +209,8 @@ async def handle_photo(
         title=result.best.title,
         subject=result.best.subject,
         markdown=composition.markdown,
+        explanations=[asdict(item) for item in explaining.explanations],
+        summary=explaining.summary,
         source_type="photo",
         page_count=1,
         status="needs_review" if result.verdict == "needs_review" else "ready",
@@ -234,8 +247,13 @@ async def handle_photo(
             "compose_drift": composition.drift,
             "compose_demoted": composition.demoted,
             "compose_unmarked": composition.unmarked,
+            "explained": len(explaining.explanations),
+            "explain_refused": explaining.refused,
+            "explain_unsourced": explaining.unsourced,
+            "summary": explaining.summary is not None,
+            "summary_refused": explaining.summary_refused,
             "latency_ms": int((time.monotonic() - started) * 1000),
-            "cost_usd": vision.total_cost(stats + composition.stats),
+            "cost_usd": vision.total_cost(stats + composition.stats + explaining.stats),
         },
     )
 
@@ -459,11 +477,19 @@ async def _process_album(
         composition = await compose.compose(rec.markdown)
         await vision.log_ai_calls(user.id, composition.stats)
 
+    # Stage three once over the whole record too, for the same reason.
+    explaining = explain.Explaining()
+    if await limits.check_limits(session, user, pages=0) is None:
+        explaining = await explain.explain(composition.markdown)
+        await vision.log_ai_calls(user.id, explaining.stats)
+
     note = Note(
         user_id=user.id,
         title=rec.title,
         subject=rec.subject,
         markdown=composition.markdown,
+        explanations=[asdict(item) for item in explaining.explanations],
+        summary=explaining.summary,
         source_type="photo",
         page_count=rec.page_count,
         status=rec.status,
@@ -503,8 +529,15 @@ async def _process_album(
             "compose_drift": composition.drift,
             "compose_demoted": composition.demoted,
             "compose_unmarked": composition.unmarked,
+            "explained": len(explaining.explanations),
+            "explain_refused": explaining.refused,
+            "explain_unsourced": explaining.unsourced,
+            "summary": explaining.summary is not None,
+            "summary_refused": explaining.summary_refused,
             "latency_ms": int((time.monotonic() - started) * 1000),
-            "cost_usd": vision.total_cost(outcome.stats + composition.stats),
+            "cost_usd": vision.total_cost(
+                outcome.stats + composition.stats + explaining.stats
+            ),
         },
     )
 

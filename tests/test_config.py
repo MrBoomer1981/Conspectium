@@ -269,6 +269,30 @@ def test_a_compose_timeout_outside_the_range_is_refused():
             _settings(COMPOSE_CALL_TIMEOUT_S=value)
 
 
+# ── stage three: off by default, priced, and a ceiling of its own ───────────
+
+
+def test_the_explaining_stage_is_off_until_it_is_turned_on():
+    settings = _settings()
+    assert settings.EXPLAIN_ENABLED is False
+    assert settings.EXPLAIN_PROMPT_FILE == "prompts-explain-v1.md"
+
+
+def test_the_explaining_model_has_to_be_priced_like_the_other_two():
+    # A third of the spend going out unpriced would break the daily cap as
+    # quietly as all of it.
+    assert "EXPLAIN_MODEL" in PRICED_MODEL_SETTINGS
+    with pytest.raises(ValidationError):
+        _settings(EXPLAIN_MODEL="gemini-9.9-imaginary")
+
+
+def test_an_explain_timeout_outside_the_range_is_refused():
+    assert _settings(EXPLAIN_CALL_TIMEOUT_S=30).EXPLAIN_CALL_TIMEOUT_S == 30
+    for value in (29, 601):
+        with pytest.raises(ValidationError):
+            _settings(EXPLAIN_CALL_TIMEOUT_S=value)
+
+
 # ── VISION_CALL_TIMEOUT_S: the one timeout that is a setting ─────────────────
 
 
