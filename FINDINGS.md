@@ -525,3 +525,18 @@ is not broken at a space that follows an inline image: once a long formula was
 shrunk to the column, the word after it stayed on its line and ran off the
 paper, 15 pt past the edge in a bench case. A zero-width space, which DejaVu
 carries at zero width, is a place reportlab does break.
+
+**Record 42 came back heavy, and the reference moved.** The first record
+rendered after task 36 was a page of complex numbers, and the author called it
+heavy beside `матан 24.09.2026.pdf`, a write-up of their own set in Lato and
+KaTeX. Laid side by side the difference was the faces rather than
+the layout: DejaVu Sans and DejaVu Serif are dense and dark, and the table the
+composing stage had used to put two columns of algebra side by side came out
+as a ruled grid of 9 pt type with `<br>` printed in its cells. The reference's
+own numbers were read out of the PDF — Lato 12 pt at 1.6, `#24292f` and
+`#6b7480`, a 3 pt `#d0d7de` bar, a 463 pt column — and copied. Two more traps
+were met on the way. Computer Modern drawn as pixels came out a pale grey
+beside vector Lato, which a quarter-point stroke evens out; and reportlab's
+frame pads its content by 6 pt inside the page margins, so the column had
+always been 12 pt narrower than every width computed from it, and a box as
+wide as the column ran past its right edge by that much.

@@ -705,8 +705,16 @@ def test_a_heading_is_set_at_the_size_of_its_level(monkeypatch):
 
 def test_a_heading_deeper_than_three_is_set_like_the_third(monkeypatch):
     sizes = _sizes(monkeypatch)
-    pdf.render("Заголовок", "###### Глубоко")
-    assert sizes == [pdf._HEADING_PT[3]]
+    pdf.render("Заголовок", "# Раз\n###### Глубоко")
+    assert sizes == [pdf._HEADING_PT[1], pdf._HEADING_PT[3]]
+
+
+def test_levels_are_counted_from_the_top_one_the_record_uses(monkeypatch):
+    # Records composed with "##" sections and "###" subsections looked a step
+    # smaller than the ones written with "#": the reference has one scale.
+    sizes = _sizes(monkeypatch)
+    pdf.render("Заголовок", "## Раздел\n### Подраздел")
+    assert sizes == [pdf._HEADING_PT[1], pdf._HEADING_PT[2]]
 
 
 def test_render_draws_a_callout():
@@ -736,8 +744,8 @@ def test_render_draws_every_callout_it_is_given(monkeypatch):
     assert seen == ["Раз", "Два"]
 
 
-def _panel(box: pdf.Callout) -> list[str]:
-    """The reportlab markup that actually ends up inside a callout panel.
+def _panel(box: pdf.Callout) -> list:
+    """The flowables that actually end up inside a callout panel.
 
     _cellvalues is reportlab's own record of what a table was built from.
     Reaching into it is the only way to see that the title and the lines got
@@ -749,36 +757,51 @@ def _panel(box: pdf.Callout) -> list[str]:
     pdf._register_fonts()
     with tempfile.TemporaryDirectory() as directory:
         table = pdf._callout(box, pdf._Formulas(directory), pdf._styles())
-    return [flowable.text for flowable in table._cellvalues[0][0]]
+    return list(table._cellvalues[0][0])
 
 
 def test_a_panel_holds_its_title_and_every_line():
     panel = _panel(pdf.Callout("Спорные места", ["раз", "два"]))
     assert len(panel) == 3
     # The label is set in capitals, the way the reference sets "ЗАМЕЧАНИЕ".
-    assert "СПОРНЫЕ МЕСТА" in panel[0]
-    assert panel[1:] == ["раз", "два"]
+    assert panel[0].text == "СПОРНЫЕ МЕСТА"
+    assert [line.text for line in panel[1:]] == ["раз", "два"]
 
 
 def test_a_warning_panel_is_titled_in_the_warning_colour():
-    assert pdf._CALLOUT_TONES["warning"] in _panel(
-        pdf.Callout("Нужна проверка", [], "warning")
-    )[0]
-    assert pdf._CALLOUT_TONES["info"] in _panel(pdf.Callout("Спорные", []))[0]
+    assert _panel(pdf.Callout("Нужна проверка", [], "warning"))[0].color == (
+        pdf._CALLOUT_TONES["warning"]
+    )
+    assert _panel(pdf.Callout("Спорные", []))[0].color == pdf._CALLOUT_TONES["info"]
 
 
 def test_an_unknown_tone_is_titled_like_an_ordinary_one():
-    assert pdf._CALLOUT_TONES["info"] in _panel(
-        pdf.Callout("Раз", [], "лиловый")
-    )[0]
+    assert _panel(pdf.Callout("Раз", [], "лиловый"))[0].color == (
+        pdf._CALLOUT_TONES["info"]
+    )
 
 
-def test_a_panel_escapes_its_title_and_its_lines():
-    # Capitals first, escaping after: "&lt;" upper-cased is "&LT;", which is
-    # not an entity at all.
+def test_a_panel_escapes_its_lines_and_draws_its_title_as_written():
+    # The label is drawn on the canvas, not parsed as markup, so it needs no
+    # escaping; the lines are paragraphs and do.
     panel = _panel(pdf.Callout("a < b", ["c & d"]))
-    assert "A &lt; B" in panel[0]
-    assert panel[1] == "c &amp; d"
+    assert panel[0].text == "A < B"
+    assert panel[1].text == "c &amp; d"
+
+
+def test_a_label_is_drawn_with_its_letters_spaced(monkeypatch):
+    # The reference's "ЗАМЕЧАНИЕ" is tracked; a paragraph cannot do that.
+    spaced: list[float] = []
+    from reportlab.pdfgen.textobject import PDFTextObject
+
+    original = PDFTextObject.setCharSpace
+    monkeypatch.setattr(
+        PDFTextObject,
+        "setCharSpace",
+        lambda self, value: spaced.append(value) or original(self, value),
+    )
+    pdf.render("Т", "текст", callouts=[pdf.Callout("Нужна проверка", ["a"])])
+    assert spaced == [pdf._LABEL_TRACKING]
 
 
 def test_a_callout_and_a_remark_are_one_anatomy():
@@ -800,7 +823,7 @@ def test_a_callout_and_a_remark_are_one_anatomy():
 
 
 def test_a_formula_in_a_panel_line_is_drawn():
-    assert "<img" in _panel(pdf.Callout("Раз", ["дано $x^2$"]))[1]
+    assert "<img" in _panel(pdf.Callout("Раз", ["дано $x^2$"]))[1].text
 
 
 def test_a_callout_with_an_unknown_tone_still_draws():
@@ -1165,10 +1188,20 @@ def test_render_draws_a_hairline_under_the_title(monkeypatch):
 
 
 def test_a_top_level_heading_gets_a_hairline_and_a_deeper_one_does_not(monkeypatch):
-    with_rule = _flat(_story(monkeypatch, "Т", "# Раздел\nтекст"))
-    without = _flat(_story(monkeypatch, "Т", "## Подраздел\nтекст"))
-    assert sum(1 for f in with_rule if type(f).__name__ == "HRFlowable") == 2
-    assert sum(1 for f in without if type(f).__name__ == "HRFlowable") == 1
+    story = _flat(_story(monkeypatch, "Т", "# Раздел\nтекст\n## Подраздел\nтекст"))
+    rules = [f for f in story if type(f).__name__ == "HRFlowable"]
+    # The title's and the section's; the subsection has none.
+    assert len(rules) == 2
+    assert type(story[_where(story, "Подраздел") + 1]).__name__ == "Paragraph"
+
+
+def test_a_second_section_is_set_off_by_the_broader_rule(monkeypatch):
+    # The reference puts a paler, thicker rule between two of its sections.
+    story = _flat(_story(monkeypatch, "Т", "# Раз\nтекст\n# Два\nтекст"))
+    rules = [f for f in story if type(f).__name__ == "HRFlowable"]
+    broad = [rule for rule in rules if rule.lineWidth == 1.5]
+    assert len(broad) == 1
+    assert story.index(broad[0]) < _where(story, "Два")
 
 
 # ── the sweep: what a page of chemistry writes that mathtext will not take ───
@@ -1479,7 +1512,7 @@ def test_a_table_of_records_is_ruled_between_its_rows():
 # ── formulas: the serif, the baseline, the column ────────────────────────────
 
 
-def test_formulas_are_set_in_the_serif(monkeypatch):
+def test_formulas_are_set_in_computer_modern(monkeypatch):
     import matplotlib.figure
 
     seen: list = []
@@ -1491,7 +1524,8 @@ def test_formulas_are_set_in_the_serif(monkeypatch):
 
     monkeypatch.setattr(matplotlib.figure.Figure, "text", spy)
     pdf._formula_png("x^2", 10.0)
-    assert seen == ["dejavuserif"]
+    # KaTeX in the reference draws Computer Modern.
+    assert seen == ["cm"]
 
 
 def test_a_deep_formula_sits_lower_on_the_line():
@@ -1576,4 +1610,92 @@ def test_a_long_running_title_is_cut_to_the_column():
     cut = pdf._fit("очень длинное название " * 20, 100.0, pdf._FURNITURE_PT)
 
     assert cut.endswith("…")
-    assert pdf.pdfmetrics.stringWidth(cut, "DejaVu", pdf._FURNITURE_PT) <= 100.0
+    assert pdf.pdfmetrics.stringWidth(cut, pdf._TEXT_FONT, pdf._FURNITURE_PT) <= 100.0
+
+
+# ── the reference's style: Lato, and what Lato cannot draw ───────────────────
+
+
+def test_the_text_is_set_in_the_bundled_lato():
+    # Lato 2, with Cyrillic, from the repo: the Lato Google serves has none.
+    import os
+
+    styles = pdf._styles()
+    assert styles["body"].fontName == "Lato"
+    assert styles["title"].fontName == "Lato-Black"
+    assert os.path.exists(os.path.join(pdf._FONT_DIR, "Lato-Regular.ttf"))
+    assert os.path.exists(os.path.join(pdf._FONT_DIR, "OFL.txt"))
+
+
+def test_a_glyph_lato_lacks_is_set_in_dejavu():
+    # reportlab has no fallback of its own and draws an empty box instead.
+    assert pdf._markup("► Так как") == '<font face="DejaVu">►</font> Так как'
+    assert pdf._markup("∀ε ∈ ℝ") == (
+        '<font face="DejaVu">∀</font>ε <font face="DejaVu">∈</font> '
+        '<font face="DejaVu">ℝ</font>'
+    )
+
+
+def test_text_lato_can_draw_is_left_as_it_is():
+    assert pdf._markup("Граф — пара «множеств»…") == "Граф — пара «множеств»…"
+
+
+def test_a_line_break_the_composer_wrote_is_a_line_break():
+    # <br> in a table cell went out as the tag itself, three times a cell.
+    assert pdf._markup("a<br>b<br/>c<BR />d") == "a<br/>b<br/>c<br/>d"
+
+
+def test_a_header_with_nothing_in_it_is_not_a_header():
+    result = pdf.blocks("| | |\n|---|---|\n| a | b |\n| c | d |")[0]
+    assert result.rows == [["a", "b"], ["c", "d"]]
+    assert result.header is False
+
+
+def test_a_table_made_for_layout_is_set_without_rules():
+    # Record 42's two columns of algebra, ruled as a table, came out as a
+    # grid of small type.
+    rows = [
+        ["$a, b, c \\in \\mathbb{C}$<br>$a = (a_1, a_2)$", "$a(b + c) = ab + ac$"],
+    ]
+    assert pdf._for_layout(rows)
+    assert _rules(rows, header=False) == []
+
+
+def test_a_matrix_is_not_mistaken_for_layout():
+    assert not pdf._for_layout([["", "1", "2"], ["1", "0", "1"]])
+
+
+def test_a_numbered_line_is_a_list_item_with_its_own_number():
+    result = pdf.blocks("1) абелева группа\n2. законы дистрибутивности")
+    assert [(b.kind, b.marker, b.text) for b in result] == [
+        ("bullet", "1)", "абелева группа"),
+        ("bullet", "2.", "законы дистрибутивности"),
+    ]
+
+
+def test_a_number_inside_a_sentence_does_not_open_a_list():
+    assert pdf.blocks("12 рёбер и 5 вершин")[0].kind == "text"
+
+
+def test_a_remark_is_set_in_the_grey_of_the_reference():
+    styles = pdf._styles()
+    assert styles["remark_body"].textColor == pdf._MUTED == "#6b7480"
+    assert styles["remark_body"].fontSize == styles["body"].fontSize
+
+
+def test_a_record_in_the_new_style_renders_whole():
+    markdown = (
+        "## Раздел\n\n"
+        "**Лемма.** Для любых $a, b \\in \\mathbb{R}$ ► существует $c$.\n\n"
+        "1) $\\langle \\mathbb{C}, + \\rangle \\text{ абелева группа}$\n"
+        "| | |\n|---|---|\n| $a$<br>$b$ | $a(b+c) = ab + ac$ |\n\n"
+        "## Второй раздел\n~~зачёркнуто~~ и дальше"
+    )
+    data = pdf.render(
+        "Т",
+        markdown,
+        subtitle="24.09.2026 · 1 страница",
+        callouts=[pdf.Callout("Нужна проверка", ["строка"], "warning")],
+        remarks=[pdf.Remark("Лемма", "В рукописи, с. 1", ["«$x$» — двоится"])],
+    )
+    assert data.startswith(b"%PDF-")

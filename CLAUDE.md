@@ -416,33 +416,55 @@ three capture paths finish with `corpus.send_record`. Rendering is CPU-bound
 and runs in a thread; if it fails for any reason the record is sent as plain
 text. A record is never lost over its presentation.
 
-**The document's look is one system, decided in `pdf.py` (task 36).** It is
-what the group receives, so none of it is left to reportlab's defaults:
+**The document's look is one system, decided in `pdf.py` (task 36), and it is
+copied from one file: the author's `матан 24.09.2026.pdf`.** Its values were
+read out of that PDF — sizes, greys, rules, the column — not chosen by eye;
+a change to the look is a change measured against it. It is what the group
+receives, so none of it is left to reportlab's defaults:
 
-- **One scale and one rhythm.** Every size is a step from `_BODY_PT`, and the
-  space between two blocks comes from `_space_before`, which knows what both
-  of them are: lines of one paragraph sit at the leading alone, a blank line
-  opens a paragraph, a display formula, a table or a drawing is set apart, and
-  a run of display formulas is one close block.
-- **Formulas in DejaVu Serif, text in DejaVu Sans** — the reference's pairing,
-  inside the one bundled family; Computer Modern has no Cyrillic. An inline
-  formula is lowered by its measured depth, so its baseline is the line's,
-  and one wider than the column is shrunk to fit rather than run off the page.
-  A zero-width space after an inline formula, where the page had a space,
-  is the only place reportlab will break a line after an image.
+- **Lato for the text, Computer Modern for the formulas**, as the reference's
+  Lato and KaTeX. Lato 2 is bundled in `app/assets/fonts/` under its OFL
+  licence: the Lato Google serves has no Cyrillic. Lato lacks some symbols —
+  `∀ ∈ ⇒ ► ℝ` — and reportlab has no fallback of its own, so `pdf._text`
+  sets every run of them in DejaVu; without it they print as empty boxes.
+  Computer Modern has no Cyrillic either, and mathtext sets a `\text{кольца}`
+  in a serif of its own, which is what the reference does too.
+- **One scale and one rhythm.** Body 12 pt at a leading of 1.6, title 24,
+  sections 18 and 14, formulas ×1.06. Heading levels are counted from the top
+  one the record uses, so "##" sections look like "#" ones. The space between
+  two blocks comes from `_space_before`, which knows what both of them are:
+  lines of one paragraph sit at the leading alone, a blank line opens a
+  paragraph, a display formula, a table or a drawing is set apart, and a run
+  of display formulas is one close block.
+- **The column is the reference's: 66 pt either side, 463 pt of text.**
+  reportlab's frame pads its content by 6 pt inside the margins, and the
+  margins allow for it; left out, every box as wide as the column ran 12 pt
+  past its right edge.
+- **A formula is a picture, and is made to sit like text.** It is lowered by
+  its measured depth so its baseline is the line's, shrunk to the column when
+  wider, and drawn with a quarter-point stroke — Computer Modern's hairlines,
+  smoothed as pixels, came out a pale grey beside Lato. A zero-width space
+  after an inline formula, where the page had a space, is the only place
+  reportlab will break a line after an image.
 - **A heading is held back and set in one group with what it heads**, a
   remark with its line, a table whole. The groups are built by hand and flat:
   reportlab's own `keepWithNext` nests one `KeepTogether` in another, the inner
   one reports an effectively infinite height, and the heading stays behind.
-- **Every box beside the text has one anatomy** — a rule down the left, a
-  label in capitals, the lines — and no panel behind it. A callout about the
-  record and a remark about one line differ in their accent only; the
-  explanation of task 38 is the same box in a tone of its own.
+- **Every box beside the text has one anatomy**, the reference's
+  "ЗАМЕЧАНИЕ": a 3 pt bar down the left, a label in spaced capitals (drawn by
+  `pdf._Label` — a paragraph cannot space letters), the lines at the size of
+  the text. A remark is grey throughout; a callout about the record carries
+  its accent in the bar and the label. The explanation of task 38 is the same
+  box in a tone of its own.
 - **A graph is cut to what is drawn**, at one scale for every graph. A graph
   or a matrix name ("A =") followed directly by a table is set beside it — a
   blank line may stand between them, a line of text may not. A table is ruled
   under its header, and after its first column when that column names the
-  rows; never caged in a grid.
+  rows; never caged in a grid. A table the composing stage used for layout —
+  lines stacked with `<br>` in a cell, cells as long as sentences — is set as
+  columns of text with no rules at all, and a header with nothing in it is
+  not a header.
+- **Lists hang**, bullets and the author's own "1)" and "2." alike.
 - **From page two the record's title stands over the text, and a record of
   more than one page is numbered "2 / 5"** — not "с. 2", which inside a
   record means a photographed page.
@@ -747,6 +769,8 @@ app/
     consensus.py      ready-made
     mathcheck.py      ready-made
     graphcheck.py     a matrix against the graph drawn beside it
+  assets/
+    fonts/            Lato 2 and its OFL licence — the document's text face
   db/
     models.py
     session.py

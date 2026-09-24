@@ -11,10 +11,10 @@ mathtext cannot read stays on the page as its own source, the same way
 parse_response returns None rather than exploding.
 
 The document is what the group receives, so its look is decided here rather
-than left to reportlab's defaults: one scale of sizes, one rhythm of space
-between kinds of block, one anatomy for every box beside the text, and the
-furniture a printed page four needs to say what it is. The reference is the
-author's own write-up of a lecture this bot also read.
+than left to reportlab's defaults, and it is copied from one file: the
+author's `матан 24.09.2026.pdf`. Lato for the text and Computer Modern for the
+formulas, its sizes, its greys, its one kind of box beside the text — the
+values below were read out of that PDF, not chosen by eye.
 """
 
 from __future__ import annotations
@@ -34,8 +34,10 @@ import matplotlib
 
 matplotlib.use("Agg")  # no display on a server; must precede pyplot
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib import patheffects  # noqa: E402
+from matplotlib.font_manager import FontProperties  # noqa: E402
 from reportlab.lib import colors  # noqa: E402
-from reportlab.lib.enums import TA_CENTER  # noqa: E402
+from reportlab.lib.enums import TA_CENTER, TA_LEFT  # noqa: E402
 from reportlab.lib.pagesizes import A4  # noqa: E402
 from reportlab.lib.styles import ParagraphStyle  # noqa: E402
 from reportlab.lib.units import mm  # noqa: E402
@@ -43,6 +45,7 @@ from reportlab.pdfbase import pdfmetrics  # noqa: E402
 from reportlab.pdfbase.ttfonts import TTFont  # noqa: E402
 from reportlab.pdfgen import canvas as rl_canvas  # noqa: E402
 from reportlab.platypus import (  # noqa: E402
+    Flowable,
     HRFlowable,
     Image,
     KeepTogether,
@@ -59,66 +62,84 @@ logger = logging.getLogger(__name__)
 # stays sharp when the PDF is zoomed on a phone.
 _DPI = 300
 
-# ── The scale ────────────────────────────────────────────────────────────────
-# Body text is the unit and everything else is a step from it. DejaVu Sans
-# sets large for its size: at 10 pt it reads like the reference at 11.
-_BODY_PT = 10.0
-_LEADING = 1.55
-_TITLE_PT = 19.0
-# Four steps, so a section is told from a subsection at a glance. The level
-# blocks() reads was once parsed and thrown away: every heading printed at one
-# size, which made "#" and "###" the same thing on the page.
-_HEADING_PT = {1: 14.5, 2: 12.0, 3: 10.5}
-_HEADING_SPACE_BEFORE = {1: 18, 2: 14, 3: 10}
-_HEADING_SPACE_AFTER = {1: 3, 2: 4, 3: 3}
-_DISPLAY_PT = 11.0
-_TABLE_PT = 9.0
-_SMALL_PT = 8.5
-_BOX_PT = 9.5
-_LABEL_PT = 7.0
-_FURNITURE_PT = 7.5
+# ── The fonts ────────────────────────────────────────────────────────────────
+# Lato 2, which has Cyrillic — the Lato Google serves does not — bundled in the
+# repo under its OFL licence. DejaVu, which ships inside matplotlib, stays as
+# the face for the glyphs Lato lacks: ∀, ∈, ⇒, ►, ℝ in running text would
+# otherwise print as empty boxes.
+_FONT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts")
+_TEXT_FONT = "Lato"
+_HEAVY_FONT = "Lato-Black"
+_FALLBACK_FONT = "DejaVu"
+# Formulas in Computer Modern, as the reference's KaTeX draws them. It has no
+# Cyrillic, and mathtext sets a \text{кольца} in a serif of its own instead —
+# which is exactly what the reference does with its own Cyrillic in formulas.
+_MATH_FONT = "cm"
+# Computer Modern's hairlines, drawn as pixels and smoothed, came out a pale
+# grey beside the text: KaTeX in the reference is vector and as dark as Lato.
+# A quarter-point stroke round every glyph brings the weight back to the
+# reference's; half a point was already bold.
+_MATH_STROKE_PT = 0.25
 
-# Formulas in DejaVu Serif and the text around them in DejaVu Sans: what the
-# reference does with its two fonts, inside the one family the project
-# bundles. Computer Modern would look closer still, and it has no Cyrillic —
-# a \text{фермент} inside a formula would take the whole formula down.
-_MATH_FONT = "dejavuserif"
+# ── The scale, read out of the reference ─────────────────────────────────────
+_BODY_PT = 12.0
+_LEADING = 1.6
+_TITLE_PT = 24.0
+# Levels are counted from the top one the record uses, so a record whose
+# sections are "##" looks like one whose sections are "#". The level blocks()
+# reads was once thrown away altogether, which made "#" and "###" the same.
+_HEADING_PT = {1: 18.0, 2: 14.0, 3: 12.0}
+_HEADING_SPACE_BEFORE = {1: 20, 2: 16, 3: 12}
+_HEADING_SPACE_AFTER = {1: 3, 2: 5, 3: 3}
+# KaTeX sets its formulas a little larger than the text round them: Computer
+# Modern's x-height is smaller than Lato's.
+_MATH_SCALE = 1.06
+_DISPLAY_PT = _BODY_PT * _MATH_SCALE
+_TABLE_PT = 11.0
+_SMALL_PT = 10.0
+_LABEL_PT = 8.5
+_LABEL_TRACKING = 0.9
+_FURNITURE_PT = 8.0
 
 # ── The rhythm ───────────────────────────────────────────────────────────────
 # The space between two blocks depends on what both of them are. Lines of one
 # paragraph sit at the leading and nothing more: a lecture note is written
-# line by line, and 4 pt under every line made a page of them read as
+# line by line, and space under every line made a page of them read as
 # double-spaced. A blank line in the record is a paragraph. A display
 # formula, a table and a drawing are set apart, and a run of display formulas
 # is one block, the way a chain of equalities is one thing on paper.
-_PARAGRAPH_GAP = 7.0
-_SET_APART_GAP = 8.0
-_STACK_GAP = 2.5
-_ITEM_GAP = 2.0
-_BOX_GAP = 5.0
+_PARAGRAPH_GAP = 9.0
+_SET_APART_GAP = 10.0
+_STACK_GAP = 3.0
+_ITEM_GAP = 3.0
+_BOX_GAP = 8.0
 _SET_APART = {"math", "table", "figure", "note", "rule"}
 
 # ── The page ─────────────────────────────────────────────────────────────────
-_MARGIN_MM = 20
-_TOP_MM = 20
-_BOTTOM_MM = 18
-_TEXT_WIDTH_PT = A4[0] - 2 * _MARGIN_MM * mm
+# The reference's column: 66 pt either side of an A4 page, 463 pt of text.
+_MARGIN_PT = 66.0
+_TOP_PT = 60.0
+_BOTTOM_PT = 56.0
+_TEXT_WIDTH_PT = A4[0] - 2 * _MARGIN_PT
+# reportlab's frame pads its content by 6 pt on every side, inside the page
+# margins. Unaccounted for, the column was 12 pt narrower than every width
+# computed from it, and a box as wide as the column ran past its right edge.
+_FRAME_PADDING_PT = 6.0
 
-# ── The tones that exist, and nothing wider ──────────────────────────────────
-_INK = "#333333"
-_GREY = "#555555"
-_NOTE_GREY = "#666666"
-_HAIRLINE = "#d5d5d5"
-# The accent a box is drawn in: its rule and its label. The tone says how much
-# a box matters; the anatomy is the same for all of them.
+# ── The reference's tones, and the two accents the callouts already had ────
+_INK = "#24292f"
+_MUTED = "#6b7480"
+_HAIRLINE = "#d8dee4"  # under the title and a section heading, 0.8 pt
+_SECTION_RULE = "#e6e8eb"  # between two sections, 1.5 pt
+_BAR = "#d0d7de"  # down the side of a remark, 3 pt
+# A callout differs from a remark in its accent alone: the bar and the label.
 _CALLOUT_TONES = {
     "info": "#3f6f9f",
     "warning": "#a8742c",
 }
-_REMARK_ACCENT = "#9aa5b1"
-_REMARK_INK = "#5a6570"
 
 # ── Drawings ─────────────────────────────────────────────────────────────────
+# Three of them still fit across the reference's narrower column at full size.
 _GRAPH_WIDTH_PT = 135.0
 # Every graph is drawn at one scale, points per unit of the layout circle, so
 # a triangle and a hexagon on one page have vertices of one size. The drawing
@@ -148,6 +169,9 @@ _MATH_RE = re.compile(
 )
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 _BULLET_RE = re.compile(r"^\s*[-*•]\s+(.*)$")
+# "1) абелева группа", "2. если ...": numbered the way the author numbered it,
+# set with the number hanging like a bullet.
+_NUMBERED_RE = re.compile(r"^\s*(\d{1,2}[.)])\s+(\S.*)$")
 # The seam _assemble writes between two pages of an album.
 _RULE_RE = re.compile(r"^(?:-{3,}|\*{3,}|_{3,})$")
 # A markdown table row, and the "|---|:--|" line that marks the row above it
@@ -166,6 +190,9 @@ _UNDIRECTED_RE = re.compile(r"\s*[-–—]\s*")
 _LATEX_HINT_RE = re.compile(r"\\[A-Za-z]+|[_^]")
 _CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
 _BARE_COMMAND_RE = re.compile(r"\\[A-Za-z]+(?:\{[^{}]*\})*")
+# The composing stage puts <br> inside a table cell to stack lines the author
+# wrote one under another. Printed, it was the tag itself, three times a cell.
+_BREAK_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
 
 # Past this a circle of vertices is unreadable, and the text is more likely to
 # be prose the model mislabelled than a graph. Same for a long vertex name.
@@ -211,6 +238,7 @@ class Block:
     rows: list[list[str]] = field(default_factory=list)
     header: bool = False
     caption: str = ""
+    marker: str = ""  # a list item's own number, "1)" — empty for a bullet
 
 
 def _latex(match: re.Match) -> str:
@@ -273,13 +301,22 @@ def _read_table(lines: list[str], start: int) -> tuple[Block, int] | None:
     for position in range(start, end):
         if _ROW_SEPARATOR_RE.match(lines[position]):
             # "|---|---|" is not a row: it says the rows above it are a header.
-            header = position > start
+            # An empty "| | |" reads as a separator too, so it is a header only
+            # when a row was actually read above it.
+            header = bool(rows)
             continue
         rows.append(
             [cell.strip() for cell in lines[position].strip().strip("|").split("|")]
         )
     if not rows:
         return None
+
+    # A header with nothing in it names no column: "| | |" over "|---|---|" is
+    # how the composing stage opens a table it only wanted for its layout.
+    if header and not any(cell for cell in rows[0]):
+        rows, header = rows[1:], False
+        if not rows:
+            return None
 
     # Ragged rows would make reportlab raise. A hand-copied matrix with a cell
     # missing is still worth showing.
@@ -393,6 +430,14 @@ def blocks(markdown: str) -> list[Block]:
             index += 1
             continue
 
+        numbered = _NUMBERED_RE.match(line)
+        if numbered:
+            out.append(
+                Block("bullet", numbered.group(2).strip(), marker=numbered.group(1))
+            )
+            index += 1
+            continue
+
         # "[схема: граф с петлёй]" — the model's note that something on the
         # page is a drawing. We never store photos, so it stays a remark.
         # "[граф: 1-2, 2-3]" is that same note with the edges in it, and is
@@ -455,7 +500,7 @@ def as_formula(fragment: str) -> str:
 # ── Rendering ────────────────────────────────────────────────────────────────
 
 
-def _font_path(name: str) -> str:
+def _mpl_font(name: str) -> str:
     return os.path.join(
         os.path.dirname(matplotlib.__file__), "mpl-data", "fonts", "ttf", name
     )
@@ -465,18 +510,44 @@ _FONTS_READY = False
 
 
 def _register_fonts() -> None:
-    """Cyrillic needs a real TTF — reportlab's built-ins are Latin only.
-    DejaVu ships inside matplotlib, so nothing has to live in the repo."""
+    """Lato from the repo, DejaVu from inside matplotlib. reportlab's built-in
+    fonts are Latin only, and a page of notes is Cyrillic."""
     global _FONTS_READY
     if _FONTS_READY:
         return
-    pdfmetrics.registerFont(TTFont("DejaVu", _font_path("DejaVuSans.ttf")))
-    pdfmetrics.registerFont(TTFont("DejaVu-Bold", _font_path("DejaVuSans-Bold.ttf")))
-    pdfmetrics.registerFont(TTFont("DejaVu-Oblique", _font_path("DejaVuSans-Oblique.ttf")))
+    for name, filename in (
+        ("Lato", "Lato-Regular.ttf"),
+        ("Lato-Italic", "Lato-Italic.ttf"),
+        ("Lato-Bold", "Lato-Bold.ttf"),
+        ("Lato-BoldItalic", "Lato-BoldItalic.ttf"),
+        ("Lato-Black", "Lato-Black.ttf"),
+    ):
+        pdfmetrics.registerFont(TTFont(name, os.path.join(_FONT_DIR, filename)))
     pdfmetrics.registerFontFamily(
-        "DejaVu", normal="DejaVu", bold="DejaVu-Bold", italic="DejaVu-Oblique"
+        "Lato", normal="Lato", bold="Lato-Bold", italic="Lato-Italic",
+        boldItalic="Lato-BoldItalic",
+    )
+    for name, filename in (
+        ("DejaVu", "DejaVuSans.ttf"),
+        ("DejaVu-Bold", "DejaVuSans-Bold.ttf"),
+        ("DejaVu-Oblique", "DejaVuSans-Oblique.ttf"),
+        ("DejaVu-BoldOblique", "DejaVuSans-BoldOblique.ttf"),
+    ):
+        pdfmetrics.registerFont(TTFont(name, _mpl_font(filename)))
+    pdfmetrics.registerFontFamily(
+        "DejaVu", normal="DejaVu", bold="DejaVu-Bold", italic="DejaVu-Oblique",
+        boldItalic="DejaVu-BoldOblique",
     )
     _FONTS_READY = True
+
+
+@functools.lru_cache(maxsize=1)
+def _lato_glyphs() -> frozenset[int]:
+    """Every character Lato can draw. Anything else in running text is set in
+    DejaVu, which draws nearly everything."""
+    return frozenset(
+        TTFont("LatoCoverage", os.path.join(_FONT_DIR, "Lato-Regular.ttf")).face.charToGlyph
+    )
 
 
 def warm_up() -> None:
@@ -485,7 +556,8 @@ def warm_up() -> None:
     keeps them out of someone's first photo."""
     try:
         _register_fonts()
-        _formula_png("x^2", _BODY_PT)
+        _lato_glyphs()
+        _formula_png("x^2", _DISPLAY_PT)
     except Exception:
         logger.exception("PDF warm-up failed; first render will be slower")
 
@@ -640,8 +712,8 @@ _FORMULA_PAD_IN = 0.01
 _FORMULA_PAD_PT = _FORMULA_PAD_IN * 72.0
 # A formula wider than the column is shrunk to fit it. At its own size a long
 # chain of equalities ran past the margin and off the paper, where nobody can
-# read it; smaller is readable. Inside a line it leaves room for a bullet.
-_INLINE_MAX_PT = _TEXT_WIDTH_PT - 24
+# read it; smaller is readable. Inside a line it leaves room for a list item.
+_INLINE_MAX_PT = _TEXT_WIDTH_PT - 30
 
 
 def _formula_png(latex: str, size_pt: float) -> tuple[bytes, float, float, float]:
@@ -658,7 +730,10 @@ def _formula_png(latex: str, size_pt: float) -> tuple[bytes, float, float, float
     try:
         text = figure.text(
             0, 0, f"${for_mathtext(latex)}$",
-            fontsize=size_pt, math_fontfamily=_MATH_FONT,
+            fontsize=size_pt, math_fontfamily=_MATH_FONT, color=_INK,
+        )
+        text.set_path_effects(
+            [patheffects.withStroke(linewidth=_MATH_STROKE_PT, foreground=_INK)]
         )
         # The box savefig crops to is this one: the text's layout, baseline at
         # y=0, so whatever lies below zero is the depth.
@@ -739,6 +814,7 @@ def _graph_png(
     left, right = min(xs) - margin, max(xs) + margin
     bottom, top = min(ys) - margin, max(ys) + margin
 
+    label_font = FontProperties(fname=os.path.join(_FONT_DIR, "Lato-Bold.ttf"), size=9)
     figure = plt.figure(
         figsize=(
             (right - left) * _GRAPH_INCHES_PER_UNIT,
@@ -758,7 +834,7 @@ def _graph_png(
             if tail == head:
                 cx, cy, radius = _loop_circle(x1, y1, node)
                 axes.add_patch(
-                    plt.Circle((cx, cy), radius, fill=False, lw=1.1,
+                    plt.Circle((cx, cy), radius, fill=False, lw=1.0,
                                edgecolor=_INK, zorder=1)
                 )
                 continue
@@ -773,20 +849,20 @@ def _graph_png(
                     "",
                     xy=finish,
                     xytext=start,
-                    arrowprops={"arrowstyle": "-|>", "lw": 1.1, "color": _INK},
+                    arrowprops={"arrowstyle": "-|>", "lw": 1.0, "color": _INK},
                 )
             else:
                 axes.plot(
                     [start[0], finish[0]], [start[1], finish[1]],
-                    lw=1.1, color=_INK, zorder=1,
+                    lw=1.0, color=_INK, zorder=1,
                 )
         for vertex, (x, y) in positions.items():
             axes.add_patch(
                 plt.Circle((x, y), node, facecolor="white", edgecolor=_INK,
-                           lw=1.1, zorder=2)
+                           lw=1.0, zorder=2)
             )
             axes.text(x, y, vertex, ha="center", va="center",
-                      fontsize=9, color=_INK, zorder=3)
+                      fontproperties=label_font, color=_INK, zorder=3)
 
         buffer = io.BytesIO()
         figure.savefig(buffer, format="png", dpi=_DPI, transparent=True)
@@ -813,6 +889,37 @@ def _placement(vertices: list[str]) -> list[str]:
     if all(vertex.isdigit() for vertex in vertices):
         return sorted(vertices, key=int)
     return vertices
+
+
+def _text(value: str) -> str:
+    """Plain text as reportlab markup: escaped, a <br> the composing stage
+    wrote as a line break, and every run of characters Lato does not have set
+    in DejaVu, which has them — reportlab has no fallback of its own and draws
+    an empty box for a glyph its font lacks."""
+    if not value:
+        return ""
+    known = _lato_glyphs()
+    out: list[str] = []
+    for position, part in enumerate(_BREAK_RE.split(value)):
+        if position:
+            out.append("<br/>")
+        run: list[str] = []
+        run_known = True
+        for char in part:
+            char_known = ord(char) in known
+            if run and char_known != run_known:
+                out.append(_run(run, run_known))
+                run = []
+            run.append(char)
+            run_known = char_known
+        if run:
+            out.append(_run(run, run_known))
+    return "".join(out)
+
+
+def _run(chars: list[str], known: bool) -> str:
+    text = escape("".join(chars))
+    return text if known else f'<font face="{_FALLBACK_FONT}">{text}</font>'
 
 
 # **bold** and ~~struck through~~. A crossed-out word is kept and shown crossed
@@ -858,10 +965,14 @@ def _inline(runs: list[tuple[str, str]], formulas, size_pt: float) -> str:
     drawn_before = False
     for kind, value in runs:
         if kind == "math":
-            tag = formulas.inline(value, size_pt) if formulas is not None else None
+            tag = (
+                formulas.inline(value, size_pt * _MATH_SCALE)
+                if formulas is not None
+                else None
+            )
             # Unreadable LaTeX stays visible as its own source: worse to look
             # at than a drawn formula, far better than a silently missing one.
-            pieces.append(tag if tag else escape(f"${value}$"))
+            pieces.append(tag if tag else _text(f"${value}$"))
             drawn_before = bool(tag)
             continue
         if drawn_before and value[:1].isspace():
@@ -870,19 +981,19 @@ def _inline(runs: list[tuple[str, str]], formulas, size_pt: float) -> str:
             # off the paper. A zero-width space is a place it will break.
             # Only where the page had a space — never between a formula and
             # its comma.
-            pieces.append("​")
+            pieces.append("\u200b")
         drawn_before = False
         position = 0
         for found in _EMPHASIS_RE.finditer(value):
             marker = found.group()
-            pieces.append(escape(value[position : found.start()]))
+            pieces.append(_text(value[position : found.start()]))
             if used[marker] < usable[marker]:
                 used[marker] += 1
                 pieces.append(toggle(marker))
             else:
-                pieces.append(escape(marker))
+                pieces.append(_text(marker))
             position = found.end()
-        pieces.append(escape(value[position:]))
+        pieces.append(_text(value[position:]))
     return "".join(pieces)
 
 
@@ -973,7 +1084,7 @@ def _line_markup(text: str, formulas: _Formulas, size_pt: float) -> str:
 def _styles() -> dict[str, ParagraphStyle]:
     base = ParagraphStyle(
         "body",
-        fontName="DejaVu",
+        fontName=_TEXT_FONT,
         fontSize=_BODY_PT,
         leading=_BODY_PT * _LEADING,
         textColor=_INK,
@@ -982,70 +1093,60 @@ def _styles() -> dict[str, ParagraphStyle]:
         # grows to fit it instead of printing over the line above.
         autoLeading="max",
     )
-    small = ParagraphStyle(
-        "small", parent=base, fontSize=_SMALL_PT, leading=_SMALL_PT * 1.4,
-        textColor=_GREY,
+    muted = ParagraphStyle(
+        "muted", parent=base, fontSize=_SMALL_PT, leading=_SMALL_PT * 1.45,
+        textColor=_MUTED,
     )
     return {
         "title": ParagraphStyle(
-            "title", parent=base, fontName="DejaVu-Bold", fontSize=_TITLE_PT,
-            leading=_TITLE_PT * 1.2, spaceAfter=7,
+            "title", parent=base, fontName=_HEAVY_FONT, fontSize=_TITLE_PT,
+            leading=_TITLE_PT * 1.2, spaceAfter=9,
         ),
         **{
             f"heading{level}": ParagraphStyle(
-                f"heading{level}", parent=base, fontName="DejaVu-Bold",
+                f"heading{level}", parent=base, fontName=_HEAVY_FONT,
                 fontSize=size, leading=size * 1.3,
                 spaceBefore=_HEADING_SPACE_BEFORE[level],
                 spaceAfter=_HEADING_SPACE_AFTER[level],
             )
             for level, size in _HEADING_PT.items()
         },
-        # What stands under the title: upright and small, a line of facts
-        # rather than a sentence the author was saying.
-        "byline": ParagraphStyle(
-            "byline", parent=small, fontSize=_SMALL_PT + 0.5,
-            leading=(_SMALL_PT + 0.5) * 1.4,
-        ),
-        "meta": ParagraphStyle(
-            "meta", parent=small, fontSize=_SMALL_PT + 0.5,
-            leading=(_SMALL_PT + 0.5) * 1.4,
-        ),
-        "box_label": ParagraphStyle(
-            "box_label", parent=base, fontName="DejaVu-Bold", fontSize=_LABEL_PT,
-            leading=_LABEL_PT * 1.45, spaceAfter=1.5,
-        ),
-        "callout_body": ParagraphStyle(
-            "callout_body", parent=base, fontSize=_BOX_PT,
-            leading=_BOX_PT * 1.45,
-        ),
+        # What stands under the title: small and grey, a line of facts rather
+        # than a sentence the author was saying.
+        "byline": ParagraphStyle("byline", parent=muted),
+        "meta": ParagraphStyle("meta", parent=muted),
+        "callout_body": ParagraphStyle("callout_body", parent=base),
+        # A remark is set at the size of the text it sits in, in grey — the
+        # reference's "ЗАМЕЧАНИЕ". Smaller and it read as small print to skip.
         "remark_body": ParagraphStyle(
-            "remark_body", parent=base, fontSize=_BOX_PT,
-            leading=_BOX_PT * 1.45, textColor=_REMARK_INK,
+            "remark_body", parent=base, textColor=_MUTED,
         ),
         "body": base,
         "bullet": ParagraphStyle(
-            "bullet", parent=base, leftIndent=14, bulletIndent=3,
-            bulletFontName="DejaVu",
+            "bullet", parent=base, leftIndent=26, bulletIndent=10,
+            bulletFontName=_TEXT_FONT,
         ),
-        "caption": ParagraphStyle(
-            "caption", parent=small, alignment=TA_CENTER,
-        ),
+        "caption": ParagraphStyle("caption", parent=muted, alignment=TA_CENTER),
         # A drawing the page had and the record could not draw: set where the
         # picture would be, the size of a caption, so it reads as a figure
         # that is missing rather than as a line of the author's text.
         "note": ParagraphStyle(
-            "note", parent=small, fontName="DejaVu-Oblique", alignment=TA_CENTER,
-            textColor=_NOTE_GREY,
+            "note", parent=muted, fontName="Lato-Italic", alignment=TA_CENTER,
         ),
         "math": ParagraphStyle("math", parent=base, alignment=TA_CENTER),
         "cell": ParagraphStyle(
-            "cell", parent=base, fontSize=_TABLE_PT, leading=_TABLE_PT * 1.3,
+            "cell", parent=base, fontSize=_TABLE_PT, leading=_TABLE_PT * 1.35,
             alignment=TA_CENTER,
+        ),
+        # A table the composing stage used for layout — two columns of lines
+        # side by side — reads as text, so it is set as text.
+        "layout_cell": ParagraphStyle(
+            "layout_cell", parent=base, alignment=TA_LEFT,
         ),
     }
 
 
-def _column_widths(rows: list[list[str]]) -> list[float]:
+def _column_widths(rows: list[list[str]], size: float = _TABLE_PT) -> list[float]:
     """Column widths in points, measured from the content and squeezed until
     they fit the frame together.
 
@@ -1057,7 +1158,7 @@ def _column_widths(rows: list[list[str]]) -> list[float]:
     widths = []
     for column in range(len(rows[0])):
         longest = max(
-            pdfmetrics.stringWidth(row[column], "DejaVu", _TABLE_PT) for row in rows
+            pdfmetrics.stringWidth(row[column], _TEXT_FONT, size) for row in rows
         )
         widths.append(min(max(longest + 10, _MIN_COLUMN_PT), _MAX_COLUMN_PT))
     total = sum(widths)
@@ -1078,6 +1179,14 @@ def _labelled_down_the_side(rows: list[list[str]], header: bool) -> bool:
     return all(0 < len(row[0].strip()) <= 4 for row in rows[1:])
 
 
+def _for_layout(rows: list[list[str]]) -> bool:
+    """Whether a table is the author's two columns rather than data: lines
+    stacked in a cell, or cells as long as sentences. Ruled as a table, record
+    42's two columns of algebra came out as a grid of small type."""
+    cells = [cell for row in rows for cell in row]
+    return any(_BREAK_RE.search(cell) or len(cell) > 40 for cell in cells)
+
+
 def _table(
     rows: list[list[str]],
     header: bool,
@@ -1088,8 +1197,11 @@ def _table(
 
     Ruled, not caged: a grid round every cell made a matrix of noughts and
     ones a wall of boxes, and the reference rules only what separates the
-    names from the values.
+    names from the values. A table used for layout gets no rules at all.
     """
+    if _for_layout(rows):
+        return _layout_table(rows, formulas, styles)
+
     table = Table(
         [
             [
@@ -1105,10 +1217,10 @@ def _table(
     light = colors.HexColor(_HAIRLINE)
     style = [
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]
     if _labelled_down_the_side(rows, header):
         style += [
@@ -1128,44 +1240,97 @@ def _table(
     return table
 
 
+def _layout_table(
+    rows: list[list[str]], formulas: _Formulas, styles: dict[str, ParagraphStyle]
+) -> Table:
+    """Columns of lines side by side, at the size of the text, with nothing
+    drawn between them."""
+    measured = [
+        [max(_BREAK_RE.split(cell), key=len) for cell in row] for row in rows
+    ]
+    table = Table(
+        [
+            [
+                Paragraph(_line_markup(cell, formulas, _BODY_PT), styles["layout_cell"])
+                for cell in row
+            ]
+            for row in rows
+        ],
+        colWidths=_column_widths(measured, _BODY_PT),
+        hAlign="CENTER",
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 18),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ]
+        )
+    )
+    return table
+
+
+class _Label(Flowable):
+    """A box's label: small capitals with their letters spaced, the way the
+    reference sets "ЗАМЕЧАНИЕ". A reportlab paragraph cannot space letters,
+    so the label is drawn."""
+
+    def __init__(self, text: str, color: str):
+        super().__init__()
+        self.text = text.upper()
+        self.color = color
+        self._height = _LABEL_PT * 1.55
+
+    def wrap(self, available_width, available_height):
+        return available_width, self._height
+
+    def draw(self):
+        self.canv.saveState()
+        self.canv.setFillColor(colors.HexColor(self.color))
+        line = self.canv.beginText(0, _LABEL_PT * 0.45)
+        line.setFont(_HEAVY_FONT, _LABEL_PT)
+        line.setCharSpace(_LABEL_TRACKING)
+        line.textOut(self.text)
+        self.canv.drawText(line)
+        self.canv.restoreState()
+
+
 def _box(
     label: str,
     lines: list[str],
     accent: str,
+    bar: str,
     body: ParagraphStyle,
     formulas: _Formulas,
-    styles: dict[str, ParagraphStyle],
 ) -> Table:
-    """The one shape every box beside the text takes: a rule down the left,
-    a small capital label, the lines under it. No panel behind it.
+    """The one shape every box beside the text takes: a bar down the left,
+    a label in spaced capitals, the lines under it. No panel behind it.
 
-    A callout about the whole record and a remark about one line used to be
-    two systems, a tinted panel and a grey note; with a panel on ten records
-    of twelve, the tint had stopped meaning anything. They differ now in their
-    accent alone, and whatever the bot adds of its own later is the same box
-    in a tone of its own.
+    A callout about the whole record and a remark about one line differ in
+    their colours alone — a remark is the reference's "ЗАМЕЧАНИЕ", grey bar
+    and grey text; a callout carries its accent in the bar and the label.
+    Whatever the bot adds of its own later is the same box in a tone of its
+    own.
 
     reportlab has no such flowable, so it is a table of one cell — that is
-    what gives a rule on one side only.
+    what gives a bar on one side only.
     """
-    inside: list = [
-        Paragraph(
-            f'<font color="{accent}">{_markup(label.upper())}</font>',
-            styles["box_label"],
-        )
-    ]
+    inside: list = [_Label(label, accent)]
     inside += [
-        Paragraph(_line_markup(line, formulas, _BOX_PT), body) for line in lines
+        Paragraph(_line_markup(line, formulas, _BODY_PT), body) for line in lines
     ]
     table = Table([[inside]], colWidths=[_TEXT_WIDTH_PT], hAlign="LEFT")
     table.setStyle(
         TableStyle(
             [
-                ("LINEBEFORE", (0, 0), (0, -1), 1.5, colors.HexColor(accent)),
-                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("LINEBEFORE", (0, 0), (0, -1), 3, colors.HexColor(bar)),
+                ("LEFTPADDING", (0, 0), (-1, -1), 18),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 1),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]
         )
@@ -1179,7 +1344,7 @@ def _callout(
     """A box at the top of the record: what the pipeline knows about how far
     the text can be trusted, in the tone of how much that matters."""
     accent = _CALLOUT_TONES.get(box.tone, _CALLOUT_TONES["info"])
-    return _box(box.title, box.lines, accent, styles["callout_body"], formulas, styles)
+    return _box(box.title, box.lines, accent, accent, styles["callout_body"], formulas)
 
 
 def _remark(
@@ -1188,8 +1353,7 @@ def _remark(
     """A box under the line it belongs to, in the quietest tone. Anything
     louder and a page of ordinary reading becomes a page of warnings."""
     return _box(
-        remark.label, remark.lines, _REMARK_ACCENT, styles["remark_body"],
-        formulas, styles,
+        remark.label, remark.lines, _MUTED, _BAR, styles["remark_body"], formulas,
     )
 
 
@@ -1231,7 +1395,7 @@ _NAME_GAP_PT = 5.0
 def _figure_cell(caption: str, drawn: Image, styles: dict[str, ParagraphStyle]) -> list:
     cell: list = [drawn]
     if caption:
-        cell.append(Spacer(1, 3))
+        cell.append(Spacer(1, 4))
         cell.append(Paragraph(_markup(caption), styles["caption"]))
     return cell
 
@@ -1353,11 +1517,11 @@ def _graph(spec: str, width_pt: float = _GRAPH_WIDTH_PT) -> Image | None:
 def _hairline(
     width: str = "100%", space_before: float = 0, space_after: float = 0
 ) -> HRFlowable:
-    """The thin rule the target layout puts under a title and under each
-    top-level heading. Quiet enough to separate without being furniture."""
+    """The thin rule the reference puts under its title and under each section
+    heading. Quiet enough to separate without being furniture."""
     return HRFlowable(
         width=width,
-        thickness=0.5,
+        thickness=0.8,
         hAlign="CENTER",
         color=colors.HexColor(_HAIRLINE),
         spaceBefore=space_before,
@@ -1365,8 +1529,23 @@ def _hairline(
     )
 
 
+def _section_rule() -> HRFlowable:
+    """The broader, paler rule the reference sets between two sections."""
+    return HRFlowable(
+        width="100%",
+        thickness=1.5,
+        hAlign="CENTER",
+        color=colors.HexColor(_SECTION_RULE),
+        spaceBefore=8,
+        spaceAfter=4,
+    )
+
+
 def _flowables(
-    block: Block, formulas: _Formulas, styles: dict[str, ParagraphStyle]
+    block: Block,
+    formulas: _Formulas,
+    styles: dict[str, ParagraphStyle],
+    top_level: int = 1,
 ) -> list:
     """One parsed block as reportlab flowables, with no space around them —
     the space between blocks is the rhythm's, see _space_before."""
@@ -1379,11 +1558,11 @@ def _flowables(
         return [_table(block.rows, block.header, formulas, styles)]
 
     if block.kind == "heading":
-        level = max(1, min(block.level, 3))
-        style = styles[f"heading{level}"]
+        rank = _rank(block.level, top_level)
+        style = styles[f"heading{rank}"]
         out = [Paragraph(_line_markup(block.text, formulas, style.fontSize), style)]
-        if level == 1:
-            out.append(_hairline(space_before=2, space_after=7))
+        if rank == 1:
+            out.append(_hairline(space_before=3, space_after=8))
         return out
 
     if block.kind == "bullet":
@@ -1391,7 +1570,7 @@ def _flowables(
             Paragraph(
                 _line_markup(block.text, formulas, _BODY_PT),
                 styles["bullet"],
-                bulletText="•",
+                bulletText=block.marker or "•",
             )
         ]
 
@@ -1409,6 +1588,11 @@ def _flowables(
         return []
 
     return [Paragraph(_line_markup(block.text, formulas, _BODY_PT), styles["body"])]
+
+
+def _rank(level: int, top_level: int) -> int:
+    """A heading's step on the scale, counted from the record's top level."""
+    return max(1, min(level - top_level + 1, 3))
 
 
 def _skip_gaps(parsed: list[Block], position: int) -> int:
@@ -1452,6 +1636,7 @@ def _unit(
     index: int,
     formulas: _Formulas,
     styles: dict[str, ParagraphStyle],
+    top_level: int = 1,
 ) -> tuple[list[Block], int, list, str]:
     """The next thing set on the page: the blocks it is made of, where the one
     after it starts, its flowables, and the kind the rhythm knows it by.
@@ -1483,7 +1668,8 @@ def _unit(
         if paired is not None:
             return paired
 
-    return [block], index + 1, _flowables(block, formulas, styles), block.kind
+    flowables = _flowables(block, formulas, styles, top_level)
+    return [block], index + 1, flowables, block.kind
 
 
 def _space_before(previous: str | None, kind: str, paragraph_break: bool) -> float:
@@ -1510,9 +1696,9 @@ def _space_before(previous: str | None, kind: str, paragraph_break: bool) -> flo
 
 def _fit(text: str, width: float, size: float) -> str:
     """`text` cut to `width` points, with an ellipsis where it was cut."""
-    if pdfmetrics.stringWidth(text, "DejaVu", size) <= width:
+    if pdfmetrics.stringWidth(text, _TEXT_FONT, size) <= width:
         return text
-    while text and pdfmetrics.stringWidth(text + "…", "DejaVu", size) > width:
+    while text and pdfmetrics.stringWidth(text + "…", _TEXT_FONT, size) > width:
         text = text[:-1]
     return text.rstrip() + "…"
 
@@ -1529,17 +1715,17 @@ def _draw_furniture(page_canvas, number: int, total: int, running_title: str) ->
     if total < 2:
         return
     width, height = A4
-    left, right = _MARGIN_MM * mm, width - _MARGIN_MM * mm
+    left, right = _MARGIN_PT, width - _MARGIN_PT
     page_canvas.saveState()
-    page_canvas.setFont("DejaVu", _FURNITURE_PT)
-    page_canvas.setFillColor(colors.HexColor(_NOTE_GREY))
+    page_canvas.setFont(_TEXT_FONT, _FURNITURE_PT)
+    page_canvas.setFillColor(colors.HexColor(_MUTED))
     if number > 1 and running_title:
         baseline = height - 12 * mm
         page_canvas.drawString(
             left, baseline, _fit(running_title, right - left, _FURNITURE_PT)
         )
         page_canvas.setStrokeColor(colors.HexColor(_HAIRLINE))
-        page_canvas.setLineWidth(0.5)
+        page_canvas.setLineWidth(0.8)
         page_canvas.line(left, baseline - 2.2 * mm, right, baseline - 2.2 * mm)
     page_canvas.drawCentredString(width / 2, 10 * mm, f"{number} / {total}")
     page_canvas.restoreState()
@@ -1593,26 +1779,31 @@ def render(
         for block in blocks(markdown)
         if not (block.kind == "heading" and block.text.strip().casefold() == wanted)
     ]
+    levels = [block.level for block in parsed if block.kind == "heading"]
+    top_level = min(levels) if levels else 1
 
     with tempfile.TemporaryDirectory(prefix="conspectium-pdf-") as directory:
         formulas = _Formulas(directory)
-        story: list = [Paragraph(_markup(title), styles["title"]), _hairline()]
+        story: list = [
+            Paragraph(_markup(title), styles["title"]),
+            _hairline(space_after=0),
+        ]
         # What was written in the margin — whose lecture, which date — and
         # then the facts of the record. Under the title, where a reader looks
         # for them, not in the body, where they read as the author speaking.
         facts = [(byline, "byline"), (subtitle, "meta")]
         if any(line for line, _ in facts):
-            story.append(Spacer(1, 6))
+            story.append(Spacer(1, 7))
         for line, style in facts:
             if line:
                 story.append(Paragraph(_markup(line), styles[style]))
-        story.append(Spacer(1, 14))
+        story.append(Spacer(1, 16))
 
         for box in callouts:
             # Above the record, not below it: these say how far the text that
             # follows can be trusted, and that is worth knowing first.
             story.append(_callout(box, formulas, styles))
-            story.append(Spacer(1, 8))
+            story.append(Spacer(1, 10))
         if callouts:
             story.append(Spacer(1, 4))
 
@@ -1637,7 +1828,9 @@ def render(
                 index += 1
                 continue
 
-            members, index, flowables, kind = _unit(parsed, index, formulas, styles)
+            members, index, flowables, kind = _unit(
+                parsed, index, formulas, styles, top_level
+            )
             space = _space_before(previous, kind, paragraph_break)
             paragraph_break = False
 
@@ -1654,7 +1847,17 @@ def render(
                 # A remark stays with the line it explains: never the first
                 # thing on a page whose line was the last on the one before.
                 pending.remove(remark)
-                group += [Spacer(1, 3), _remark(remark, formulas, styles)]
+                group += [Spacer(1, 4), _remark(remark, formulas, styles)]
+
+            # A new top-level section after something else is set off by the
+            # broader rule the reference puts between two of its sections.
+            if (
+                kind == "heading"
+                and previous is not None
+                and not held
+                and _rank(members[0].level, top_level) == 1
+            ):
+                group = [_section_rule()] + group
 
             if held:
                 group = held + ([Spacer(1, space)] if space else []) + group
@@ -1685,10 +1888,10 @@ def render(
         SimpleDocTemplate(
             buffer,
             pagesize=A4,
-            leftMargin=_MARGIN_MM * mm,
-            rightMargin=_MARGIN_MM * mm,
-            topMargin=_TOP_MM * mm,
-            bottomMargin=_BOTTOM_MM * mm,
+            leftMargin=_MARGIN_PT - _FRAME_PADDING_PT,
+            rightMargin=_MARGIN_PT - _FRAME_PADDING_PT,
+            topMargin=_TOP_PT - _FRAME_PADDING_PT,
+            bottomMargin=_BOTTOM_PT - _FRAME_PADDING_PT,
             title=title,
         ).build(
             story,

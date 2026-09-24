@@ -91,7 +91,10 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 
 - [x] 36. The document's design and readability: the typographic scale and the
       rhythm it sets, the page's furniture, callouts and remarks as one system,
-      tables and figures that sit on the page rather than float through it
+      tables and figures that sit on the page rather than float through it.
+      Revisited the same day after record 42: the style of
+      `матан 24.09.2026.pdf` copied — Lato, Computer Modern, its column and
+      its greys
 - [ ] 37. Stage three: hard passages explained and implied context restored,
       over the trusted text, with `google_search` and sources that are
       required rather than decorative
@@ -129,10 +132,14 @@ given.** In scope: the scale of body, headings, tables and captions and the
 vertical rhythm between them; margins and the page's furniture (the title
 block, page numbers, what a continued record looks like on page four); the
 callouts and the anchored remarks as one visual system rather than two; how a
-figure, a table and a display formula sit in the column. Out of scope: any
-font beyond the DejaVu family already bundled, a colour system wider than the
-tones that exist, anything per-subject or per-user, and the styling of chat
-messages — those stay plain on purpose.
+figure, a table and a display formula sit in the column. Out of scope: a
+colour system wider than the tones that exist, anything per-subject or
+per-user, and the styling of chat messages — those stay plain on purpose.
+
+The fonts were in that list — "nothing beyond the DejaVu family already
+bundled" — until the author moved the reference on 2026-09-24: record 42 came
+back heavy, and the document is now a copy of `матан 24.09.2026.pdf`, Lato and
+Computer Modern included. Lato 2 lives in `app/assets/fonts/`.
 
 The order of 33-35 is the author's, made on three albums run through the
 deployed bot on 2026-09-23: the seam and the raw LaTeX were in the documents
