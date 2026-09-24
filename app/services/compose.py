@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from google.genai import types
 
 from app.core.config import settings
-from app.services import vision
+from app.services import pdf, vision
 from app.services.vision import CallStats
 
 logger = logging.getLogger(__name__)
@@ -60,6 +60,12 @@ _HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*$")
 _LIST_RE = re.compile(r"^([-*•]|\d+[.)])\s")
 _LETTER_RE = re.compile(r"[^\W\d_]", re.UNICODE)
 
+# How many formulas a section may have this stage mark as main. Emphasis on
+# everything is emphasis on nothing, and what a section's result is, is the
+# composer's reading of the page — interpretation, capped like a heading is.
+_MAX_MARKS_PER_SECTION = 2
+_SPACE_RE = re.compile(r"\s+")
+
 # Two attempts, one pause. Recognition takes three because a lost page costs
 # the whole album; here a lost call costs the markup of a record that is
 # delivered either way, so the second attempt is insurance against a 429 or a
@@ -87,6 +93,8 @@ class Composition:
     # reason drift is: it is the size of a liberty, and nobody has decided yet
     # what a large number here should mean.
     demoted: int = 0
+    # Main-formula marks past two in a section, taken back the same way.
+    unmarked: int = 0
     stats: list[CallStats] = field(default_factory=list)
 
 
@@ -177,6 +185,40 @@ def _demote_invented_headings(composed: str) -> tuple[str, int]:
             lines[index] = found.group(2)  # the words stay, the marker goes
             demoted += 1
     return "\n".join(lines), demoted
+
+
+def _bare(latex: str) -> str:
+    return _SPACE_RE.sub("", latex)
+
+
+def _cap_marks(source: str, composed: str) -> tuple[str, int]:
+    """Take the frame off every main-formula mark past two in a section, and
+    count them.
+
+    A frame the source already had is the author's: drawn on the page, read
+    by recognition as \\boxed{...}. It is never taken off and never counted —
+    only the marks this stage added are its liberty. What is removed is the
+    frame and nothing else, so the formula stays where it was and the numbers,
+    marks and length the guards compare cannot move.
+    """
+    authors = Counter(_bare(inner) for inner in pdf.boxed_contents(source))
+    lines = composed.split("\n")
+    kept = 0
+    removed = 0
+    for index, line in enumerate(lines):
+        if _HEADING_RE.match(line):
+            kept = 0
+            continue
+        for inner in pdf.boxed_contents(line):
+            if authors[_bare(inner)] > 0:
+                authors[_bare(inner)] -= 1
+                continue
+            if kept < _MAX_MARKS_PER_SECTION:
+                kept += 1
+                continue
+            lines[index] = lines[index].replace(f"\\boxed{{{inner}}}", inner, 1)
+            removed += 1
+    return "\n".join(lines), removed
 
 
 async def _one_call(markdown: str) -> tuple[str | None, CallStats, bool]:
@@ -271,19 +313,25 @@ async def compose(markdown: str) -> Composition:
 
     # Before the guards, so that what they checked is what gets stored.
     composed, demoted = _demote_invented_headings(composed)
+    composed, unmarked = _cap_marks(markdown, composed)
     refused = _refusal(markdown, composed)
     drift = _drift(markdown, composed)
     logger.info(
-        "compose: %s, %d -> %d chars, word drift %d, %d headings demoted, model %s",
+        "compose: %s, %d -> %d chars, word drift %d, %d headings demoted, "
+        "%d marks taken back, model %s",
         f"refused ({refused})" if refused else "accepted",
         len(markdown),
         len(composed),
         drift,
         demoted,
+        unmarked,
         settings.COMPOSE_MODEL,
     )
     if refused:
         return Composition(
-            markdown, refused=refused, drift=drift, demoted=demoted, stats=all_stats
+            markdown, refused=refused, drift=drift, demoted=demoted,
+            unmarked=unmarked, stats=all_stats,
         )
-    return Composition(composed, drift=drift, demoted=demoted, stats=all_stats)
+    return Composition(
+        composed, drift=drift, demoted=demoted, unmarked=unmarked, stats=all_stats
+    )

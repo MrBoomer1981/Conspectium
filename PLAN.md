@@ -94,7 +94,10 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
       tables and figures that sit on the page rather than float through it.
       Revisited the same day after record 42: the style of
       `матан 24.09.2026.pdf` copied — Lato, Computer Modern, its column and
-      its greys
+      its greys. And after record 43: main formulas framed, larger and
+      numbered — the author's frames read by recognition (`prompts-v6.md`),
+      a section's result marked by the composer (`prompts-compose-v3.md`),
+      two a section at most
 - [ ] 37. Stage three: hard passages explained and implied context restored,
       over the trusted text, with `google_search` and sources that are
       required rather than decorative

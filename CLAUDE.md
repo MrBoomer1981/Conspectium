@@ -465,6 +465,17 @@ receives, so none of it is left to reportlab's defaults:
   columns of text with no rules at all, and a header with nothing in it is
   not a header.
 - **Lists hang**, bullets and the author's own "1)" and "2." alike.
+- **A main formula is framed, larger (×1.2) and numbered "(1)", "(2)"** at
+  the column's edge, through the whole record. When every formula stood at
+  one size the one a section leads to was lost among the steps to it. Two
+  sources mark one, and they are kept apart on purpose: what the author
+  framed on the page is perception, and recognition writes it as `\boxed{…}`
+  (framed words as `[рамка: …]`); which formula is a section's result is
+  interpretation, and the composing stage marks it the same way, at most two
+  a section — `compose._cap_marks` takes the frame off the rest and never off
+  a frame the source already had. Older records' frames — `[в рамке: …]`, a
+  bracket closed lines later, an array ruled with `\hline` — are read as
+  frames too.
 - **From page two the record's title stands over the text, and a record of
   more than one page is numbered "2 / 5"** — not "с. 2", which inside a
   record means a photographed page.
@@ -584,6 +595,14 @@ removes is markup the stage itself added, so the numbers, marks and length
 the guards compare cannot move; it runs **before** `_refusal` so that what was
 checked is what is stored. The count goes to the log and to `note_processed`
 as `compose_demoted`. → "Headings the composer invented"
+
+**Main-formula marks are capped, like headings are repaired.** Rule 9 of
+`prompts-compose-v3.md` asks the stage to frame a section's main formula —
+a reading of the page, and emphasis on everything is emphasis on nothing — so
+`_cap_marks` keeps two of the stage's own frames a section and unwraps the
+rest, leaving the formula where it was. A frame already in the source came
+from recognition, which is to say from the author's pen, and is never touched
+or counted. The count goes to `note_processed` as `compose_unmarked`.
 
 **Word drift is measured, not refused on.** Rule 6 of the composing prompt
 asks for `### Определение` over a definition, so a word guard would refuse the
@@ -787,6 +806,8 @@ prompts-v4.md        the longer variant under test, behind PROMPT_FILE
 prompts-v5.md        extraction only — no rule about how a page should look
 prompts-compose-v1.md  stage two: markup over text already trusted
 prompts-compose-v2.md  the same job, said as instructions rather than bans
+prompts-compose-v3.md  v2, and the main formula of a section framed
+prompts-v6.md        v5, and the author's frames written as \boxed{...}
 ```
 
 The prompt files hold the prompts as plain text. `vision.py` doesn't copy
@@ -918,8 +939,8 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the two rules in photoguard this project has edited: a line height that could not be measured is not a small one, and what the measurement answers on pages whose pitch is known by construction |
-| `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, and which headings are taken back |
-| `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
+| `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, which headings are taken back, and the two main-formula marks a section it may keep while the author's frames are never touched |
+| `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the

@@ -496,6 +496,78 @@ def test_demotion_counts_only_what_it_took():
     assert repaired.startswith("# Дискретная математика")
 
 
+
+# ── main formulas: the author's frames, and at most two marks a section ─────
+
+
+def test_the_composer_keeps_two_marks_a_section_and_takes_back_the_rest():
+    # Emphasis on everything is emphasis on nothing.
+    source = "$a = 1$\n$b = 2$\n$c = 3$\n"
+    composed = (
+        "## Раздел\n\n$$\\boxed{a = 1}$$\n$$\\boxed{b = 2}$$\n$$\\boxed{c = 3}$$\n"
+    )
+
+    capped, removed = compose._cap_marks(source, composed)
+
+    assert removed == 1
+    assert capped.count("\\boxed{") == 2
+    assert "$$c = 3$$" in capped  # the formula stays; only its frame went
+
+
+def test_a_new_section_gets_its_own_two_marks():
+    source = "$a = 1$\n$b = 2$\n$c = 3$\n"
+    composed = (
+        "## Раз\n$$\\boxed{a = 1}$$\n$$\\boxed{b = 2}$$\n"
+        "## Два\n$$\\boxed{c = 3}$$\n"
+    )
+
+    capped, removed = compose._cap_marks(source, composed)
+
+    assert removed == 0
+    assert capped == composed
+
+
+def test_the_authors_frames_are_never_taken_back_and_never_counted():
+    # A frame recognition read off the page is the author's, not the
+    # composer's liberty — three of them in one section all stay, and the
+    # composer still has its own two.
+    source = (
+        "$\\boxed{a = 1}$\n$\\boxed{b = 2}$\n$\\boxed{c = 3}$\n"
+        "$d = 4$\n$e = 5$\n$f = 6$\n"
+    )
+    composed = (
+        "$$\\boxed{a = 1}$$\n$$\\boxed{b = 2}$$\n$$\\boxed{c=3}$$\n"
+        "$$\\boxed{d = 4}$$\n$$\\boxed{e = 5}$$\n$$\\boxed{f = 6}$$\n"
+    )
+
+    capped, removed = compose._cap_marks(source, composed)
+
+    assert removed == 1
+    assert "\\boxed{c=3}" in capped
+    assert "$$f = 6$$" in capped
+
+
+async def test_a_frame_changes_no_number_and_passes_the_guards(monkeypatch):
+    source = "Формула Эйлера\n$e^{i\\varphi} = \\cos\\varphi + i\\sin\\varphi$\n"
+    answer = (
+        "## Формула Эйлера\n\n"
+        "$$\\boxed{e^{i\\varphi} = \\cos\\varphi + i\\sin\\varphi}$$\n"
+    )
+
+    result = await _composing(monkeypatch, source, answer)
+
+    assert result.refused is None
+    assert result.unmarked == 0
+    assert "\\boxed{" in result.markdown
+
+
+def test_the_prompt_that_marks_main_formulas_ships():
+    import pathlib
+
+    text = pathlib.Path("prompts-compose-v3.md").read_text(encoding="utf-8")
+    assert "\\boxed" in text and "Не больше двух на раздел" in text
+    assert "\\boxed" in pathlib.Path("prompts-v6.md").read_text(encoding="utf-8")
+
 # ── the ceiling, and the attempt after the first ─────────────────────────────
 
 

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import functools
 import io
+import itertools
 import logging
 import math
 import os
@@ -37,7 +38,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib import patheffects  # noqa: E402
 from matplotlib.font_manager import FontProperties  # noqa: E402
 from reportlab.lib import colors  # noqa: E402
-from reportlab.lib.enums import TA_CENTER, TA_LEFT  # noqa: E402
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT  # noqa: E402
 from reportlab.lib.pagesizes import A4  # noqa: E402
 from reportlab.lib.styles import ParagraphStyle  # noqa: E402
 from reportlab.lib.units import mm  # noqa: E402
@@ -113,7 +114,20 @@ _SET_APART_GAP = 10.0
 _STACK_GAP = 3.0
 _ITEM_GAP = 3.0
 _BOX_GAP = 8.0
-_SET_APART = {"math", "table", "figure", "note", "rule"}
+_MAIN_GAP = 14.0
+_SET_APART = {"math", "main", "table", "figure", "note", "rule"}
+
+# ── Main formulas ────────────────────────────────────────────────────────────
+# When every formula is set at one size, the one a section leads to is lost
+# among the steps to it. A main formula is larger, framed the way the author
+# frames it in the notebook, and numbered at the column's edge, so that an
+# explanation or the summary can say "(3)" and be found.
+_MAIN_PT = _DISPLAY_PT * 1.2
+_FRAME_RULE_PT = 0.8
+_FRAME_PAD_X = 12.0
+_FRAME_PAD_Y = 6.0
+_NUMBER_PT = 11.0
+_NUMBER_COLUMN_PT = 36.0
 
 # ── The page ─────────────────────────────────────────────────────────────────
 # The reference's column: 66 pt either side of an A4 page, 463 pt of text.
@@ -193,6 +207,17 @@ _BARE_COMMAND_RE = re.compile(r"\\[A-Za-z]+(?:\{[^{}]*\})*")
 # The composing stage puts <br> inside a table cell to stack lines the author
 # wrote one under another. Printed, it was the tag itself, three times a cell.
 _BREAK_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+# What the author drew a frame round. Recognition writes a framed formula as
+# \boxed{...} and framed text as [рамка: ...]; records read before that rule
+# carry "[в рамке: ...]", a bracket opened on one line and closed lines later,
+# or an array with a ruled column spec and \hline — all of them are frames.
+_FRAME_NOTE_RE = re.compile(r"^(?:в\s+)?рамк\w*\s*:\s*(.*)$", re.IGNORECASE | re.DOTALL)
+_FRAME_OPEN_RE = re.compile(r"^\[\s*(?:в\s+)?рамк\w*\s*:?\s*(.*)$", re.IGNORECASE)
+_FRAMED_ARRAY_RE = re.compile(r"\\begin\{array\}\{[^{}]*\|[^{}]*\}")
+_BOXED = "\\boxed{"
+# A frame round more than a dozen lines is not a frame the parser should guess
+# the end of; the bracket stays text.
+_MAX_FRAME_LINES = 12
 
 # Past this a circle of vertices is unreadable, and the text is more likely to
 # be prose the model mislabelled than a graph. Same for a long vertex name.
@@ -232,17 +257,87 @@ class Remark:
 
 @dataclass
 class Block:
-    kind: str  # heading | bullet | text | math | note | gap | rule | table | graph
+    # heading | bullet | text | math | note | framed | gap | rule | table | graph
+    kind: str
     text: str = ""
     level: int = 0
     rows: list[list[str]] = field(default_factory=list)
     header: bool = False
     caption: str = ""
     marker: str = ""  # a list item's own number, "1)" — empty for a bullet
+    # A formula that matters more than the ones round it: the author framed
+    # it, or the composing stage marked it as the section's result.
+    main: bool = False
 
 
 def _latex(match: re.Match) -> str:
     return (match.group(1) or match.group(2)).strip()
+
+
+def boxed_contents(text: str) -> list[str]:
+    """What stands inside every \\boxed{...} in `text`, braces matched.
+
+    A regular expression cannot match nested braces, and a framed formula is
+    usually a fraction or a sum — braces inside braces. An unclosed \\boxed is
+    not a box and is skipped rather than guessed at.
+    """
+    found: list[str] = []
+    start = text.find(_BOXED)
+    while start != -1:
+        depth, position = 1, start + len(_BOXED)
+        while position < len(text) and depth:
+            depth += {"{": 1, "}": -1}.get(text[position], 0)
+            position += 1
+        if depth == 0:
+            found.append(text[start + len(_BOXED) : position - 1])
+        start = text.find(_BOXED, start + len(_BOXED))
+    return found
+
+
+def unbox(latex: str) -> tuple[str, bool]:
+    """`latex` with every \\boxed{...} replaced by what it frames, and whether
+    there was one. mathtext has no \\boxed; the frame is drawn by render()."""
+    contents = boxed_contents(latex)
+    for inner in contents:
+        latex = latex.replace(f"{_BOXED}{inner}}}", inner, 1)
+    return latex, bool(contents)
+
+
+def _math_block(latex: str) -> Block:
+    """A display formula, marked as main when the author framed it."""
+    clean, boxed = unbox(latex)
+    framed_array = bool(_FRAMED_ARRAY_RE.search(clean)) and "\\hline" in clean
+    return Block("math", clean, main=boxed or framed_array)
+
+
+def _frame_lines(lines: list[str], start: int) -> tuple[Block, int] | None:
+    """A frame the author drew round several lines, which recognition wrote as
+    a bracket opened on one line and closed on a later one:
+
+        [в рамке:
+        $(0, 1) = i$
+        $(0, -1) = -i$
+        ]
+
+    Read line by line it printed as "[в рамке:", the formulas, and a lone "]".
+    None when `start` does not open such a frame, or it is never closed.
+    """
+    opened = _FRAME_OPEN_RE.match(lines[start].strip())
+    if opened is None or lines[start].strip().endswith("]"):
+        return None
+    inner = [opened.group(1).strip()]
+    for end in range(start + 1, min(len(lines), start + 1 + _MAX_FRAME_LINES)):
+        line = lines[end].strip()
+        if not line:
+            return None
+        if line.endswith("]"):
+            inner.append(line[:-1].strip())
+            content = [part for part in inner if part]
+            if not content:
+                return None
+            return Block("framed", "\n".join(content)), end + 1
+        inner.append(line)
+    return None
 
 
 def _is_whole_formula(line: str) -> str | None:
@@ -396,7 +491,13 @@ def blocks(markdown: str) -> list[Block]:
         display = _display_lines(lines, index)
         if display is not None:
             formulas, index = display
-            out.extend(Block("math", formula) for formula in formulas)
+            out.extend(_math_block(formula) for formula in formulas)
+            continue
+
+        frame = _frame_lines(lines, index)
+        if frame is not None:
+            block, index = frame
+            out.append(block)
             continue
 
         table = _read_table(lines, index)
@@ -420,7 +521,7 @@ def blocks(markdown: str) -> list[Block]:
 
         formula = _is_whole_formula(line)
         if formula:
-            out.append(Block("math", formula))
+            out.append(_math_block(formula))
             index += 1
             continue
 
@@ -445,15 +546,15 @@ def blocks(markdown: str) -> list[Block]:
         if stripped.startswith("[") and stripped.endswith("]"):
             inner = stripped[1:-1].strip()
             drawing = _GRAPH_RE.match(inner)
-            out.append(
-                Block(
-                    "graph",
-                    drawing.group(2).strip(),
-                    caption=drawing.group(1).strip(),
+            framed = _FRAME_NOTE_RE.match(inner)
+            if drawing:
+                out.append(
+                    Block("graph", drawing.group(2).strip(), caption=drawing.group(1).strip())
                 )
-                if drawing
-                else Block("note", inner)
-            )
+            elif framed and framed.group(1).strip():
+                out.append(Block("framed", framed.group(1).strip()))
+            else:
+                out.append(Block("note", inner))
             index += 1
             continue
 
@@ -581,6 +682,9 @@ _UNSUPPORTED = (
     "limits", "nolimits", "displaystyle", "textstyle",
     "biggl", "biggr", "Biggl", "Biggr", "bigl", "bigr", "Bigl", "Bigr",
     "bigg", "Bigg", "big", "Big",
+    # A rule across an array: record 43 used one to draw the author's frame,
+    # and the whole formula went out as source. The frame is drawn by render.
+    "hline",
 )
 # Order in the alternation does not matter and sorting it would be decoration:
 # the lookahead makes a short match fail where a letter follows, so \bigl
@@ -700,6 +804,7 @@ def _environment(found: re.Match) -> str:
 
 def for_mathtext(latex: str) -> str:
     """LaTeX as close to it as matplotlib's mathtext will accept."""
+    latex, _ = unbox(latex)
     latex = _ENVIRONMENT_RE.sub(_environment, latex)
     latex = _LABELLED_ARROW_RE.sub(_labelled_arrow, latex)
     latex = _UNSUPPORTED_RE.sub("", latex)
@@ -1064,15 +1169,17 @@ class _Formulas:
             f'valign="-{depth:.2f}"/>'
         )
 
-    def display(self, latex: str, size_pt: float) -> Image | None:
+    def display(
+        self, latex: str, size_pt: float, max_width: float = _TEXT_WIDTH_PT
+    ) -> Image | None:
         try:
             data, width, height, _ = _formula_png(latex, size_pt)
         except Exception as exc:
             self._refused(latex, exc)
             return None
-        if width > _TEXT_WIDTH_PT:
-            height *= _TEXT_WIDTH_PT / width
-            width = _TEXT_WIDTH_PT
+        if width > max_width:
+            height *= max_width / width
+            width = max_width
         return Image(io.BytesIO(data), width=width, height=height)
 
 
@@ -1134,6 +1241,11 @@ def _styles() -> dict[str, ParagraphStyle]:
             "note", parent=muted, fontName="Lato-Italic", alignment=TA_CENTER,
         ),
         "math": ParagraphStyle("math", parent=base, alignment=TA_CENTER),
+        "framed": ParagraphStyle("framed", parent=base, alignment=TA_CENTER),
+        "number": ParagraphStyle(
+            "number", parent=base, fontSize=_NUMBER_PT, leading=_NUMBER_PT * 1.3,
+            textColor=_MUTED, alignment=TA_RIGHT,
+        ),
         "cell": ParagraphStyle(
             "cell", parent=base, fontSize=_TABLE_PT, leading=_TABLE_PT * 1.35,
             alignment=TA_CENTER,
@@ -1541,14 +1653,100 @@ def _section_rule() -> HRFlowable:
     )
 
 
+_FRAME_INNER_MAX_PT = _TEXT_WIDTH_PT - 2 * _NUMBER_COLUMN_PT - 2 * _FRAME_PAD_X
+
+
+def _numbered(content, width: float, number: int | None, styles) -> Table:
+    """`content` in a frame centred in the column, its number at the right edge.
+
+    The frame is a table of one cell — it is what draws a box — and the row
+    round it gives the number a column of its own, so the frame stays centred
+    whether it is numbered or not.
+    """
+    frame = Table([[content]], colWidths=[width + 2 * _FRAME_PAD_X], hAlign="CENTER")
+    frame.setStyle(
+        TableStyle(
+            [
+                ("BOX", (0, 0), (-1, -1), _FRAME_RULE_PT, colors.HexColor(_INK)),
+                ("LEFTPADDING", (0, 0), (-1, -1), _FRAME_PAD_X),
+                ("RIGHTPADDING", (0, 0), (-1, -1), _FRAME_PAD_X),
+                ("TOPPADDING", (0, 0), (-1, -1), _FRAME_PAD_Y),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), _FRAME_PAD_Y),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
+    )
+    label = Paragraph(f"({number})", styles["number"]) if number is not None else ""
+    middle = _TEXT_WIDTH_PT - 2 * _NUMBER_COLUMN_PT
+    row = Table(
+        [["", frame, label]],
+        colWidths=[_NUMBER_COLUMN_PT, middle, _NUMBER_COLUMN_PT],
+        hAlign="CENTER",
+    )
+    row.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (1, 0), "CENTER"),
+                ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    row.main_number = number  # what the tests and the reader both look for
+    return row
+
+
+def _main_formula(
+    block: Block, formulas: _Formulas, styles: dict[str, ParagraphStyle], number: int
+) -> list:
+    """A main formula: larger, framed, numbered."""
+    image = formulas.display(block.text, _MAIN_PT, _FRAME_INNER_MAX_PT)
+    if image is None:
+        source = Paragraph(_markup(f"${block.text}$"), styles["framed"])
+        return [_numbered(source, _FRAME_INNER_MAX_PT, number, styles)]
+    return [_numbered(image, image.drawWidth, number, styles)]
+
+
+def _framed(
+    block: Block,
+    formulas: _Formulas,
+    styles: dict[str, ParagraphStyle],
+    number: int | None,
+) -> list:
+    """What the author framed that is not one formula: a phrase, or several
+    lines. Numbered when it holds a formula, since that is what a frame round
+    formulas means in the notebook."""
+    markup = "<br/>".join(
+        _line_markup(line, formulas, _BODY_PT) for line in block.text.split("\n")
+    )
+    paragraph = Paragraph(markup, styles["framed"])
+    paragraph.wrap(_FRAME_INNER_MAX_PT, 10_000)
+    widths = paragraph.getActualLineWidths0() or [_FRAME_INNER_MAX_PT]
+    width = min(max(widths) + 2, _FRAME_INNER_MAX_PT)
+    return [_numbered(Paragraph(markup, styles["framed"]), width, number, styles)]
+
+
 def _flowables(
     block: Block,
     formulas: _Formulas,
     styles: dict[str, ParagraphStyle],
     top_level: int = 1,
+    numbers=None,
 ) -> list:
     """One parsed block as reportlab flowables, with no space around them —
     the space between blocks is the rhythm's, see _space_before."""
+    numbers = numbers if numbers is not None else itertools.count(1)
+    if block.kind == "math" and block.main:
+        return _main_formula(block, formulas, styles, next(numbers))
+
+    if block.kind == "framed":
+        holds_formula = "$" in block.text
+        return _framed(block, formulas, styles, next(numbers) if holds_formula else None)
     if block.kind == "rule":
         # The seam between two pages of an album. A short thin line says "the
         # next page starts here" without shouting it.
@@ -1637,6 +1835,7 @@ def _unit(
     formulas: _Formulas,
     styles: dict[str, ParagraphStyle],
     top_level: int = 1,
+    numbers=None,
 ) -> tuple[list[Block], int, list, str]:
     """The next thing set on the page: the blocks it is made of, where the one
     after it starts, its flowables, and the kind the rhythm knows it by.
@@ -1663,13 +1862,14 @@ def _unit(
         figures = [(member.caption, member.text) for member in run]
         return run, end, _figure_row(figures, styles), "figure"
 
-    if _is_name(block):
+    if _is_name(block) and not block.main:
         paired = _pair(parsed, index + 1, formulas, styles, name=block)
         if paired is not None:
             return paired
 
-    flowables = _flowables(block, formulas, styles, top_level)
-    return [block], index + 1, flowables, block.kind
+    flowables = _flowables(block, formulas, styles, top_level, numbers)
+    main = block.kind == "framed" or (block.kind == "math" and block.main)
+    return [block], index + 1, flowables, "main" if main else block.kind
 
 
 def _space_before(previous: str | None, kind: str, paragraph_break: bool) -> float:
@@ -1681,6 +1881,8 @@ def _space_before(previous: str | None, kind: str, paragraph_break: bool) -> flo
     one drops it rather than opening on a gap."""
     if previous is None or kind == "heading" or previous == "heading":
         return 0.0
+    if kind == "main" or previous == "main":
+        return _MAIN_GAP
     if kind == "math" and previous == "math":
         return _STACK_GAP
     if kind in _SET_APART or previous in _SET_APART:
@@ -1821,6 +2023,9 @@ def render(
         # a line with its remark, a whole table — the inner one reports its
         # height as effectively infinite and the heading stays behind anyway.
         held: list = []
+        # Main formulas are numbered in the order they stand, through the
+        # whole record.
+        numbers = itertools.count(1)
         index = 0
         while index < len(parsed):
             if parsed[index].kind == "gap":
@@ -1829,7 +2034,7 @@ def render(
                 continue
 
             members, index, flowables, kind = _unit(
-                parsed, index, formulas, styles, top_level
+                parsed, index, formulas, styles, top_level, numbers
             )
             space = _space_before(previous, kind, paragraph_break)
             paragraph_break = False

@@ -1699,3 +1699,112 @@ def test_a_record_in_the_new_style_renders_whole():
         remarks=[pdf.Remark("Лемма", "В рукописи, с. 1", ["«$x$» — двоится"])],
     )
     assert data.startswith(b"%PDF-")
+
+
+# ── main formulas: framed, larger, numbered ──────────────────────────────────
+
+
+def test_what_a_box_frames_is_found_with_its_braces_matched():
+    assert pdf.boxed_contents(r"\boxed{\frac{a}{b}} + \boxed{c}") == [r"\frac{a}{b}", "c"]
+    assert pdf.boxed_contents(r"\boxed{a") == []  # unclosed: not a box
+
+
+def test_a_box_is_taken_off_for_mathtext_and_remembered():
+    assert pdf.unbox(r"z = \boxed{|z|(\cos\varphi)}") == (r"z = |z|(\cos\varphi)", True)
+    assert pdf.unbox("x^2") == ("x^2", False)
+    assert "boxed" not in pdf.for_mathtext(r"\boxed{x^2}")
+
+
+def test_a_framed_formula_is_a_main_one():
+    # Recognition writes the author's frame as \boxed; the composer marks a
+    # section's result the same way.
+    block = pdf.blocks(r"$$\boxed{e^{i\varphi} = \cos\varphi + i\sin\varphi}$$")[0]
+    assert block == pdf.Block("math", r"e^{i\varphi} = \cos\varphi + i\sin\varphi", main=True)
+    assert pdf.blocks(r"$\boxed{i^2 = -1}$")[0].main is True
+
+
+def test_a_ruled_array_is_the_authors_frame_too():
+    # Record 43 drew the frame as an array with \hline, and went out as source.
+    latex = r"z = x \quad \begin{array}{|l|} \hline (0, 1) = i \\ (0, -1) = -i \\ \hline \end{array}"
+    block = pdf.blocks(f"$${latex}$$")[0]
+    assert block.main is True
+    assert r"\hline" not in pdf.for_mathtext(block.text)
+
+
+def test_the_formula_record_43_printed_as_source_now_draws():
+    import tempfile
+
+    latex = (
+        r"z = (z_1, z_2) = z_1 + i z_2 \text{ , где } i^2 = -1 \quad "
+        r"\begin{array}{|l|} \hline (0, 1) = i \\ (0, -1) = -i \\ \hline \end{array}"
+    )
+    with tempfile.TemporaryDirectory() as directory:
+        assert pdf._Formulas(directory).display(latex, 12.0) is not None
+
+
+def test_an_ordinary_formula_is_not_a_main_one():
+    assert pdf.blocks("$$a = b$$")[0].main is False
+
+
+def test_framed_text_is_its_own_block():
+    assert pdf.blocks("[рамка: Алгебраическая форма]")[0] == pdf.Block(
+        "framed", "Алгебраическая форма"
+    )
+    assert pdf.blocks("[в рамке: $(0, 1) = i$]")[0].kind == "framed"
+
+
+def test_a_frame_round_several_lines_is_one_block():
+    # Read line by line it printed "[в рамке:", the formulas, and a lone "]".
+    result = pdf.blocks("[в рамке:\n$(0, 1) = i$\n$(0, -1) = -i$\n]\nпосле")
+    assert [b.kind for b in result] == ["framed", "text"]
+    assert result[0].text == "$(0, 1) = i$\n$(0, -1) = -i$"
+
+
+def test_a_frame_never_closed_stays_text():
+    assert _kinds("[в рамке:\nстрока\n\nдальше")[0] == "text"
+
+
+def _numbers_in(story: list) -> list:
+    return [f.main_number for f in _flat(story) if hasattr(f, "main_number")]
+
+
+def test_main_formulas_are_numbered_in_order_through_the_record(monkeypatch):
+    story = _story(
+        monkeypatch,
+        "Т",
+        "## Раз\n$$\\boxed{a = 1}$$\nтекст\n## Два\n$$\\boxed{b = 2}$$\n$$c = 3$$",
+    )
+    assert _numbers_in(story) == [1, 2]
+
+
+def test_a_frame_round_a_formula_is_numbered_and_one_round_words_is_not(monkeypatch):
+    story = _story(
+        monkeypatch, "Т", "[рамка: Алгебраическая форма]\n[рамка: $(0, 1) = i$]"
+    )
+    assert _numbers_in(story) == [None, 1]
+
+
+def test_a_main_formula_is_set_apart_more_than_a_step():
+    assert pdf._space_before("math", "main", False) > pdf._space_before(
+        "math", "math", False
+    )
+
+
+def test_a_main_formula_is_drawn_larger_than_an_ordinary_one(monkeypatch):
+    sizes: list[float] = []
+    original = pdf._formula_png
+    monkeypatch.setattr(
+        pdf, "_formula_png", lambda latex, size: sizes.append(size) or original(latex, size)
+    )
+    pdf.render("Т", "$$a = 1$$\n\n$$\\boxed{b = 2}$$")
+    assert sizes[-1] > sizes[0]
+
+
+def test_a_record_with_frames_of_every_kind_renders():
+    markdown = (
+        "## Раздел\n$$\\boxed{\\frac{a + ib}{c + id}}$$\n"
+        "[рамка: Алгебраическая форма]\n"
+        "[в рамке:\n$(0, 1) = i$\n$(0, -1) = -i$\n]\n"
+        "$$z = x \\quad \\begin{array}{|l|} \\hline a \\\\ b \\\\ \\hline \\end{array}$$\n"
+    )
+    assert pdf.render("Т", markdown).startswith(b"%PDF-")
