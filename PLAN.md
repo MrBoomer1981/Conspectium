@@ -230,6 +230,13 @@ Read again at 19:25 UTC, after the evening's deploys. Three lines moved:
 `Recognition:` exists now (gap 1), the compose call has a ceiling of its own
 (task 27), and `ALLOW_UNPRICED_MODEL` is off (gap 4).
 
+**Moved on 2026-09-24, and it matters for the next arm.** Recognition reads
+with `prompts-v6.md` — v5 plus one rule, the author's frames written as
+`\boxed{...}` — composition with `prompts-compose-v3.md`, and stage three is
+on (`EXPLAIN_ENABLED=true`, `gemini-3.8-flash`). The open v4-against-v5
+question is now v4 against v6: the added rule is about frames, not about
+reading, but a record made after this date was not made with v5.
+
 ### The open question: v4 against v5
 
 Every v5 album so far scored above every v4 album on the mean of
