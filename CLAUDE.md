@@ -877,10 +877,13 @@ transactions.
 
 ## How to work in this project
 
-- **Describe the plan of changes first, wait for confirmation, then write
-  code.** No size threshold — a one-line, single-point change still gets
-  its plan stated and confirmed before any edit. "It's just one line" is
-  not a reason to skip straight to code.
+- **Write the plan of changes first, then the code.** No size threshold — a
+  one-line, single-point change still gets its plan stated before any edit.
+  "It's just one line" is not a reason to skip straight to code. If the plan
+  is satisfactory and leaves no open question, carry it out straight away;
+  stop and ask only when it holds a decision that is the user's to make — a
+  trade-off with no clear default, a change of scope, a conflict with
+  `PLAN.md` or this file — and give a recommendation with the question.
 - One task from `PLAN.md` — one session — one commit.
 - Nothing beyond the current task. Got an idea — put it in the `PLAN.md`
   backlog.

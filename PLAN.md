@@ -2430,3 +2430,11 @@ purpose — its own task.
 - End-to-end tests of the photo and document handlers — the unit
   suite was extended by decision, these were left out on purpose
   (see `CLAUDE.md` → Tests)
+- What stands under a record's title is whatever the model put in
+  `margin_notes`, and on real pages that is mostly not a margin note: the
+  notebook's own print ("DATE", "BRAUBERG®" — records 38, 40, 41), a
+  description of a doodle ("рисунок: солнце и смайлик в правом верхнем углу"),
+  single stray letters ("м", "u", "f") and once a whole `[схема: …]`. Rule 8
+  of `prompts-v5.md` asks for the lecturer, the date and the page number only.
+  A recognition question — the prompt, or a rule about what a margin line may
+  be — not the document's design, which prints the line it is given
