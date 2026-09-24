@@ -217,8 +217,8 @@ nor its shape but a model strong enough to hold ten rules at once.
 
 **What it costs is the finding to keep.** That single formatting call thought
 **15079 tokens to produce 593** — twenty-five to one, 41 seconds, and
-**$0.0298**, which is more than half again what all nine recognition calls of
-the same album cost together ($0.0450). The album went from about 4.7 to 7.5
+**$0.0298**, two thirds of what all nine recognition calls of the same album
+cost together ($0.0450). The album went from about 4.7 to 7.5
 cents and from 22 to 61 seconds, for markup over text that was already correct.
 Note also that 15672 output tokens would have been **truncated under the old
 8192 ceiling**: the raise made an hour earlier for recognition is the only

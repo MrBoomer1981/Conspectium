@@ -230,8 +230,8 @@ Each line is a conclusion; the entry named after it is the run it came from.
   prompt.** On `gemini-3.5-flash-lite` the composer returned its input; on
   `gemini-3.8-flash`, same prompt and same album, it produces the markup one
   stage does. It is the expensive call in the system — 15079 thinking tokens
-  for 593 of output, 41 s, $0.0298, more than all nine recognition calls of
-  that album together — and it **over-structures**, splitting a sentence into a
+  for 593 of output, 41 s, $0.0298, two thirds of what all nine recognition
+  calls of that album cost together — and it **over-structures**, splitting a sentence into a
   heading, which is interpretation and is checkable by eye only. → "The
   composer"
 
@@ -408,10 +408,11 @@ page (task 35). A retelling still reaches the corpus wearing "прочитано
 front of it works.
 
 Two findings downgrade `clean` → `needs_review`, both one way only. A critical
-`mathcheck` issue does it in the handlers — a warning is shown but leaves the
-verdict alone. A surviving **numeric divergence** does it in
-`transcribe_consensus`, where the divergences are computed and filtered, so
-the rule lives in one place rather than in both capture paths.
+`mathcheck` issue does it in both photo paths, `handlers.handle_photo` and
+`albums.process_page` — a warning is shown but leaves the verdict alone. A
+surviving **numeric divergence** does it in `transcribe_consensus`, where the
+divergences are computed and filtered, so the rule lives in one place rather
+than in both photo paths.
 
 The second one exists because `text_agreement` cannot see what it is for. Two
 runs reading a matrix cell as 6 and as 8 differ by one character, which barely
@@ -543,7 +544,8 @@ without noticing that nobody wanted any.
 
 **A saved record goes out as a PDF.** Recognised notes are dense with LaTeX,
 and `$\sum_{i=1}^{p} \rho(v_i) = 2q$` reads as noise until it is drawn, so all
-three capture paths finish by calling `corpus.send_record`. Rendering is
+three capture paths — a photo, an album and a `.docx` — finish by calling
+`corpus.send_record`. Rendering is
 CPU-bound and runs in a thread; if it fails for any reason the record is sent
 as plain text instead. A record is never lost over its presentation.
 
@@ -553,8 +555,9 @@ it rejects is printed as its own source. That is not hypothetical:
 `\sum\limits_{i=1}^p` went out on a deployed record as raw backslashes while
 the same sum written `\sum_{i=1}^p` drew perfectly two pages later.
 `pdf.for_mathtext` drops the commands that either do nothing to the layout or
-have a synonym mathtext knows. It cannot rescue `\begin{pmatrix}` — a matrix
-has to arrive as a markdown table to be drawn at all.
+have a synonym mathtext knows. A matrix is still asked for as a markdown
+table, which keeps its columns; one that arrives as an environment is drawn
+through `\substack` (below) and loses its alignment.
 
 The expensive half of that is `pdf._SYNONYMS`. LaTeX spells nine common things
 two ways and mathtext knows only one of each; the model writes the other. `\le`
@@ -813,7 +816,8 @@ separate call over the trusted transcription.
 
 **`.docx` bypasses the model entirely.** No limits are checked and no quota
 is spent, so a Word file is still processed with `AI_ENABLED=false` — it is
-already machine text. Only the empty-text gate (step 11) still applies.
+already machine text. Only the empty-text gate (`MIN_MARKDOWN_LEN`, step 10)
+still applies.
 
 ---
 
@@ -828,6 +832,7 @@ on its own left the other two quietly cutting the work short:
 | `API_SLOTS` | `services/vision.py` | `10` — Gemini answers a bigger burst with 429s. The semaphore is built from it and `albums.py` counts waves with it |
 | `VISION_CALL_TIMEOUT_S` | environment | 30 s, the range is 5–180. One call over **one page**; the three ceilings below are computed from it |
 | `COMPOSE_CALL_TIMEOUT_S` | environment | 240 s, the range is 30–600. One call over **the whole record**, so nothing derives from it and it derives from nothing |
+| compose's slot | `services/compose.py` | one of the `API_SLOTS`, taken from the same semaphore and held for the whole call — about 40 s measured, up to `COMPOSE_CALL_TIMEOUT_S` per attempt, where a page holds one for seconds. It runs after `process_batch`, so `_ALBUM_TIMEOUT_S` does not cover it |
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)` — every attempt timing out. 93 s at the default |
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s at the default |
 | `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × `VISION_RUNS` ÷ `API_SLOTS`⌉ — 362 s at the default. Normative: raising it is allowed, lowering it is not |
@@ -870,8 +875,9 @@ ceiling, not an expectation; it fires only when calls hang. What it really buys
 is exposure, because an album is processed in a background task that any deploy
 cancels.
 
-Both ceilings use `asyncio.wait`, never `wait_for`, and cancel the
-stragglers in a `finally`. Cancelling the group as a whole would discard the
+The two group ceilings, `_CONSENSUS_TIMEOUT_S` and `_ALBUM_TIMEOUT_S`, use
+`asyncio.wait`, never `wait_for`, and cancel the stragglers in a `finally`;
+`wait_for` is only for a single call. Cancelling the group as a whole would discard the
 `CallStats` of runs that already returned — and those calls were billed.
 An orphaned run also keeps making paid calls with the result thrown away.
 
@@ -920,21 +926,21 @@ Redis. The data is already in Postgres, and a debounce would then only decide
 **Don't rewrite or "improve" them.** Only import and call. Found a bug in
 one — report it, don't fix it silently.
 
-That rule has exactly one exception, made deliberately and after the failure
-was reproduced three times with byte-identical numbers. `photoguard` refused a
-good page — sharpness nineteen times its threshold, the page filling 97% of
-the frame — because `_line_height` returns `0.0` when it cannot build a line
-profile at all, and `0.0` was read as a measurement of a very small line. A
-page written *large* has few lines, so it is nearer that cliff than a page
-written small: the check was inverted exactly where it mattered. Since a
-record is all its pages or none, one such page cost a whole album, every time.
+That rule has two exceptions, both in `photoguard._line_height`. The first was
+made deliberately and after the failure was reproduced three times with
+byte-identical numbers. `photoguard` refused a good page — sharpness nineteen
+times its threshold, the page filling 97% of the frame — because
+`_line_height` returned `0.0` when it could not build a line profile at all,
+and `0.0` was read as a measurement of a very small line. A page written
+*large* has few lines, so it is nearer that cliff than a page written small:
+the check was inverted exactly where it mattered. At the time a record was all
+its pages or none, so one such page cost a whole album, every time.
 
 What changed is one rule and nothing else: `UNMEASURED_LINE_HEIGHT` names the
 sentinel, and the criterion is skipped when the height was not measured. The
 other three checks still decide, and they are what stood between us and the
-retelling of a page photographed from across the room. **The measurement
-itself is still wrong** — see PLAN.md → Known risks — and fixing it needs real
-pages to calibrate against, not reasoning.
+retelling of a page photographed from across the room. The measurement itself
+was replaced afterwards — that is the second exception, below.
 
 One is known and worked around rather than fixed. `consensus.extract_numbers`
 treats every numeric literal on the page as a value to compare, list markers
@@ -1000,7 +1006,8 @@ silently recalibrates them.
 
 ## Structure
 
-All 26 `PLAN.md` tasks are done — everything below is on disk.
+Everything below is on disk; what is done and what comes next is `PLAN.md` →
+Progress.
 
 ```
 app/
@@ -1225,7 +1232,7 @@ SQLite compiler to render `JSONB` as `JSON`. The second is a test-side
 adapter for the sqlite dialect only — `app/db/models.py` stays PostgreSQL.
 
 Deliberately **not** covered: `consensus` and `mathcheck`, which arrived with
-their own tests — and `photoguard` except for the one rule this project
+their own tests — and `photoguard` except for the two rules this project
 changed, and the photo and document pipelines end
 to end — those break on every reordering of a handler, and the pipeline is
 not settled yet.

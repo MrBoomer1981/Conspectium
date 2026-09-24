@@ -368,8 +368,8 @@ rules describe — a plausible two-word section the page never had. Nothing in
 code can see that one, and it stays a thing to check by eye.
 
 And it is expensive: 15079 thinking tokens for 593 of output, 41 seconds and
-$0.0298 on one album — more than all nine recognition calls of the same album
-together. `compose._one_call` builds its own config and sends no
+$0.0298 on one album — two thirds of what all nine recognition calls of the
+same album cost together. `compose._one_call` builds its own config and sends no
 `thinking_config`, so `VISION_THINKING_LEVEL` does not reach it. If a thinking
 cap is ever worth having, this is the call that wants one first: transformation
 over trusted text is the job in this system with the least to think about.
@@ -2211,7 +2211,7 @@ money, so none may be dropped.
    remove already-committed `ai_calls`.
 
 One gap is deliberate and has now been paid for three times, so it is
-written down rather than rediscovered: **both capture paths copy fields into
+written down rather than rediscovered: **both photo paths copy fields into
 `Note` and run the checks by hand**, and nothing proves they do. Dropping
 `margin_notes=` or `graphcheck.check(...)` from `handle_photo` leaves the
 whole suite green. `albums.process_page` is covered because it takes bytes
