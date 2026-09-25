@@ -16,6 +16,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from google.genai import types
 
 from app.core.config import GROUNDING_USD_PER_QUERY
 from app.services import explain, vision
@@ -406,3 +407,16 @@ def test_a_call_that_returned_pages_without_listing_its_query_ran_one():
 def test_a_call_that_did_not_search_pays_nothing_for_it():
     assert explain._search_queries(_grounded([], [])) == 0
     assert explain._search_queries(SimpleNamespace(candidates=[])) == 0
+
+
+async def test_a_search_thinks_low_and_the_writing_call_at_the_models_default(monkeypatch):
+    seen: list[dict] = []
+    await _run(monkeypatch, _written(_answer()), seen=seen)
+    writing = [kw for kw in seen if not kw["config"].tools]
+    searching = [kw for kw in seen if kw["config"].tools]
+    assert writing and searching
+    assert all(kw["config"].thinking_config is None for kw in writing)
+    assert all(
+        kw["config"].thinking_config.thinking_level == types.ThinkingLevel.LOW
+        for kw in searching
+    )

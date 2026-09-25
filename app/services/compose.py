@@ -240,6 +240,9 @@ async def _one_call(markdown: str) -> tuple[str | None, CallStats, bool]:
                     config=types.GenerateContentConfig(
                         temperature=1.0,
                         max_output_tokens=vision.MAX_OUTPUT_TOKENS,
+                        thinking_config=vision.thinking_config(
+                            settings.COMPOSE_THINKING_LEVEL
+                        ),
                     ),
                 ),
                 timeout=settings.COMPOSE_CALL_TIMEOUT_S,

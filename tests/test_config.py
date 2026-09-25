@@ -497,3 +497,23 @@ def test_the_refusal_and_the_warning_cover_the_same_settings():
         with pytest.raises(ValidationError) as caught:
             _settings(**{name: "gemini-9.9-imaginary"})
         assert name in str(caught.value)
+
+
+# ── how long the composing call and a source search may think ────────────────
+
+
+def test_composing_and_searching_think_low_by_default():
+    # Measured on record 45 (FINDINGS → "What a record costs"): the same
+    # document and the same grounding, at about half the price and a third of
+    # the time. Recognition keeps the model's default — nothing measured it.
+    s = _settings()
+    assert s.COMPOSE_THINKING_LEVEL == "low"
+    assert s.SOURCE_THINKING_LEVEL == "low"
+    assert s.VISION_THINKING_LEVEL == "unset"
+
+
+def test_an_unknown_thinking_level_for_either_stage_stops_the_process():
+    for name in ("COMPOSE_THINKING_LEVEL", "SOURCE_THINKING_LEVEL"):
+        assert getattr(_settings(**{name: "unset"}), name) == "unset"
+        with pytest.raises(ValidationError, match=name):
+            _settings(**{name: "maximum"})

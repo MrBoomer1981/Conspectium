@@ -140,8 +140,12 @@ and the group is tested later. These come before 40 and 41.
       model priced at the Batch/Flex rate (half of Standard, so the cap let
       twice its figure through), the search fee per call at the Gemini 2.5
       price instead of per query at Gemini 3's — and the dated doubling of
-      2027-01-01 written down. Second half: the levers, measured, and the
-      author's choice among them
+      2027-01-01 written down. Second half, in part: composition and the
+      source searches think `low`, measured on record 45 — same document and
+      grounding, about half the price, a third of the time. What is left is
+      recognition's own thinking, the largest line of a record and the one
+      that changes how a page is read: an arm on one album sent twice, the
+      author's to start
 
 ### Why the design comes before the explaining stage
 

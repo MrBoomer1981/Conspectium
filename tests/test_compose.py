@@ -10,6 +10,8 @@ reported rather than refused on.
 
 from types import SimpleNamespace
 
+from google.genai import types
+
 import pytest
 from google.genai import errors as genai_errors
 
@@ -671,3 +673,22 @@ def test_the_compose_prompt_ships_and_is_loaded():
 def test_a_compose_prompt_that_is_not_there_stops_the_process():
     with pytest.raises(FileNotFoundError):
         vision.load_prompt("prompts-compose-v99.md")
+
+
+async def test_the_composing_call_thinks_at_its_own_level(monkeypatch):
+    sent: list[dict] = []
+
+    async def capture(**kwargs):
+        sent.append(kwargs)
+        return SimpleNamespace(text="# Теорема", usage_metadata=None)
+
+    monkeypatch.setattr(compose.settings, "COMPOSE_ENABLED", True)
+    monkeypatch.setattr(compose.settings, "COMPOSE_THINKING_LEVEL", "low")
+    monkeypatch.setattr(vision, "_client", _fake_client(capture))
+    await compose.compose(SOURCE)
+    assert sent[0]["config"].thinking_config.thinking_level == types.ThinkingLevel.LOW
+
+    sent.clear()
+    monkeypatch.setattr(compose.settings, "COMPOSE_THINKING_LEVEL", "unset")
+    await compose.compose(SOURCE)
+    assert sent[0]["config"].thinking_config is None  # the model's own default

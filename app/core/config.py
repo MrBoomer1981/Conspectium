@@ -98,6 +98,13 @@ class Settings(BaseSettings):
     # gemini-3.8-flash: three pages compose in about 43 s, four pages ran past
     # 90 s and the album's markup was thrown away (ai_calls id 361).
     COMPOSE_CALL_TIMEOUT_S: int = 240
+    # How long the composing call may think. Measured on record 45's text on
+    # 2026-09-25: "low" composed it with the same ten headings and two frames
+    # as the model's own default, differing in two lines — a bullet where the
+    # default wrote "$\cdot$" — at $0.015 against $0.033 and in 9 s against
+    # 24. Thinking was 85% of what this call produced. "unset" sends nothing,
+    # the model's own default; the values are VISION_THINKING_LEVEL's.
+    COMPOSE_THINKING_LEVEL: str = "low"
     # Stage three: hard places explained, with the sources Google Search gave
     # for them, and the record summed up — the bot's own words, printed as the
     # bot's. Off by default for the reason stage two is: turning on a stage
@@ -108,6 +115,14 @@ class Settings(BaseSettings):
     # One call over the whole record, searching as it goes: sized like the
     # composing stage's ceiling, and for the same reasons.
     EXPLAIN_CALL_TIMEOUT_S: int = 240
+    # How long a search for an explanation's source may think. The call only
+    # has to find a page and quote a sentence of it, and at the model's
+    # default it thought nine tokens for every one it wrote. Measured on
+    # record 45's five explanations on 2026-09-25: "low" found a source for
+    # all five, as the default did, with 8 searches against 14, for $0.115
+    # against $0.268, in 4-7 s against 16-32. The writing call keeps the
+    # default: finding what is hard on a page is the part that needs it.
+    SOURCE_THINKING_LEVEL: str = "low"
     # Which prompt file vision.py loads at import. A variant can be tried on
     # the deployed bot by changing this one variable, and rolled back the same
     # way, without a code change in between.
@@ -190,13 +205,17 @@ class Settings(BaseSettings):
             )
         return v
 
-    @field_validator("VISION_THINKING_LEVEL")
+    @field_validator(
+        "VISION_THINKING_LEVEL", "COMPOSE_THINKING_LEVEL", "SOURCE_THINKING_LEVEL"
+    )
     @classmethod
-    def _known_thinking_level(cls, v: str) -> str:
+    def _known_thinking_level(cls, v: str, info) -> str:
+        # "minimal" is a level the SDK knows and gemini-3.8-flash refuses with
+        # a 400; which levels a model takes is the model's to say, not this.
         allowed = {"unset", "minimal", "low", "medium", "high"}
         if v not in allowed:
             raise ValueError(
-                f"VISION_THINKING_LEVEL must be one of {sorted(allowed)}"
+                f"{info.field_name} must be one of {sorted(allowed)}"
             )
         return v
 

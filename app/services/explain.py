@@ -289,6 +289,9 @@ async def _search(item: dict) -> tuple[list[Source], CallStats]:
                         temperature=1.0,
                         max_output_tokens=vision.MAX_OUTPUT_TOKENS,
                         tools=[types.Tool(google_search=types.GoogleSearch())],
+                        thinking_config=vision.thinking_config(
+                            settings.SOURCE_THINKING_LEVEL
+                        ),
                     ),
                 ),
                 timeout=_SOURCE_TIMEOUT_S,

@@ -1020,10 +1020,12 @@ COMPOSE_ENABLED=false
 COMPOSE_MODEL=gemini-3.5-flash-lite
 COMPOSE_PROMPT_FILE=prompts-compose-v1.md
 COMPOSE_CALL_TIMEOUT_S=240
+COMPOSE_THINKING_LEVEL=low
 EXPLAIN_ENABLED=false
 EXPLAIN_MODEL=gemini-3.5-flash-lite
 EXPLAIN_PROMPT_FILE=prompts-explain-v1.md
 EXPLAIN_CALL_TIMEOUT_S=240
+SOURCE_THINKING_LEVEL=low
 PROMPT_FILE=prompts-v3.md
 IMAGE_MAX_SIDE=1500
 IMAGE_QUALITY=85
@@ -1083,6 +1085,17 @@ level is still untouched and is now visible in `ai_calls.tokens_thought`;
 leave it `unset` until that column has a few albums in it, because turning it
 down changes how the model reads, and it would be done for a budget reason.
 It does not reach `compose`, which builds its own config.
+
+**The composing call and the source searches think `low`, and recognition at
+the model's default.** `COMPOSE_THINKING_LEVEL` and `SOURCE_THINKING_LEVEL`
+take the same values and are refused at startup the same way. Both were
+measured on record 45 before being set: the composition came back with the
+same headings and frames at half the price, the searches grounded every
+explanation with fewer queries at under half the price, and both in a third of
+the time. Recognition is the one left at the default, because turning it down
+changes how a page is read, and that is an arm to run on one album, not a
+setting to try. "minimal" is a level the SDK knows and `gemini-3.8-flash`
+refuses with a 400. → "What a record costs"
 
 **`seed` is deliberately not a setting, and `temperature` stays at 1.0.**
 Three runs made identical would send `text_agreement` up without touching

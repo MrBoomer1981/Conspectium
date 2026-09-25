@@ -685,6 +685,26 @@ search call's (2913 of 3200): the call that only has to find a page and quote
 one sentence from it thinks nine tokens for every one it writes. Thinking is
 billed as output.
 
+**Thinking `low`, measured on record 45 the same day.** Its five
+explanations were searched for twice each, at the model's default and at
+`low`:
+
+| | default | low |
+|---|---|---|
+| explanations grounded | 5 of 5 | 5 of 5 |
+| search queries run | 14 | 8 |
+| cost, fee included | $0.268 | $0.115 |
+| one search | 16–32 s | 4–7 s |
+
+The sources were of a kind: mathnet.ru, msu.ru, kpfu.ru, berkeley.edu at
+`low`; hse.ru, mathnet.ru, msu.ru, tusur.ru at the default. `minimal` is
+refused by `gemini-3.8-flash` with a 400. The composing call, given record
+45's text with the composer's own markup taken off, came back at `low` with
+the same ten headings and two frames as at the default — two lines differed,
+a bullet where the default wrote `$\cdot$` — for $0.015 against $0.033, in
+9 s against 24. One record each: an observation, but the price and the time
+are the structure of the call, not noise.
+
 **Ten probe calls are not in `ai_calls`.** The script that ran the first
 thinking-level probe on record 45's explanations called a function the
 deployed code did not have yet, after the calls had returned; the rows were

@@ -438,6 +438,13 @@ _THINKING_LEVEL = {
 MAX_OUTPUT_TOKENS = 32768
 
 
+def thinking_config(level: str) -> types.ThinkingConfig | None:
+    """A thinking-level setting as the SDK takes it; None for "unset", which
+    sends nothing and leaves the model its own default."""
+    thinking = _THINKING_LEVEL.get(level)
+    return types.ThinkingConfig(thinking_level=thinking) if thinking else None
+
+
 def _generation_config() -> types.GenerateContentConfig:
     """How the model is asked, as opposed to what it is asked.
 
@@ -451,15 +458,12 @@ def _generation_config() -> types.GenerateContentConfig:
     without touching accuracy, and agreement between independent runs is the
     only uncertainty signal that has ever worked here.
     """
-    thinking = _THINKING_LEVEL.get(settings.VISION_THINKING_LEVEL)
     return types.GenerateContentConfig(
         response_mime_type="application/json",
         temperature=1.0,
         max_output_tokens=MAX_OUTPUT_TOKENS,
         media_resolution=_MEDIA_RESOLUTION.get(settings.VISION_MEDIA_RESOLUTION),
-        thinking_config=(
-            types.ThinkingConfig(thinking_level=thinking) if thinking else None
-        ),
+        thinking_config=thinking_config(settings.VISION_THINKING_LEVEL),
     )
 
 

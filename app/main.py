@@ -156,20 +156,22 @@ async def lifespan(app: FastAPI):
     # Both default to "unset", meaning the field is not sent. The deploy has
     # to say which, or a record cannot be attributed to the call that made it.
     logger.info(
-        "Compose: %s, %s, %s, %d words",
+        "Compose: %s, %s, %s, %d words, thinking %s",
         "on" if settings.COMPOSE_ENABLED else "off",
         settings.COMPOSE_MODEL,
         settings.COMPOSE_PROMPT_FILE,
         compose.COMPOSE_PROMPT_WORDS,
+        settings.COMPOSE_THINKING_LEVEL,
     )
     # Stage three writes into the group's document, so the deploy says out
     # loud whether it is on, on which model, and with which prompt.
     logger.info(
-        "Explain: %s, %s, %s, %d words",
+        "Explain: %s, %s, %s, %d words, sources thinking %s",
         "on" if settings.EXPLAIN_ENABLED else "off",
         settings.EXPLAIN_MODEL,
         settings.EXPLAIN_PROMPT_FILE,
         explain.EXPLAIN_PROMPT_WORDS,
+        settings.SOURCE_THINKING_LEVEL,
     )
     logger.info(
         "Model call: media_resolution=%s, thinking_level=%s",
