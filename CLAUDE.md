@@ -627,7 +627,7 @@ this", it does search. So one call writes the explanations and the summary
 as strict JSON, over the composed text numbered by `pdf.numbered_for_reading`
 the way the page will be numbered ("(3)" in an answer is "(3)" on the page),
 and each explanation then gets a call of its own with Google Search on
-(`prompts-explain-source-v1.md`), in parallel. → "What the model did with a
+(`prompts-explain-source-v2.md`), in parallel. → "What the model did with a
 search tool"
 
 **Two guards, both in code, hold what it may add.**
@@ -641,6 +641,22 @@ search tool"
 - The summary restates the record and may not state a number the record does
   not carry; one that does is dropped (`summary_refused`). A new number in the
   one box that claims to say what the lecture said is the model inventing.
+
+**Sources are ranked, never filtered.** A search returns what it returns — a
+university's course beside a shop's page — and an explanation shows three.
+`explain._TIERS` decides which three and in what order: scientific sites
+(universities, academies, scientific publishers, arXiv) first, then
+encyclopedias, then study sites, then everything else; within a tier the
+search's own order stands. Nothing is dropped for being everyday — the
+author's decision, 2026-09-25, after the first live run put `my-shop.ru` and
+`githubusercontent.com` beside `nsu.ru` and `ox.ac.uk`. The site is read from
+the grounding chunk — `web.domain`, else `web.title`, which on the Gemini API
+*is* the domain — and never from the link, which is Google's redirect. The
+lists are kept by hand and kept short: a site nobody listed is "everything
+else", so a missing name costs a place and never a source.
+`prompts-explain-source-v2.md` asks the search the same way round, so that
+there is more to rank; v1 is what the records before that date were sourced
+with.
 
 **Stored apart, printed as the bot's.** `notes.explanations` (JSONB, with the
 sources) and `notes.summary` (text), never mixed into `markdown`. The PDF sets
@@ -856,6 +872,7 @@ prompts-compose-v2.md  the same job, said as instructions rather than bans
 prompts-compose-v3.md  v2, and the main formula of a section framed
 prompts-explain-v1.md  stage three: explanations and a summary, as JSON
 prompts-explain-source-v1.md  stage three: the search for one explanation's source
+prompts-explain-source-v2.md  the same search, asked for science first
 prompts-v6.md        v5, and the author's frames written as \boxed{...}
 ```
 
@@ -995,7 +1012,7 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the two rules in photoguard this project has edited: a line height that could not be measured is not a small one, and what the measurement answers on pages whose pitch is known by construction |
-| `test_explain.py` | stage three: off by default, only text ever sent, a writing call in strict JSON with no search and a search call per explanation, the record sent numbered, sources read from each search's grounding and an explanation whose search found nothing dropped, the summary's numbers guard, never more than eight, LaTeX with single backslashes surviving the JSON, the grounding fee in the bill, and a failed search costing only its own explanation |
+| `test_explain.py` | stage three: off by default, only text ever sent, a writing call in strict JSON with no search and a search call per explanation, the record sent numbered, sources read from each search's grounding and an explanation whose search found nothing dropped, the sources ranked science first with an everyday one kept behind them, the summary's numbers guard, never more than eight, LaTeX with single backslashes surviving the JSON, the grounding fee in the bill, and a failed search costing only its own explanation |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, which headings are taken back, and the two main-formula marks a section it may keep while the author's frames are never touched |
 | `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
 

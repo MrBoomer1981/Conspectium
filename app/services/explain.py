@@ -53,7 +53,7 @@ EXPLAIN_PROMPT = vision.load_prompt(settings.EXPLAIN_PROMPT_FILE)
 EXPLAIN_PROMPT_WORDS = len(EXPLAIN_PROMPT.split())
 # The question each explanation is searched with. Short on purpose: a short,
 # direct request to find something is what makes the model actually search.
-SOURCE_PROMPT = vision.load_prompt("prompts-explain-source-v1.md")
+SOURCE_PROMPT = vision.load_prompt("prompts-explain-source-v2.md")
 
 # The prompt asks for one or two a section and eight at most; this is where
 # "at most" is kept.
@@ -87,6 +87,44 @@ _BAD_ESCAPE_RE = re.compile(r'(?<!\\)\\(?![\\"/bfnrtu])')
 class Source:
     title: str
     uri: str
+
+
+# Where a source stands, most trusted first. A search returns what it returns
+# — a university's course beside a shop's page — and an explanation shows
+# three links, so which three, and in what order, is decided here: science,
+# then encyclopedias, then study sites, then everything else. Nothing is
+# dropped for being everyday; it only stands behind what is better (the
+# author's decision, 2026-09-25). The lists are kept by hand and short on
+# purpose: a site nobody listed is "everything else" and keeps the search's
+# own order, so a name missing here costs a place, never a source.
+_TIERS = (
+    re.compile(
+        r"(^|\.)edu(\.[a-z]{2})?$|\.ac\.[a-z]{2}$|univ(ersit|-|\.)"
+        r"|(^|\.)(msu|spbu|nsu|nsc|mipt|hse|bmstu|mephi|itmo|urfu|kpfu|tsu|spbstu|"
+        r"misis|rudn|tpu|susu|nstu|unn|ras|mccme|mathnet|math-net|elibrary|"
+        r"cyberleninka|arxiv|springer|sciencedirect|jstor|ams|ieee|nature|nih|"
+        r"wiley|tandfonline|cambridge|oup)\."
+    ),
+    re.compile(
+        r"(^|\.)(wikipedia\.org|bigenc\.ru|britannica\.com|encyclopediaofmath\.org|"
+        r"scholarpedia\.org|mathworld\.wolfram\.com|academic\.ru|ncatlab\.org|"
+        r"planetmath\.org)$"
+    ),
+    re.compile(
+        r"(^|\.)(stepik\.org|coursera\.org|edx\.org|khanacademy\.org|libretexts\.org|"
+        r"intuit\.ru|foxford\.ru|problems\.ru|libelli\.ru|mathprofi\.ru|"
+        r"studfile\.net|studme\.org|studopedia\.ru)$"
+    ),
+)
+
+
+def _tier(site: str) -> int:
+    """0 for a scientific site, 1 an encyclopedia, 2 a study site, 3 the rest."""
+    site = site.strip().lower().removeprefix("www.")
+    for tier, pattern in enumerate(_TIERS):
+        if pattern.search(site):
+            return tier
+    return len(_TIERS)
 
 
 @dataclass
@@ -145,21 +183,27 @@ def parse(text: str) -> tuple[list[dict], str | None] | None:
 
 
 def _sources(response: object) -> list[Source]:
-    """The pages a search call returned, from its grounding metadata. Empty
-    when the call did not search. Never raises."""
+    """The pages a search call returned, from its grounding metadata, the
+    most trusted first — see _TIERS. Empty when the call did not search.
+    Never raises."""
     try:
         meta = response.candidates[0].grounding_metadata
     except Exception:
         return []
-    found: list[Source] = []
+    found: list[tuple[int, Source]] = []
     for chunk in (getattr(meta, "grounding_chunks", None) or []) if meta else []:
         web = getattr(chunk, "web", None)
         uri = getattr(web, "uri", None) if web else None
-        if not uri or any(uri == kept.uri for kept in found):
+        if not uri or any(uri == kept.uri for _, kept in found):
             continue
         title = getattr(web, "title", None) or getattr(web, "domain", None) or uri
-        found.append(Source(title=title, uri=uri))
-    return found[:_MAX_SOURCES]
+        # The link is Google's redirect and says nothing about where it
+        # leads; the site is named by the chunk itself, and on the Gemini API
+        # its title is that name.
+        site = getattr(web, "domain", None) or title
+        found.append((_tier(str(site)), Source(title=title, uri=uri)))
+    # sorted() is stable: within a tier the search's own order stands.
+    return [source for _, source in sorted(found, key=lambda pair: pair[0])][:_MAX_SOURCES]
 
 
 def _stats(

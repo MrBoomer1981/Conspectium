@@ -144,8 +144,9 @@ async def test_an_explanation_keeps_the_sources_its_search_returned(monkeypatch)
     assert len(result.explanations) == 1
     item = result.explanations[0]
     assert item.anchor == "(1)" and item.title == "Формула Эйлера"
-    assert [s.uri for s in item.sources] == ["https://ru.wikipedia.org/x", "https://math.msu.ru/y"]
-    assert [s.title for s in item.sources] == ["ru.wikipedia.org", "math.msu.ru"]
+    # Ranked, not in the search's order: the university before the encyclopedia.
+    assert [s.uri for s in item.sources] == ["https://math.msu.ru/y", "https://ru.wikipedia.org/x"]
+    assert [s.title for s in item.sources] == ["math.msu.ru", "ru.wikipedia.org"]
 
 
 async def test_an_explanation_whose_search_found_nothing_is_not_printed(monkeypatch):
@@ -300,3 +301,68 @@ def test_both_prompts_ship_and_are_loaded():
     assert explain.EXPLAIN_PROMPT_WORDS > 50
     assert "JSON" in explain.EXPLAIN_PROMPT
     assert "поиском" in explain.SOURCE_PROMPT
+
+
+# ── sources: science first, then encyclopedias, study sites, the rest ───────
+
+
+@pytest.mark.parametrize(
+    ("site", "tier"),
+    [
+        ("msu.ru", 0), ("www.msu.ru", 0), ("math.nsu.ru", 0), ("stanford.edu", 0),
+        ("ox.ac.uk", 0), ("arxiv.org", 0), ("mccme.ru", 0),
+        ("kazan-university.ru", 0), ("univ-lyon1.fr", 0),
+        ("wikipedia.org", 1), ("ru.wikipedia.org", 1), ("academic.ru", 1), ("bigenc.ru", 1),
+        ("studfile.net", 2), ("libelli.ru", 2), ("stepik.org", 2),
+        # Seen beside university pages in the first live run, and a name that
+        # only looks like a university's.
+        ("my-shop.ru", 3), ("githubusercontent.com", 3), ("narod.ru", 3),
+        ("codechick.io", 3), ("universetoday.com", 3),
+    ],
+)
+def test_a_source_is_ranked_by_its_site(site, tier):
+    assert explain._tier(site) == tier
+
+
+async def test_the_three_shown_are_the_most_trusted(monkeypatch):
+    # A shop first in the search does not make it the first link, and it is
+    # not dropped for being everyday: it is pushed out only because three
+    # better ones came back.
+    found = _found(
+        "https://my-shop.ru/a", "https://studfile.net/b",
+        "https://ru.wikipedia.org/c", "https://nsu.ru/d",
+    )
+    result = await _run(monkeypatch, _written(_answer()), found)
+    assert [s.uri for s in result.explanations[0].sources] == [
+        "https://nsu.ru/d", "https://ru.wikipedia.org/c", "https://studfile.net/b",
+    ]
+
+
+async def test_within_a_tier_the_search_keeps_its_order(monkeypatch):
+    found = _found(
+        "https://my-shop.ru/a", "https://nsu.ru/b", "https://codechick.io/c", "https://msu.ru/d",
+    )
+    result = await _run(monkeypatch, _written(_answer()), found)
+    assert [s.uri for s in result.explanations[0].sources] == [
+        "https://nsu.ru/b", "https://msu.ru/d", "https://my-shop.ru/a",
+    ]
+
+
+async def test_everyday_sources_alone_still_carry_an_explanation(monkeypatch):
+    result = await _run(monkeypatch, _written(_answer()), _found("https://my-shop.ru/a"))
+    assert [s.uri for s in result.explanations[0].sources] == ["https://my-shop.ru/a"]
+
+
+def test_the_site_is_read_from_the_chunk_not_from_the_link():
+    # The link is Google's redirect; on the Gemini API the chunk's title
+    # names the site, and a domain, where one is given, outranks it.
+    chunk = lambda uri, title, domain=None: SimpleNamespace(
+        web=SimpleNamespace(uri=uri, title=title, domain=domain)
+    )
+    response = SimpleNamespace(candidates=[SimpleNamespace(grounding_metadata=SimpleNamespace(
+        grounding_chunks=[
+            chunk("https://vertexaisearch.cloud.google.com/1", "my-shop.ru"),
+            chunk("https://vertexaisearch.cloud.google.com/2", "Комплексные числа", "msu.ru"),
+        ]
+    ))])
+    assert [s.title for s in explain._sources(response)] == ["Комплексные числа", "my-shop.ru"]
