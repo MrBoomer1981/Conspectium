@@ -160,7 +160,17 @@ and the group is tested later. These come before 40 and 41.
       record 46 sent again at `low` (record 47): a third cheaper to read, and
       worse to look at — environments written bare across lines printed as
       source. Recognition stays at the model's default; a `low` search that
-      did not look is asked again at the default
+      did not look is asked again at the default. Priced stage by stage the
+      same day: recognition is 84% of a record's bill, its thinking 40%, and
+      the list of numbers the prompt asks for a third of its answer. The
+      author then checked 47 against 46 on the photographs: `low` reads every
+      number alike and the marks worse, five places to one — rejected on
+      reading, not only on layout. `medium` on the same album (record 48)
+      thought almost as long as the default, cost 7% less and read worse
+      still — closed; recognition stays at the default. Next, on the same
+      album: `prompts-v7.md` (no list of numbers, no doubtful spots).
+      Flex — half price for 1–15 minutes a call — and fewer runs are the
+      author's to decide after
 
 ### Why the design comes before the explaining stage
 
@@ -2525,6 +2535,10 @@ under the three-character floor an explanation's anchor already had.
   across runs is a second algorithm, `consensus` is a module we only call,
   and `graphcheck` already settles the matrix case better than a vote,
   because the graph beside it decides rather than the count
+- Leaving the tail of the previous lecture out of a record. The first page
+  of an album often opens with the end of the lecture before — record 46
+  began with an associativity check from the week before "Практика" — and
+  every reading carries it in: nothing tells where a lecture begins
 - Detecting a page photographed rotated. Nothing corrects one today:
   `images.compress` honours EXIF and a physically turned page carries none.
   Suspected of costing time on the model, never reproduced

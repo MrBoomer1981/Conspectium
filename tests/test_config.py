@@ -245,6 +245,18 @@ def test_the_prompts_that_ship_are_different_files():
     assert len(set(loaded.values())) == 3
 
 
+def test_v7_asks_for_neither_a_list_of_numbers_nor_the_doubtful_spots():
+    # The list of numbers was about a third of every answer and fed nothing
+    # but numeric_agreement; the doubtful spots are not printed since task 46.
+    # Output tokens are billed at the output rate, three runs a page.
+    v7 = vision.load_prompt("prompts-v7.md")
+    assert "numeric_tokens" not in v7
+    assert "uncertain" not in v7
+    # What stays is every rule about reading, word for word.
+    v6 = vision.load_prompt("prompts-v6.md")
+    assert v7.split("ОТВЕТ")[0] == v6.split("ОТВЕТ")[0]
+
+
 def test_the_extraction_prompt_stays_the_shortest_one():
     # prompts-v5 exists to carry nothing but reading: every rule about how the
     # page should look was taken out of it. If it stops being the shortest,

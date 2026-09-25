@@ -749,6 +749,70 @@ lines later. Joined into formulas, with the `tabular` drawn as a table of text
 and the Russian words inside a formula set as words, it prints none; records
 45 and 46 printed none before and none after.
 
+**Stage by stage (record 46, 2026-09-25).** Five pages; recognition at the
+model's default, composition and the source searches at `low`; the Standard
+tier's prices.
+
+| stage | calls | tokens in / out / thinking | cost |
+|---|---|---|---|
+| recognition | 15 | 24 660 / 20 767 / 23 693 | $0.185 |
+| composition | 1 | 4 133 / 3 629 / 0 | $0.017 |
+| explanations, writing | 1 | 4 133 / 943 / 1 970 | $0.014 |
+| explanations, searches | 6 | 1 079 / 1 313 / 0 | $0.006 |
+| search queries | 7 | | $0.098 |
+
+$0.222 in tokens, $0.320 with the queries: $0.044 and $0.064 a page.
+Recognition is 84% of the tokens' bill — its thinking 40%, its visible answer
+35%, its input 8%. Over the 178 recognition calls on `gemini-3.8-flash` that
+recorded their thinking, the average call is 1 631 tokens in, 939 out and
+2 148 thinking: 63% of a call's price is thinking, billed at the output rate.
+
+The queries are counted and, at this volume, not billed: the first 5,000 a
+month are free, and the bot runs a few hundred. `DAILY_COST_LIMIT_USD` counts
+them on purpose, so the counted price of a record stands 45% over the bill
+until the volume reaches the free allowance.
+
+**What the answer is made of.** Counted with the API's own tokenizer on
+record 46: the markdown is 3 630 tokens, 3 897 as the JSON string it travels
+in; the doubtful spots 251; the recognition prompt 580. A run's answer came to
+about 6 900 tokens, and about 2 200 of them — by difference — were the list of
+numbers the prompt asks for, numbers the markdown already carries: a third of
+the answer, three runs a page, read by nothing but `numeric_agreement`.
+
+**Failures are not where the money goes.** 31 of 399 calls on
+`gemini-3.8-flash` failed — timeouts, unparseable answers, five 400s from
+probing "minimal" — and their tokens cost $0.111 of $4.25.
+
+**Flex, read on 2026-09-25.** `service_tier: "flex"` bills every token at
+half the Standard price on the same model, `gemini-3.8-flash` included, for a
+target latency of 1–15 minutes a call and best-effort capacity: 503 or 429 when
+it runs short, with no fallback to Standard. The page does not say whether
+grounding runs under it. Every ceiling here is sized for Standard, and the
+choice — a record in minutes or a record at half the price — is the author's.
+
+**Record 47 against 46, checked on the photographs.** The same five pages read
+at `low` (47) and at the default (46). About 575 numbers, every one read alike.
+Ten places differed in words and marks, and the author checked them against
+the photographs. The default was right in five: `low` put a strike-through
+over two notes and a frame round "III" that are not there, called an
+illegible word crossed out, wrote "=" where a line ended in "≡", and lowered a
+capital X. `low` was right in one ("≡" between 16¹¹¹¹ and 5¹¹¹¹, where 46 wrote
+"="); three were ties and one answer was unclear. `low` is rejected on reading,
+not only on layout; `medium` is the next arm on the same album. Both readings
+carried the tail of the previous lecture into the record, and both misread
+the heading "Полная теория Ферма".
+
+**Record 48 against 46: `medium`, the same album again.** Recognition thought
+19 836 tokens against 23 693 at the default and 7 026 at `low` — `medium`
+thinks almost as long as the default — and cost $0.172 against $0.185, 7% less.
+Where the answer is known it read worse than the default: a lowered capital
+X, as `low` did; "[зачёркнуто]" put before a "≡" where nothing is crossed out;
+and the two notes the author did not cross out left out altogether. Three
+things 46 and 47 had read alike it read otherwise — "4b" as "ab", "по модулю
+7" without its 7, "9)" as "1)". It kept the "≡" at a line's end, the
+"[неразборчиво]" and an unframed "III". Closed: recognition stays at the
+model's default, and a lower level buys back 7% at best for reading worse.
+
 ## Remarks about the reading
 
 **What the documents carried (production, 2026-09-25, 47 records).** 36

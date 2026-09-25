@@ -142,9 +142,14 @@ async def lifespan(app: FastAPI):
         "Recognition: %s, %d runs", settings.VISION_MODEL, settings.VISION_RUNS
     )
     # Which prompt produced a record is only answerable from the logs, and
-    # only if the deploy says which file it read and how long it was.
+    # only if the deploy says which file it read and how long it was — and
+    # where numeric_agreement took its numbers from, since that follows the
+    # prompt and the two sources do not measure the same thing.
     logger.info(
-        "Prompt: %s, %d words", settings.PROMPT_FILE, vision.PROMPT_WORDS
+        "Prompt: %s, %d words, numbers %s",
+        settings.PROMPT_FILE,
+        vision.PROMPT_WORDS,
+        "listed by the model" if vision.PROMPT_LISTS_NUMBERS else "read from the text",
     )
     logger.info(
         "Images: %d px long side, quality %d",

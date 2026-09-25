@@ -210,7 +210,11 @@ diverge, flag it. It is the only uncertainty signal that has proved reliable.
 a page is *laid out* rather than how it was *read*; it cannot be compared
 across prompts that change the page's shape, nor between a one-stage and a
 two-stage run. `vision.numeric_agreement` compares the runs' `numeric_tokens`
-instead — a number has no layout. Both are columns on `notes`, each the
+instead — a number has no layout. Under a prompt that does not ask for that
+list — v7 — it compares the numbers of each run's markdown
+(`vision.run_numbers`, found the way `numbers_vouch` finds them): a different
+instrument, and a value measured one way is never set against one measured
+the other. Both are columns on `notes`, each the
 album's *worst* page; `.docx` records keep `NULL` in both. Read them across
 the arms of one experiment, never against a threshold: a page of matrices is
 hundreds of numbers from a handful of digits, a repetitive sequence has many
@@ -1032,6 +1036,7 @@ prompts-explain-v1.md  stage three: explanations and a summary, as JSON
 prompts-explain-source-v1.md  stage three: the search for one explanation's source
 prompts-explain-source-v2.md  the same search, asked for science first
 prompts-v6.md        v5, and the author's frames written as \boxed{...}
+prompts-v7.md        v6 without the list of numbers and the doubtful spots
 ```
 
 The prompt files hold the prompts as plain text. `vision.py` doesn't copy
@@ -1142,8 +1147,13 @@ same headings and frames at half the price, the searches grounded every
 explanation with fewer queries at under half the price, and both in a third of
 the time. Recognition is the one left at the default, because turning it down
 changes how a page is read, and that is an arm to run on one album, not a
-setting to try — and the one arm run so far (record 47 against 46) wrote
-formula environments bare across lines, which printed as source. A search at
+setting to try — and the one arm run so far, the same album read at `low`
+(record 47) and at the default (46), read every one of its ~575 numbers alike
+and the marks on the page worse: of the places the author checked against the
+photographs, the default was right in five and `low` in one, and `low` saw a
+strike-through and a frame that are not there. `medium` (record 48) thought
+almost as long as the default, saved 7% and read worse still.
+A search at
 `low` that answered without running a search is made once more at the
 model's default (`explain._search`): three of six did so on record 47, and
 their explanations would have been dropped for having no source. "minimal" is
@@ -1166,7 +1176,8 @@ that isn't in the repo kills the process at startup, deliberately.
 **The startup log is the instrument's label, and what it leaves out is
 unmeasurable.** Its first line is `Recognition: <model>, N runs` — the run
 count because a page scored on two runs agrees more easily than one scored on
-three — then the prompt file and its word count, image compression, the
+three — then the prompt file, its word count and where `numeric_agreement`
+takes its numbers, image compression, the
 compose stage, the two call knobs and the four timeouts. What is still
 missing is the other direction: a **record** does not say which prompt made
 it, so pooling albums across days rests on remembering — `PLAN.md` → "Where
@@ -1184,11 +1195,11 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_parse_response.py` | the model's reply: garbage, the ```json fence, missing fields, wrong types, and LaTeX written with one backslash |
 | `test_limits.py` | `check_limits` / `consume` — the money-critical path |
 | `test_reliability.py` | retry classification, one owner per album batch, spend surviving a rollback |
-| `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, what an unparseable answer says and earns, the chains mathcheck is not shown — a congruence, and a line it would raise on — and the text each finding is anchored on |
+| `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, what an unparseable answer says and earns, the chains mathcheck is not shown — a congruence, and a line it would raise on — and the text each finding is anchored on, and where `numeric_agreement` takes its numbers under each prompt |
 | `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, the three reasons a page is dropped and the two that only mark it, `process_batch` survivor logic, an album's tag from whichever page carries it, the frames an album is refused for before it is read, and a finding's page and anchor surviving assembly |
 | `test_docx.py` | heading styles to markdown, title derivation |
 | `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
-| `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, stage three off by default with its model priced and its timeout bounded, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |
+| `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, stage three off by default with its model priced and its timeout bounded, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite, and that v7 asks for neither a list of numbers nor the doubtful spots while keeping every rule about reading |
 | `test_handlers.py` | `_split_message`, the catch-all reply, and in a group: an untagged album left alone, a tagged record owned by the chat and filed at once, a file that is not `.docx` unanswered, the welcome and the admin hint, and the three membership events; an album with a refused frame asked for again unread; nothing about how a page was read sent after a record, and a finding stored with its anchor |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user, what a group chat lets through before a session is opened, a group registered once and moved to a supergroup's new id, and a row two album pages race to insert |
 | `test_graphcheck.py` | the matrix against the graph: what it must catch, which graph each finding names, and — the longer half — every shape it must stay quiet about |

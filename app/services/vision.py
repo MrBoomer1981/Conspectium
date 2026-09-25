@@ -45,6 +45,12 @@ def load_prompt(name: str) -> str:
 # CLAUDE.md before making one longer, and measure what it costs.
 TRANSCRIBE_PROMPT = load_prompt(settings.PROMPT_FILE)
 PROMPT_WORDS = len(TRANSCRIBE_PROMPT.split())
+# Whether the prompt asks the model to list every number on the page. v3–v6
+# do; v7 does not, because the list was about a third of every answer — output
+# tokens billed at the output rate — and nothing but numeric_agreement read it.
+# Decided by the prompt rather than by the answer, so one album can never be
+# measured half one way and half the other.
+PROMPT_LISTS_NUMBERS = '"numeric_tokens"' in TRANSCRIBE_PROMPT
 
 # One client per process, not one per call.
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -764,8 +770,24 @@ def meaningful_uncertain(uncertain: list[Uncertain]) -> list[Uncertain]:
     ]
 
 
+def run_numbers(transcription: Transcription) -> list[str]:
+    """The numbers one run read, for numeric_agreement: the list the model
+    wrote where the prompt asks for one, and otherwise the numbers in its
+    markdown — found the way numbers_vouch finds them. The two are different
+    instruments: the text carries list markers, subscripts and exponents the
+    model's list left out, so an agreement measured one way is not comparable
+    with one measured the other."""
+    if PROMPT_LISTS_NUMBERS:
+        return transcription.numeric_tokens
+    # By value, in the form consensus prints one: "2,5" and "2.5" are one
+    # number read two ways of writing it, not two readings.
+    return [
+        f"{value:.10g}" for _, value in consensus.extract_numbers(transcription.markdown)
+    ]
+
+
 def numeric_agreement(runs: list[list[str]]) -> float:
-    """Mean pairwise similarity of the runs' numeric_tokens sequences.
+    """Mean pairwise similarity of the runs' number sequences (`run_numbers`).
 
     text_agreement compares the markdown, so it moves when a prompt changes
     how the page is laid out rather than how it was read — the confound that
@@ -965,7 +987,7 @@ async def transcribe_consensus(
     result = TranscriptionResult(
         best=best,
         text_agreement=text_agreement,
-        numeric_agreement=numeric_agreement([t.numeric_tokens for t in ok_runs]),
+        numeric_agreement=numeric_agreement([run_numbers(t) for t in ok_runs]),
         numeric_divergences=numeric_divergences,
         verdict=verdict,
     )

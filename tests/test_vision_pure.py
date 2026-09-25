@@ -1302,3 +1302,42 @@ def test_a_line_the_chain_check_cannot_read_costs_that_line_not_the_page():
     assert [i.message for i in vision.arithmetic_issues(markdown)] == [
         "строка 3: звенья цепочки не сходятся"
     ]
+
+
+# ── run_numbers: where numeric_agreement takes its numbers from ─────────────
+# v3–v6 ask the model to list every number; v7 does not, and the numbers are
+# then read from the run's own text. Which one is decided by the prompt.
+
+
+def _run(markdown: str, listed: list[str]) -> vision.Transcription:
+    return vision.Transcription(
+        title="т",
+        subject=None,
+        markdown=markdown,
+        margin_notes=[],
+        uncertain=[],
+        numeric_tokens=listed,
+        unreadable_count=0,
+    )
+
+
+def test_a_prompt_that_lists_numbers_is_measured_on_its_list(monkeypatch):
+    monkeypatch.setattr(vision, "PROMPT_LISTS_NUMBERS", True)
+    assert vision.run_numbers(_run("$x = 2,5$ и 7", ["2,5", "7"])) == ["2,5", "7"]
+
+
+def test_a_prompt_that_does_not_is_measured_on_the_text(monkeypatch):
+    monkeypatch.setattr(vision, "PROMPT_LISTS_NUMBERS", False)
+    assert vision.run_numbers(_run("$x = 2,5$ и 7", [])) == ["2.5", "7"]
+
+
+def test_the_same_number_written_two_ways_is_one_reading(monkeypatch):
+    monkeypatch.setattr(vision, "PROMPT_LISTS_NUMBERS", False)
+    comma, point = _run("$2,5$", []), _run("$2.5$", [])
+    assert vision.numeric_agreement(
+        [vision.run_numbers(comma), vision.run_numbers(point)]
+    ) == 1.0
+
+
+def test_the_prompt_in_use_decides_where_the_numbers_come_from():
+    assert vision.PROMPT_LISTS_NUMBERS == ('"numeric_tokens"' in vision.TRANSCRIBE_PROMPT)
