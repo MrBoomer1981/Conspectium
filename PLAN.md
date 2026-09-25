@@ -140,6 +140,13 @@ and the group is tested later. These come before 40 and 41.
       opened on one line and closed on another, `tabular` for two columns of
       working, Russian words inside one formula — all four on record 47, which
       printed 103 lines as source and prints none
+- [x] 46. Remarks only for errors in the work, at their place. The author's
+      decision on 2026-09-25: nothing about how a page was read — no reading
+      that could have been another, no "в рукописи", no boxes "прочитано без
+      сверки" and "числа прочитаны по-разному", no "нужна проверка" — in the
+      document or in the chat after it; what mathcheck and graphcheck find is
+      set under the text it is about, which each finding now carries. Records
+      19, 45, 46 and 47 re-rendered: 27 pages became 23
 - [ ] 44. What a record costs, and what can be cut without cutting the
       document. First half done: the accounting was wrong both ways — the
       model priced at the Batch/Flex rate (half of Standard, so the cap let
@@ -198,7 +205,7 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-39, 42-43, 45
+Done: 1-39, 42-43, 45-46
 Current task: none
 Next task: 44
 Blockers: none
@@ -729,7 +736,7 @@ question comes up while working on a task, the answer is here.
  9. result is None                                    ← texts.ERROR_GENERIC, exit
  10. markdown shorter than MIN_MARKDOWN_LEN            ← texts.NO_TEXT_FOUND, exit
 10a. verdict == "rejected", or one run only           ← kept, marked unverified
-12. check calculations (mathcheck.check, graphcheck.check)
+12. check calculations (vision.findings: mathcheck and graphcheck, each finding with the text it is about)
 12a. limits again (pages=0), then stage two (compose.compose)  ← refused: the text from step 7
 13. save the Note
 14. debit the quota (limits.consume, pages=1)
@@ -766,17 +773,14 @@ was *read*, and step 12a is presentation.
 event means "processing finished successfully end to end," so it can't be
 written before the record and the quota have been saved.
 
-What's sent at step 16:
-
-1. `title` and `markdown` — the main body of the record
-2. if `verdict == "needs_review"` — `texts.NEEDS_REVIEW`
-3. if `mathcheck` found anything — `report.render()`
-4. if `numeric_divergences` is non-empty — `texts.DIVERGENCES_HEADER`
-   and the list of discrepancies, one per line
-5. if `uncertain` is non-empty — `texts.UNCERTAIN_HEADER` and the list of
-   uncertain spots, one per line: `"{text}" — {why}`
-
-Items 2–5 go in **one separate message** after the main text.
+What's sent at step 16: the record as a PDF, and nothing after it about the
+record — what the checks found stands in the document under the text it is
+about, and how the page was read is not the reader's (task 46, the author's
+decision on 2026-09-25; until then a second message listed the needs-review
+flag, the arithmetic report, the numbers the runs read differently and the
+uncertain spots). An album that went out without some of its pages says which,
+in `texts.album_partial`. The question which subject the record belongs to
+follows in a private chat.
 
 ### When saving appears
 
@@ -829,11 +833,7 @@ Live in `app/bot/texts.py`, in Russian.
 | `START` | the `/start` command |
 | `PROCESSING` | step 6: frame accepted, recognition starting |
 | `NO_TEXT_FOUND` | markdown shorter than `MIN_MARKDOWN_LEN` |
-| `UNVERIFIED_HEADER` | the page is in the record and nothing confirmed its reading |
 | `ALBUM_INCOMPLETE` | an album where not one page was read |
-| `NEEDS_REVIEW` | `verdict == "needs_review"` |
-| `DIVERGENCES_HEADER` | header for the list of numeric discrepancies |
-| `UNCERTAIN_HEADER` | header for the list of uncertain spots |
 | `LIMIT_PAGES` | daily page limit exhausted |
 | `LIMIT_COST` | daily cost cap exceeded |
 | `AI_DISABLED` | `AI_ENABLED=false` on an AI-dependent path |
@@ -2476,15 +2476,13 @@ is the one that already works for numbers: compare the three runs' edge
 lists and mark the record `needs_review` when they disagree. Deferred on
 purpose — its own task.
 
-**A remark whose anchor is a single character lands on the first line that
-contains it.** `corpus._remarks` anchors a remark on the text the model read,
-and `render` sets it under the first block containing that text. An anchor of
-"f" found `\frac` in a formula line above the word it was about (record 36),
-and "2" stands in half the lines of a page on graphs (record 39). Task 36
-stopped a graph's edge list from catching one, which is as far as the layout
-can go without guessing. The fix is upstream — `uncertain` carrying the line
-it was read on, or a shortest anchor below which a remark goes to the end —
-and it is its own task.
+**Closed by task 46: a remark whose anchor was a single character landed on
+the first line that contained it** — "f" found `\frac` above the word it was
+about (record 36), "2" stands in half the lines of a page on graphs (record
+39). Those were reading remarks, anchored on the text the model read, and the
+document no longer prints them. A finding of a check is anchored on the whole
+formula or line it was found on, or on a graph's whole spec, and is found
+under the three-character floor an explanation's anchor already had.
 
 ---
 

@@ -25,7 +25,6 @@ from app.services import (
     compose,
     docx,
     explain,
-    graphcheck,
     images,
     limits,
     mathcheck,
@@ -247,11 +246,9 @@ async def handle_photo(
     # status alone. From here result.verdict is the pipeline's final verdict.
     # graphcheck is the same kind of check on a different subject: a matrix
     # against the graph drawn beside it. Its findings join the same list, so
-    # they reach the same downgrade, the same event and the same callout.
-    report = mathcheck.Report(
-        issues=vision.arithmetic_issues(result.best.markdown)
-        + graphcheck.check(result.best.markdown)
-    )
+    # they reach the same downgrade and the same event, and each is kept with
+    # the text it is about — the document sets it under that text.
+    report = mathcheck.Report(issues=vision.findings(result.best.markdown))
     has_critical = any(i.severity == "critical" for i in report.issues)
     if has_critical and result.verdict == "clean":
         result.verdict = "needs_review"
@@ -352,42 +349,14 @@ async def handle_photo(
     )
 
     # Step 16: the record itself goes out as a PDF — recognised notes are full
-    # of LaTeX, and a formula reads as noise until it is drawn. The flags
-    # follow as a message, as before.
+    # of LaTeX, and a formula reads as noise until it is drawn. Nothing
+    # follows it: what the checks found stands in the document beside the
+    # line it is about, and how the page was read — the numbers the runs read
+    # differently, the spots that read two ways, a page no second reading
+    # confirmed — is not the group's business. The author's decision,
+    # 2026-09-25; in a group chat that message was noise for everyone.
     await session.flush()  # note.id, for the file name and the caption
     await corpus.send_record(message, note)
-
-    # Items 2–5 of the final reply go in one message after the main text: the
-    # needs-review flag, what mathcheck found, the numeric divergences between
-    # runs, then the spots the model flagged as ambiguous.
-    flags: list[str] = []
-    if report.issues:
-        flags.append(report.render())
-    if result.numeric_divergences:
-        lines = [texts.DIVERGENCES_HEADER]
-        lines += [
-            texts.divergence_line(d.context, d.variants)
-            for d in result.numeric_divergences
-        ]
-        flags.append("\n".join(lines))
-    if result.best.uncertain:
-        lines = [texts.UNCERTAIN_HEADER]
-        lines += [texts.uncertain_line(u.text, u.why) for u in result.best.uncertain]
-        flags.append("\n".join(lines))
-    if unverified:
-        flags.append(
-            "\n".join(
-                [texts.UNVERIFIED_HEADER]
-                + [texts.unverified_line(u["page"], u["reason"]) for u in unverified]
-            )
-        )
-
-    # The generic line only when there is nothing specific to say: above a list
-    # of what actually diverged it repeats that list's own heading.
-    if result.verdict == "needs_review" and not flags:
-        flags.insert(0, texts.NEEDS_REVIEW)
-    if flags:
-        await message.answer("\n\n".join(flags))
 
     # Step 17: which subject does this belong to. Last, so the question is
     # what the user is looking at when they reply.
@@ -686,46 +655,13 @@ async def _process_album(
     await session.flush()  # note.id, for the file name and the caption
     await corpus.send_record(message, note)
 
-    flags: list[str] = []
-    math_blocks = [
-        texts.page_prefix(p.page, p.report.render())
-        for p in outcome.pages_ok
-        if p.report.issues
-    ]
-    if math_blocks:
-        flags.append("\n\n".join(math_blocks))
-    if rec.numeric_divergences:
-        lines = [texts.DIVERGENCES_HEADER]
-        lines += [
-            texts.divergence_line(d["context"], d["variants"], page=d["page"])
-            for d in rec.numeric_divergences
-        ]
-        flags.append("\n".join(lines))
-    if rec.uncertain:
-        lines = [texts.UNCERTAIN_HEADER]
-        lines += [
-            texts.uncertain_line(u["text"], u["why"], page=u["page"])
-            for u in rec.uncertain
-        ]
-        flags.append("\n".join(lines))
-    if rec.unverified_pages:
-        flags.append(
-            "\n".join(
-                [texts.UNVERIFIED_HEADER]
-                + [
-                    texts.unverified_line(u["page"], u["reason"])
-                    for u in rec.unverified_pages
-                ]
-            )
-        )
+    # What follows the document is what only the photographer can act on: the
+    # pages it went out without. The rest is in the document or nowhere, as on
+    # the photo path.
     if outcome.skips:
-        flags.append(
-            texts.album_partial(
-                [(p.page, p.skip_reason) for p in outcome.skips]
-            )
+        await message.answer(
+            texts.album_partial([(p.page, p.skip_reason) for p in outcome.skips])
         )
-    if flags:
-        await message.answer("\n\n".join(flags))
 
     await corpus.ask_for_tag(message, session, user, note, group)
 

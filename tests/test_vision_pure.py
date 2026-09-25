@@ -13,6 +13,8 @@ import pytest
 from google.genai import errors as genai_errors
 from google.genai import types
 
+from dataclasses import asdict
+
 from app.services import consensus, mathcheck, vision
 from app.services.vision import CallStats
 
@@ -1238,3 +1240,65 @@ def test_a_chain_that_really_does_not_converge_is_still_caught_on_its_line():
     markdown = "a \\equiv b = c = d\n\n2 + 2 = 4 = 5"
     issues = vision.arithmetic_issues(markdown)
     assert [i.message for i in issues] == ["строка 3: звенья цепочки не сходятся"]
+
+
+# ── findings: each with the text it is about ────────────────────────────────
+# The document sets a finding under the text it concerns, after the page was
+# composed and joined to its album — so the text is kept, not a line number.
+
+
+def test_a_chain_is_anchored_on_the_formula_of_its_line():
+    [found] = vision.findings("Итак:\n\n**Сложим**, $2 + 2 = 4 = 5$")
+    assert found.kind == "chain"
+    assert found.anchor == "2 + 2 = 4 = 5"
+
+
+def test_of_several_formulas_on_a_line_the_chain_is_the_anchor():
+    [found] = vision.findings("Пусть $x = 1$ и $y = 2 + 2 = 4 = 5$.")
+    assert found.anchor == "y = 2 + 2 = 4 = 5"
+
+
+def test_a_chain_in_the_prose_is_anchored_on_its_line_without_the_marker():
+    [found] = vision.findings("текст\n1. 2 + 3 = 4 = 5")
+    assert found.anchor == "2 + 3 = 4 = 5"
+
+
+def test_a_constant_is_anchored_on_the_line_it_is_written_on():
+    markdown = "Дано:\nпостоянная $h = 6.9 \\cdot 10^{-34}$ Дж·с\nдальше"
+    [found] = [f for f in vision.findings(markdown) if f.kind == "constant"]
+    assert found.anchor == r"h = 6.9 \cdot 10^{-34}"
+
+
+def test_a_matrix_is_anchored_on_the_graph_it_was_checked_against():
+    markdown = (
+        "[граф: 1-2, 2-3]\n\n|   | 1 | 2 | 3 |\n|---|---|---|---|\n"
+        "| **1** | 0 | 0 | 0 |\n| **2** | 0 | 0 | 1 |\n| **3** | 0 | 1 | 0 |"
+    )
+    found = vision.findings(markdown)
+    assert found and {f.anchor for f in found} == {"1-2, 2-3"}
+
+
+def test_a_line_mathcheck_stops_naming_costs_the_anchor_not_the_finding():
+    # mathcheck's wording is read here, not owned.
+    issue = mathcheck.Issue("chain", "critical", "цепочка не сходится")
+    assert vision._line_of(issue, ["2 + 2 = 4 = 5"]) == ""
+
+
+def test_the_anchor_rides_into_the_stored_row():
+    # JSONB takes a plain dict, and the anchor has to be in it.
+    [found] = vision.findings("2 + 2 = 4 = 5")
+    assert asdict(found)["anchor"] == "2 + 2 = 4 = 5"
+    assert asdict(found)["message"] == "строка 1: звенья цепочки не сходятся"
+
+
+def test_a_line_the_chain_check_cannot_read_costs_that_line_not_the_page():
+    # A link that comes to 0 before one that does not makes mathcheck round
+    # the logarithm of an infinite ratio: OverflowError, and on the photo path
+    # the record was lost to an error message.
+    for line in ("1 - 1 = 0 = 5", "- 2 + 2 = 4 = 5"):
+        with pytest.raises(OverflowError):
+            mathcheck.check_chains(line)  # the bug
+    markdown = "1 - 1 = 0 = 5\n\n2 + 2 = 4 = 5"
+    assert [i.message for i in vision.arithmetic_issues(markdown)] == [
+        "строка 3: звенья цепочки не сходятся"
+    ]

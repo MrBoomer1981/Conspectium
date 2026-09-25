@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.bot import albums, handlers, texts
-from app.services import compose, mathcheck, photoguard, vision
+from app.services import compose, consensus, mathcheck, photoguard, vision
 from app.db.models import Base, Event, Group, Note, NoteTopic, User
 
 
@@ -353,6 +353,30 @@ async def test_an_album_that_lost_a_page_is_saved_with_the_hole_named(
     assert len(notes) == 1
     assert notes[0].missing_pages == [2, 3]
     assert message.documents
+
+
+async def test_an_album_record_says_nothing_about_how_it_was_read(
+    session, monkeypatch
+):
+    record = _record(2, unverified_pages=[{"page": 2, "reason": texts.UNVERIFIED_DIVERGED}])
+    record.uncertain = [{"text": "Дьюринг", "why": "двоится", "page": 1}]
+    record.numeric_divergences = [
+        {"context": "x", "variants": {"5": 2, "6": 1}, "page": 1}
+    ]
+    message, _ = await _run_album(
+        session,
+        monkeypatch,
+        skips=[],
+        pages_ok=[_ok_page(1), _ok_page(2)],
+        record=record,
+    )
+
+    assert message.documents
+    for reply in message.replies:
+        assert "по-разному" not in reply
+        assert "двояко" not in reply
+        assert "сверить" not in reply
+        assert "Дьюринг" not in reply
 
 
 async def test_the_reply_names_every_page_that_has_to_be_taken_again(
@@ -702,6 +726,65 @@ async def test_a_single_photo_read_by_one_run_says_so(session, monkeypatch):
 
     assert note.unverified_pages == [{"page": 1, "reason": texts.UNVERIFIED_ONE_RUN}]
     assert note.text_agreement is None
+
+
+async def test_a_photo_record_says_nothing_about_how_it_was_read(
+    session, monkeypatch
+):
+    """The numbers the runs read differently, a spot that reads two ways, a
+    page no second reading confirmed: none of it follows the record into the
+    chat — the author's decision, 2026-09-25; in a group it was noise for
+    everyone. The columns still keep it."""
+    message = _PhotoMessage(None, message_id=21)
+    doubtful = vision.Transcription(
+        title="Теорема Кантора",
+        subject=None,
+        markdown=_PHOTO_MD,
+        margin_notes=[],
+        uncertain=[vision.Uncertain("Дьюринг", "поле", "двоится", ["Тьюринг"])],
+        numeric_tokens=[],
+        unreadable_count=0,
+    )
+    await _run_photo(
+        session,
+        monkeypatch,
+        compose.Composition(_PHOTO_MD),
+        message=message,
+        best=doubtful,
+        text_agreement=0.19,
+        verdict="rejected",
+        numeric_divergences=[
+            consensus.Divergence(position=0, variants={"5": 2, "6": 1}, context="x")
+        ],
+    )
+
+    note = (await session.execute(select(Note))).scalars().one()
+
+    assert note.status == "needs_review" and note.uncertain and note.numeric_divergences
+    # The progress line, and the question which subject the record belongs to.
+    assert len(message.replies) == 2
+    assert message.replies[0] == texts.PROCESSING
+
+
+async def test_a_finding_on_a_photo_is_stored_with_the_text_it_is_about(
+    session, monkeypatch
+):
+    markdown = "Сложение натуральных чисел на лекции.\nИтак, сложим: $2 + 2 = 4 = 5$"
+    wrong = vision.Transcription(
+        title="Сложение",
+        subject=None,
+        markdown=markdown,
+        margin_notes=[],
+        uncertain=[],
+        numeric_tokens=[],
+        unreadable_count=0,
+    )
+    await _run_photo(session, monkeypatch, compose.Composition(markdown), best=wrong)
+
+    note = (await session.execute(select(Note))).scalars().one()
+
+    assert note.status == "needs_review"  # the finding is critical
+    assert [issue["anchor"] for issue in note.issues] == ["2 + 2 = 4 = 5"]
 
 
 async def test_a_photo_that_read_well_is_not_marked(session, monkeypatch):

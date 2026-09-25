@@ -1,5 +1,6 @@
 """Все строки, которые видит пользователь."""
 
+import re
 from datetime import date, datetime
 
 START = (
@@ -32,20 +33,17 @@ LIMIT_COST = (
 
 LIMIT_PAGES = "На сегодня лимит страниц исчерпан. Вернись завтра — счётчик обнулится."
 
-NEEDS_REVIEW = "Прогоны распознавания местами разошлись — перепроверьте текст."
-
-DIVERGENCES_HEADER = "Числа, прочитанные по-разному в разных прогонах:"
-
-UNCERTAIN_HEADER = "Спорные места — символ читается двояко:"
-
-# The same four flags as headings of a box inside the PDF. Short, because a
-# box has its own title line, where the message needs a whole sentence.
-CALLOUT_REVIEW = "Нужна проверка"
-CALLOUT_MATH = "Проверка вычислений"
-CALLOUT_DIVERGENCES = "Числа прочитаны по-разному"
-CALLOUT_UNCERTAIN = "Спорные места"
+# The one box above a record: the pages it is missing. How the page was read —
+# which spot reads two ways, which numbers the runs read differently, which
+# page no second reading confirmed — is not printed at all: the author's
+# decision, 2026-09-25, since the group studies from the document and talk
+# about the recognition is noise to it.
 CALLOUT_MISSING = "Не хватает страниц"
-CALLOUT_UNVERIFIED = "Прочитано без сверки"
+
+# The label of a finding set under the line it is about. A matrix checked
+# against its graph is not a calculation, and says so.
+FINDING_LABEL = "Проверка вычислений"
+GRAPH_FINDING_LABEL = "Сверка с графом"
 
 # What the bot adds of its own to a record, in the document. The labels say
 # whose words these are: a reader who missed the lecture cannot tell an added
@@ -62,65 +60,25 @@ def explanation_line(title: str, text: str) -> str:
     return f"**{title}.** {text}" if title else text
 
 
-def remark_label(page: int | None = None) -> str:
-    """The heading of a remark set beside a line of the record."""
-    return "В рукописи" if page is None else f"В рукописи, с. {page}"
+# mathcheck names a chain by its line — "строка 29: звенья цепочки не
+# сходятся" — a line of the page as it was recognised, which is nothing a
+# reader can count, and beside the line itself says nothing at all.
+_LINE_NUMBER_RE = re.compile(r"^строка \d+:\s*")
 
 
-def uncertain_remark(text: str, why: str, alternatives: list[str]) -> list[str]:
-    """One spot that reads two ways, as the lines of a remark beside it.
+def finding_lines(message: str, detail: str, suggestion: str) -> list[str]:
+    """One finding of a check, as the lines of the box under what it is about:
+    what is wrong, in bold, and the numbers that show it.
 
-    As a list at the top of the document this said what was doubtful but not
-    where, and by the time a reader reached the text they had forgotten it.
+    mathcheck puts ❌ or ⚠️ in front of its own lines, and none of that comes
+    here: DejaVu has a glyph for ⚠ and none for ❌, so on paper a critical
+    finding would come out as an empty box while a mere warning drew fine.
+    The accent of the box carries the severity.
     """
-    lines = [f"«{text}» — {why}" if why else f"«{text}»"]
-    other = [str(a).strip() for a in alternatives if str(a).strip()]
-    if other:
-        lines.append("другое прочтение: " + ", ".join(other))
-    return lines
-
-
-def issue_line(message: str, detail: str | None, suggestion: str | None) -> str:
-    """One arithmetic issue on one line, for the PDF.
-
-    mathcheck puts ❌ or ⚠️ in front of its own lines, which is right in
-    Telegram and wrong on the page. DejaVu has a glyph for ⚠ but none for ❌,
-    so on paper a critical issue would come out as an empty box while a mere
-    warning drew fine — the worse of the two made to look like nothing at all.
-    Inside the document the colour of the callout carries the severity.
-    """
-    parts = [message]
-    if detail:
-        parts.append(detail)
-    if suggestion:
-        parts.append(f"→ {suggestion}")
-    return " · ".join(parts)
-
-
-def divergence_line(
-    context: str, variants: dict[str, int], page: int | None = None
-) -> str:
-    """One divergent number, phrased for a person.
-
-    What stood here before was the comparison's own shape —
-    `с. 4 — 0: 0 — 2, 2 — 1` — six lines of which went into a record and told
-    nobody anything. The question a reader has is which reading won and by how
-    much, so that is what the line says.
-    """
-    total = sum(variants.values()) or 1
-    options = " или ".join(
-        # consensus writes a gap as "— (пропущено)". Left as it is, the dash
-        # reads as a stray minus mid-sentence and the brackets collide with
-        # the count that follows: "(пропущено) (1 из 3)".
-        f"{value.strip('—() ') or 'пропущено'} ({count} из {total})"
-        for value, count in variants.items()
-    )
-    where = f"с. {page}" if page is not None else ""
-    around = context.strip()
-    if around and around not in variants:
-        around = around if len(around) <= 30 else around[:29] + "…"
-        where = f"{where}, «{around}»" if where else f"«{around}»"
-    return f"{where}: {options}" if where else options
+    what = _LINE_NUMBER_RE.sub("", message.strip()).rstrip(".")
+    what = what[:1].upper() + what[1:]
+    first = f"**{what}.** {detail}" if detail else f"**{what}.**"
+    return [first, f"→ {suggestion}"] if suggestion else [first]
 
 
 # Documents — app/bot/handlers.py handle_document.
@@ -137,7 +95,9 @@ TOO_MANY_PAGES = (
 # Why a single album page was dropped while the rest of the batch went on.
 SKIP_UNRECOGNIZED = "не удалось распознать"
 SKIP_DIVERGED = "прогоны распознавания разошлись"
-# Not a skip: the page is in the record, and this says why to look at it.
+# Not a skip: the page is in the record, and notes.unverified_pages keeps why
+# nothing confirmed its reading. Kept for the measurements; since 2026-09-25
+# the document does not print it.
 UNVERIFIED_DIVERGED = "прогоны распознавания сильно разошлись"
 UNVERIFIED_ONE_RUN = "прочитана одним прогоном, сверить было не с чем"
 SKIP_NO_TEXT = "на странице не найдено текста"
@@ -208,36 +168,7 @@ def page_missing_marker(page: int) -> str:
     return f"**[Страница {page} не прочитана]**"
 
 
-UNVERIFIED_HEADER = "Эти страницы стоит сверить с оригиналом:"
-
-
-def unverified_line(page: int, reason: str) -> str:
-    """One line of the box naming a page that is in the record but was not
-    confirmed by a second reading."""
-    return f"Страница {page}: {reason}."
-
-
-def missing_pages_line(page: int, reason: str) -> str:
-    """One line of the box that names the hole inside the document."""
-    return f"Страница {page}: {reason}."
-
-
-def page_prefix(page: int, body: str) -> str:
-    """Attach an album page number to a multi-line block — e.g. a mathcheck
-    report that applies to that page alone."""
-    return f"Страница {page}.\n{body}"
-
-
-def uncertain_line(text: str, why: str, page: int | None = None) -> str:
-    """One line per uncertain spot: what was read and why it is ambiguous.
-    `page` prefixes the line for an album record."""
-    prefix = f"с. {page} — " if page is not None else ""
-    return f'{prefix}"{text}" — {why}'
-
-
 # ── Tags — app/bot/corpus.py ─────────────────────────────────────────────────
-
-NEEDS_REVIEW_SHORT = "нужна проверка"
 
 TAG_UNREADABLE = "Не разобрал тег. Напиши его одним сообщением, например: #физика"
 
@@ -468,12 +399,12 @@ def byline(margin_notes: list[str]) -> str | None:
     return " · ".join(parts) if parts else None
 
 
-def pdf_subtitle(created_at: datetime, page_count: int, needs_review: bool) -> str:
-    """The grey line under the title inside the document itself."""
+def pdf_subtitle(created_at: datetime, page_count: int) -> str:
+    """The grey line under the title inside the document itself. It used to
+    end in "нужна проверка" on a record the runs had disagreed about — a
+    doubt about the reading that told nobody what to check."""
     parts = [
         created_at.strftime("%d.%m.%Y"),
         f"{page_count} {_plural(page_count, 'страница', 'страницы', 'страниц')}",
     ]
-    if needs_review:
-        parts.append(NEEDS_REVIEW_SHORT)
     return " · ".join(parts)

@@ -20,6 +20,27 @@ def _severities(markdown: str) -> list[str]:
     return [issue.severity for issue in graphcheck.check(markdown)]
 
 
+# ── where a finding stands ──────────────────────────────────────────────────
+
+
+def test_each_finding_names_the_graph_it_was_checked_against():
+    # The document sets a finding under the graph and the matrix beside it,
+    # so the finding has to say which of the record's graphs that was.
+    right = _record("1-2", "|   | 1 | 2 |", "| **1** | 0 | 1 |", "| **2** | 1 | 0 |")
+    wrong = _record(
+        "1-2, 2-3",
+        "|   | 1 | 2 | 3 |",
+        "| **1** | 0 | 0 | 0 |",
+        "| **2** | 0 | 0 | 1 |",
+        "| **3** | 0 | 1 | 0 |",
+    )
+
+    found = graphcheck.located(f"{right}\n\nтекст\n\n{wrong}")
+
+    assert found and {spec for _, spec in found} == {"1-2, 2-3"}
+    assert [issue for issue, _ in found] == graphcheck.check(wrong)
+
+
 # ── adjacency: what it must catch ────────────────────────────────────────────
 
 

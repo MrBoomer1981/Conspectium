@@ -31,11 +31,14 @@ days of production said this plainly: 133 pages went in and exactly one search
 came back out, by the author, minutes after the search shipped.
 
 **Marked is the whole licence to add.** The reference document the author works
-from puts every addition of its own in a box that says what the manuscript
-actually had. Adding is not forbidden; adding unmarked is. In a group this
-stops being a matter of taste: the reader who most needs the explanation is the
-one who was not at the lecture and therefore cannot tell an invented sentence
-from a remembered one.
+from puts every addition of its own in a marked box. Adding is not forbidden;
+adding unmarked is. In a group this stops being a matter of taste: the reader
+who most needs the explanation is the one who was not at the lecture and
+therefore cannot tell an invented sentence from a remembered one. **And the
+document never talks about how it was read** — no reading that could have been
+another, no "в рукописи", no page read without a second opinion: a remark is
+an error the code found in the work, at its place. The author's decision,
+2026-09-25.
 
 This is a product meant for **many users** — now literally, since a group is
 several of them around one chat. "There is only one user" is never a reason a
@@ -320,7 +323,8 @@ else is kept and, where needed, marked:
 - **`rejected` removes nothing.** The band is `text_agreement`, which
   measures layout, and `prompts-v5.md` leaves layout free. The page is kept as
   `needs_review`, and `notes.unverified_pages` names it as read without a
-  second opinion. The same for a page only one run came back for:
+  second opinion — for the measurements; the document does not print it.
+  The same for a page only one run came back for:
   `transcribe_consensus` returns that single reading with both agreements
   `None`, because one reading is not nothing. → "Pages refused for their
   layout"
@@ -329,7 +333,7 @@ else is kept and, where needed, marked:
   `_VOUCH_MIN_NUMBERS` = 5 numbers in every run, counted from the markdown
   rather than from the model's own `numeric_tokens`. A vouched page is an
   ordinary `needs_review` page rather than one listed in `unverified_pages`
-  with a box of its own — **never** lifted to `clean`, because the runs did
+  — **never** lifted to `clean`, because the runs did
   disagree about something. Invention does not produce the same five numbers
   in the same order three times.
 - **Two findings downgrade `clean` → `needs_review`, one way only.** A
@@ -343,8 +347,9 @@ else is kept and, where needed, marked:
 What keeping every legible page trades away: the band was the second line of
 defence against a page photographed from across the room coming back as a
 fluent retelling. The first line is `photoguard`, and it was strengthened in
-answer (task 35); a retelling that gets past it reaches the corpus wearing
-"прочитано без сверки" rather than being refused.
+answer (task 35); a retelling that gets past it reaches the corpus with only
+`notes.unverified_pages` to say so, since the document stopped printing
+"прочитано без сверки" (task 46).
 
 **A page the frame check refuses stops its album before anything is read.**
 `albums.refused_frames` checks every frame first, and if one fails the album is
@@ -518,15 +523,19 @@ receives, so none of it is left to reportlab's defaults:
   after an inline formula, where the page had a space, is the only place
   reportlab will break a line after an image.
 - **A heading is held back and set in one group with what it heads**, a
-  remark with its line, a table whole. The groups are built by hand and flat:
+  finding with its line, a table whole. The groups are built by hand and flat:
   reportlab's own `keepWithNext` nests one `KeepTogether` in another, the inner
-  one reports an effectively infinite height, and the heading stays behind.
+  one reports an effectively infinite height, and the heading stays behind. A
+  unit that keeps itself whole — a long division — is opened into the group it
+  joins (`pdf._opened`): nested, it sent the group to the next page even where
+  it fitted, and record 47 went from eight pages to six.
 - **Every box beside the text has one anatomy**, the reference's
   "ЗАМЕЧАНИЕ": a 3 pt bar down the left, a label in spaced capitals (drawn by
   `pdf._Label` — a paragraph cannot space letters), the lines at the size of
-  the text. A remark is grey throughout; a callout about the record carries
-  its accent in the bar and the label. The explanation of task 38 is the same
-  box in a tone of its own.
+  the text. A callout about the record and a finding under its line carry an
+  accent in the bar and the label — amber for what is certainly wrong, blue
+  for what only may be. The explanation of task 38 is the same box in a tone
+  of its own.
 - **A graph is cut to what is drawn**, at one scale for every graph. A graph
   or a matrix name ("A =") followed directly by a table is set beside it — a
   blank line may stand between them, a line of text may not. A table is ruled
@@ -555,8 +564,8 @@ receives, so none of it is left to reportlab's defaults:
 - **Markup never prints as its source.** `$$` on lines of their own is a
   display formula, `$$…$$` inside a line is a formula, emphasis pairs across
   a formula, and `~~…~~` is drawn struck through, the way the author crossed
-  it out. A remark's quoted LaTeX goes through `pdf.as_formula`; its anchor
-  stays raw, because it has to be found in the record as it stands.
+  it out. A finding's quoted LaTeX goes through `pdf.as_formula`, each side of
+  mathcheck's arrow as a formula.
 
 → "The document as the group got it"
 
@@ -636,28 +645,47 @@ files: change the syntax on either and the record prints the spec where the
 drawing should be. Reading a drawing's structure is interpretation, and
 nothing yet compares the runs' edge lists — `PLAN.md` → Known risks.
 
-**A callout says what we already know, never what the model thinks.** The
-boxes at the top of a record are built by `corpus._callouts` from the
-`Note`'s own columns, so the document and the chat cannot disagree; `pdf.py`
-receives a list of `Callout` and knows nothing about where a record came
-from. A generic flag gives way to a specific one: the capture handlers and
-`corpus._callouts` add "Прогоны распознавания местами разошлись" only when
-nothing more exact is there to say, and the subtitle carries "нужна проверка"
-either way.
+**The document says nothing about how a page was read** — the author's
+decision, 2026-09-25, after most records opened with boxes about the
+recognition. No reading that could have been another ("Дьюринг, не Тьюринг"),
+no numbers the runs read differently, no page read without a second
+opinion, no "нужна проверка" in a box or in the subtitle, and nothing about
+what the manuscript had. The columns behind them (`uncertain`,
+`numeric_divergences`, `unverified_pages`, `status`) are still written: they
+are the instrument's, not the reader's. Nor does the chat get them after the
+record — in a group that message was noise for everyone; only the pages an
+album went out without are named there. → "Remarks about the reading"
 
-**A remark sits beside the line it explains.** `corpus._remarks` turns each
-`uncertain` entry into a `pdf.Remark` anchored on the text that was read, and
-`render` sets it under the block that contains that text; one that anchors
-nowhere goes to the end rather than nowhere.
+**The one box at the top is the pages a record is missing** (`corpus._callouts`,
+from the `Note`'s own columns; `pdf.py` receives a list of `Callout` and knows
+nothing about where a record came from). A hole is about the record, not about
+its reading.
+
+**A remark is an error the code found in the work, set where it is.** What
+`mathcheck` and `graphcheck` find — a chain that does not add up, a constant
+written wrong, a matrix its graph contradicts — used to be one box at the top,
+"Проверка вычислений", which said what was wrong and not where. Each finding
+is now a `vision.Finding`: the `Issue` and the **text it is about**, taken when
+the page is checked — for a chain, the formula on the line mathcheck names;
+for a constant, the line on which it comes back; for a matrix, the spec of the
+graph it was checked against — and stored with it in `notes.issues` as
+`anchor`. A line number would not survive: the page is composed and joined to
+its album after it is checked. `render` sets the finding under the unit whose
+text holds the anchor, compared without spaces, dollars and bold — the rule an
+explanation's anchor is found by (`pdf._anchored`); a table is read by its
+rows, a graph only by its whole spec. One that anchors nowhere goes to the end
+rather than nowhere. A record stored before anchors existed is checked again
+over its stored text when it is rendered, which gives each finding its text
+back and drops what the checks no longer find. graphcheck's cell "that could
+not be read" is not an error in the work and is not printed
+(`graphcheck.UNREAD_CELLS`).
 
 **Adding is not forbidden; adding unmarked is.** The reference document puts
-every addition in a marked box that says what the manuscript actually had —
-*"в рукописи матрица плохо читается …, поэтому она восстановлена по рисунку
-графа"*. The remarks are the first half of that standard; the second is stage
-three, below — a separate call over the **trusted transcription**, in columns
-of their own, printed as the bot's. Never from the call that reads the photo:
-a box of "the main points" written from a photograph is exactly the fluent
-retelling of a bad shot.
+every addition in a marked box. Here that is stage three, below — a separate
+call over the **trusted transcription**, in columns of their own, printed as
+the bot's. Never from the call that reads the photo: a box of "the main
+points" written from a photograph is exactly the fluent retelling of a bad
+shot.
 
 **A sentence that ran over a page edge is put back together, by code.**
 `albums._continues` joins it only when both sides are ordinary prose — not a
@@ -765,10 +793,10 @@ with.
 **Stored apart, printed as the bot's.** `notes.explanations` (JSONB, with the
 sources) and `notes.summary` (text), never mixed into `markdown`. The PDF sets
 each explanation under the line it quotes or the formula it numbers — after
-the remarks of that line — and the summary last, after a section rule, both
+the findings of that line — and the summary last, after a section rule, both
 in a green no other box has, labelled "Пояснение бота" and "Итог · составлен
 ботом по тексту записи". At most eight explanations; an anchor found nowhere
-puts its box at the end, like a remark's. Rule 6 holds for the third call as
+puts its box at the end, like a finding's. Rule 6 holds for the third call as
 for the second: limits before it, `pages=0`. A Gemini 3 model's
 Google search is billed per query it runs, on top of the tokens —
 `GROUNDING_USD_PER_QUERY`, times the queries the call's grounding metadata
@@ -782,9 +810,10 @@ Whether a cell is 0 or 1 is decided by the edges, not by a vote: the
 adjacency is computed from the edge list and compared, and an incidence
 matrix is checked the only way its unknown column order allows — every column
 holds the two ends of one edge, every row sum is a degree. It returns
-`mathcheck.Issue`, so findings ride the existing `issues` column, callout and
-critical downgrade, and it parses with `pdf.blocks` and `pdf.parse_graph`, so
-the check and the picture see one structure.
+`mathcheck.Issue`, so findings ride the existing `issues` column and critical
+downgrade, and `graphcheck.located` names the graph each was checked against,
+which the document sets the finding under. It parses with `pdf.blocks` and
+`pdf.parse_graph`, so the check and the picture see one structure.
 
 **It stays quiet when the page does not settle it** — a cycle, where as many
 edges as vertices make a square table read as either matrix; labels that don't
@@ -931,7 +960,13 @@ with two "=" as one chain of equalities, and a line of modular arithmetic set
 `needs_review` on record 45. `vision.arithmetic_issues` is what both photo
 paths call: the constants check sees the page as it is, the chain check sees
 it with every line holding a relation other than "=" blanked, so the lines it
-does report keep the numbers mathcheck gave them.
+does report keep the numbers mathcheck gave them. A line on which the chain
+check **raises** is blanked too (`vision._survives_chain_check`): a link that
+comes to exactly 0 before one that does not — "1 - 1 = 0 = 5", or a list item
+"- 2 + 2 = 4 = 5" whose marker it reads as a minus — makes it round the
+logarithm of an infinite ratio, `OverflowError`. On the photo path that was
+the whole record lost to an error message, on an album a page lost as
+"ошибка обработки". Found and reported on 2026-09-25, not fixed in the module.
 → "Record 45, a lecture on remainders"
 
 **`consensus.extract_numbers` is worked around, not fixed.** It treats every
@@ -969,7 +1004,7 @@ app/
     compose.py        stage two: the trusted transcription, formatted
     explain.py        stage three: hard places explained with sources, a summary
     docx.py           .docx -> markdown, no model call
-    pdf.py            a record as a PDF: formulas, graphs, tables, remarks
+    pdf.py            a record as a PDF: formulas, graphs, tables, findings
     photoguard.py     ready-made
     consensus.py      ready-made
     mathcheck.py      ready-made
@@ -1149,22 +1184,22 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_parse_response.py` | the model's reply: garbage, the ```json fence, missing fields, wrong types, and LaTeX written with one backslash |
 | `test_limits.py` | `check_limits` / `consume` — the money-critical path |
 | `test_reliability.py` | retry classification, one owner per album batch, spend surviving a rollback |
-| `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, what an unparseable answer says and earns, and the chains mathcheck is not shown |
-| `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, the three reasons a page is dropped and the two that only mark it, `process_batch` survivor logic, an album's tag from whichever page carries it, the frames an album is refused for before it is read |
+| `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, what an unparseable answer says and earns, the chains mathcheck is not shown — a congruence, and a line it would raise on — and the text each finding is anchored on |
+| `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, the three reasons a page is dropped and the two that only mark it, `process_batch` survivor logic, an album's tag from whichever page carries it, the frames an album is refused for before it is read, and a finding's page and anchor surviving assembly |
 | `test_docx.py` | heading styles to markdown, title derivation |
 | `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
 | `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, stage three off by default with its model priced and its timeout bounded, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |
-| `test_handlers.py` | `_split_message`, the catch-all reply, and in a group: an untagged album left alone, a tagged record owned by the chat and filed at once, a file that is not `.docx` unanswered, the welcome and the admin hint, and the three membership events; an album with a refused frame asked for again unread |
+| `test_handlers.py` | `_split_message`, the catch-all reply, and in a group: an untagged album left alone, a tagged record owned by the chat and filed at once, a file that is not `.docx` unanswered, the welcome and the admin hint, and the three membership events; an album with a refused frame asked for again unread; nothing about how a page was read sent after a record, and a finding stored with its anchor |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user, what a group chat lets through before a session is opened, a group registered once and moved to a supergroup's new id, and a row two album pages race to insert |
-| `test_graphcheck.py` | the matrix against the graph: what it must catch, and — the longer half — every shape it must stay quiet about |
-| `test_corpus.py` | filing a record under a subject, finding it by a topic, statistics, the flags rebuilt from JSONB as callouts and as anchored remarks, the LaTeX a remark quotes marked to be drawn while its anchor stays raw — and that no query reaches another owner's records: a group reaches its own, a private chat the user's own, neither the other's, and a "#word" in a group never files |
+| `test_graphcheck.py` | the matrix against the graph: what it must catch, which graph each finding names, and — the longer half — every shape it must stay quiet about |
+| `test_corpus.py` | filing a record under a subject, finding it by a topic, statistics, that nothing about how a page was read reaches the document, the missing pages as its one box, a finding as a remark with its anchor, accent and drawn LaTeX, a record stored before anchors checked again, and an unread matrix cell left out — and that no query reaches another owner's records: a group reaches its own, a private chat the user's own, neither the other's, and a "#word" in a group never files |
 | `test_tags.py` | what a #tag normalizes to, what counts as one, which topics a record yields, the tag in a caption, and what counts as a search in a group |
 | `test_wiring.py` | router order in `main.py`, that every command the bot answers has a menu description, and that membership updates are subscribed to, given a session, and matched join before promotion |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the rules in photoguard this project has edited: a line height that could not be measured is not a small one, what the measurement answers on pages whose pitch is known by construction, and a densely written page read rather than refused |
 | `test_explain.py` | stage three: off by default, only text ever sent, a writing call in strict JSON with no search and a search call per explanation, the record sent numbered, sources read from each search's grounding and an explanation whose search found nothing dropped, the sources ranked science first with an everyday one kept behind them, the summary's numbers guard, never more than eight, LaTeX with single backslashes surviving the JSON, the grounding fee in the bill, and a failed search costing only its own explanation |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, which headings are taken back, and the two main-formula marks a section it may keep while the author's frames are never touched |
-| `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, congruences, bold words in a formula, a long division drawn as a ruled table, a title's formula drawn and turned into characters where it cannot be, formulas written loosely across lines, a tabular, Russian words inside a formula, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
+| `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, congruences, bold words in a formula, a long division drawn as a ruled table, a title's formula drawn and turned into characters where it cannot be, formulas written loosely across lines, a tabular, Russian words inside a formula, heading levels, the rhythm, groups that are never nested — a long division opened into its group — one anatomy for every box, a finding found under its formula, table or graph however composition set it, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the

@@ -15,6 +15,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.bot import corpus, texts
 from app.db.models import Base, Event, Group, Note, NoteTopic, User
+from app.services import graphcheck
 
 
 @pytest_asyncio.fixture
@@ -84,22 +85,9 @@ async def _events(session, type_: str) -> list[Event]:
     return list((await session.execute(stmt)).scalars().all())
 
 
-# ── the flags a record carries ───────────────────────────────────────────────
-
-
-async def test_the_review_box_gives_way_the_same_way(session):
-    user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        status="needs_review",
-        numeric_divergences=[{"context": "p", "variants": {"5": 2, "6": 1}}],
-    )
-
-    assert [b.title for b in corpus._callouts(note)] == [texts.CALLOUT_DIVERGENCES]
-
-
-# ── callouts: the same flags, as boxes inside the document ───────────────────
+# ── what the document says about the record ─────────────────────────────────
+# The author's decision, 2026-09-25: what a check found wrong, at its place, and
+# the pages a record is missing — and nothing about how a page was read.
 
 
 async def test_a_clean_record_has_no_callouts(session):
@@ -107,64 +95,74 @@ async def test_a_clean_record_has_no_callouts(session):
     assert corpus._callouts(await _note(session, user)) == []
 
 
-async def test_a_hole_in_the_record_is_the_first_box(session):
+async def test_a_hole_in_the_record_is_the_one_box(session):
     """A record missing a page must not read as a whole one. The marker stands
     where the page would have been; this box is what the reader sees before
-    deciding they are holding the whole lecture, so it goes above the rest."""
+    deciding they are holding the whole lecture."""
     user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        status="needs_review",
-        missing_pages=[2, 5],
-        numeric_divergences=[{"context": "p", "variants": {"5": 2, "6": 1}}],
-    )
+    note = await _note(session, user, status="needs_review", missing_pages=[2, 5])
 
     boxes = corpus._callouts(note)
 
-    assert boxes[0].title == texts.CALLOUT_MISSING
-    assert boxes[0].tone == "warning"
+    assert [(b.title, b.tone) for b in boxes] == [(texts.CALLOUT_MISSING, "warning")]
     assert "2" in boxes[0].lines[0] and "5" in boxes[0].lines[1]
-    # And it does not swallow the box that was already there.
-    assert texts.CALLOUT_DIVERGENCES in [b.title for b in boxes]
 
 
-async def test_a_record_with_every_page_says_nothing_about_pages(session):
-    user = await _user(session)
-    note = await _note(session, user, status="needs_review")
-
-    assert texts.CALLOUT_MISSING not in [b.title for b in corpus._callouts(note)]
-
-
-async def test_a_page_nobody_could_check_gets_its_own_box(session):
+async def test_how_the_page_was_read_is_never_printed(session):
+    """Numbers the runs read differently, a spot that reads two ways, a page no
+    second reading confirmed, a record marked for review: the columns keep
+    them for the measurements, and the document says none of it."""
     user = await _user(session)
     note = await _note(
         session,
         user,
         status="needs_review",
+        numeric_divergences=[{"context": "p", "variants": {"5": 2, "6": 1}}],
+        uncertain=[{"text": "Дьюринг", "why": "двоится", "alternatives": ["Тьюринг"]}],
         unverified_pages=[{"page": 3, "reason": texts.UNVERIFIED_DIVERGED}],
     )
 
-    boxes = corpus._callouts(note)
-
-    assert [b.title for b in boxes] == [texts.CALLOUT_UNVERIFIED]
-    assert "Страница 3" in boxes[0].lines[0]
-    assert texts.UNVERIFIED_DIVERGED in boxes[0].lines[0]
+    assert corpus._callouts(note) == []
+    assert corpus._remarks(note) == []
 
 
-async def test_needs_review_becomes_a_warning_box(session):
+def test_the_subtitle_carries_no_doubt_about_the_reading():
+    subtitle = texts.pdf_subtitle(datetime(2026, 9, 25, tzinfo=timezone.utc), 5)
+    assert subtitle == "25.09.2026 · 5 страниц"
+
+
+async def test_a_finding_is_a_remark_under_the_text_it_is_about(session):
     user = await _user(session)
-    note = await _note(session, user, status="needs_review")
+    note = await _note(
+        session,
+        user,
+        issues=[
+            {
+                "kind": "chain",
+                "severity": "critical",
+                "message": "строка 29: звенья цепочки не сходятся",
+                "detail": "2 + 2 = 4   ⟶   5 = 5   (отличие в 1.25 раз)",
+                "suggestion": "",
+                "anchor": "2 + 2 = 5",
+                "page": 2,
+            }
+        ],
+    )
 
-    boxes = corpus._callouts(note)
+    remarks = corpus._remarks(note)
 
-    assert [(b.title, b.tone) for b in boxes] == [(texts.CALLOUT_REVIEW, "warning")]
-    assert boxes[0].lines == [texts.NEEDS_REVIEW]
+    assert [(r.anchor, r.label, r.tone) for r in remarks] == [
+        ("2 + 2 = 5", texts.FINDING_LABEL, "warning")
+    ]
+    # Beside the line, its number on the page as recognised says nothing.
+    assert remarks[0].lines == [
+        "**Звенья цепочки не сходятся.** 2 + 2 = 4 ⟶ 5 = 5 (отличие в 1.25 раз)"
+    ]
 
 
-async def test_an_arithmetic_issue_becomes_a_box_without_its_emoji(session):
+async def test_a_warning_is_set_in_the_quieter_accent_with_its_suggestion(session):
     # mathcheck marks its lines with ❌ and ⚠️, which is right in Telegram and
-    # wrong on the page: DejaVu has a glyph for neither.
+    # wrong on the page: the accent of the box carries the severity.
     user = await _user(session)
     note = await _note(
         session,
@@ -173,136 +171,142 @@ async def test_an_arithmetic_issue_becomes_a_box_without_its_emoji(session):
             {
                 "kind": "constant",
                 "severity": "warning",
-                "message": "h отличается от справочного",
-                "detail": "6,62 против 6,626",
+                "message": "постоянная Планка (h) записана неверно",
+                "detail": "в записи 6.6e-34, табличное 6.62607e-34 Дж·с "
+                "(расхождение 0.4%)",
                 "suggestion": "проверьте константу",
-            }
-        ],
-    )
-
-    boxes = corpus._callouts(note)
-
-    assert [b.title for b in boxes] == [texts.CALLOUT_MATH]
-    assert boxes[0].tone == "info"
-    assert "❌" not in boxes[0].lines[0] and "⚠" not in boxes[0].lines[0]
-    assert "h отличается от справочного" in boxes[0].lines[0]
-    assert "проверьте константу" in boxes[0].lines[0]
-
-
-def test_a_divergent_number_reads_as_a_sentence():
-    assert texts.divergence_line("сумма", {"2": 2, "3": 1}, page=3) == (
-        "с. 3, «сумма»: 2 (2 из 3) или 3 (1 из 3)"
-    )
-
-
-def test_a_number_missing_from_a_run_is_named_rather_than_dashed():
-    # consensus writes a gap as "— (пропущено)". Left alone, the dash reads
-    # as a stray minus in the middle of the sentence.
-    assert texts.divergence_line("", {"5": 2, "— (пропущено)": 1}) == (
-        "5 (2 из 3) или пропущено (1 из 3)"
-    )
-
-
-def test_a_context_that_is_only_the_number_is_not_repeated():
-    # The shape that produced "с. 4 — 0: 0 — 2, 2 — 1": consensus hands the
-    # number back as its own context, and saying it twice was half of what
-    # made the line unreadable.
-    assert texts.divergence_line("0", {"0": 2, "2": 1}, page=4) == (
-        "с. 4: 0 (2 из 3) или 2 (1 из 3)"
-    )
-
-
-def test_a_long_context_is_cut_rather_than_run_on():
-    line = texts.divergence_line("очень длинное окружение из тетради", {"1": 3})
-    assert "…" in line and len(line) < 60
-
-
-def test_an_issue_line_carries_message_detail_and_suggestion():
-    assert texts.issue_line("не сходится", "6,62 против 6,626", "проверьте") == (
-        "не сходится · 6,62 против 6,626 · → проверьте"
-    )
-
-
-def test_an_issue_line_with_nothing_but_a_message():
-    assert texts.issue_line("не сходится", None, None) == "не сходится"
-
-
-def test_an_issue_line_keeps_a_detail_without_a_suggestion():
-    assert texts.issue_line("не сходится", "6,62", None) == "не сходится · 6,62"
-
-
-async def test_a_critical_issue_turns_the_box_amber(session):
-    user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        issues=[{"kind": "chain", "severity": "critical", "message": "цепочка не сходится"}],
-    )
-
-    assert corpus._callouts(note)[0].tone == "warning"
-
-
-async def test_divergences_get_a_box_and_uncertain_spots_do_not(session):
-    # A spot that reads two ways is now a remark beside the line it belongs
-    # to; only the numbers stay a box, having nowhere in particular to point.
-    user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        numeric_divergences=[{"context": "p = ", "variants": {"5": 2, "6": 1}}],
-        uncertain=[{"text": "щ", "why": "двоится"}],
-    )
-
-    assert [b.title for b in corpus._callouts(note)] == [texts.CALLOUT_DIVERGENCES]
-
-
-async def test_an_uncertain_spot_becomes_a_remark_anchored_on_what_was_read(session):
-    user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        uncertain=[{"text": "∂cv", "why": "почерк неразборчив", "page": 2}],
-    )
-
-    remarks = corpus._remarks(note)
-
-    assert [r.anchor for r in remarks] == ["∂cv"]
-    assert remarks[0].label == "В рукописи, с. 2"
-    assert "почерк неразборчив" in remarks[0].lines[0]
-
-
-async def test_a_remark_carries_the_other_readings(session):
-    user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        uncertain=[{"text": "∂cv", "why": "двоится", "alternatives": ["дсv", "∂cu"]}],
-    )
-
-    assert corpus._remarks(note)[-1].lines[-1] == "другое прочтение: дсv, ∂cu"
-
-
-async def test_the_latex_a_remark_quotes_is_marked_to_be_drawn(session):
-    # «\rho^-(v)» went out on a remark as its own source. The anchor stays the
-    # raw text: it has to be found in the record exactly as it stands there.
-    user = await _user(session)
-    note = await _note(
-        session,
-        user,
-        uncertain=[
-            {
-                "text": r"\rho^-(v)",
-                "why": r"похоже на \chi",
-                "alternatives": [r"\rho^+(v)"],
+                "anchor": "h = 6.6e-34",
             }
         ],
     )
 
     remark = corpus._remarks(note)[0]
 
-    assert remark.anchor == r"\rho^-(v)"
-    assert remark.lines[0] == r"«$\rho^-(v)$» — похоже на $\chi$"
-    assert remark.lines[-1] == r"другое прочтение: $\rho^+(v)$"
+    assert remark.tone == "info"
+    assert remark.lines[0].startswith(
+        "**Постоянная Планка (h) записана неверно.** в записи 6.6e-34"
+    )
+    assert remark.lines[0].endswith("(расхождение 0.4%)")
+    assert remark.lines[-1] == "→ проверьте константу"
+
+
+async def test_the_latex_a_finding_quotes_is_marked_to_be_drawn(session):
+    # mathcheck quotes the links of a chain as the page wrote them: inside a
+    # formula, LaTeX with no dollars round it.
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        issues=[
+            {
+                "kind": "chain",
+                "severity": "critical",
+                "message": "строка 3: звенья цепочки не сходятся",
+                "detail": r"\frac{1}{2} = 0.5   ⟶   0.6 = 0.6   (отличие в 1.2 раз)",
+                "anchor": r"\frac{1}{2} = 0.6",
+            }
+        ],
+    )
+
+    assert corpus._remarks(note)[0].lines[0] == (
+        r"**Звенья цепочки не сходятся.** $\frac{1}{2} = 0.5$ ⟶ 0.6 = 0.6"
+        " (отличие в 1.2 раз)"
+    )
+
+
+async def test_a_matrix_against_its_graph_is_labelled_as_such(session):
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        issues=[
+            {
+                "kind": "matrix",
+                "severity": "critical",
+                "message": "Матрица смежности не сходится с графом",
+                "detail": "(1, 2): ребро есть, в матрице 0",
+                "anchor": "1-2, 2-3",
+            }
+        ],
+    )
+
+    remark = corpus._remarks(note)[0]
+
+    assert (remark.label, remark.anchor) == (texts.GRAPH_FINDING_LABEL, "1-2, 2-3")
+
+
+async def test_a_cell_that_could_not_be_read_is_not_an_error(session):
+    # graphcheck fills an unread cell from the graph. That is about how the
+    # page was read, and the cell carries its own [неразборчиво].
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        issues=[
+            {
+                "kind": "matrix",
+                "severity": "warning",
+                "message": graphcheck.UNREAD_CELLS,
+                "detail": "по графу там стоит: (1, 2) = 1",
+                "anchor": "1-2",
+            }
+        ],
+    )
+
+    assert corpus._remarks(note) == []
+
+
+async def test_a_finding_stored_before_anchors_is_found_again_in_the_text(session):
+    # Records made before 2026-09-25 carry no anchor: the same checks run
+    # again over the stored text and give the finding its text back.
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        markdown="Сложим:\n\n$$2 + 2 = 4 = 5$$",
+        issues=[
+            {
+                "kind": "chain",
+                "severity": "critical",
+                "message": "строка 7: звенья цепочки не сходятся",
+                "detail": "4 = 4   ⟶   5 = 5   (отличие в 1.25 раз)",
+                "page": 2,
+            }
+        ],
+    )
+
+    assert [(r.anchor, r.tone) for r in corpus._remarks(note)] == [
+        ("2 + 2 = 4 = 5", "warning")
+    ]
+
+
+async def test_what_the_checks_no_longer_find_is_not_printed(session):
+    # Record 45 carried a congruence read as a chain of equalities, stored
+    # before task 42 taught the check to leave such a line alone.
+    user = await _user(session)
+    note = await _note(
+        session,
+        user,
+        markdown=r"$1001 = 12 \cdot 83 + 5 \Rightarrow 2^{1001} \equiv 1^{83} \cdot 2^5 = 32$",
+        issues=[
+            {
+                "kind": "chain",
+                "severity": "critical",
+                "message": "строка 29: звенья цепочки не сходятся",
+                "detail": "1001 = 1001   ⟶   32 = 32   (отличие в 0.03197 раз)",
+            }
+        ],
+    )
+
+    assert corpus._remarks(note) == []
+
+
+async def test_an_unreadable_issues_payload_does_not_sink_the_boxes(session):
+    # A shape this version cannot read costs its own box, not the record.
+    user = await _user(session)
+    note = await _note(session, user, issues=[{"совсем": "не то"}, "мусор"])
+
+    assert corpus._remarks(note) == []
 
 
 async def test_what_the_bot_added_is_built_into_boxes_with_their_sources(session):
@@ -336,46 +340,38 @@ async def test_a_record_without_additions_has_no_boxes_and_no_summary(session):
     assert corpus._summary(note) is None
 
 
-async def test_a_remark_without_a_page_says_so_without_one(session):
-    user = await _user(session)
-    note = await _note(session, user, uncertain=[{"text": "щ", "why": "двоится"}])
-
-    assert corpus._remarks(note)[0].label == "В рукописи"
-
-
-async def test_a_stored_uncertain_shape_that_is_not_a_dict_is_skipped(session):
-    user = await _user(session)
-    note = await _note(session, user, uncertain=["мусор", {"text": "щ", "why": "х"}])
-
-    assert [r.anchor for r in corpus._remarks(note)] == ["щ"]
-
-
-async def test_an_unreadable_issues_payload_does_not_sink_the_boxes(session):
-    # Same bargain as the message path: a shape this version cannot read costs
-    # its own box, not the record.
-    user = await _user(session)
-    note = await _note(
-        session, user, issues=[{"совсем": "не то"}], uncertain=[{"text": "щ", "why": "двоится"}]
-    )
-
-    assert corpus._callouts(note) == []
-
-
 async def test_the_document_is_built_with_the_boxes_of_the_record(session, monkeypatch):
     # The boxes being right proves nothing if the PDF is rendered without them.
     user = await _user(session)
-    note = await _note(session, user, status="needs_review")
-    seen: list[list] = []
+    note = await _note(
+        session,
+        user,
+        status="needs_review",
+        missing_pages=[2],
+        markdown="Пусть $2 + 2 = 5$.",
+        issues=[
+            {
+                "kind": "chain",
+                "severity": "critical",
+                "message": "не сходится",
+                "anchor": "2 + 2 = 5",
+            }
+        ],
+    )
+    seen: list = []
     original = corpus.pdf.render
 
     def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=(), *rest):
-        seen.append(list(callouts))
+        seen.append((subtitle, list(callouts), list(remarks)))
         return original(title, markdown, subtitle, callouts, byline, remarks, *rest)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
     await corpus.send_record_pdf(_Message(), note)
 
-    assert [b.title for b in seen[0]] == [texts.CALLOUT_REVIEW]
+    subtitle, callouts, remarks = seen[0]
+    assert "проверка" not in subtitle
+    assert [b.title for b in callouts] == [texts.CALLOUT_MISSING]
+    assert [r.anchor for r in remarks] == ["2 + 2 = 5"]
 
 
 def test_a_byline_joins_what_stood_in_the_margin():
@@ -408,24 +404,6 @@ async def test_the_document_is_built_with_the_byline_of_the_record(
     await corpus.send_record_pdf(_Message(), note)
 
     assert seen == ["Шиманская Г. С."]
-
-
-async def test_the_document_is_built_with_the_remarks_of_the_record(
-    session, monkeypatch
-):
-    user = await _user(session)
-    note = await _note(session, user, uncertain=[{"text": "щ", "why": "двоится"}])
-    seen: list[list] = []
-    original = corpus.pdf.render
-
-    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=(), *rest):
-        seen.append(list(remarks))
-        return original(title, markdown, subtitle, callouts, byline, remarks, *rest)
-
-    monkeypatch.setattr(corpus.pdf, "render", spy)
-    await corpus.send_record_pdf(_Message(), note)
-
-    assert [r.anchor for r in seen[0]] == ["щ"]
 
 
 # ── /stats ───────────────────────────────────────────────────────────────────

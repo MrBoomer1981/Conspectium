@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 
 from aiogram import F, Router
@@ -33,149 +34,105 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import tags, texts
 from app.core.events import log_event
 from app.db.models import Group, Note, NoteTopic, User
-from app.services import mathcheck, pdf
+from app.services import graphcheck, pdf, vision
 
 logger = logging.getLogger(__name__)
 
 router = Router()
 
-# mathcheck.Issue's own fields. Stored issues carry an extra `page` for album
-# records, and rows written by an older version may not match today's
-# dataclass at all — so the dict is filtered down rather than splatted.
-_ISSUE_FIELDS = ("kind", "severity", "message", "detail", "suggestion")
-
-
-def _stored_report(note: Note) -> mathcheck.Report | None:
-    """mathcheck's own Report, rebuilt from JSONB, or None when there is
-    nothing stored — or when the stored shape is one this version cannot read.
-    A record is not worth failing over its flags: the text is what was asked
-    for."""
-    if not note.issues:
-        return None
-    try:
-        return mathcheck.Report(
-            issues=[
-                mathcheck.Issue(**{k: v for k, v in issue.items() if k in _ISSUE_FIELDS})
-                for issue in note.issues
-            ]
-        )
-    except (TypeError, AttributeError):
-        logger.warning("note %d: unreadable issues payload", note.id)
-        return None
-
-
-def _divergence_lines(note: Note) -> list[str]:
-    return [
-        texts.divergence_line(
-            d.get("context", ""), d.get("variants", {}), page=d.get("page")
-        )
-        for d in note.numeric_divergences
-        if isinstance(d, dict)
-    ]
-
-
-def _uncertain_lines(note: Note) -> list[str]:
-    return [
-        texts.uncertain_line(u.get("text", ""), u.get("why", ""), page=u.get("page"))
-        for u in note.uncertain
-        if isinstance(u, dict)
-    ]
-
 
 def _callouts(note: Note) -> list[pdf.Callout]:
-    """The same flags as boxes on the first page of the document.
+    """The box above the record: the pages it is missing, if any.
 
-    Built from the same three readers as `_flags`, so the message and the
-    document cannot come to disagree about what a record is flagged for. What
-    differs is only the presentation: a box has a short title of its own, and
-    the severity of an arithmetic issue is carried by the colour rather than
-    by a marker the document's font cannot draw.
+    A hole is about the record rather than about its text: the marker stands
+    where the page would have been, and this says so on the first page, where
+    a reader decides whether they are holding the whole lecture. It used to
+    stand among boxes about how the page was read — numbers the runs read
+    differently, pages no second reading confirmed, a general "нужна
+    проверка". None of those is printed any more: the author's decision,
+    2026-09-25. The group studies from the document, and talk about the
+    recognition is noise to it; the columns stay for the measurements.
     """
-    boxes: list[pdf.Callout] = []
-
-    report = _stored_report(note)
-    if report is not None and report.issues:
-        boxes.append(
-            pdf.Callout(
-                texts.CALLOUT_MATH,
-                [
-                    texts.issue_line(i.message, i.detail, i.suggestion)
-                    for i in report.issues
-                ],
-                "warning"
-                if any(i.severity == "critical" for i in report.issues)
-                else "info",
-            )
+    if not note.missing_pages:
+        return []
+    return [
+        pdf.Callout(
+            texts.CALLOUT_MISSING,
+            [texts.page_missing_marker(page) for page in note.missing_pages],
+            "warning",
         )
+    ]
 
-    divergences = _divergence_lines(note)
-    if divergences:
-        boxes.append(pdf.Callout(texts.CALLOUT_DIVERGENCES, divergences))
 
-    if note.unverified_pages:
-        boxes.append(
-            pdf.Callout(
-                texts.CALLOUT_UNVERIFIED,
-                [
-                    texts.unverified_line(u["page"], u["reason"])
-                    for u in note.unverified_pages
-                ],
-                "warning",
-            )
-        )
-
-    # First of the boxes by importance, last to be appended only because the
-    # order here is the order they were built in. A hole is the one flag that
-    # is about the record rather than about its text: the marker stands where
-    # the page would have been, and this says so on the first page, where a
-    # reader decides whether they are holding the whole lecture.
-    if note.missing_pages:
-        boxes.insert(
-            0,
-            pdf.Callout(
-                texts.CALLOUT_MISSING,
-                [texts.page_missing_marker(page) for page in note.missing_pages],
-                "warning",
-            ),
-        )
-
-    # Same rule as the message: the generic box only when nothing more exact
-    # is there to fill it. The subtitle already carries "нужна проверка".
-    if note.status == "needs_review" and not boxes:
-        boxes.append(
-            pdf.Callout(texts.CALLOUT_REVIEW, [texts.NEEDS_REVIEW], "warning")
-        )
-
-    return boxes
+# What graphcheck checks — a matrix against its graph — which is not a
+# calculation, and whose box says so.
+_GRAPH_KINDS = ("matrix", "incidence")
+# mathcheck's detail for a chain: "<link> = <value>   ⟶   <link> = <value>
+# (отличие в N раз)". Each side of the arrow is a formula; the bracket is not.
+_ARROW = "⟶"
+_TRAILING_BRACKET_RE = re.compile(r"\s*(\([^()]*\))\s*$")
 
 
 def _remarks(note: Note) -> list[pdf.Remark]:
-    """The spots that read two ways, as remarks to be set beside them.
+    """What the checks by code found wrong in the record — an equality that
+    does not hold, a constant written wrong, a matrix its graph contradicts —
+    each set under the text it is about.
 
-    These used to be a box at the top of the document, which said what was
-    doubtful without saying where. `uncertain.text` is what the model read, so
-    it is also the anchor: whichever line of the record contains it gets the
-    remark. One that anchors nowhere is not lost — `pdf.render` puts it at the
-    end.
+    Only errors in the work: never how a page was read. A spot that reads two
+    ways was a remark here, labelled with what stood in the manuscript; the
+    author ruled it out on 2026-09-25 together with the boxes about the
+    reading, and so graphcheck's cell that could not be read is not printed
+    either. These used to be one box at the top, "Проверка вычислений", which
+    said what was wrong and not where.
 
-    What was read, why it is doubtful and what else it might be are quoted as
-    the page was transcribed — inside a formula that is LaTeX with no dollars
-    round it — so their LaTeX is marked to be drawn. The anchor stays the raw
-    text: it has to be found in the record exactly as it stands there.
+    `anchor` is stored with the finding when the page is checked. A record
+    made before that (2026-09-25) has none, so the same checks run again over
+    its stored text: that gives each finding its text back, and drops what
+    they no longer find — record 45's congruence, read as a chain before task
+    42. A stored shape this version cannot read is skipped rather than
+    allowed to sink the record.
     """
-    return [
-        pdf.Remark(
-            anchor=str(u.get("text", "")),
-            label=texts.remark_label(u.get("page")),
-            lines=texts.uncertain_remark(
-                pdf.as_formula(str(u.get("text", ""))),
-                pdf.as_formula(str(u.get("why", ""))),
-                [pdf.as_formula(str(a)) for a in u.get("alternatives") or []],
-            ),
+    issues = note.issues or []
+    if any(isinstance(issue, dict) and "anchor" not in issue for issue in issues):
+        issues = [asdict(found) for found in vision.findings(note.markdown or "")]
+    boxes: list[pdf.Remark] = []
+    for issue in issues:
+        if not isinstance(issue, dict):
+            continue
+        message = str(issue.get("message") or "").strip()
+        if not message or message == graphcheck.UNREAD_CELLS:
+            continue
+        kind = str(issue.get("kind") or "")
+        boxes.append(
+            pdf.Remark(
+                anchor=str(issue.get("anchor") or ""),
+                label=(
+                    texts.GRAPH_FINDING_LABEL
+                    if kind in _GRAPH_KINDS
+                    else texts.FINDING_LABEL
+                ),
+                lines=texts.finding_lines(
+                    message,
+                    _drawn(str(issue.get("detail") or "")),
+                    str(issue.get("suggestion") or ""),
+                ),
+                tone="warning" if issue.get("severity") == "critical" else "info",
+            )
         )
-        for u in note.uncertain
-        if isinstance(u, dict)
-    ]
+    return boxes
+
+
+def _drawn(detail: str) -> str:
+    """A finding's detail with its formulas marked to be drawn. mathcheck
+    quotes the links of a chain as the page wrote them, which inside a
+    formula is LaTeX with no dollars round it — "\\frac{1}{2}" printed as its
+    own source. Each side of the arrow is marked as a formula; the bracket
+    after it is prose and stays as it is."""
+    tail = _TRAILING_BRACKET_RE.search(detail)
+    body = detail[: tail.start()] if tail else detail
+    sides = [pdf.as_formula(" ".join(side.split())) for side in body.split(_ARROW)]
+    drawn = f" {_ARROW} ".join(sides)
+    return f"{drawn} {tail.group(1)}" if tail else drawn
 
 
 def _explanations(note: Note) -> list[pdf.Explanation]:
@@ -319,9 +276,7 @@ async def send_record_pdf(message: Message, note: Note) -> bool:
     """Send one record as a PDF. Returns False if it could not be built, so the
     caller can fall back to plain text — a record is never worth losing over
     its presentation."""
-    subtitle = texts.pdf_subtitle(
-        note.created_at, note.page_count, note.status == "needs_review"
-    )
+    subtitle = texts.pdf_subtitle(note.created_at, note.page_count)
     try:
         # Drawing formulas is CPU-bound; the webhook must not stall on it.
         data = await asyncio.to_thread(

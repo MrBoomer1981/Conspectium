@@ -145,15 +145,14 @@ _INK = "#24292f"
 _MUTED = "#6b7480"
 _HAIRLINE = "#d8dee4"  # under the title and a section heading, 0.8 pt
 _SECTION_RULE = "#e6e8eb"  # between two sections, 1.5 pt
-_BAR = "#d0d7de"  # down the side of a remark, 3 pt
-# A callout differs from a remark in its accent alone: the bar and the label.
+# The accent of a box about the record, and of a finding set under its line:
+# the bar down its side and its label.
 _CALLOUT_TONES = {
     "info": "#3f6f9f",
     "warning": "#a8742c",
 }
 # What the bot adds of its own — an explanation, the summary — in an accent no
-# other box has, so it is never read as the author's text, as a remark about
-# how the page was read, or as a warning.
+# other box has, so it is never read as the author's text or as a finding.
 _ADDED_TONE = "#2e7d5b"
 
 # ── Drawings ─────────────────────────────────────────────────────────────────
@@ -234,11 +233,11 @@ _MAX_VERTEX_CHARS = 12
 
 @dataclass
 class Callout:
-    """A box above the record saying how far the transcription can be trusted.
+    """A box above the record, about the record as a whole — the pages it is
+    missing.
 
-    Never anything the model wrote about the page: only what the pipeline
-    already stored beside the text — unreadable spots, arithmetic it could not
-    make add up, numbers the three runs read differently. The caller builds
+    Never anything the model wrote about the page, and never how the page was
+    read: only what the pipeline stored beside the text. The caller builds
     these; this module knows nothing about where a record comes from.
     """
 
@@ -249,17 +248,20 @@ class Callout:
 
 @dataclass
 class Remark:
-    """A note about how one place in the record was read, set beside it.
+    """What a check made by code found wrong in one place of the record — an
+    equality that does not hold, a matrix the graph beside it contradicts —
+    set under that place.
 
-    `anchor` is the text it belongs to: whichever block contains that text
-    gets the remark under it. One that matches nothing is not thrown away —
-    it goes at the end, where it is still readable. Like a Callout, it says
-    only what the pipeline already knows.
+    `anchor` is the text it belongs to, found the way an explanation's is
+    (`_anchored`). One that matches nothing is not thrown away — it goes at
+    the end, where it is still readable. `tone` is a callout's: "warning" for
+    what is certainly wrong, "info" for what only may be.
     """
 
     anchor: str
     label: str
     lines: list[str]
+    tone: str = "info"
 
 
 @dataclass
@@ -1633,12 +1635,9 @@ def _styles() -> dict[str, ParagraphStyle]:
         # than a sentence the author was saying.
         "byline": ParagraphStyle("byline", parent=muted),
         "meta": ParagraphStyle("meta", parent=muted),
+        # A box is set at the size of the text it sits in. Smaller and it
+        # read as small print to skip.
         "callout_body": ParagraphStyle("callout_body", parent=base),
-        # A remark is set at the size of the text it sits in, in grey — the
-        # reference's "ЗАМЕЧАНИЕ". Smaller and it read as small print to skip.
-        "remark_body": ParagraphStyle(
-            "remark_body", parent=base, textColor=_MUTED,
-        ),
         "body": base,
         "bullet": ParagraphStyle(
             "bullet", parent=base, leftIndent=26, bulletIndent=10,
@@ -1960,11 +1959,9 @@ def _box(
     """The one shape every box beside the text takes: a bar down the left,
     a label in spaced capitals, the lines under it. No panel behind it.
 
-    A callout about the whole record and a remark about one line differ in
-    their colours alone — a remark is the reference's "ЗАМЕЧАНИЕ", grey bar
-    and grey text; a callout carries its accent in the bar and the label.
-    Whatever the bot adds of its own later is the same box in a tone of its
-    own.
+    A callout about the whole record and a finding under one line are the
+    reference's "ЗАМЕЧАНИЕ" with an accent in the bar and the label; what the
+    bot adds of its own is the same box in a tone of its own.
 
     reportlab has no such flowable, so it is a table of one cell — that is
     what gives a bar on one side only.
@@ -2002,10 +1999,12 @@ def _callout(
 def _remark(
     remark: Remark, formulas: _Formulas, styles: dict[str, ParagraphStyle]
 ) -> Table:
-    """A box under the line it belongs to, in the quietest tone. Anything
-    louder and a page of ordinary reading becomes a page of warnings."""
+    """A finding under the line it is about, in the accent a callout of its
+    weight would carry. It used to be a callout at the top of the record,
+    which said what was wrong without saying where."""
+    accent = _CALLOUT_TONES.get(remark.tone, _CALLOUT_TONES["info"])
     return _box(
-        remark.label, remark.lines, _MUTED, _BAR, styles["remark_body"], formulas,
+        remark.label, remark.lines, accent, accent, styles["callout_body"], formulas
     )
 
 
@@ -2038,25 +2037,65 @@ def _summary(
     )
 
 
-_SQUASH_RE = re.compile(r"[\s$]+")
+# Spaces, dollars and the stars of bold: what a model quoting a line writes
+# as it pleases, and what composition adds to a line it did not otherwise
+# change.
+_SQUASH_RE = re.compile(r"[\s$*]+")
 _NUMBER_ANCHOR_RE = re.compile(r"\(?\s*(\d{1,3})\s*\)?")
 
 
+def _squash(text: str) -> str:
+    return _SQUASH_RE.sub("", text).lower()
+
+
+def _reading(member: Block) -> str:
+    """A block as its text: a table's rows written the way markdown writes
+    them, since a table holds its text in its cells."""
+    if member.kind == "table":
+        return "\n".join("|" + "|".join(row) + "|" for row in member.rows)
+    return member.text
+
+
 def _anchored(anchor: str, members: list[Block], numbers: set[int]) -> bool:
-    """Whether an explanation belongs under this unit: its anchor is the
-    number of a formula in it, or a quote from one of its lines. Compared
-    without spaces and dollars, since a model quoting a formula writes them
-    as it pleases; never against a graph's edge list, which nobody reads."""
+    """Whether a box belongs under this unit — an explanation, or a finding of
+    a check: its anchor is the number of a formula in it, or a quote from one
+    of its lines, compared without spaces, dollars and bold. A graph's edge
+    list is text nobody reads — "2" is in "1-2, 2-3" — so a graph is matched
+    only by its whole spec, which is how a finding about its matrix names it.
+    Three characters at least: "" is in everything."""
     found = _NUMBER_ANCHOR_RE.fullmatch(anchor.strip())
     if found:
         return int(found.group(1)) in numbers
-    wanted = _SQUASH_RE.sub("", anchor).lower()
+    wanted = _squash(anchor)
     if len(wanted) < 3:
         return False
     return any(
-        member.kind != "graph" and wanted in _SQUASH_RE.sub("", member.text).lower()
+        wanted == _squash(member.text)
+        if member.kind == "graph"
+        else wanted in _squash(_reading(member))
         for member in members
     )
+
+
+def _opened(flowables: list) -> tuple[list, bool]:
+    """A unit's flowables with a group inside them opened up, and whether
+    there was one to open.
+
+    A long division keeps itself whole with a KeepTogether of its own. Set in
+    one group with the heading over it or the box under it, that was a group
+    inside a group; the inner one reports an effectively infinite height, and
+    reportlab sent the whole of it to the next page even where it fitted —
+    the empty stretch before a division on page 4 of record 47. The unit is
+    still kept whole, by the one group it is set in."""
+    opened: list = []
+    whole = False
+    for flowable in flowables:
+        if isinstance(flowable, KeepTogether):
+            opened.extend(flowable._content)
+            whole = True
+        else:
+            opened.append(flowable)
+    return opened, whole
 
 
 def _figure_width(count: int) -> float:
@@ -2665,28 +2704,25 @@ def render(
             space = _space_before(previous, kind, paragraph_break)
             paragraph_break = False
 
-            # A graph's spec is not text a reader sees: an anchor "2" found in
-            # "1-2, 2-3" pinned a remark about a word to a drawing.
+            unit_numbers = {numbered[id(m)] for m in members if id(m) in numbered}
             attached = [
                 remark
                 for remark in pending
-                if remark.anchor
-                and any(m.kind != "graph" and remark.anchor in m.text for m in members)
+                if _anchored(remark.anchor, members, unit_numbers)
             ]
-            group = list(flowables)
+            group, whole = _opened(flowables)
             for remark in attached:
-                # A remark stays with the line it explains: never the first
+                # A finding stays with the line it is about: never the first
                 # thing on a page whose line was the last on the one before.
                 pending.remove(remark)
                 group += [Spacer(1, 4), _remark(remark, formulas, styles)]
-            unit_numbers = {numbered[id(m)] for m in members if id(m) in numbered}
             explained = [
                 item for item in unexplained
                 if _anchored(item.anchor, members, unit_numbers)
             ]
             for item in explained:
-                # After the remarks: first how the page was read, then what
-                # the bot has to add to it.
+                # After the findings: first what is wrong with the line, then
+                # what the bot has to add to it.
                 unexplained.remove(item)
                 group += [Spacer(1, 6), _explanation(item, formulas, styles)]
             attached = attached + explained
@@ -2713,7 +2749,7 @@ def render(
                 continue
             # A table is kept whole as well: split across two pages, a matrix
             # loses its column names on the second.
-            if len(group) > 1 or kind == "table":
+            if len(group) > 1 or kind == "table" or whole:
                 story.append(KeepTogether(group))
             else:
                 story.extend(group)
@@ -2721,7 +2757,7 @@ def render(
         # A heading with nothing after it has nothing to be kept with.
         story.extend(held)
 
-        # A remark whose anchor was never found is still worth reading; it
+        # A finding whose anchor was never found is still worth reading; it
         # goes at the end rather than nowhere. So does an explanation.
         for remark in pending:
             story.append(Spacer(1, _SET_APART_GAP))

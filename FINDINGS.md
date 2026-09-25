@@ -748,3 +748,47 @@ environments carried no dollars, and a `$` opened on one line closed twelve
 lines later. Joined into formulas, with the `tabular` drawn as a table of text
 and the Russian words inside a formula set as words, it prints none; records
 45 and 46 printed none before and none after.
+
+## Remarks about the reading
+
+**What the documents carried (production, 2026-09-25, 47 records).** 36
+records carried reading remarks from `uncertain` — "В рукописи, с. 2: «Дьюринг»
+— двоится; другое прочтение: Тьюринг" — set under their lines; 26 opened with
+a box of numbers the runs read differently; 6 with a box of pages read without
+a second opinion; 32 were `needs_review` and said "нужна проверка" under the
+title, with a box saying the same wherever nothing more exact filled one. Four
+records carried a finding of a check at all: records 19–21, the same album
+three times, with a matrix its graph contradicts, and record 45, with the
+congruence read as a chain that task 42 had already stopped reporting. The
+chat got every one of those lists again after the record.
+
+The author ruled on it the same day: nothing in the text like "I read Дьюринг,
+not Тьюринг"; a remark only for an error in the work; nothing about what the
+author wrote; the boxes "прочитано без сверки" and "числа прочитаны по-разному"
+gone; and the arithmetic check moved to the place it checked (task 46).
+
+**Re-rendered from production with the change:**
+
+| record | pages before → after | boxes and remarks before | after |
+|---|---|---|---|
+| 19 | 5 → 4 | 2 boxes, 7 remarks | one finding, under its graph and matrix |
+| 45 | 7 → 6 | 4 boxes, 5 remarks | the missing-page box; the stale chain finding dropped |
+| 46 | 7 → 7 | 2 boxes, 4 remarks | none |
+| 47 | 8 → 6 | 1 box, 7 remarks | none |
+
+Record 47 lost two pages and not only to the boxes: its page 4 ended at 38% of
+its height before a long division. The division kept itself whole with a
+`KeepTogether`, and set in one group with the heading over it — or, then, a
+reading remark under it — that was a group inside a group, which reportlab
+sends to the next page even where it fits. Opened into the one group, every
+page but the last fills 83–92%.
+
+**mathcheck raises on a chain whose link comes to 0.** Found while writing the
+anchor tests: "1 - 1 = 0 = 5", and a list item "- 2 + 2 = 4 = 5" whose marker
+it reads as a minus, make `check_chains` take the ratio of the next link to 0
+and round the logarithm of infinity — `OverflowError: cannot convert float
+infinity to integer`. Nothing caught it: on the photo path the record was lost
+to "Не смог обработать фото" after the recognition was paid for, and on an
+album the page became "ошибка обработки" and a hole. Production has no
+`note_failed` event at all, so no record is known to have hit it. Worked
+around in `vision`, the module left as it is.

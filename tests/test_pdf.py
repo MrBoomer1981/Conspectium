@@ -815,7 +815,7 @@ def test_a_callout_and_a_remark_are_one_anatomy():
         formulas = pdf._Formulas(directory)
         boxes = [
             pdf._callout(pdf.Callout("Нужна проверка", ["a"], "warning"), formulas, styles),
-            pdf._remark(pdf.Remark("x", "В рукописи", ["b"]), formulas, styles),
+            pdf._remark(pdf.Remark("x", "Проверка вычислений", ["b"]), formulas, styles),
         ]
     for box in boxes:
         assert [cmd[0] for cmd in box._linecmds] == ["LINEBEFORE"]
@@ -1010,7 +1010,7 @@ def test_a_remark_is_set_directly_under_the_line_it_belongs_to(monkeypatch):
         monkeypatch,
         "Графы",
         "первая строка\nвторая строка про щуку\nтретья строка",
-        remarks=[pdf.Remark("щуку", "В рукописи", ["двоится"])],
+        remarks=[pdf.Remark("щуку", "Проверка вычислений", ["не сходится"])],
     )
     flat = [f for f in _flat(story) if type(f).__name__ != "Spacer"]
     anchor = _where(flat, "щуку")
@@ -1025,7 +1025,7 @@ def test_a_remark_is_kept_on_the_page_of_its_line(monkeypatch):
         monkeypatch,
         "Графы",
         "первая строка\nвторая строка про щуку",
-        remarks=[pdf.Remark("щуку", "В рукописи", ["двоится"])],
+        remarks=[pdf.Remark("щуку", "Проверка вычислений", ["не сходится"])],
     )
     group = _group_of(story, "щуку")
 
@@ -1040,7 +1040,7 @@ def test_a_remark_that_anchors_nowhere_goes_to_the_end(monkeypatch):
         monkeypatch,
         "Графы",
         "первая строка\nвторая строка",
-        remarks=[pdf.Remark("чего тут нет", "В рукописи", ["двоится"])],
+        remarks=[pdf.Remark("чего тут нет", "Проверка вычислений", ["не сходится"])],
     )
     assert type(story[-1]).__name__ == "Table"
     assert _where(story, "вторая") < len(story) - 1
@@ -1053,7 +1053,7 @@ def test_a_remark_with_an_empty_anchor_is_not_pinned_to_the_first_line(monkeypat
         monkeypatch,
         "Графы",
         "первая строка\nвторая строка",
-        remarks=[pdf.Remark("", "В рукописи", ["двоится"])],
+        remarks=[pdf.Remark("", "Проверка вычислений", ["не сходится"])],
     )
     assert type(story[-1]).__name__ == "Table"
 
@@ -1103,7 +1103,7 @@ def test_no_group_is_ever_nested_in_another(monkeypatch):
         monkeypatch,
         "Т",
         "### Пример\nстрока про щуку\n\n## Таблица\n| 1 | 2 |\n| 3 | 4 |",
-        remarks=[pdf.Remark("щуку", "В рукописи", ["двоится"])],
+        remarks=[pdf.Remark("щуку", "Проверка вычислений", ["не сходится"])],
     )
     for flowable in story:
         if type(flowable).__name__ == "KeepTogether":
@@ -1119,16 +1119,104 @@ def test_a_table_is_kept_whole(monkeypatch):
     assert any(type(f).__name__ == "Table" for g in groups for f in g._content)
 
 
-def test_a_graph_does_not_catch_a_remark_with_its_edge_list(monkeypatch):
-    # An anchor "2" is in "1-2, 2-3", and a remark about a word was pinned to
-    # a drawing. The spec is not text anyone reads.
+def test_a_graph_does_not_catch_a_box_with_part_of_its_edge_list(monkeypatch):
+    # "2-3" is in "1-2, 2-3, 3-4", and a box about a line of text was pinned
+    # to a drawing. The spec is not text anyone reads.
     story = _story(
         monkeypatch,
         "Т",
-        "[граф: 1-2, 2-3]\nтекст\nстрока 2 про вершины",
-        remarks=[pdf.Remark("2", "В рукописи", ["двоится"])],
+        "[граф: 1-2, 2-3, 3-4]\nтекст\nмаршрут 2-3 короткий",
+        remarks=[pdf.Remark("2-3", "Проверка вычислений", ["не сходится"])],
     )
-    assert _group_of(story, "строка 2") is not None
+    assert _group_of(story, "маршрут") is not None
+
+
+def _box_at(story: list, label: str) -> int:
+    """Where the box labelled `label` stands in a flat story, or -1."""
+    for position, flowable in enumerate(story):
+        cells = getattr(flowable, "_cellvalues", None)
+        inside = cells[0][0] if cells else None
+        if isinstance(inside, list) and inside and getattr(inside[0], "text", "") == (
+            label.upper()
+        ):
+            return position
+    return -1
+
+
+def test_a_finding_about_a_matrix_is_set_under_its_graph(monkeypatch):
+    # graphcheck names the graph a matrix was checked against by its whole
+    # spec, and the drawing and its matrix stand side by side.
+    story = _story(
+        monkeypatch,
+        "Т",
+        "текст\n\n[граф: 1-2, 2-3]\n| | 1 | 2 | 3 |\n|---|---|---|---|\n"
+        "| 1 | 0 | 1 | 0 |\n| 2 | 1 | 0 | 1 |\n| 3 | 0 | 1 | 1 |\n\nдальше",
+        remarks=[pdf.Remark("1-2,  2-3", "Сверка с графом", ["не сходится"])],
+    )
+    flat = _flat(story)
+    box = _box_at(flat, "Сверка с графом")
+
+    assert box > _where(flat, "текст")
+    assert _where(flat, "дальше") > box
+
+
+def test_a_finding_finds_its_formula_however_composition_set_it(monkeypatch):
+    # The anchor is the formula as recognition wrote it; composition spaced
+    # it, and put bold on the word beside it.
+    story = _story(
+        monkeypatch,
+        "Т",
+        "первая строка\n**Итак**, $2 + 2 = 4 = 5$ — и дальше\nтретья строка",
+        remarks=[pdf.Remark("2+2 = 4=5", "Проверка вычислений", ["не сходится"])],
+    )
+    flat = [f for f in _flat(story) if type(f).__name__ != "Spacer"]
+    line = _where(flat, "Итак")
+
+    assert line > 0
+    assert _box_at(flat, "Проверка вычислений") == line + 1
+
+
+def test_a_finding_in_a_table_cell_is_set_under_the_table(monkeypatch):
+    story = _story(
+        monkeypatch,
+        "Т",
+        "текст\n\n| a | 2 + 2 = 5 |\n| b | c |\n\nдальше",
+        remarks=[pdf.Remark("2 + 2 = 5", "Проверка вычислений", ["не сходится"])],
+    )
+    flat = _flat(story)
+
+    assert 0 <= _box_at(flat, "Проверка вычислений") < _where(flat, "дальше")
+
+
+def test_a_long_division_is_one_flat_group_with_its_heading_and_its_box(monkeypatch):
+    """A division keeps itself whole. Set in one group with the heading over
+    it and the box under it, that was a group inside a group, and reportlab
+    sent the lot to the next page even where it fitted — the empty stretch
+    before a division on page 4 of record 47."""
+    story = _story(
+        monkeypatch,
+        "Т",
+        f"### Деление\n$${_DIVISION}$$\n\nдальше",
+        remarks=[
+            pdf.Remark("4x^3 + 2x^2 - 3x + 1", "Проверка вычислений", ["не сходится"])
+        ],
+    )
+    for flowable in story:
+        if type(flowable).__name__ == "KeepTogether":
+            assert all(
+                type(inner).__name__ != "KeepTogether" for inner in flowable._content
+            )
+    group = _group_of(story, "Деление")
+
+    assert group is not None
+    assert _box_at(group._content, "Проверка вычислений") >= 0
+
+
+def test_a_long_division_alone_is_still_kept_whole(monkeypatch):
+    story = _story(monkeypatch, "Т", f"текст\n\n$${_DIVISION}$$\n\nдальше")
+    groups = [f for f in story if type(f).__name__ == "KeepTogether"]
+
+    assert any(type(inner).__name__ == "Table" for g in groups for inner in g._content)
 
 
 def test_adjacent_drawings_are_set_in_one_row(monkeypatch):
@@ -1677,10 +1765,23 @@ def test_a_number_inside_a_sentence_does_not_open_a_list():
     assert pdf.blocks("12 рёбер и 5 вершин")[0].kind == "text"
 
 
-def test_a_remark_is_set_in_the_grey_of_the_reference():
+def test_a_finding_carries_the_accent_of_its_weight():
+    # A finding used to be a callout at the top; under its line it keeps the
+    # accent it had there.
+    import tempfile
+
+    pdf._register_fonts()
     styles = pdf._styles()
-    assert styles["remark_body"].textColor == pdf._MUTED == "#6b7480"
-    assert styles["remark_body"].fontSize == styles["body"].fontSize
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        certain = pdf._remark(
+            pdf.Remark("x", "Проверка вычислений", ["a"], "warning"), formulas, styles
+        )
+        possible = pdf._remark(
+            pdf.Remark("x", "Проверка вычислений", ["a"]), formulas, styles
+        )
+    assert certain._cellvalues[0][0][0].color == pdf._CALLOUT_TONES["warning"]
+    assert possible._cellvalues[0][0][0].color == pdf._CALLOUT_TONES["info"]
 
 
 def test_a_record_in_the_new_style_renders_whole():
@@ -1696,7 +1797,11 @@ def test_a_record_in_the_new_style_renders_whole():
         markdown,
         subtitle="24.09.2026 · 1 страница",
         callouts=[pdf.Callout("Нужна проверка", ["строка"], "warning")],
-        remarks=[pdf.Remark("Лемма", "В рукописи, с. 1", ["«$x$» — двоится"])],
+        remarks=[
+            pdf.Remark(
+                "Лемма", "Проверка вычислений", ["**Не сходится.** $x = 2$ ⟶ 3"], "warning"
+            )
+        ],
     )
     assert data.startswith(b"%PDF-")
 

@@ -12,8 +12,9 @@ functions the drawing goes through. The check and the picture then see one
 structure by construction rather than by coincidence.
 
 Findings come back as `mathcheck.Issue`, so they join the record's existing
-`issues` column, its callout and its critical -> needs_review downgrade
-instead of opening a second channel for the same kind of finding.
+`issues` column, the box the document sets beside what was checked, and the
+critical -> needs_review downgrade instead of opening a second channel for the
+same kind of finding.
 """
 
 from __future__ import annotations
@@ -24,10 +25,23 @@ from app.services.mathcheck import Issue
 # Past this, a wall of cell-by-cell findings says less than one count of them.
 _MAX_CELL_ISSUES = 6
 
+# The one finding that is not an error in the work: a cell recognition could
+# not read, and what the graph says stands there. It is about how the page was
+# read, and the document prints none of that (corpus._remarks); the cell
+# carries its own [неразборчиво]. Named so the two places cannot drift apart.
+UNREAD_CELLS = "Матрица смежности местами не прочиталась"
+
 
 def check(markdown: str) -> list[Issue]:
     """Every matrix in the record compared against the graph it belongs to."""
-    issues: list[Issue] = []
+    return [issue for issue, _ in located(markdown)]
+
+
+def located(markdown: str) -> list[tuple[Issue, str]]:
+    """The same findings, each with the spec of the graph it was checked
+    against — what the document sets the finding under, since the drawing and
+    its matrix stand side by side there."""
+    found: list[tuple[Issue, str]] = []
     parsed = pdf.blocks(markdown)
     for position, block in enumerate(parsed):
         if block.kind != "graph":
@@ -36,8 +50,8 @@ def check(markdown: str) -> list[Issue]:
         table = _table_after(parsed, position)
         if graph is None or table is None:
             continue
-        issues.extend(_compare(graph, table))
-    return issues
+        found.extend((issue, block.text) for issue in _compare(graph, table))
+    return found
 
 
 def _table_after(parsed: list[pdf.Block], start: int) -> pdf.Block | None:
@@ -172,7 +186,7 @@ def _adjacency(
             Issue(
                 kind="matrix",
                 severity="warning",
-                message="Матрица смежности местами не прочиталась",
+                message=UNREAD_CELLS,
                 detail=f"по графу там стоит: {shown}"
                 + (f", и ещё {rest}" if rest > 0 else ""),
             )

@@ -19,7 +19,7 @@ from dataclasses import asdict, dataclass
 
 from app.bot import texts
 from app.core.config import settings
-from app.services import graphcheck, mathcheck, photoguard, vision
+from app.services import mathcheck, photoguard, vision
 from app.services.vision import CallStats, Transcription
 
 logger = logging.getLogger(__name__)
@@ -359,10 +359,9 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
             result.text_agreement,
         )
 
-    report = mathcheck.Report(
-        issues=vision.arithmetic_issues(result.best.markdown)
-        + graphcheck.check(result.best.markdown)
-    )
+    # Each finding is kept with the text it is about, which the document sets
+    # it under once the pages are joined and composed.
+    report = mathcheck.Report(issues=vision.findings(result.best.markdown))
     # Two things lower a verdict here and nothing raises one: a page nobody
     # could check, and a critical arithmetic finding. "rejected" arrives as
     # one of the first, because that band no longer removes anything.

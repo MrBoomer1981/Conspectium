@@ -15,7 +15,7 @@ import json
 import logging
 import re
 import time
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -27,7 +27,7 @@ from google.genai import types
 from app.core.config import price_per_mtok, settings
 from app.db.models import AiCall
 from app.db.session import async_session_maker
-from app.services import consensus, mathcheck
+from app.services import consensus, graphcheck, mathcheck, pdf
 
 logger = logging.getLogger(__name__)
 
@@ -600,12 +600,105 @@ _NOT_EQUALITY_RE = re.compile(
 
 def arithmetic_issues(markdown: str) -> list[mathcheck.Issue]:
     """mathcheck's findings on a page, without the chains it read across a
-    relation that is not an equality."""
+    relation that is not an equality, and without the lines its chain check
+    cannot read at all."""
     chains = "\n".join(
-        "" if _NOT_EQUALITY_RE.search(line) else line
+        ""
+        if _NOT_EQUALITY_RE.search(line) or not _survives_chain_check(line)
+        else line
         for line in markdown.splitlines()
     )
     return mathcheck.check_constants(markdown) + mathcheck.check_chains(chains)
+
+
+def _survives_chain_check(line: str) -> bool:
+    """Whether mathcheck's chain check reads this line without raising.
+
+    A link that comes to exactly 0 before one that does not — "1 - 1 = 0 = 5",
+    or a list item "- 2 + 2 = 4 = 5" whose marker it takes for a minus — makes
+    the ratio between the two infinite, and rounding its logarithm raises
+    OverflowError. On the photo path that was the whole record lost to an
+    error message; on an album, a page lost as "ошибка обработки". Reported,
+    not fixed: the module is one this project only calls. The line goes
+    unchecked, which is all the check could have done with it anyway.
+    """
+    if line.count("=") < 2:
+        return True
+    try:
+        mathcheck.check_chains(line)
+    except Exception:
+        return False
+    return True
+
+
+@dataclass
+class Finding(mathcheck.Issue):
+    """A finding of a check made by code, with the text it is about.
+
+    The document sets a finding under the line it concerns, and nothing
+    mathcheck returns survives that far: a chain is named by its line number
+    on the page as recognised, a constant by nothing at all, and the page is
+    then composed — lines moved, formulas set apart — and joined to the other
+    pages of its album. The text itself does survive, so that is what is
+    kept. Empty when it could not be told; the document then sets the finding
+    at the end rather than nowhere.
+    """
+
+    anchor: str = ""
+
+
+# How mathcheck names the line of a chain: "строка 29: звенья цепочки не
+# сходятся". Its own wording, read rather than changed — the module is one this
+# project only calls. A message that stops matching costs the anchor, not the
+# finding.
+_CHAIN_LINE_RE = re.compile(r"^строка (\d+):")
+_LINE_MARKER_RE = re.compile(r"^\s*(?:#{1,6}\s+|[-*+]\s+|\d{1,3}[.)]\s+|>\s*)")
+
+
+def findings(markdown: str) -> list[Finding]:
+    """What the checks by code find on a page — its arithmetic, and a matrix
+    against the graph drawn beside it — each with the text it is about."""
+    lines = markdown.splitlines()
+    found = [
+        Finding(**asdict(issue), anchor=_anchor_of(_line_of(issue, lines)))
+        for issue in arithmetic_issues(markdown)
+    ]
+    found += [
+        Finding(**asdict(issue), anchor=spec)
+        for issue, spec in graphcheck.located(markdown)
+    ]
+    return found
+
+
+def _line_of(issue: mathcheck.Issue, lines: list[str]) -> str:
+    """The line of the page a mathcheck finding stands on, or "". A chain
+    names its line; a constant is found by asking mathcheck about one line at
+    a time until the same finding comes back."""
+    named = _CHAIN_LINE_RE.match(issue.message)
+    if named:
+        index = int(named.group(1)) - 1
+        return lines[index] if 0 <= index < len(lines) else ""
+    for line in lines:
+        if any(
+            (found.message, found.detail) == (issue.message, issue.detail)
+            for found in mathcheck.check_constants(line)
+        ):
+            return line
+    return ""
+
+
+def _anchor_of(line: str) -> str:
+    """The part of a line a finding is about, as the document can find it
+    again: the formula on it with the most "=" — composition moves a formula
+    to a line of its own, frames it and puts bold on the words beside it, and
+    leaves the formula itself as it was — or, when the equalities stand in
+    the prose, the line without its list or heading marker."""
+    formulas = [
+        latex for kind, latex in pdf.split_inline(line) if kind == "math" and "=" in latex
+    ]
+    if formulas:
+        return max(formulas, key=lambda latex: latex.count("="))
+    return _LINE_MARKER_RE.sub("", line).strip()
 
 
 def meaningful_divergences(divergences: list) -> list:

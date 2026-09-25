@@ -243,6 +243,9 @@ async def test_a_matrix_contradicting_its_graph_sends_the_page_for_review(
 
     assert result.verdict == "needs_review"
     assert [i.kind for i in result.report.issues] == ["matrix"]
+    # Kept with the graph it was checked against, which the document sets it
+    # under.
+    assert result.report.issues[0].anchor == "1-2, 2-3, 3-4"
 
 
 # ── _assemble: text ──────────────────────────────────────────────────────────
@@ -434,6 +437,13 @@ def test_issues_carry_their_page_number():
     record = albums._assemble([_page(1, report=mathcheck.Report(issues=[issue]))], [])
     assert record.issues[0]["page"] == 1
     assert record.issues[0]["severity"] == "critical"
+
+
+def test_issues_carry_the_text_they_are_about():
+    finding = vision.Finding("chain", "critical", "не сходится", anchor="2 + 2 = 5")
+    record = albums._assemble([_page(3, report=mathcheck.Report(issues=[finding]))], [])
+    assert record.issues[0]["anchor"] == "2 + 2 = 5"
+    assert record.issues[0]["page"] == 3
 
 
 def test_divergences_carry_their_page_number():
