@@ -710,3 +710,33 @@ thinking-level probe on record 45's explanations called a function the
 deployed code did not have yet, after the calls had returned; the rows were
 never written. About $0.15–0.30, and no rows were invented to stand in for
 them.
+
+**Recognition at `low`, once (records 46 and 47, 2026-09-25).** The author sent
+the same five pages twice: record 46 at the model's default thinking, record
+47 with `VISION_THINKING_LEVEL=low`, everything else equal.
+
+| | 46, default | 47, `low` |
+|---|---|---|
+| recognition, 15 calls | $0.185 | $0.125 |
+| thinking a call | 1580 tokens | 468 tokens |
+| worst page, numeric agreement | 0.809 | 0.550 |
+| worst page, text agreement | 0.488 | 0.700 |
+| numeric divergences / uncertain spots | 6 / 4 | 7 / 7 |
+| pages read without a second opinion | 4 and 5 | none |
+
+The numbers read on the page were the same where the two could be set side by
+side; what moved the numeric agreement was the long divisions, whose digits
+inside `\cline{1-1}` and `\phantom{...}` that instrument counts as numbers —
+it was confounded on exactly the page it scored worst. What decided it was the
+document: at `low` the model wrote environments bare across lines with no
+`$$`, opened a `$` on one line and closed it on another, used `tabular` for
+two columns of working and put Russian words inside a formula, and all of it
+printed as source. The author had called record 46 "much better". One album:
+an observation — enough to leave recognition at the default, not enough to
+say `low` reads worse.
+
+**Three of the six searches at `low` on record 47 ran no search at all.**
+Their cost was the tokens alone, about $0.001, and their explanations were
+dropped for having no source; record 46, searched at `low` an hour earlier,
+grounded six of six, and no call at the default has yet skipped the search.
+Such a search is now made once more at the default.

@@ -135,6 +135,10 @@ and the group is tested later. These come before 40 and 41.
       whole, with nothing charged — the author's choice on 2026-09-25 over
       delivering now and inserting the page later. `MIN_LINE_HEIGHT_PX` 20 → 16
       on this notebook's evidence
+- [ ] 45. A formula the document still prints as its source when the page
+      writes it loosely: an environment bare across lines with no `$$`, a `$`
+      opened on one line and closed on another, `tabular` for two columns of
+      working, Russian words inside one formula — all four on record 47
 - [ ] 44. What a record costs, and what can be cut without cutting the
       document. First half done: the accounting was wrong both ways — the
       model priced at the Batch/Flex rate (half of Standard, so the cap let
@@ -144,8 +148,11 @@ and the group is tested later. These come before 40 and 41.
       source searches think `low`, measured on record 45 — same document and
       grounding, about half the price, a third of the time. What is left is
       recognition's own thinking, the largest line of a record and the one
-      that changes how a page is read: an arm on one album sent twice, the
-      author's to start
+      that changes how a page is read. Run once on 2026-09-25, the album of
+      record 46 sent again at `low` (record 47): a third cheaper to read, and
+      worse to look at — environments written bare across lines printed as
+      source. Recognition stays at the model's default; a `low` search that
+      did not look is asked again at the default
 
 ### Why the design comes before the explaining stage
 

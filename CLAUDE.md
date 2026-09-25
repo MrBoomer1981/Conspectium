@@ -1094,8 +1094,13 @@ same headings and frames at half the price, the searches grounded every
 explanation with fewer queries at under half the price, and both in a third of
 the time. Recognition is the one left at the default, because turning it down
 changes how a page is read, and that is an arm to run on one album, not a
-setting to try. "minimal" is a level the SDK knows and `gemini-3.8-flash`
-refuses with a 400. → "What a record costs"
+setting to try — and the one arm run so far (record 47 against 46) wrote
+formula environments bare across lines, which printed as source. A search at
+`low` that answered without running a search is made once more at the
+model's default (`explain._search`): three of six did so on record 47, and
+their explanations would have been dropped for having no source. "minimal" is
+a level the SDK knows and `gemini-3.8-flash` refuses with a 400. → "What a
+record costs"
 
 **`seed` is deliberately not a setting, and `temperature` stays at 1.0.**
 Three runs made identical would send `text_agreement` up without touching
