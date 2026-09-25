@@ -813,6 +813,21 @@ things 46 and 47 had read alike it read otherwise — "4b" as "ab", "по мод
 "[неразборчиво]" and an unframed "III". Closed: recognition stays at the
 model's default, and a lower level buys back 7% at best for reading worse.
 
+**Record 49 against 46: `prompts-v7.md`, the same album again.** The answer
+without the list of numbers and the doubtful spots, at the default thinking.
+The visible answer fell as predicted — 11 669 tokens against 20 767, −44% —
+and the thinking rose by more: 40 110 against 23 693, +69%. Not one call
+running away: every call thought longer, the median 2 244 against 1 214, the
+least 810 against 0. Recognition cost $0.211 against $0.185, 14% more, at
+15.0 s a call at the median against 13.6. It read as well as the default —
+every number alike, five of the six known places right, as 46 did, with its
+miss in another place. The list was doing work: written down, the numbers are
+checked in the answer; left out, they are checked in the thinking, which the
+model spends more freely than it writes. Rolled back to v6 the same evening.
+One album, an observation — but the direction was a saving, and this is not
+one. What is left of the second half of the cost work is Flex and the number
+of runs, both the author's to decide.
+
 ## Remarks about the reading
 
 **What the documents carried (production, 2026-09-25, 47 records).** 36

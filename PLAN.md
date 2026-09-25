@@ -167,8 +167,11 @@ and the group is tested later. These come before 40 and 41.
       number alike and the marks worse, five places to one — rejected on
       reading, not only on layout. `medium` on the same album (record 48)
       thought almost as long as the default, cost 7% less and read worse
-      still — closed; recognition stays at the default. Next, on the same
-      album: `prompts-v7.md` (no list of numbers, no doubtful spots).
+      still — closed; recognition stays at the default. `prompts-v7.md` on
+      the same album (record 49), no list of numbers and no doubtful spots:
+      the answer 44% shorter, the thinking 69% longer, recognition 14% dearer
+      and read as well — rolled back to v6. What is left is Flex and the
+      number of runs, both the author's to decide
       Flex — half price for 1–15 minutes a call — and fewer runs are the
       author's to decide after
 

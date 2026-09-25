@@ -189,6 +189,12 @@ note. `PLAN.md` → "Where the quality work stands" is how to run the next arm.
   does. It is the expensive call in the system — one composition costs about
   six recognition calls — and it **over-structures**, splitting a sentence
   into a heading. → "The composer"
+- **The list of numbers is not free to drop.** Asked for no list, the model
+  checks the numbers in its thinking instead of in its answer: on one album
+  (record 49) the answer came out 44% shorter, the thinking 69% longer and
+  recognition 14% dearer, read as well. Output tokens are not the lever they
+  look like while thinking is billed at the same rate and the model decides
+  how much of it to spend. → "What a record costs"
 - **v5 against v4 is open, not settled.** Every v5 album so far scored above
   every v4 album on mean `numeric_agreement`, by three times the noise — on
   four observations against two. A reason to run two more v4 albums, not a
@@ -1036,7 +1042,7 @@ prompts-explain-v1.md  stage three: explanations and a summary, as JSON
 prompts-explain-source-v1.md  stage three: the search for one explanation's source
 prompts-explain-source-v2.md  the same search, asked for science first
 prompts-v6.md        v5, and the author's frames written as \boxed{...}
-prompts-v7.md        v6 without the list of numbers and the doubtful spots
+prompts-v7.md        v6 without the list of numbers and the doubtful spots — tried, rolled back
 ```
 
 The prompt files hold the prompts as plain text. `vision.py` doesn't copy
