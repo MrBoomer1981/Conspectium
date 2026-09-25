@@ -106,3 +106,40 @@ def test_usage_examples_start_with_their_own_command():
 def test_start_points_at_help():
     # The greeting used to end at photographs, with six commands unmentioned.
     assert "/help" in texts.START
+
+
+# ── the bot's own membership ─────────────────────────────────────────────────
+# Being added to a group, made an admin and removed arrive as my_chat_member
+# updates, which nothing received before phase C. Three things have to hold
+# for the welcome to be said at all, and dropping any one of them is silent.
+
+from app.bot.middlewares import DbSessionMiddleware  # noqa: E402
+
+
+def test_telegram_is_asked_for_membership_updates():
+    # The webhook subscribes to what is handled; a handler Telegram never
+    # sends anything to is a welcome nobody gets.
+    assert set(app.main.dp.resolve_used_update_types()) == {
+        "message",
+        "my_chat_member",
+    }
+
+
+def test_membership_updates_get_a_session_like_messages_do():
+    for observer in (app.main.dp.message, app.main.dp.my_chat_member):
+        assert any(
+            isinstance(m, DbSessionMiddleware) for m in observer.outer_middleware
+        ), observer.event_name
+
+
+def test_joining_is_matched_before_promotion():
+    """Added straight in as an admin is both a join and a promotion, and the
+    first handler that matches is the only one that runs: the join has to be
+    it, or the welcome is never said."""
+    names = [h.callback.__name__ for h in handlers.router.my_chat_member.handlers]
+    assert names == ["on_joined", "on_promoted", "on_left"]
+
+
+def test_group_help_lists_every_command():
+    for name, _, _ in texts.COMMANDS:
+        assert f"/{name}" in texts.GROUP_HELP, name

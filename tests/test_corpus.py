@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.bot import corpus, texts
-from app.db.models import Base, Event, Note, NoteTopic, User
+from app.db.models import Base, Event, Group, Note, NoteTopic, User
 
 
 @pytest_asyncio.fixture
@@ -843,3 +843,162 @@ async def test_the_question_shows_the_topics_and_the_subjects_in_use(session):
     reply = message.replies[0]
     assert "#квантовая_механика" in reply and "#модель_бора" in reply
     assert "#матан" in reply  # so a second spelling of it never gets created
+
+
+# ── a group chat: the records are the chat's ─────────────────────────────────
+# Phase C's one sentence: a record belongs to the chat it was made in, not to
+# whoever photographed it. Any member reaches a group's records from the
+# group; nobody reaches them from anywhere else — not another group, and not
+# the photographer's own private chat.
+
+
+async def _group(session, chat_id: int = -100500) -> Group:
+    group = Group(tg_chat_id=chat_id, title="Матан, 2 курс")
+    session.add(group)
+    await session.flush()
+    return group
+
+
+async def test_any_member_finds_what_another_photographed(session):
+    photographer = await _user(session, tg_id=1)
+    classmate = await _user(session, tg_id=2)
+    group = await _group(session)
+    note = await _note(session, photographer, group_id=group.id, tag="матан")
+
+    message = _Message(text="#матан")
+    await corpus.on_tag(message, session, classmate, group)
+
+    filename, _, _ = message.documents[0]
+    assert filename.startswith(f"{note.id}-")
+
+
+async def test_a_group_never_reaches_another_groups_records(session):
+    user = await _user(session)
+    ours, theirs = await _group(session, -1), await _group(session, -2)
+    await _note(session, user, group_id=theirs.id, tag="матан")
+
+    message = _Message(text="#матан")
+    await corpus.on_tag(message, session, user, ours)
+
+    assert message.documents == [] and message.replies == []
+
+
+async def test_a_group_never_reaches_a_private_record(session):
+    user = await _user(session)
+    group = await _group(session)
+    await _note(session, user, tag="матан")  # made in the user's private chat
+
+    message = _Message(text="#матан")
+    await corpus.on_tag(message, session, user, group)
+
+    assert message.documents == []
+
+
+async def test_a_group_record_is_not_found_from_its_photographers_private_chat(
+    session,
+):
+    """It is the chat's record. Its photographer finds it where everyone
+    else does — in the group."""
+    user = await _user(session)
+    group = await _group(session)
+    await _note(session, user, group_id=group.id, tag="матан")
+
+    message = _Message(text="#матан")
+    await corpus.on_tag(message, session, user)
+
+    assert message.documents == []
+    assert "ничего не нашлось" in message.replies[0]
+
+
+async def test_a_word_in_a_group_only_ever_searches(session):
+    """The private chat's stateless question — the newest record untagged, so
+    the next "#word" files it — cannot work where the newest record is
+    everyone's and the next "#word" anyone's. A group never asks, so a word
+    there never files."""
+    user = await _user(session)
+    group = await _group(session)
+    untagged = await _note(session, user, group_id=group.id)
+
+    await corpus.on_tag(_Message(text="#дз"), session, user, group)
+
+    assert untagged.tag is None
+    assert await _events(session, "note_tagged") == []
+
+
+async def test_a_search_that_misses_in_a_group_is_silent_and_still_logged(session):
+    # "#дз" in a course chat is the members' own hashtag far more often than
+    # a search, and an answer to each one would be the bot talking over them.
+    user = await _user(session)
+    group = await _group(session)
+
+    message = _Message(text="#дз")
+    await corpus.on_tag(message, session, user, group)
+
+    assert message.replies == []
+    event = (await _events(session, "topic_searched"))[0]
+    assert event.payload == {"tag": "дз", "found": 0}
+    assert event.group_id == group.id
+
+
+async def test_an_unreadable_tag_in_a_group_is_silent(session):
+    user = await _user(session)
+    group = await _group(session)
+
+    message = _Message(text="#!!!")
+    await corpus.on_tag(message, session, user, group)
+
+    assert message.replies == []
+
+
+async def test_the_subjects_offered_in_a_group_are_the_groups(session):
+    user = await _user(session)
+    group = await _group(session)
+    await _note(session, user, group_id=group.id, tag="матан")
+    await _note(session, user, tag="физика")  # private
+
+    assert await corpus.known_tags(session, user, group) == ["матан"]
+    assert await corpus.known_tags(session, user) == ["физика"]
+
+
+async def test_stats_in_a_group_count_the_groups_records(session):
+    photographer = await _user(session, tg_id=1)
+    classmate = await _user(session, tg_id=2)
+    group = await _group(session)
+    await _note(session, photographer, group_id=group.id, page_count=3)
+    await _note(session, classmate, group_id=group.id, page_count=2)
+    await _note(session, classmate, page_count=7)  # private
+
+    message = _Message()
+    await corpus.cmd_stats(message, session, classmate, group)
+
+    assert message.replies[0].startswith("2 записи, 5 страниц")
+    assert (await _events(session, "stats_viewed"))[0].group_id == group.id
+
+
+async def test_help_in_a_group_explains_the_group(session):
+    user = await _user(session)
+    group = await _group(session)
+
+    message = _Message()
+    await corpus.cmd_help(message, session, user, group)
+
+    assert message.replies == [texts.GROUP_HELP]
+    assert "#матан" in texts.GROUP_HELP  # the tag in the caption is the rule
+
+
+async def test_a_record_that_came_with_its_subject_is_not_asked_about(session):
+    """In a group the tag in the caption is what made the bot take the photo,
+    and in a private chat it answers the question before it is asked. Either
+    way what comes back is where the record was filed, with the topics it can
+    be found by."""
+    user = await _user(session)
+    note = await _note(
+        session, user, tag="матан", title="Комплексные числа", markdown="## Модуль\n"
+    )
+
+    message = _Message()
+    await corpus.ask_for_tag(message, session, user, note)
+
+    reply = message.replies[0]
+    assert reply == texts.filed("матан", ["комплексные_числа", "модуль"])
+    assert "Под каким тегом" not in reply

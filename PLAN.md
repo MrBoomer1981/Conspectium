@@ -108,10 +108,16 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 
 **Phase C — the group:**
 
-- [ ] 39. `groups` and `notes.group_id`: the bot lives in a course chat and a
-      record belongs to the chat
+- [x] 39. `groups` and `notes.group_id`: the bot lives in a course chat and a
+      record belongs to the chat. Built as the author decided on 2026-09-25:
+      in a group the bot takes a photo, an album or a `.docx` only with a
+      "#word" in its caption, and that word is the record's subject — so a
+      group is never asked, and what is not addressed to the bot is dropped
+      before a session is opened
 - [ ] 40. The tag question rebound to its record — the stateless trick does not
-      survive several people answering in one chat
+      survive several people answering in one chat. 39 took the question out
+      of groups: a record is made there only with its subject, and a "#word"
+      in a group only searches. What 40 still means is the author's to say
 - [ ] 41. Limits and spend counted per group; the scale-debt rows that come due
       with a second person in the chat
 
@@ -158,9 +164,9 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-38
+Done: 1-39
 Current task: none
-Next task: 39
+Next task: 40
 Blockers: none
 ```
 
@@ -202,6 +208,13 @@ open. In a chat the newest record is everyone's, and the person who answers may
 not be the one who sent it. The answer will have to be bound to its record —
 a reply, or a button under the message — and that is a change to `corpus.py`,
 not a setting.
+
+Task 39 answered it for groups by not asking there. The author chose on
+2026-09-25 that a group chat's page comes with its subject in the caption —
+"#матан" under the photo — which is also what tells the bot a photo is a page
+of notes rather than a meme. A record in a group is therefore tagged from
+birth, and a "#word" in a group only searches. The stateless question stays
+the private chat's.
 
 ---
 
@@ -2022,7 +2035,8 @@ never been used.
 - [ ] A search matches the subject and the topics alike
 - [ ] One match comes back as the document, several as a list that names what
       to type next
-- [ ] Every corpus query filters by `user_id`
+- [ ] Every corpus query is scoped to its owner: the group in a group chat,
+      the user in a private one
 - [ ] A record nobody tagged is still findable by its topics
 - [ ] `/stats` counts records, pages and the streak
 - [ ] The bot answers on an empty corpus without an error
@@ -2133,7 +2147,11 @@ unused: the model's self-assessment turned out to be a useless signal.
 ## `PageInput`
 
 Album buffer fields: `data`, `message_id`, `chat_id`, `media_group_id`,
-`bytes_before`, `bytes_after`, `width`, `height`.
+`bytes_before`, `bytes_after`, `width`, `height`, `tag`.
+
+`tag` is the "#word" in that page's caption, `None` on most pages: Telegram
+puts an album's caption on one page only. `albums.tag_of` takes the first one
+in page order, and in a group chat an album without one is not processed.
 
 `media_group_id` is stored on every page and used when building
 `note_captured`. It's the same across every page of one batch.
@@ -2215,6 +2233,18 @@ reason the search query used to be: what a person looks for is the most direct
 signal of what the corpus is for. `found: 0` is the interesting row — a search
 that missed is either a topic the bot never wrote or a subject spelled a
 second way.
+
+## The group an event happened in
+
+`events.group_id` is the group chat, `NULL` in a private chat — set on every
+event a group's update writes, so a group's week can be counted from the
+table alone. Three events are the bot's own membership:
+
+| Event | payload |
+|---|---|
+| `group_joined` | `{"sees_photos": bool}` — false when privacy mode is on and the bot was added as an ordinary member, which is when the welcome asks to be made an admin |
+| `group_promoted` | `{}` |
+| `group_left` | `{}` |
 
 ## Testing boundaries
 

@@ -37,11 +37,34 @@ class User(Base):
     quota_reset_at: Mapped[date | None] = mapped_column(Date)
 
 
+class Group(Base):
+    """A group chat the bot is in. Its records are the chat's, not their
+    photographer's: any member finds them by a "#word" in that chat.
+
+    Keyed by our own id rather than Telegram's, because Telegram's changes: a
+    group that becomes a supergroup gets a new chat id, and moving one column
+    on this row is what keeps every record of the group findable after it.
+    """
+
+    __tablename__ = "groups"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tg_chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    title: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class Event(Base):
     __tablename__ = "events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    # The group chat it happened in, NULL in a private chat. Whether a group
+    # uses the bot week after week is the question the project exists to
+    # answer, and it cannot be asked of events that do not say where they were.
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id"), index=True)
     type: Mapped[str] = mapped_column(String, index=True)
     payload: Mapped[dict] = mapped_column(JSONB, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(
@@ -72,7 +95,11 @@ class Note(Base):
     __tablename__ = "notes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    # Who photographed it. Its owner is `group_id` when that is set, and this
+    # user only when it is not — a record made in a group chat belongs to the
+    # chat, and its photographer finds it there like everyone else.
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id"), index=True)
     title: Mapped[str] = mapped_column(String)
     subject: Mapped[str | None] = mapped_column(String)
     markdown: Mapped[str] = mapped_column(Text)
@@ -105,9 +132,12 @@ class Note(Base):
     summary: Mapped[str | None] = mapped_column(Text)
     text_agreement: Mapped[float | None] = mapped_column(Float)
     numeric_agreement: Mapped[float | None] = mapped_column(Float)
-    # The subject the user answered with when the bot asked, stored without
-    # its "#". NULL means the question has not been answered yet, and that is
-    # what tells the next "#word" from this user to tag rather than to search.
+    # The subject, stored without its "#": the "#word" the photo was sent
+    # with, or the answer to the question the bot asks when it came without
+    # one. NULL means that question has not been answered yet, and in a
+    # private chat that is what tells the next "#word" to tag rather than to
+    # search. A record made in a group always has one — the tag is what makes
+    # the bot take a photo there at all.
     tag: Mapped[str | None] = mapped_column(String, index=True)
     photo_sharpness: Mapped[float | None] = mapped_column(Float)
     photo_line_height: Mapped[float | None] = mapped_column(Float)

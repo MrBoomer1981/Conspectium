@@ -1064,3 +1064,36 @@ async def test_a_page_that_failed_recognition_keeps_them_too(monkeypatch):
     assert result.skip_reason == texts.SKIP_UNRECOGNIZED
     assert result.photo_line_height == 25.0
     assert result.photo_contrast == 40.0
+
+
+# ── the subject an album was sent with ───────────────────────────────────────
+# Telegram puts an album's caption on one page, and in a group chat that one
+# caption decides whether the bot takes the album at all.
+
+
+def _tagged(message_id: int, tag: str | None) -> albums.PageInput:
+    return albums.PageInput(
+        data=b"x",
+        message_id=message_id,
+        chat_id=1,
+        media_group_id="grp",
+        bytes_before=1,
+        bytes_after=1,
+        width=1,
+        height=1,
+        tag=tag,
+    )
+
+
+def test_an_album_takes_the_tag_of_whichever_page_carries_it():
+    pages = [_tagged(3, None), _tagged(2, "матан"), _tagged(1, None)]
+    assert albums.tag_of(pages) == "матан"
+
+
+def test_between_two_tags_the_earlier_page_decides():
+    # The pages arrive in any order; the page order is the message order.
+    assert albums.tag_of([_tagged(2, "дз"), _tagged(1, "матан")]) == "матан"
+
+
+def test_an_album_nobody_tagged_has_no_tag():
+    assert albums.tag_of([_tagged(1, None), _tagged(2, None)]) is None

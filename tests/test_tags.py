@@ -190,3 +190,44 @@ def test_every_heading_level_counts():
 
 def test_a_title_that_normalizes_to_nothing_is_skipped_not_stored_empty():
     assert tags.topics_of("!!!", "## Раздел") == ["раздел"]
+
+
+# ── a caption's tag, and what counts as a search in a group ──────────────────
+# In a group chat the caption decides whether the bot takes a photo at all,
+# and the shape of a message decides whether a "#word" is meant for it.
+
+
+def test_a_caption_that_is_only_the_tag_gives_it():
+    assert tags.from_caption("#матан") == "матан"
+
+
+def test_a_tag_is_found_anywhere_in_a_caption():
+    # Nobody captions a photo with the tag and nothing else.
+    assert tags.from_caption("Лекция 5, #Матан — продолжение") == "матан"
+
+
+def test_only_the_word_after_the_hash_is_the_tag():
+    # Unlike a message, the rest of a caption is not part of the tag: it is
+    # what people write about the photo.
+    assert tags.from_caption("#физика лекция 3") == "физика"
+
+
+def test_the_first_tag_of_a_caption_wins():
+    assert tags.from_caption("#матан #дз") == "матан"
+
+
+def test_a_caption_without_a_tag_gives_none():
+    for caption in (None, "", "Лекция 5", "#", "##", "C# и .NET", "почта a#b"):
+        assert tags.from_caption(caption) is None, caption
+
+
+def test_a_message_that_is_one_tag_is_a_search():
+    assert tags.is_bare("#матан")
+    assert tags.is_bare("  #производная_сложной_функции ")
+
+
+def test_a_hashtag_inside_a_sentence_is_not_a_search():
+    # "#дз на завтра: §5" is for the classmates. In a private chat the same
+    # message would be a search with spaces in it; in a group it is chatter.
+    for text in ("#дз на завтра: §5", "#квантовая механика", "привет", "", None):
+        assert not tags.is_bare(text), text

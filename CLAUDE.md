@@ -47,7 +47,8 @@ works (133 pages over four days, 37 records), and it still loses about one
 album in five. The three phases in `PLAN.md` are, in order: **reliability** (a
 record has to exist), **the ideal record** (the explaining stage and a PDF that
 never prints raw LaTeX), and **the group** (the bot in a course chat, a record
-owned by the chat rather than by a person). The question the whole thing exists
+owned by the chat rather than by a person) — under way since task 39 put the
+bot in the chat. The question the whole thing exists
 to answer is whether a group uses this weekly. Not launch, not growth, not
 revenue, not scale.
 
@@ -106,8 +107,8 @@ interpreter path, bypassing the shim — nothing under `tests/` needs 3.12:
     .venv/bin/pytest
 
 Revision ids are hand-written, not the generated hash — `001_users_events`
-through `010_explanations`, which is the current head. The next one is
-`011_`.
+through `011_groups`, which is the current head. The next one is
+`012_`.
 
 No linter is configured — don't add one without an explicit request.
 
@@ -248,7 +249,12 @@ model". The essentials, because they shape every handler:
    exception: a **new** user is committed *before* the handler runs, because
    `log_ai_calls` inserts `ai_calls.user_id` from a session of its own and
    would otherwise fail the foreign key. Someone who wrote to the bot is
-   registered however their first update ends.
+   registered however their first update ends. The middleware serves messages
+   and the bot's own membership updates alike, and puts the group chat, if
+   any, in `data["group"]`. A user or group row that two updates insert at
+   once — the pages of an album from someone the bot has never seen — is
+   fetched by the loser rather than failing on the unique index
+   (`middlewares._insert_or_fetch`): a lost race used to be a lost page.
 
 2. **`events` are transactional and disappear on rollback — deliberately.**
    An event describes something that, in the end, didn't happen. `log_event`
@@ -389,7 +395,9 @@ machine: **if the newest record has no subject, the question is still open;
 if it has one, nothing was asked.** It is stateless, so it survives a restart
 and a second replica. And it is about the *newest* record only, so a search
 typed today never files last week's untagged record under a subject nobody
-chose.
+chose. It is a private chat's rule: a group never asks — "A group chat",
+below. A photo sent with "#word" in its caption is filed at once in a private
+chat too, and the question gives way to where it was filed.
 
 **Topics are the main five,** read by `tags.topics_of` from headings the
 pipeline already produced — no model call. The title, then the headings
@@ -402,6 +410,56 @@ stored when the record is made, not when it is tagged, so an untagged record
 is still findable. `note_topics` is a table, not JSONB on `Note`: "which
 records carry this topic" is a join on an indexed column that reads the same
 on PostgreSQL and on the suite's SQLite.
+
+### A group chat
+
+**A record made in a group belongs to the chat** (`notes.group_id`); its
+`user_id` only says who photographed it. Every corpus query goes through
+`corpus._owned`: in a group, the group's records, which any member reaches;
+in a private chat, the user's own records that belong to no group. So the
+photographer finds a group's record in the group like everyone else, and a
+private record never surfaces in a group. `groups` is keyed by our own id,
+because Telegram's changes when a group becomes a supergroup: the middleware
+moves the row on either half of the migration notice, and every record moves
+with it.
+
+**The bot takes a page in a group only when it comes with its subject** — a
+"#word" anywhere in the caption of a photo, an album or a `.docx`
+(`tags.from_caption`; an album's caption rides on one page, `albums.tag_of`
+finds it). The author's decision, 2026-09-25: a course chat is mostly memes,
+screenshots and talk, and a record costs about $0.38. The word is the
+record's subject from birth, so **a group is never asked** which subject a
+record belongs to, and a "#word" there only searches. That removes the
+failure the stateless question could not survive in a chat, where the newest
+record is everyone's and the next "#word" anyone's.
+
+**What is not addressed to the bot never reaches it.** `middlewares.heard`
+runs before a session is opened. In a group it lets through a command, a
+message that is one "#word" and nothing else (`tags.is_bare` — "#дз на
+завтра" is for the classmates), a photo or a file with a tagged caption,
+every page of an album (judged whole in `_process_album`), and the migration
+notice. Everything else is dropped with no session, no user row and no event:
+a classmate who only ever said hello is not a user. What gets through and is
+still not the bot's — an untagged album, a search that finds nothing, an
+unreadable tag, a file that is not `.docx`, a notice — gets no answer in a
+group; the missed search is still logged.
+
+**Whether the bot sees a group's photos is decided in BotFather, not here.**
+With privacy mode on — as it was on 2026-09-25 — a bot sees only commands and
+replies to itself, unless it is an admin of the chat. The startup log says
+which (`Groups:`); the welcome posted when the bot is added
+(`handlers.on_joined`) names the fix, making it an admin with no rights, and
+`on_promoted` says when that worked. Joining, promotion and removal arrive as
+`my_chat_member` updates: the webhook subscribes to what is handled
+(`dp.resolve_used_update_types()`), they get a session like messages do, and
+a join is registered before a promotion, because being added straight in as
+an admin is both and only the first match runs.
+
+**Events name the group they happened in** (`events.group_id`) — whether a
+group uses the bot week after week is the question the project exists to
+answer. `group_joined` carries whether the bot can see the photos;
+`group_promoted` and `group_left` carry nothing else. Limits are still the
+photographer's page quota and the global cost cap; per group is task 41.
 
 **Before adding an interface to the corpus, check `events` for whether the
 last one was used.** `/notes`, `/note`, `/search`, `/retitle`, `/delete` and
@@ -755,7 +813,8 @@ here instead.
 | The album buffer is five module-level dicts in `bot/albums.py` | **a second replica** | pages of one album land in different processes and become separate records |
 | An update is processed in a background task | **any deploy** | in-flight updates are cancelled; paid Gemini calls are wasted |
 | No deduplication on `update_id` | **a delivery timeout** | Telegram retries, producing a duplicate record and a second set of paid calls |
-| `DAILY_COST_LIMIT_USD` is global, not per user | **two users** | one person can exhaust the day's budget for everyone |
+| `DAILY_COST_LIMIT_USD` is global, not per user | **two users** — reached with the group | one person, or one group, can exhaust the day's budget for everyone; task 41 |
+| In a group every album page is downloaded before the album's tag is known | **a chat that shares many photo albums** | bandwidth and memory spent on albums the bot then drops unread |
 | `limits.consume` takes no row lock | **concurrent uploads by one user** | the page quota undercounts |
 | DB pool is 5 + 15 | **~20 updates in flight** | connection checkout starts timing out |
 | `_API_SLOTS` is a per-process `Semaphore(10)` | **tens of active chats** | the queue to Gemini grows into timeouts |
@@ -838,9 +897,9 @@ app/
   bot/
     handlers.py       aiogram handlers
     texts.py          all user-facing messages, and the command list
-    middlewares.py    DB session and user injected into handlers
+    middlewares.py    DB session, user and group injected; group chatter dropped
     albums.py         album buffer and assembly
-    corpus.py         tags, search by tag, and a record as a file
+    corpus.py         tags, search by tag, and a record as a file, scoped to its chat
     tags.py           what a #tag is, and where a record's topics come from
   services/
     vision.py         Gemini: prompt, response parsing, three runs
@@ -1003,16 +1062,16 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_limits.py` | `check_limits` / `consume` — the money-critical path |
 | `test_reliability.py` | retry classification, one owner per album batch, spend surviving a rollback |
 | `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, and what an unparseable answer says and earns |
-| `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, the three reasons a page is dropped and the two that only mark it, `process_batch` survivor logic |
+| `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, the three reasons a page is dropped and the two that only mark it, `process_batch` survivor logic, an album's tag from whichever page carries it |
 | `test_docx.py` | heading styles to markdown, title derivation |
 | `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
 | `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, stage three off by default with its model priced and its timeout bounded, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |
-| `test_handlers.py` | `_split_message`, the catch-all reply |
-| `test_middleware.py` | session per update, rollback, the early commit of a new user |
+| `test_handlers.py` | `_split_message`, the catch-all reply, and in a group: an untagged album left alone, a tagged record owned by the chat and filed at once, a file that is not `.docx` unanswered, the welcome and the admin hint, and the three membership events |
+| `test_middleware.py` | session per update, rollback, the early commit of a new user, what a group chat lets through before a session is opened, a group registered once and moved to a supergroup's new id, and a row two album pages race to insert |
 | `test_graphcheck.py` | the matrix against the graph: what it must catch, and — the longer half — every shape it must stay quiet about |
-| `test_corpus.py` | filing a record under a subject, finding it by a topic, statistics, the flags rebuilt from JSONB as callouts and as anchored remarks, the LaTeX a remark quotes marked to be drawn while its anchor stays raw — and that no query reaches another user's records |
-| `test_tags.py` | what a #tag normalizes to, what counts as one, and which topics a record yields |
-| `test_wiring.py` | router order in `main.py`, and that every command the bot answers has a menu description |
+| `test_corpus.py` | filing a record under a subject, finding it by a topic, statistics, the flags rebuilt from JSONB as callouts and as anchored remarks, the LaTeX a remark quotes marked to be drawn while its anchor stays raw — and that no query reaches another owner's records: a group reaches its own, a private chat the user's own, neither the other's, and a "#word" in a group never files |
+| `test_tags.py` | what a #tag normalizes to, what counts as one, which topics a record yields, the tag in a caption, and what counts as a search in a group |
+| `test_wiring.py` | router order in `main.py`, that every command the bot answers has a menu description, and that membership updates are subscribed to, given a session, and matched join before promotion |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
 | `test_photoguard.py` | the two rules in photoguard this project has edited: a line height that could not be measured is not a small one, and what the measurement answers on pages whose pitch is known by construction |
 | `test_explain.py` | stage three: off by default, only text ever sent, a writing call in strict JSON with no search and a search call per explanation, the record sent numbered, sources read from each search's grounding and an explanation whose search found nothing dropped, the sources ranked science first with an everyday one kept behind them, the summary's numbers guard, never more than eight, LaTeX with single backslashes surviving the JSON, the grounding fee in the bill, and a failed search costing only its own explanation |

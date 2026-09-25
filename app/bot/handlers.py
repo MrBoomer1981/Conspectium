@@ -6,14 +6,21 @@ import time
 from dataclasses import asdict
 
 from aiogram import Bot, F, Router
-from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.enums import ChatMemberStatus
+from aiogram.filters import (
+    JOIN_TRANSITION,
+    LEAVE_TRANSITION,
+    PROMOTED_TRANSITION,
+    ChatMemberUpdatedFilter,
+    CommandStart,
+)
+from aiogram.types import ChatMemberUpdated, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, texts
+from app.bot import albums, corpus, tags, texts
 from app.core.config import settings
 from app.core.events import log_event
-from app.db.models import Note, User
+from app.db.models import Group, Note, User
 from app.services import (
     compose,
     docx,
@@ -35,15 +42,95 @@ _MAX_DOCX_BYTES = 5 * 1024 * 1024
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, session: AsyncSession, user: User) -> None:
-    await message.answer(texts.START)
+async def cmd_start(
+    message: Message, session: AsyncSession, user: User, group: Group | None = None
+) -> None:
+    await message.answer(texts.GROUP_HELP if group is not None else texts.START)
+
+
+# ── The bot's own place in a group chat ──────────────────────────────────────
+# Telegram reports the bot being added, promoted and removed as my_chat_member
+# updates. The same updates arrive from a private chat when someone blocks or
+# unblocks the bot, which is why each handler first asks whether there is a
+# group at all.
+
+
+async def _sees_photos(bot: Bot, status: str) -> bool:
+    """With privacy mode on — a setting of the bot in BotFather, not of this
+    code — the bot sees a group's photos only where it is an admin."""
+    me = await bot.me()
+    return bool(me.can_read_all_group_messages) or status == ChatMemberStatus.ADMINISTRATOR
+
+
+@router.my_chat_member(ChatMemberUpdatedFilter(member_status_changed=JOIN_TRANSITION))
+async def on_joined(
+    event: ChatMemberUpdated,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+    group: Group | None = None,
+) -> None:
+    """Added to a chat: say how the bot works there, and whether it can see
+    the photographs at all — a bot that silently ignores every page would
+    look broken, and the fix is one tap by whoever added it."""
+    if group is None:
+        return
+    sees = await _sees_photos(bot, event.new_chat_member.status)
+    await log_event(
+        session, user.id, "group_joined", {"sees_photos": sees}, group_id=group.id
+    )
+    await bot.send_message(event.chat.id, texts.group_welcome(sees))
+
+
+@router.my_chat_member(ChatMemberUpdatedFilter(member_status_changed=PROMOTED_TRANSITION))
+async def on_promoted(
+    event: ChatMemberUpdated,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+    group: Group | None = None,
+) -> None:
+    """Made an admin after joining, which is what the welcome asks for when
+    privacy mode hides the chat. Said out loud, because nothing else would
+    show that it worked."""
+    if group is None:
+        return
+    await log_event(session, user.id, "group_promoted", group_id=group.id)
+    if not (await bot.me()).can_read_all_group_messages:
+        await bot.send_message(event.chat.id, texts.GROUP_SEES_PHOTOS)
+
+
+@router.my_chat_member(ChatMemberUpdatedFilter(member_status_changed=LEAVE_TRANSITION))
+async def on_left(
+    event: ChatMemberUpdated,
+    session: AsyncSession,
+    user: User,
+    group: Group | None = None,
+) -> None:
+    if group is None:
+        return
+    await log_event(session, user.id, "group_left", group_id=group.id)
 
 
 @router.message(F.photo)
 async def handle_photo(
-    message: Message, session: AsyncSession, user: User, bot: Bot
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+    group: Group | None = None,
 ) -> None:
     photo = message.photo[-1]
+    # The subject the photo was sent with; in a private chat it spares the
+    # question afterwards. In a group it is what makes the photo the bot's at
+    # all. middlewares.heard stops an untagged one before a session is even
+    # opened, and this keeps a group's record from ever being made without
+    # its subject whatever reaches here. An album is judged whole, in
+    # _process_album.
+    tag = tags.from_caption(message.caption)
+    if group is not None and tag is None and not message.media_group_id:
+        return
+    group_id = group.id if group is not None else None
     # Announced before the download, not after: albums.collect() times the
     # album from here, and a page that takes seconds to fetch must not let the
     # batch close without it (albums.announce explains the rest).
@@ -72,12 +159,13 @@ async def handle_photo(
                 bytes_after=len(compressed),
                 width=photo.width,
                 height=photo.height,
+                tag=tag,
             ),
         )
         pages = await albums.collect(message.media_group_id)
         if pages is None:
             return  # another update owns this batch
-        await _process_album(message, session, user, pages)
+        await _process_album(message, session, user, pages, group)
         return
 
     await log_event(
@@ -91,6 +179,7 @@ async def handle_photo(
             "height": photo.height,
             "source_type": "photo",
         },
+        group_id=group_id,
     )
 
     # Step 4: limits before the frame check and before any model call. With the
@@ -116,6 +205,7 @@ async def handle_photo(
             "paper_fraction": photo_verdict.paper_fraction,
             "contrast": photo_verdict.contrast,
         },
+        group_id=group_id,
     )
     if not photo_verdict.ok:
         await message.answer(photo_verdict.reason)
@@ -174,6 +264,7 @@ async def handle_photo(
                 "count": len(report.issues),
                 "kinds": [i.kind for i in report.issues],
             },
+            group_id=group_id,
         )
 
     # Step 12a: stage two, formatting. It is given the text the three runs
@@ -206,6 +297,8 @@ async def handle_photo(
     # plain dicts — JSONB won't take them as they are.
     note = Note(
         user_id=user.id,
+        group_id=group_id,
+        tag=tag,
         title=result.best.title,
         subject=result.best.subject,
         markdown=composition.markdown,
@@ -255,6 +348,7 @@ async def handle_photo(
             "latency_ms": int((time.monotonic() - started) * 1000),
             "cost_usd": vision.total_cost(stats + composition.stats + explaining.stats),
         },
+        group_id=group_id,
     )
 
     # Step 16: the record itself goes out as a PDF — recognised notes are full
@@ -297,21 +391,32 @@ async def handle_photo(
 
     # Step 17: which subject does this belong to. Last, so the question is
     # what the user is looking at when they reply.
-    await corpus.ask_for_tag(message, session, user, note)
+    await corpus.ask_for_tag(message, session, user, note, group)
 
 
 @router.message(F.document)
 async def handle_document(
-    message: Message, session: AsyncSession, user: User, bot: Bot
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+    group: Group | None = None,
 ) -> None:
     """.docx only. The text is already machine-readable, so there is no model
     call: no limits are checked and no quota is spent — a Word file is
     processed even with AI_ENABLED=false. Steps 0, 4-10, 12 and 14 are skipped;
     step 11 (empty text) still applies."""
+    tag = tags.from_caption(message.caption)
+    if group is not None and tag is None:
+        return  # not the bot's in a group; see handle_photo
+    group_id = group.id if group is not None else None
     document = message.document
     name = document.file_name or ""
     if not name.lower().endswith(".docx"):
-        await message.answer(texts.DOCX_ONLY)
+        # In a group a file with a "#word" under it is slides or a textbook
+        # shared with the others, not something sent to the bot.
+        if group is None:
+            await message.answer(texts.DOCX_ONLY)
         return
     if document.file_size and document.file_size > _MAX_DOCX_BYTES:
         await message.answer(texts.FILE_TOO_BIG)
@@ -323,6 +428,7 @@ async def handle_document(
         user.id,
         "note_captured",
         {"bytes_before": len(data), "source_type": "docx"},
+        group_id=group_id,
     )
 
     started = time.monotonic()  # note_processed.latency_ms for docx: extraction
@@ -340,6 +446,8 @@ async def handle_document(
 
     note = Note(
         user_id=user.id,
+        group_id=group_id,
+        tag=tag,
         title=docx.derive_title(markdown, name.rsplit(".", 1)[0]),
         subject=None,
         markdown=markdown,
@@ -371,11 +479,12 @@ async def handle_document(
             "latency_ms": extract_ms,
             "cost_usd": None,  # no model call
         },
+        group_id=group_id,
     )
 
     await session.flush()  # note.id, for the file name and the caption
     await corpus.send_record(message, note)
-    await corpus.ask_for_tag(message, session, user, note)
+    await corpus.ask_for_tag(message, session, user, note, group)
 
 
 def _skip_payload(skips: list[albums.PageResult]) -> list[dict]:
@@ -399,11 +508,20 @@ async def _process_album(
     session: AsyncSession,
     user: User,
     pages: list[albums.PageInput],
+    group: Group | None = None,
 ) -> None:
     """Assemble a buffered album into one Note. The single-photo pipeline never
     runs for album pages — this is the batch equivalent, and the per-page work
     (frame check, recognition, mathcheck) happens in albums.process_batch,
     which never touches the database."""
+    # In a group an album is the bot's only when one of its pages carries a
+    # "#word" in its caption; without one it is people sharing photos, and the
+    # bot says nothing — before the size check too, which would answer.
+    tag = albums.tag_of(pages)
+    if group is not None and tag is None:
+        return
+    group_id = group.id if group is not None else None
+
     if len(pages) > settings.MAX_ALBUM_PAGES:
         # A shape-of-request check, so it comes before the spend check: an
         # oversized album is refused even with the quota exhausted.
@@ -433,6 +551,7 @@ async def _process_album(
                 "page": number,
                 "media_group_id": page.media_group_id,
             },
+            group_id=group_id,
         )
 
     await message.answer(texts.PROCESSING)
@@ -461,6 +580,7 @@ async def _process_album(
                 "latency_ms": int((time.monotonic() - started) * 1000),
                 "cost_usd": vision.total_cost(outcome.stats),
             },
+            group_id=group_id,
         )
         await message.answer(
             texts.album_incomplete(
@@ -485,6 +605,8 @@ async def _process_album(
 
     note = Note(
         user_id=user.id,
+        group_id=group_id,
+        tag=tag,
         title=rec.title,
         subject=rec.subject,
         markdown=composition.markdown,
@@ -539,6 +661,7 @@ async def _process_album(
                 outcome.stats + composition.stats + explaining.stats
             ),
         },
+        group_id=group_id,
     )
 
     await session.flush()  # note.id, for the file name and the caption
@@ -585,7 +708,7 @@ async def _process_album(
     if flags:
         await message.answer("\n\n".join(flags))
 
-    await corpus.ask_for_tag(message, session, user, note)
+    await corpus.ask_for_tag(message, session, user, note, group)
 
 
 # Registered last on purpose: aiogram matches handlers in registration order,
@@ -594,8 +717,13 @@ async def _process_album(
 # previously got no reply at all.
 @router.message()
 async def handle_unsupported(
-    message: Message, session: AsyncSession, user: User
+    message: Message, session: AsyncSession, user: User, group: Group | None = None
 ) -> None:
+    if group is not None:
+        # What reaches here in a group is a notice about the chat or a command
+        # meant for another bot (middlewares.heard lets both through). None of
+        # it is addressed to this one, and a reply would be noise in the chat.
+        return
     await log_event(
         session,
         user.id,

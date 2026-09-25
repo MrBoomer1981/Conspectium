@@ -70,6 +70,19 @@ class PageInput:
     bytes_after: int
     width: int
     height: int
+    # The "#word" in this page's caption. Telegram puts an album's caption on
+    # one page only, so most pages carry None; see tag_of.
+    tag: str | None = None
+
+
+def tag_of(pages: list[PageInput]) -> str | None:
+    """The subject an album was sent with: the tag of the first page, in page
+    order, that carries one. In a group chat an album without one is not the
+    bot's to take."""
+    for page in sorted(pages, key=lambda p: p.message_id):
+        if page.tag:
+            return page.tag
+    return None
 
 
 # Pages whose bytes have arrived.

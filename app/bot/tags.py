@@ -32,6 +32,12 @@ TOPIC_LIMIT = 5
 # before anything else, or the tag comes back carrying "psi".
 _MATH = re.compile(r"\$[^$]*\$")
 _HEADING = re.compile(r"(?m)^(#{1,6})[ \t]+(.+?)[ \t]*$")
+# A caption carries its tag anywhere in it — "Лекция 5 #матан" — so the first
+# "#word" is taken, and only the word. Not after a letter or another hash:
+# "C#" and "##" are not tags.
+_CAPTION_TAG = re.compile(r"(?<![\w#])#(\w+)")
+# One "#word" and nothing else around it.
+_BARE_TAG = re.compile(r"#\w+")
 # Everything that is not a letter, a digit or a gap. Markdown's own markers go
 # here too: "**Определение**" and "Определение" are one topic.
 _PUNCTUATION = re.compile(r"[^\w\s-]", re.UNICODE)
@@ -62,6 +68,32 @@ def parse(text: str | None) -> str | None:
     if not stripped.startswith("#"):
         return None
     return normalize(stripped[1:]) or None
+
+
+def from_caption(caption: str | None) -> str | None:
+    """The subject a photo or a file was sent with: the first "#word" of its
+    caption, `None` when it has none.
+
+    A caption is not a message that has to be the tag and nothing else — it is
+    where people write "Лекция 5 #матан" — so the word is looked for anywhere
+    in it. In a group chat this is also what makes the bot take the photo at
+    all.
+    """
+    if not caption:
+        return None
+    found = _CAPTION_TAG.search(caption)
+    return (normalize(found.group(1)) or None) if found else None
+
+
+def is_bare(text: str | None) -> bool:
+    """Whether a message is one "#word" and nothing else.
+
+    In a private chat every message is for the bot, so "#квантовая механика"
+    is a search with a space in it. In a course chat people put hashtags into
+    sentences — "#дз на завтра: §5" — and those are for each other: only a
+    message that is a tag and nothing else is taken as a search there.
+    """
+    return bool(text) and _BARE_TAG.fullmatch(text.strip()) is not None
 
 
 def topics_of(title: str, markdown: str) -> list[str]:

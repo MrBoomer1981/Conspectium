@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.bot.middlewares import DbSessionMiddleware
-from app.db.models import Base, Event, User
+from app.db.models import Base, Event, Group, User
 
 
 @pytest_asyncio.fixture
@@ -145,5 +145,167 @@ async def test_a_new_user_survives_a_failing_first_update(maker):
 
     with pytest.raises(RuntimeError):
         await DbSessionMiddleware()(handler, _message(), {})
+
+    assert await _count(maker, User) == 1
+
+
+# ── a group chat ─────────────────────────────────────────────────────────────
+# Once the bot can see a course chat it sees every message in it, and nearly
+# all of them are classmates talking to each other. The middleware is where
+# those stop, before a session is opened or a user row made.
+
+from datetime import datetime, timezone  # noqa: E402
+
+from aiogram.types import Chat, Document, Message, PhotoSize  # noqa: E402
+from aiogram.types import User as TgUser  # noqa: E402
+
+from app.bot import middlewares  # noqa: E402
+
+_PHOTO = [PhotoSize(file_id="f", file_unique_id="u", width=60, height=40)]
+_DOCX = Document(file_id="d", file_unique_id="v", file_name="лекция.docx")
+
+
+def _in_chat(chat_id: int = -100500, chat_type: str = "supergroup",
+             title: str = "Матан, 2 курс", **fields) -> Message:
+    """A real aiogram Message, because what a group lets through is decided by
+    the fields Telegram actually sends."""
+    return Message(
+        message_id=fields.pop("message_id", 1),
+        date=datetime.now(timezone.utc),
+        chat=Chat(id=chat_id, type=chat_type, title=title),
+        from_user=TgUser(id=77, is_bot=False, first_name="Глеб", username="student"),
+        **fields,
+    )
+
+
+def test_everything_in_a_private_chat_is_heard():
+    assert middlewares.heard(_in_chat(77, "private", None, text="привет"))
+
+
+def test_chatter_in_a_group_is_not():
+    for message in (
+        _in_chat(text="привет, кто был на паре?"),
+        _in_chat(text="#дз на завтра: §5"),
+        _in_chat(photo=_PHOTO),
+        _in_chat(photo=_PHOTO, caption="смешно"),
+        _in_chat(document=_DOCX, caption="вот методичка"),
+    ):
+        assert not middlewares.heard(message), message
+
+
+def test_what_the_bot_acts_on_in_a_group_is_heard():
+    for message in (
+        _in_chat(text="/stats"),
+        _in_chat(text="#матан"),
+        _in_chat(photo=_PHOTO, caption="Лекция 5 #матан"),
+        _in_chat(document=_DOCX, caption="#матан"),
+        # An album is judged whole: its caption is on one page only.
+        _in_chat(photo=_PHOTO, media_group_id="alb"),
+        # The notice that moves the group to its new id.
+        _in_chat(migrate_from_chat_id=-100),
+    ):
+        assert middlewares.heard(message), message
+
+
+async def test_chatter_opens_no_session_and_makes_no_user(maker):
+    called = []
+
+    async def handler(event, data):
+        called.append(event)
+
+    result = await DbSessionMiddleware()(handler, _in_chat(text="привет"), {})
+
+    assert result is None and called == []
+    assert await _count(maker, User) == 0
+
+
+async def test_a_group_is_registered_on_first_sight_and_reused(maker):
+    async def handler(event, data):
+        return data["group"].id
+
+    first = await DbSessionMiddleware()(handler, _in_chat(text="/stats"), {})
+    second = await DbSessionMiddleware()(handler, _in_chat(text="#матан"), {})
+
+    assert first == second
+    async with maker() as session:
+        group = (await session.execute(select(Group))).scalar_one()
+    assert (group.tg_chat_id, group.title) == (-100500, "Матан, 2 курс")
+
+
+async def test_a_renamed_group_keeps_its_row(maker):
+    async def handler(event, data):
+        return data["group"].id
+
+    first = await DbSessionMiddleware()(handler, _in_chat(text="/stats"), {})
+    second = await DbSessionMiddleware()(
+        handler, _in_chat(text="/stats", title="Матан, 3 курс"), {}
+    )
+
+    assert first == second
+    async with maker() as session:
+        group = (await session.execute(select(Group))).scalar_one()
+    assert group.title == "Матан, 3 курс"
+
+
+async def test_a_private_chat_has_no_group(maker):
+    async def handler(event, data):
+        return data["group"]
+
+    assert await DbSessionMiddleware()(handler, _message(), {}) is None
+    assert await _count(maker, Group) == 0
+
+
+async def _group_id_after(maker, *messages) -> list[int]:
+    async def handler(event, data):
+        return data["group"].id
+
+    return [await DbSessionMiddleware()(handler, m, {}) for m in messages]
+
+
+async def test_a_group_that_became_a_supergroup_keeps_its_records(maker):
+    """Telegram gives the supergroup a new chat id. The records point at our
+    own id, so moving the row is what keeps every one of them findable."""
+    before, after = await _group_id_after(
+        maker,
+        _in_chat(-100, "group", text="/stats"),
+        _in_chat(-1001, "supergroup", migrate_from_chat_id=-100),
+    )
+
+    assert before == after
+    async with maker() as session:
+        group = (await session.execute(select(Group))).scalar_one()
+    assert group.tg_chat_id == -1001
+
+
+async def test_both_halves_of_the_notice_move_the_group_once(maker):
+    # Telegram announces the move in the old chat and in the new one.
+    ids = await _group_id_after(
+        maker,
+        _in_chat(-100, "group", text="/stats"),
+        _in_chat(-100, "group", migrate_to_chat_id=-1001),
+        _in_chat(-1001, "supergroup", migrate_from_chat_id=-100),
+        _in_chat(-1001, "supergroup", text="#матан"),
+    )
+
+    assert len(set(ids)) == 1
+    assert await _count(maker, Group) == 1
+
+
+async def test_a_row_another_update_just_inserted_is_fetched_not_duplicated(maker):
+    """The pages of an album are handled at once, and in a group an album is
+    a likely first message from someone the bot has never seen: every page
+    tries to register them, and all but one lose the race on the unique index.
+    Losing it must cost nothing — not the page, and not an error in the chat."""
+    async with maker() as session:
+        session.add(User(tg_id=5, first_name="первая страница"))
+        await session.commit()
+
+    async with maker() as session:
+        row = await middlewares._insert_or_fetch(
+            session, User(tg_id=5), select(User).where(User.tg_id == 5)
+        )
+        assert row.first_name == "первая страница"
+        # The failed insert left the session usable.
+        await session.commit()
 
     assert await _count(maker, User) == 1

@@ -4,9 +4,11 @@ Its own Router, and `main.py` includes it **before** `handlers.router`:
 handlers ends with a filterless catch-all that matches every message, so a
 router registered after it would never receive a message beginning with "#".
 
-Nothing here calls the model — the corpus is already text. Every query
-filters by `user_id`: one user today is not a reason to write a query that
-returns someone else's record tomorrow.
+Nothing here calls the model — the corpus is already text. Every query is
+scoped to its owner (`_owned`): in a group chat the group, whose records any
+member reaches, and in a private chat the user, whose own records made there
+nobody else does. A record belongs to the chat it was made in — its
+photographer finds a group's record in the group, like everyone else.
 
 This module used to carry seven commands for browsing, opening, searching,
 renaming and deleting records. They were built, tested, deployed, and in the
@@ -25,12 +27,12 @@ from datetime import date, datetime, timedelta, timezone
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import BufferedInputFile, Message
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import tags, texts
 from app.core.events import log_event
-from app.db.models import Note, NoteTopic, User
+from app.db.models import Group, Note, NoteTopic, User
 from app.services import mathcheck, pdf
 
 logger = logging.getLogger(__name__)
@@ -213,6 +215,18 @@ def _summary(note: Note) -> pdf.Summary | None:
     return pdf.Summary(label=texts.SUMMARY_LABEL, lines=[note.summary])
 
 
+def _owned(user: User, group: Group | None):
+    """The records a chat may reach: in a group, the group's; in a private
+    chat, the user's own that belong to no group."""
+    if group is not None:
+        return Note.group_id == group.id
+    return and_(Note.user_id == user.id, Note.group_id.is_(None))
+
+
+def _group_id(group: Group | None) -> int | None:
+    return group.id if group is not None else None
+
+
 def _utc_date(value: datetime) -> date:
     """SQLite hands back naive datetimes, PostgreSQL aware ones. Both are UTC
     by construction — every timestamp in this project is server_default now()."""
@@ -235,7 +249,9 @@ def _streak(days: set[date], today: date) -> int:
 
 
 @router.message(Command("stats"))
-async def cmd_stats(message: Message, session: AsyncSession, user: User) -> None:
+async def cmd_stats(
+    message: Message, session: AsyncSession, user: User, group: Group | None = None
+) -> None:
     totals = (
         await session.execute(
             select(
@@ -243,7 +259,7 @@ async def cmd_stats(message: Message, session: AsyncSession, user: User) -> None
                 func.coalesce(func.sum(Note.page_count), 0),
                 func.min(Note.created_at),
                 func.max(Note.created_at),
-            ).where(Note.user_id == user.id)
+            ).where(_owned(user, group))
         )
     ).one()
     notes, pages, first, last = totals
@@ -252,14 +268,14 @@ async def cmd_stats(message: Message, session: AsyncSession, user: User) -> None
         return
 
     stamps = (
-        (await session.execute(select(Note.created_at).where(Note.user_id == user.id)))
+        (await session.execute(select(Note.created_at).where(_owned(user, group))))
         .scalars()
         .all()
     )
     today = datetime.now(timezone.utc).date()
     days = {_utc_date(stamp) for stamp in stamps}
 
-    await log_event(session, user.id, "stats_viewed")
+    await log_event(session, user.id, "stats_viewed", group_id=_group_id(group))
     await message.answer(
         texts.stats(
             notes=notes,
@@ -273,9 +289,11 @@ async def cmd_stats(message: Message, session: AsyncSession, user: User) -> None
 
 
 @router.message(Command("help"))
-async def cmd_help(message: Message, session: AsyncSession, user: User) -> None:
-    await log_event(session, user.id, "help_viewed")
-    await message.answer(texts.HELP)
+async def cmd_help(
+    message: Message, session: AsyncSession, user: User, group: Group | None = None
+) -> None:
+    await log_event(session, user.id, "help_viewed", group_id=_group_id(group))
+    await message.answer(texts.GROUP_HELP if group is not None else texts.HELP)
 
 
 # ── Delivering a record as a file ────────────────────────────────────────────
@@ -345,12 +363,18 @@ async def send_record(message: Message, note: Note) -> None:
 # shortcut that already costs this project an album buffer which cannot
 # survive a second replica, and this one is avoidable for free — the answer is
 # a column.
+#
+# A private chat only. In a group the newest record is everyone's and the next
+# "#word" may be anyone's, so a group never asks: a record is made there only
+# when its photo came with its subject, and a "#word" in a group only searches.
 
 _SEARCH_LIMIT = 10
 
 
-async def known_tags(session: AsyncSession, user: User) -> list[str]:
-    """The subjects this user has filed under before, most used first.
+async def known_tags(
+    session: AsyncSession, user: User, group: Group | None = None
+) -> list[str]:
+    """The subjects this chat has filed under before, most used first.
 
     The question comes with its own answers because the alternative is a
     corpus that quietly grows «физика», «Физика» and «физос» as three
@@ -358,7 +382,7 @@ async def known_tags(session: AsyncSession, user: User) -> list[str]:
     """
     stmt = (
         select(Note.tag)
-        .where(Note.user_id == user.id, Note.tag.is_not(None))
+        .where(_owned(user, group), Note.tag.is_not(None))
         .group_by(Note.tag)
         .order_by(func.count().desc(), Note.tag)
     )
@@ -378,9 +402,11 @@ async def save_topics(session: AsyncSession, note: Note) -> list[str]:
 
 
 async def _newest(session: AsyncSession, user: User) -> Note | None:
+    """The newest record of the user's private chat — the only place the bot
+    asks a question for a "#word" to answer."""
     stmt = (
         select(Note)
-        .where(Note.user_id == user.id)
+        .where(_owned(user, None))
         # id breaks the tie: two records can share a second.
         .order_by(Note.created_at.desc(), Note.id.desc())
         .limit(1)
@@ -388,13 +414,16 @@ async def _newest(session: AsyncSession, user: User) -> Note | None:
     return (await session.execute(stmt)).scalars().first()
 
 
-async def _matching(session: AsyncSession, user: User, tag: str) -> list[Note]:
-    """Records carrying this tag as their subject or among their topics."""
+async def _matching(
+    session: AsyncSession, user: User, group: Group | None, tag: str
+) -> list[Note]:
+    """This chat's records carrying the tag as their subject or among their
+    topics."""
     by_topic = select(NoteTopic.note_id).where(NoteTopic.topic == tag)
     stmt = (
         select(Note)
         .where(
-            Note.user_id == user.id,
+            _owned(user, group),
             or_(Note.tag == tag, Note.id.in_(by_topic)),
         )
         .order_by(Note.created_at.desc(), Note.id.desc())
@@ -404,29 +433,41 @@ async def _matching(session: AsyncSession, user: User, tag: str) -> list[Note]:
 
 
 @router.message(F.text.startswith("#"))
-async def on_tag(message: Message, session: AsyncSession, user: User) -> None:
+async def on_tag(
+    message: Message, session: AsyncSession, user: User, group: Group | None = None
+) -> None:
     tag = tags.parse(message.text)
     if tag is None:
-        await message.answer(texts.TAG_UNREADABLE)
+        if group is None:
+            await message.answer(texts.TAG_UNREADABLE)
         return
 
-    newest = await _newest(session, user)
-    if newest is not None and newest.tag is None:
-        newest.tag = tag
-        await log_event(
-            session, user.id, "note_tagged", {"note_id": newest.id, "tag": tag}
-        )
-        await message.answer(texts.tagged(tag))
-        return
+    if group is None:
+        newest = await _newest(session, user)
+        if newest is not None and newest.tag is None:
+            newest.tag = tag
+            await log_event(
+                session, user.id, "note_tagged", {"note_id": newest.id, "tag": tag}
+            )
+            await message.answer(texts.tagged(tag))
+            return
 
-    found = await _matching(session, user, tag)
+    found = await _matching(session, user, group, tag)
     await log_event(
-        session, user.id, "topic_searched", {"tag": tag, "found": len(found)}
+        session,
+        user.id,
+        "topic_searched",
+        {"tag": tag, "found": len(found)},
+        group_id=_group_id(group),
     )
     if not found:
-        await message.answer(
-            texts.nothing_tagged(tag, await known_tags(session, user))
-        )
+        # In a group a "#word" that finds nothing is most likely a hashtag the
+        # members use among themselves — "#дз" — and an answer to each one
+        # would be the bot talking over the chat. The miss is still logged.
+        if group is None:
+            await message.answer(
+                texts.nothing_tagged(tag, await known_tags(session, user))
+            )
         return
     if len(found) == 1:
         # One match is the answer itself, not a line about the answer.
@@ -454,13 +495,24 @@ async def _listing(
 
 
 async def ask_for_tag(
-    message: Message, session: AsyncSession, user: User, note: Note
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    note: Note,
+    group: Group | None = None,
 ) -> None:
-    """Store the record's topics and ask which subject it belongs to.
+    """Store the record's topics and ask which subject it belongs to — unless
+    the photo came with it, and then say where it was filed.
 
     The last thing every capture path does, so the question is what the user
     is looking at when they reply — and so a "#word" arriving next means the
-    answer rather than a search.
+    answer rather than a search. A record made in a group always came with its
+    subject; the question is a private chat's.
     """
     topics = await save_topics(session, note)
-    await message.answer(texts.ask_tag(topics, await known_tags(session, user)))
+    if note.tag is not None:
+        await message.answer(texts.filed(note.tag, topics))
+        return
+    await message.answer(
+        texts.ask_tag(topics, await known_tags(session, user, group))
+    )

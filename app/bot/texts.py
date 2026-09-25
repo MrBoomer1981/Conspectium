@@ -243,6 +243,17 @@ def tagged(tag: str) -> str:
     return f"Сохранил под #{tag}. Чтобы найти — пришли #{tag} или название темы."
 
 
+def filed(tag: str, topics: list[str]) -> str:
+    """Said instead of the question when the photo came with its subject. The
+    topics are still shown, and for the same reason as under the question:
+    they are what the record will be found by, and in a group they are how
+    the others learn what to type."""
+    lines = [f"Сохранил под #{tag}. Найти: #{tag} или тема записи."]
+    if topics:
+        lines += ["", "Темы этой записи: " + " ".join("#" + t for t in topics)]
+    return "\n".join(lines)
+
+
 def nothing_tagged(tag: str, known: list[str]) -> str:
     text = f"По #{tag} ничего не нашлось."
     if known:
@@ -363,16 +374,55 @@ def _help_line(name: str, description: str, usage: str | None) -> str:
 HELP = "\n".join(
     [
         "Пришли фотографию страницы конспекта — верну структурированную "
-        "запись и спрошу, под каким тегом её сохранить.",
+        "запись и спрошу, под каким тегом её сохранить. Тег можно сразу "
+        "написать в подписи к фото.",
         "",
         "Чтобы найти запись позже — пришли тег: #физика, или название "
         "темы, например #производная.",
         "",
         ".docx тоже приму — его распознавать не нужно.",
         "",
+        "Добавь меня в чат своей группы: там я беру фото с тегом предмета "
+        "в подписи и присылаю PDF всем.",
+        "",
     ]
     + [_help_line(*command) for command in COMMANDS]
 )
+
+
+# ── The bot in a group chat — app/bot/handlers.py on_joined ─────────────────
+# A course chat is mostly people talking to each other, so the bot answers
+# only what is addressed to it. That makes the rule worth saying up front: a
+# photo sent without a tag gets no answer at all.
+
+GROUP_HELP = "\n".join(
+    [
+        "Я делаю из фотографий конспекта PDF для всей группы.",
+        "",
+        "Пришлите фото или альбом страниц с тегом предмета в подписи, "
+        "например #матан, — верну PDF сюда. Фото без тега не трогаю.",
+        "",
+        "Найти запись может любой: напишите #матан или тему записи, "
+        "например #производная.",
+        "",
+    ]
+    + [_help_line(*command) for command in COMMANDS]
+)
+
+GROUP_CANNOT_SEE = (
+    "Пока я не вижу фотографий в этом чате. Сделайте меня администратором — "
+    "никаких прав давать не нужно."
+)
+
+GROUP_SEES_PHOTOS = (
+    "Теперь я вижу фотографии в этом чате. Присылайте страницы с тегом "
+    "предмета в подписи, например #матан."
+)
+
+
+def group_welcome(sees_photos: bool) -> str:
+    text = f"Привет! {GROUP_HELP}"
+    return text if sees_photos else f"{text}\n\n{GROUP_CANNOT_SEE}"
 
 
 # ── The record as a file — app/bot/corpus.py send_record_pdf ─────────────────

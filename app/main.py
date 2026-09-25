@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
 dp.message.outer_middleware(DbSessionMiddleware())
+# The bot's own membership: added to a group, made an admin, removed.
+dp.my_chat_member.outer_middleware(DbSessionMiddleware())
 # Order matters: handlers.router ends with a filterless catch-all that
 # matches every message, so a router included after it gets nothing.
 dp.include_router(corpus.router)
@@ -121,7 +123,13 @@ async def _resolve_user_id(tg_id: int) -> int | None:
 async def lifespan(app: FastAPI):
     url = f"{settings.WEBHOOK_URL}{WEBHOOK_PATH}"
     # A bot without a webhook is useless, so a failure here must stop startup.
-    await bot.set_webhook(url, secret_token=settings.WEBHOOK_SECRET)
+    # The update types are the ones something here handles — derived rather
+    # than listed, so a handler for a new kind cannot be added and left deaf.
+    await bot.set_webhook(
+        url,
+        secret_token=settings.WEBHOOK_SECRET,
+        allowed_updates=dp.resolve_used_update_types(),
+    )
     logger.info("Webhook set")
 
     # The model that reads the photograph, and how many times. Every quality
@@ -187,6 +195,21 @@ async def lifespan(app: FastAPI):
             name,
             model,
         )
+
+    # Whether the bot can see a group's photos is decided in BotFather, not
+    # here: with privacy mode on it sees them only where it is an admin. Said
+    # on every deploy, because what it explains — a page sent to a group chat
+    # and never answered — makes no sound of its own.
+    try:
+        me = await bot.me()
+        logger.info(
+            "Groups: %s",
+            "sees every message"
+            if me.can_read_all_group_messages
+            else "privacy mode on, sees photos only where it is an admin",
+        )
+    except Exception:
+        logger.exception("could not read the bot's own settings")
 
     # Unlike the webhook, this one must not stop startup: a bot without a
     # command menu still works, it is just harder to use.

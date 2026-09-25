@@ -13,7 +13,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.bot import albums, handlers, texts
 from app.services import compose, mathcheck, photoguard, vision
-from app.db.models import Base, Event, Note, NoteTopic, User
+from app.db.models import Base, Event, Group, Note, NoteTopic, User
 
 
 @pytest_asyncio.fixture
@@ -144,11 +144,17 @@ def _jpeg() -> bytes:
 
 
 class _PhotoMessage:
-    def __init__(self, media_group_id: str | None, message_id: int = 11):
+    def __init__(
+        self,
+        media_group_id: str | None,
+        message_id: int = 11,
+        caption: str | None = None,
+    ):
         self.photo = [SimpleNamespace(width=60, height=40, file_id="f")]
         self.document = None
         self.media_group_id = media_group_id
         self.message_id = message_id
+        self.caption = caption
         self.chat = SimpleNamespace(id=5)
         self.replies: list[str] = []
 
@@ -226,7 +232,7 @@ class _AlbumMessage:
         self.documents.append(document)
 
 
-def _input(message_id: int) -> albums.PageInput:
+def _input(message_id: int, tag: str | None = None) -> albums.PageInput:
     return albums.PageInput(
         data=b"x",
         message_id=message_id,
@@ -236,6 +242,7 @@ def _input(message_id: int) -> albums.PageInput:
         bytes_after=5,
         width=100,
         height=100,
+        tag=tag,
     )
 
 
@@ -292,7 +299,11 @@ def _record(
     )
 
 
-async def _run_album(session, monkeypatch, skips, pages_ok, record):
+async def _run_album(
+    session, monkeypatch, skips, pages_ok, record, group=None, tag=None
+):
+    """_process_album with the pages already read. `tag` rides on the first
+    page's caption, the way Telegram sends an album's."""
     user = User(tg_id=1)
     session.add(user)
     await session.flush()
@@ -311,7 +322,11 @@ async def _run_album(session, monkeypatch, skips, pages_ok, record):
 
     message = _AlbumMessage()
     await handlers._process_album(
-        message, session, user, [_input(i) for i in range(1, 5)]
+        message,
+        session,
+        user,
+        [_input(i, tag if i == 1 else None) for i in range(1, 5)],
+        group,
     )
     return message, user
 
@@ -584,7 +599,13 @@ def _verdict_ok():
 
 
 async def _run_photo(
-    session, monkeypatch, composition, composed=None, **result_fields
+    session,
+    monkeypatch,
+    composition,
+    composed=None,
+    message=None,
+    group=None,
+    **result_fields,
 ):
     """handle_photo with everything outside this test's subject stubbed out.
 
@@ -634,7 +655,13 @@ async def _run_photo(
     monkeypatch.setattr(handlers.corpus, "send_record", no_pdf)
 
     albums.reset()
-    await handlers.handle_photo(_PhotoMessage(None, message_id=21), session, user, _FastBot())
+    await handlers.handle_photo(
+        message or _PhotoMessage(None, message_id=21),
+        session,
+        user,
+        _FastBot(),
+        group,
+    )
     return transcription
 
 
@@ -870,3 +897,232 @@ async def test_an_album_record_is_asked_which_subject_it_belongs_to(
     # The question is last, so it is what the user is looking at when they
     # reply — which is what makes the reply an answer and not a search.
     assert "#" in message.replies[-1]
+
+
+# ── a group chat ─────────────────────────────────────────────────────────────
+# In a course chat the bot takes a page only when it came with its subject in
+# the caption, the record it makes is the chat's, and everything not
+# addressed to it is left alone — a bot answering every message would be the
+# loudest member of the chat within a day.
+
+
+async def _chat(session) -> Group:
+    group = Group(tg_chat_id=-100500, title="Матан, 2 курс")
+    session.add(group)
+    await session.flush()
+    return group
+
+
+async def test_nothing_unaddressed_is_answered_or_logged_in_a_group(session):
+    user = await _user(session)
+    group = await _chat(session)
+    message = _Message("new_chat_members")
+
+    await handlers.handle_unsupported(message, session, user, group)
+
+    assert message.replies == []
+    assert (await session.execute(select(Event))).first() is None
+
+
+async def test_an_album_nobody_tagged_is_left_alone_in_a_group(session, monkeypatch):
+    """Classmates share albums of all kinds. Untagged, it is not the bot's —
+    not read, not answered, not even refused for its size."""
+    group = await _chat(session)
+
+    async def must_not_run(pages):
+        raise AssertionError("an untagged album in a group was read")
+
+    monkeypatch.setattr(handlers.albums, "process_batch", must_not_run)
+    user = await _user(session)
+    message = _AlbumMessage()
+    pages = [_input(i) for i in range(1, 30)]  # over MAX_ALBUM_PAGES, too
+
+    await handlers._process_album(message, session, user, pages, group)
+
+    assert message.replies == []
+    assert (await session.execute(select(Event))).first() is None
+
+
+async def test_a_tagged_album_in_a_group_is_the_groups_and_filed_at_once(
+    session, monkeypatch
+):
+    group = await _chat(session)
+    message, _ = await _run_album(
+        session,
+        monkeypatch,
+        skips=[],
+        pages_ok=[_ok_page(1)],
+        record=_record(1),
+        group=group,
+        tag="матан",
+    )
+
+    note = (await session.execute(select(Note))).scalar_one()
+    assert (note.group_id, note.tag) == (group.id, "матан")
+    # Where it was filed, not the question: in a group nobody is asked.
+    assert message.replies[-1].startswith("Сохранил под #матан")
+    events = (await session.execute(select(Event))).scalars().all()
+    assert events and all(e.group_id == group.id for e in events)
+
+
+async def test_a_photo_sent_with_its_subject_is_filed_at_once(session, monkeypatch):
+    message = _PhotoMessage(None, message_id=21, caption="Лекция 5 #Матан")
+    await _run_photo(
+        session, monkeypatch, compose.Composition(_PHOTO_MD), message=message
+    )
+
+    note = (await session.execute(select(Note))).scalar_one()
+    assert (note.group_id, note.tag) == (None, "матан")
+    assert message.replies[-1].startswith("Сохранил под #матан")
+
+
+async def test_a_photo_taken_in_a_group_is_the_groups(session, monkeypatch):
+    group = await _chat(session)
+    message = _PhotoMessage(None, message_id=21, caption="#матан")
+    await _run_photo(
+        session,
+        monkeypatch,
+        compose.Composition(_PHOTO_MD),
+        message=message,
+        group=group,
+    )
+
+    note = (await session.execute(select(Note))).scalar_one()
+    assert (note.group_id, note.tag) == (group.id, "матан")
+    events = (await session.execute(select(Event))).scalars().all()
+    assert {e.type for e in events} >= {"note_captured", "note_processed"}
+    assert all(e.group_id == group.id for e in events)
+
+
+async def test_an_untagged_photo_in_a_group_is_never_made_a_record(session):
+    """middlewares.heard stops it first; the handler keeps the invariant on
+    its own, so a group's record cannot exist without its subject."""
+    user = await _user(session)
+    group = await _chat(session)
+    message = _PhotoMessage(None, caption="смешно")
+
+    class _NoDownload:
+        async def download(self, photo):
+            raise AssertionError("an untagged photo in a group was fetched")
+
+    await handlers.handle_photo(message, session, user, _NoDownload(), group)
+
+    assert message.replies == []
+    assert (await session.execute(select(Note))).first() is None
+
+
+async def test_a_file_that_is_not_docx_gets_no_answer_in_a_group(session):
+    # Slides shared with "#матан" under them are for the classmates.
+    user = await _user(session)
+    group = await _chat(session)
+    message = _PhotoMessage(None, caption="#матан")
+    message.document = SimpleNamespace(file_name="лекция 5.pdf", file_size=100)
+
+    await handlers.handle_document(message, session, user, None, group)
+
+    assert message.replies == []
+
+
+# ── the bot's own place in the chat ──────────────────────────────────────────
+
+
+class _MemberBot:
+    """Stands in for aiogram's Bot where a membership handler touches it."""
+
+    def __init__(self, reads_everything: bool):
+        self.reads_everything = reads_everything
+        self.sent: list[tuple[int, str]] = []
+
+    async def me(self):
+        return SimpleNamespace(can_read_all_group_messages=self.reads_everything)
+
+    async def send_message(self, chat_id: int, text: str) -> None:
+        self.sent.append((chat_id, text))
+
+
+def _membership(status: str):
+    return SimpleNamespace(
+        chat=SimpleNamespace(id=-100500),
+        new_chat_member=SimpleNamespace(status=status),
+    )
+
+
+async def test_added_to_a_group_it_says_how_it_works_there(session):
+    user = await _user(session)
+    group = await _chat(session)
+    bot = _MemberBot(reads_everything=True)
+
+    await handlers.on_joined(_membership("member"), session, user, bot, group)
+
+    assert bot.sent == [(-100500, texts.group_welcome(True))]
+    event = (await session.execute(select(Event))).scalar_one()
+    assert (event.type, event.payload, event.group_id) == (
+        "group_joined",
+        {"sees_photos": True},
+        group.id,
+    )
+
+
+async def test_a_bot_that_cannot_see_the_photos_asks_to_be_made_admin(session):
+    """With privacy mode on, an ordinary member sees no photos at all. Every
+    page sent to the chat would go unanswered with no hint why — so the fix
+    is named in the welcome itself."""
+    user = await _user(session)
+    group = await _chat(session)
+    bot = _MemberBot(reads_everything=False)
+
+    await handlers.on_joined(_membership("member"), session, user, bot, group)
+
+    assert texts.GROUP_CANNOT_SEE in bot.sent[0][1]
+
+
+async def test_added_as_an_admin_it_sees_the_photos_anyway(session):
+    user = await _user(session)
+    group = await _chat(session)
+    bot = _MemberBot(reads_everything=False)
+
+    await handlers.on_joined(_membership("administrator"), session, user, bot, group)
+
+    assert texts.GROUP_CANNOT_SEE not in bot.sent[0][1]
+
+
+async def test_being_unblocked_in_a_private_chat_is_not_joining_a_group(session):
+    user = await _user(session)
+    bot = _MemberBot(reads_everything=False)
+
+    await handlers.on_joined(_membership("member"), session, user, bot, None)
+
+    assert bot.sent == []
+    assert (await session.execute(select(Event))).first() is None
+
+
+async def test_made_an_admin_it_says_it_can_see_now(session):
+    user = await _user(session)
+    group = await _chat(session)
+    bot = _MemberBot(reads_everything=False)
+
+    await handlers.on_promoted(_membership("administrator"), session, user, bot, group)
+
+    assert bot.sent == [(-100500, texts.GROUP_SEES_PHOTOS)]
+
+
+async def test_made_an_admin_when_it_could_already_see_it_stays_quiet(session):
+    user = await _user(session)
+    group = await _chat(session)
+    bot = _MemberBot(reads_everything=True)
+
+    await handlers.on_promoted(_membership("administrator"), session, user, bot, group)
+
+    assert bot.sent == []
+    event = (await session.execute(select(Event))).scalar_one()
+    assert event.type == "group_promoted"
+
+
+async def test_removed_from_a_group_it_is_logged(session):
+    user = await _user(session)
+    group = await _chat(session)
+
+    await handlers.on_left(_membership("left"), session, user, group)
+
+    event = (await session.execute(select(Event))).scalar_one()
+    assert (event.type, event.group_id) == ("group_left", group.id)

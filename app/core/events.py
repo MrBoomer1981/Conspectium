@@ -15,6 +15,7 @@ async def log_event(
     user_id: int | None,
     event_type: str,
     payload: dict | None = None,
+    group_id: int | None = None,
 ) -> None:
     """Write an event to the caller's (main) session. Transactional: lost if
     the update rolls back, and that's fine — the event describes something
@@ -24,11 +25,19 @@ async def log_event(
     doesn't poison the whole transaction and take down the next request too.
 
     Named event_type, not type: no need to shadow the builtin. The database
-    column is still called `type`.
+    column is still called `type`. `group_id` is the group chat the event
+    happened in, None in a private chat.
     """
     try:
         async with session.begin_nested():
-            session.add(Event(user_id=user_id, type=event_type, payload=payload or {}))
+            session.add(
+                Event(
+                    user_id=user_id,
+                    group_id=group_id,
+                    type=event_type,
+                    payload=payload or {},
+                )
+            )
     except Exception:
         logger.exception("log_event failed: %s", event_type)
 
