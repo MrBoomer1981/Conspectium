@@ -135,10 +135,11 @@ and the group is tested later. These come before 40 and 41.
       whole, with nothing charged — the author's choice on 2026-09-25 over
       delivering now and inserting the page later. `MIN_LINE_HEIGHT_PX` 20 → 16
       on this notebook's evidence
-- [ ] 45. A formula the document still prints as its source when the page
-      writes it loosely: an environment bare across lines with no `$$`, a `$`
+- [x] 45. A formula the document still printed as its source when the page
+      wrote it loosely: an environment bare across lines with no `$$`, a `$`
       opened on one line and closed on another, `tabular` for two columns of
-      working, Russian words inside one formula — all four on record 47
+      working, Russian words inside one formula — all four on record 47, which
+      printed 103 lines as source and prints none
 - [ ] 44. What a record costs, and what can be cut without cutting the
       document. First half done: the accounting was wrong both ways — the
       model priced at the Batch/Flex rate (half of Standard, so the cap let
@@ -197,7 +198,7 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-39, 42-43
+Done: 1-39, 42-43, 45
 Current task: none
 Next task: 44
 Blockers: none

@@ -584,6 +584,7 @@ proves each one both rewrites *and* draws:
 | `\textbf{…}`, `\textit{…}`, `\emph{…}` | `\mathbf{…}`, `\mathit{…}` with spaces kept as `\ `, lifted out of a `\text{…}` round them — inside `\text` mathtext reads no command and printed "¤extbf" |
 | `"` | `\text{"}`, outside a `\text` |
 | `\cline{a-b}` | dropped, argument and all, where the array is not drawn as a table |
+| Russian words outside any `\text` | `\text{…}` — set as italic letters they ran together, "могутбыть" |
 
 So `\begin{cases} A \\ B \end{cases}` becomes `\left\{\substack{A \\ B}\right.`
 and draws as a proper piecewise brace; `pmatrix` keeps its parentheses,
@@ -605,8 +606,20 @@ formula that is nothing but arrays with a `|` in the column spec or a
 its column's alignment, so `\phantom` still lines the steps up; a line under
 the cells a rule names; and the bar only along the rows with something on its
 far side, which in a long division is the corner itself. An array barred at
-both ends, `{|l|}` with `\hline`, is still the author's frame. → "Record 45,
-a lecture on remainders"
+both ends, `{|l|}` with `\hline`, is still the author's frame. A `tabular`
+is drawn the same way with cells that are text with formulas in them, rules
+or none: mathtext has no text mode to set one. → "Record 45, a lecture on
+remainders"
+
+**A formula written loosely across lines is still one formula.**
+`pdf._loose_formula` joins an environment with no dollars round it, from its
+`\begin` line to the line of its matching `\end`, and a `$` opened on one line
+and closed on a later one; what stood before the opening or after the close
+on those lines stays text. It is narrow on purpose: an environment never
+closed within sixty lines, or two dollars whose span carries no environment,
+row break or column, are left exactly as they were — "5$ ... 3$" in prose is
+not a formula. Record 47 printed 103 lines as source this way. → "What a
+record costs"
 
 **A formula mathtext refuses is a warning in the log**, carrying mathtext's
 own diagnosis (`Unknown symbol: \xrightarrow` names the command) — the *last*
@@ -1151,7 +1164,7 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_photoguard.py` | the rules in photoguard this project has edited: a line height that could not be measured is not a small one, what the measurement answers on pages whose pitch is known by construction, and a densely written page read rather than refused |
 | `test_explain.py` | stage three: off by default, only text ever sent, a writing call in strict JSON with no search and a search call per explanation, the record sent numbered, sources read from each search's grounding and an explanation whose search found nothing dropped, the sources ranked science first with an everyday one kept behind them, the summary's numbers guard, never more than eight, LaTeX with single backslashes surviving the JSON, the grounding fee in the bill, and a failed search costing only its own explanation |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, which headings are taken back, and the two main-formula marks a section it may keep while the author's frames are never touched |
-| `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, congruences, bold words in a formula, a long division drawn as a ruled table, a title's formula drawn and turned into characters where it cannot be, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
+| `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, congruences, bold words in a formula, a long division drawn as a ruled table, a title's formula drawn and turned into characters where it cannot be, formulas written loosely across lines, a tabular, Russian words inside a formula, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the

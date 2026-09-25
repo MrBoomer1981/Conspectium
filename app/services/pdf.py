@@ -417,6 +417,90 @@ def _display_lines(
     return None
 
 
+# A formula written loosely across lines — record 47, read with recognition's
+# thinking turned down, had 103 lines of it printed as source. Two shapes:
+# an environment with no dollars round it at all, "\begin{array}" on a line
+# of its own and "\end{array}" twelve lines later; and a "$" opened on one
+# line and closed on a later one. Joined, each is one formula, and whatever
+# stood before its opening or after its close on those lines stays text.
+_BARE_BEGIN_RE = re.compile(r"^\\begin\{([A-Za-z]+\*?)\}")
+_ENVIRONMENT_EDGE_RE = re.compile(r"\\(begin|end)\{([A-Za-z]+\*?)\}")
+_DOLLAR_RE = re.compile(r"(?<!\\)\$\$?")
+# Further than this, an unclosed environment or "$" is a slip of the model's,
+# not a formula, and the lines stay as they are.
+_MAX_LOOSE_LINES = 60
+# What a span has to carry to be taken for a formula written over several
+# lines rather than two stray dollars: an environment, a row break or a
+# column. "5$ ... 3$" in prose carries none of them.
+_LOOSE_FORMULA_HINT_RE = re.compile(r"\\begin\{|\\\\|(?<!\\)&")
+
+
+def _open_dollar(line: str) -> int | None:
+    """Where a single "$" opens a formula this line does not close, or None.
+    Dollars pair left to right, "$$" with "$$" and "$" with "$", the way
+    split_inline reads them."""
+    opened: tuple[str, int] | None = None
+    for found in _DOLLAR_RE.finditer(line):
+        if opened is None:
+            opened = (found.group(), found.start())
+        elif opened[0] == found.group():
+            opened = None
+    return opened[1] if opened is not None and opened[0] == "$" else None
+
+
+def _loose_formula(
+    lines: list[str], start: int
+) -> tuple[list[tuple[str, str]], int] | None:
+    """A formula spread over lines from `start` as ("text"/"math", value)
+    pieces in order, with the index just past it — or None."""
+    first = lines[start].strip()
+    last = min(len(lines), start + _MAX_LOOSE_LINES)
+
+    bare = _BARE_BEGIN_RE.match(first)
+    if bare is not None:
+        depth = 0
+        for end in range(start, last):
+            line = lines[end].strip()
+            for edge in _ENVIRONMENT_EDGE_RE.finditer(line):
+                if edge.group(2) != bare.group(1):
+                    continue
+                depth += 1 if edge.group(1) == "begin" else -1
+                if depth == 0:
+                    body = " ".join(part.strip() for part in lines[start:end]) + " "
+                    formula = (body + line[: edge.end()]).strip()
+                    pieces = [("math", formula)]
+                    if line[edge.end() :].strip():
+                        pieces.append(("text", line[edge.end() :].strip()))
+                    return pieces, end + 1
+        return None
+
+    opening = _open_dollar(first)
+    if opening is None:
+        return None
+    for end in range(start + 1, last):
+        line = lines[end].strip()
+        if not line:
+            return None
+        closing = next(
+            (found.start() for found in _DOLLAR_RE.finditer(line) if found.group() == "$"),
+            None,
+        )
+        if closing is None:
+            continue
+        middle = [part.strip() for part in lines[start + 1 : end]]
+        formula = " ".join([first[opening + 1 :], *middle, line[:closing]]).strip()
+        if not _LOOSE_FORMULA_HINT_RE.search(formula):
+            return None
+        pieces = []
+        if first[:opening].strip():
+            pieces.append(("text", first[:opening].strip()))
+        pieces.append(("math", formula))
+        if line[closing + 1 :].strip():
+            pieces.append(("text", line[closing + 1 :].strip()))
+        return pieces, end + 1
+    return None
+
+
 def _read_table(lines: list[str], start: int) -> tuple[Block, int] | None:
     """The run of "| a | b |" lines at `start` as one block, with the index
     just past it — or None if there is no table here.
@@ -541,6 +625,16 @@ def blocks(markdown: str) -> list[Block]:
             block, index = frame
             block.line = index - 1
             out.append(block)
+            continue
+
+        loose = _loose_formula(lines, index)
+        if loose is not None:
+            pieces, end = loose
+            for kind, value in pieces:
+                block = _math_block(value) if kind == "math" else Block("text", value)
+                block.line = index
+                out.append(block)
+            index = end
             continue
 
         table = _read_table(lines, index)
@@ -907,6 +1001,31 @@ def _lift_styles(found: re.Match) -> str:
     return "".join(pieces)
 
 
+# Russian words inside a formula, outside any \text: mathtext set each letter
+# as an italic variable and dropped the spaces, "могутбыть". Wrapped in \text
+# they come out upright and spaced, the way the page wrote them. What already
+# stands in a group that sets words — \text, \mathbf and its kin, \mathrm —
+# is left alone; "\mathbf{полином}" is bold because it is not wrapped again.
+_WORD_GROUP_RE = re.compile(
+    r"\\(?:text|mathbf|mathit|mathrm|operatorname)\{(?:[^{}]|\{[^{}]*\})*\}"
+)
+_CYRILLIC_WORDS_RE = re.compile(r"[А-Яа-яЁё]+(?:[ .,:;!?-]+[А-Яа-яЁё]+)*\.?")
+
+
+def _cyrillic_as_text(latex: str) -> str:
+    def wrap(part: str) -> str:
+        return _CYRILLIC_WORDS_RE.sub(lambda found: rf"\text{{{found.group()}}}", part)
+
+    pieces: list[str] = []
+    position = 0
+    for group in _WORD_GROUP_RE.finditer(latex):
+        pieces.append(wrap(latex[position : group.start()]))
+        pieces.append(group.group())
+        position = group.end()
+    pieces.append(wrap(latex[position:]))
+    return "".join(pieces)
+
+
 # A double quote is not a character mathtext reads in a formula; inside
 # \text it is. Record 45 wrote \phantom{... корня "c"} to line an arrow up
 # under a word, and the whole line went out as source.
@@ -1014,6 +1133,7 @@ def for_mathtext(latex: str) -> str:
     latex = _TEXT_STYLE_RE.sub(_styled_words, latex)
     latex = _UNSUPPORTED_RE.sub("", latex)
     latex = _SYNONYM_RE.sub(lambda found: "\\" + _SYNONYMS[found.group(1)], latex)
+    latex = _cyrillic_as_text(latex)
     latex = _QUOTE_RE.sub(lambda found: found.group(1) or r'\text{"}', latex)
     return _THIN_SPACE_RE.sub(" ", latex)
 
@@ -1029,7 +1149,11 @@ def for_mathtext(latex: str) -> str:
 # own source. A formula that is nothing but such arrays, with space between
 # them, is drawn as tables instead — see _ruled_row.
 
-_ARRAY_RE = re.compile(r"\\begin\{array\}\{([^{}]*)\}(.*?)\\end\{array\}", re.DOTALL)
+# `tabular` is the text-mode twin: two columns of working, "I) ... & II) ...",
+# with formulas inside the cells rather than cells that are formulas.
+_ARRAY_RE = re.compile(
+    r"\\begin\{(array|tabular)\}\{([^{}]*)\}(.*?)\\end\{\1\}", re.DOTALL
+)
 _BETWEEN_ARRAYS_RE = re.compile(r"(?:\s|\\q?quad(?![A-Za-z])|\\[ ,;:!]|~)*")
 _RULE_COMMAND_RE = re.compile(r"\\cline\{(\d+)-(\d+)\}|\\hline(?![A-Za-z])")
 
@@ -1040,6 +1164,7 @@ class RuledArray:
     bars: list[int]  # a bar before column i; i == len(align) is the right edge
     rows: list[list[str]]  # each cell's LaTeX, every row as wide as align
     rules: list[tuple[int, int, int]]  # a line under row r over columns a..b; r == -1 is above the first
+    text: bool = False  # a tabular: each cell is text with formulas in it
 
 
 def ruled_arrays(latex: str) -> list[RuledArray] | None:
@@ -1055,11 +1180,14 @@ def ruled_arrays(latex: str) -> list[RuledArray] | None:
         position = match.end()
     if not _BETWEEN_ARRAYS_RE.fullmatch(latex[position:]):
         return None
-    arrays = [_ruled(match.group(1), match.group(2)) for match in found]
+    arrays = [
+        _ruled(match.group(2), match.group(3), tabular=match.group(1) == "tabular")
+        for match in found
+    ]
     return None if any(array is None for array in arrays) else arrays
 
 
-def _ruled(spec: str, body: str) -> RuledArray | None:
+def _ruled(spec: str, body: str, tabular: bool = False) -> RuledArray | None:
     align: list[str] = []
     bars: list[int] = []
     for char in spec:
@@ -1085,13 +1213,14 @@ def _ruled(spec: str, body: str) -> RuledArray | None:
         if text:
             rows.append([cell.strip() for cell in _COLUMN_SEPARATOR_RE.split(text)])
 
-    # Without a rule it is an ordinary array, and _environment stacks it.
-    if not rows or not (bars or rules):
+    # Without a rule an array is an ordinary one, and _environment stacks it.
+    # A tabular is drawn here either way: mathtext has no text mode to set it.
+    if not rows or not (bars or rules or tabular):
         return None
     width = max(len(align), *(len(row) for row in rows))
     align += ["l"] * (width - len(align))
     rows = [row + [""] * (width - len(row)) for row in rows]
-    return RuledArray(align, bars, rows, rules)
+    return RuledArray(align, bars, rows, rules, tabular)
 
 
 # The empty margin savefig leaves round a formula, in inches and in points.
@@ -1698,6 +1827,17 @@ def _ruled_table(
             if not latex:
                 drawn.append("")
                 continue
+            if array.text:
+                # Measured as characters: the formulas in it are drawn, and
+                # drawn they come out about as wide as their plain spelling.
+                drawn.append(
+                    Paragraph(_line_markup(latex, formulas, _BODY_PT), styles["layout_cell"])
+                )
+                widths[column] = max(
+                    widths[column],
+                    pdfmetrics.stringWidth(plain(latex), _TEXT_FONT, _BODY_PT) + 4,
+                )
+                continue
             image = formulas.display(latex, size_pt, max_width=_TEXT_WIDTH_PT)
             if image is None:
                 cell = Paragraph(_markup(f"${latex}$"), styles["layout_cell"])
@@ -1708,6 +1848,9 @@ def _ruled_table(
             widths[column] = max(widths[column], width)
         cells.append(drawn)
     widths = [width + 2 * _CELL_PAD_PT for width in widths]
+    if array.text and sum(widths) > _TEXT_WIDTH_PT:
+        # Text wraps where a formula cannot: the columns share the page.
+        widths = [width * _TEXT_WIDTH_PT / sum(widths) for width in widths]
 
     ink = colors.HexColor(_INK)
     alignment = {"l": "LEFT", "c": "CENTER", "r": "RIGHT"}

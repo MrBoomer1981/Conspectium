@@ -2056,3 +2056,130 @@ def test_the_title_draws_its_formula_and_the_running_head_gets_characters(monkey
     data = pdf.render("Найти остаток от деления $2^{1001}$", long_record)
     assert data.startswith(b"%PDF-")
     assert seen["running"] == "Найти остаток от деления 2¹⁰⁰¹"
+
+
+# ── record 47: formulas written loosely across lines ─────────────────────────
+
+import re  # noqa: E402
+# Read with recognition's thinking turned down, record 47 came back with 103
+# lines printed as source: environments with no dollars round them, a "$"
+# opened on one line and closed on another, a tabular, and Russian words set
+# as italic letters run together inside a formula.
+
+_RAW_RE = re.compile(r"\\[A-Za-z]{2,}|\\\\|(?<!\\)&")
+
+
+def _printed_as_source(markdown: str) -> list[str]:
+    """Lines the document would set as text while they still carry LaTeX."""
+    return [
+        b.text
+        for b in pdf.blocks(markdown)
+        if b.kind in ("text", "bullet", "note", "heading")
+        and _RAW_RE.search("".join(v for k, v in pdf.split_inline(b.text) if k == "text"))
+    ]
+
+
+_BARE_DIVISION = "\n".join([
+    r"\begin{array}{l|l}",
+    r"4x^3 + 2x^2 - 3x + 1 & x - 1 \\",
+    r"\cline{2-2}",
+    r"-4x^3 - 4x^2 & 4x^2 + 6x + 3 \\",
+    r"\cline{1-1}",
+    r"\phantom{-4x^3} 6x^2 - 3x + 1 & \\",
+    r"\end{array}",
+])
+
+
+def test_an_environment_written_bare_across_lines_is_one_formula():
+    result = pdf.blocks(f"Деление:\n{_BARE_DIVISION}\nдальше")
+    assert [b.kind for b in result] == ["text", "math", "text"]
+    assert result[1].text.startswith(r"\begin{array}{l|l}")
+    assert result[1].text.endswith(r"\end{array}")
+    assert pdf.ruled_arrays(result[1].text) is not None
+
+
+def test_a_dollar_opened_on_one_line_and_closed_on_another_is_one_formula():
+    markdown = "\n".join([
+        r"$\left.\begin{aligned}",
+        r"l &= \pm 1, \pm 2 \\",
+        r"m &= \pm 1",
+        r"\end{aligned}\right\} \text{корни целые}$",
+    ])
+    [block] = pdf.blocks(markdown)
+    assert block.kind == "math"
+    assert block.text.startswith(r"\left.\begin{aligned}")
+    assert _draws(block.text)
+
+
+def test_what_stands_around_a_formula_spread_over_lines_stays_text():
+    markdown = "\n".join([
+        r"Проверим: $\begin{array}{l|l} a & b \\",
+        r"c & d \end{array}$ могут быть: $x = \pm 1$",
+    ])
+    result = pdf.blocks(markdown)
+    assert [b.kind for b in result] == ["text", "math", "text"]
+    assert result[0].text == "Проверим:"
+    assert result[2].text == r"могут быть: $x = \pm 1$"
+
+
+def test_two_stray_dollars_in_prose_do_not_swallow_the_lines_between():
+    markdown = "стоит 5$ в день\nи ещё строка\nпотом 3$ за раз"
+    assert [b.text for b in pdf.blocks(markdown)] == markdown.split("\n")
+
+
+def test_an_environment_never_closed_stays_as_it_was():
+    markdown = "\\begin{array}{l|l}\na & b \\\\\nтекст дальше"
+    assert [b.kind for b in pdf.blocks(markdown)] == ["text", "text", "text"]
+
+
+def test_a_tabular_is_a_table_of_text_with_formulas_in_it():
+    latex = (
+        r"\begin{tabular}{l|l} I) $2^0 \equiv 1 \bmod 3$ & II) $2 \equiv (-1) \bmod 3$ \\ "
+        r"$2^1 \equiv 2 \bmod 3$ & \\ \end{tabular}"
+    )
+    [array] = pdf.ruled_arrays(latex)
+    assert array.text is True
+    assert array.rows[0] == [r"I) $2^0 \equiv 1 \bmod 3$", r"II) $2 \equiv (-1) \bmod 3$"]
+    styles = pdf._styles()
+    with tempfile.TemporaryDirectory() as directory:
+        [drawn] = pdf._flowables(pdf.Block("math", latex), pdf._Formulas(directory), styles)
+        [table] = drawn._content
+        assert isinstance(table._cellvalues[0][0], pdf.Paragraph)
+
+
+def test_a_tabular_without_any_rule_is_still_drawn_as_a_table():
+    # mathtext has no text mode: a tabular it is given always prints as source.
+    latex = r"\begin{tabular}{ll} I) раз & II) два \end{tabular}"
+    assert pdf.ruled_arrays(latex) is not None
+
+
+def test_russian_words_inside_a_formula_are_set_as_words():
+    assert pdf.for_mathtext(r"x = \pm 1 могут быть") == r"x = \pm 1 \text{могут быть}"
+    assert pdf.for_mathtext(r"23 : 7 = 3 (ост. 2)") == r"23 : 7 = 3 (\text{ост.} 2)"
+    # Already set as words, and a bold word stays bold.
+    assert pdf.for_mathtext(r"\text{корни целые}") == r"\text{корни целые}"
+    assert pdf.for_mathtext(r"x^n \text{ - \textbf{полином}}") == r"x^n \text{ - }\mathbf{полином}"
+    assert _draws(r"\begin{cases} 1 & если x > 0 \\ 0 & иначе \end{cases}")
+
+
+def test_record_47s_loose_formulas_no_longer_print_as_source(caplog):
+    markdown = "\n".join([
+        "а) на 3",
+        r"\begin{tabular}{l|l}",
+        r"I) $2^0 \equiv 1 \bmod 3$ & II) $2 \equiv (-1) \bmod 3$ \\",
+        r"$2^{1001} \equiv 2 \bmod 3$ & \\",
+        r"\end{tabular}",
+        "",
+        _BARE_DIVISION,
+        "",
+        r"$\left.\begin{aligned}",
+        r"l &= \pm 1, \pm 2 \\",
+        r"m &= \pm 1",
+        r"\end{aligned}\right\} \text{корни целые}$",
+        r"$\begin{array}{l|l} x + 3 & x - 1 \\",
+        r"\underline{x^4 + 3x^3} & \end{array}$	могут быть: $x = \pm 1, \pm 2$",
+    ])
+    assert _printed_as_source(markdown) == []
+    with caplog.at_level("WARNING", logger="app.services.pdf"):
+        assert pdf.render("Сравнение по модулю", markdown).startswith(b"%PDF-")
+    assert "mathtext refused" not in caplog.text

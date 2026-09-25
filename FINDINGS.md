@@ -740,3 +740,11 @@ Their cost was the tokens alone, about $0.001, and their explanations were
 dropped for having no source; record 46, searched at `low` an hour earlier,
 grounded six of six, and no call at the default has yet skipped the search.
 Such a search is now made once more at the default.
+
+**Record 47's loose formulas, drawn (task 45).** Put through the renderer, the
+record printed 103 lines as LaTeX source and refused no formula — the lines
+never reached mathtext at all, because nothing in them said they were one: the
+environments carried no dollars, and a `$` opened on one line closed twelve
+lines later. Joined into formulas, with the `tabular` drawn as a table of text
+and the Russian words inside a formula set as words, it prints none; records
+45 and 46 printed none before and none after.
