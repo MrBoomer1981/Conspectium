@@ -312,12 +312,14 @@ def test_both_prompts_ship_and_are_loaded():
         ("msu.ru", 0), ("www.msu.ru", 0), ("math.nsu.ru", 0), ("stanford.edu", 0),
         ("ox.ac.uk", 0), ("arxiv.org", 0), ("mccme.ru", 0),
         ("kazan-university.ru", 0), ("univ-lyon1.fr", 0),
+        ("bsu.edu.ru", 0), ("eku.edu", 0), ("imath.kiev.ua", 0), ("teach-in.ru", 0),
         ("wikipedia.org", 1), ("ru.wikipedia.org", 1), ("academic.ru", 1), ("bigenc.ru", 1),
+        ("wolfram.com", 1),
         ("studfile.net", 2), ("libelli.ru", 2), ("stepik.org", 2),
         # Seen beside university pages in the first live run, and a name that
         # only looks like a university's.
         ("my-shop.ru", 3), ("githubusercontent.com", 3), ("narod.ru", 3),
-        ("codechick.io", 3), ("universetoday.com", 3),
+        ("codechick.io", 3), ("universetoday.com", 3), ("dokumen.pub", 3), ("vk.com", 3),
     ],
 )
 def test_a_source_is_ranked_by_its_site(site, tier):
@@ -366,3 +368,17 @@ def test_the_site_is_read_from_the_chunk_not_from_the_link():
         ]
     ))])
     assert [s.title for s in explain._sources(response)] == ["Комплексные числа", "my-shop.ru"]
+
+
+async def test_one_link_a_site(monkeypatch):
+    # Two pages of one site print under one name and read as a duplicate —
+    # the second live run showed "wikipedia.org, wikipedia.org". The first
+    # page of a site stands for it, and the next site takes the place.
+    found = _found(
+        "https://wikilivres.ru/a", "https://ru.wikipedia.org/b", "https://vk.com/c",
+        "https://spbu.ru/d", "https://ru.wikipedia.org/e",
+    )
+    result = await _run(monkeypatch, _written(_answer()), found)
+    assert [s.uri for s in result.explanations[0].sources] == [
+        "https://spbu.ru/d", "https://ru.wikipedia.org/b", "https://wikilivres.ru/a",
+    ]

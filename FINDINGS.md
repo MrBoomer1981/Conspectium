@@ -577,3 +577,29 @@ call is strict JSON now, and the parser repairs lone backslashes anyway.
 Of the diagnostic calls made that evening, one is not in `ai_calls`: the
 script that made it failed on the unparseable answer before writing its row.
 About $0.015, and no row was invented to stand in for it.
+
+**The sources, ranked (2026-09-25).** The first run with the stage switched
+on, record 43 on 2026-09-24, grounded five explanations of seven, and printed
+their sources in the search's own order: `codechick.io` ahead of `nsc.ru`
+under one explanation, `academic.ru` ahead of `ox.ac.uk` under another, and a
+file on `githubusercontent.com` and a shop's page, `my-shop.ru`, ahead of
+`studfile.net` under a third. The author's decision was to rank rather than
+to filter.
+
+The second run, the same record with the sources ranked and the search asked
+for universities and scientific publications first
+(`prompts-explain-source-v2.md`), grounded seven of seven, and six of the
+seven explanations opened with a university's site — `spbu.ru`, `msu.ru`,
+`hse.ru`, `unn.ru`, `bsu.edu.ru`, `eku.edu`. One run each, so the difference
+in grounding is an observation, not a measurement. Eight calls, $0.307, of
+which $0.245 was the grounding fee on seven searches; the longest search took
+45 s.
+
+It showed two things the code now holds. The Gemini API names a site by its
+registered domain — `wolfram.com`, `msu.ru`, never `math.msu.ru` — so a list
+written in hostnames matched nothing, and the tier lists are written in
+registered domains. And a site the search returned twice was printed twice
+under one name, "wikipedia.org, wikipedia.org" and "unn.ru, unn.ru", which a
+reader takes for a duplicate; an explanation carries one link a site. Replayed
+through the new code, that run's searches give every explanation distinct
+sites, a university's first wherever the search found one.

@@ -648,12 +648,15 @@ university's course beside a shop's page — and an explanation shows three.
 (universities, academies, scientific publishers, arXiv) first, then
 encyclopedias, then study sites, then everything else; within a tier the
 search's own order stands. Nothing is dropped for being everyday — the
-author's decision, 2026-09-25, after the first live run put `my-shop.ru` and
-`githubusercontent.com` beside `nsu.ru` and `ox.ac.uk`. The site is read from
-the grounding chunk — `web.domain`, else `web.title`, which on the Gemini API
-*is* the domain — and never from the link, which is Google's redirect. The
-lists are kept by hand and kept short: a site nobody listed is "everything
-else", so a missing name costs a place and never a source.
+author's decision, 2026-09-25, after the first live run printed a shop's page
+as an explanation's source and put `nsc.ru` behind `codechick.io`. The site
+is read from the grounding chunk — `web.domain`, else `web.title`, which on
+the Gemini API *is* the registered domain, `wolfram.com` and never
+`mathworld.wolfram.com` — and never from the link, which is Google's
+redirect. **One link a site:** a second page of one prints under the same
+name and reads as a duplicate, so the next site takes its place. The lists
+are kept by hand, in registered domains, and kept short: a site nobody listed
+is "everything else", so a missing name costs a place and never a source.
 `prompts-explain-source-v2.md` asks the search the same way round, so that
 there is more to rank; v1 is what the records before that date were sourced
 with.

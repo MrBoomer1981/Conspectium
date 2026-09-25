@@ -96,18 +96,20 @@ class Source:
 # dropped for being everyday; it only stands behind what is better (the
 # author's decision, 2026-09-25). The lists are kept by hand and short on
 # purpose: a site nobody listed is "everything else" and keeps the search's
-# own order, so a name missing here costs a place, never a source.
+# own order, so a name missing here costs a place, never a source. The Gemini
+# API names a site by its registered domain — "wolfram.com", never
+# "mathworld.wolfram.com" — so that is the form a name is listed in.
 _TIERS = (
     re.compile(
         r"(^|\.)edu(\.[a-z]{2})?$|\.ac\.[a-z]{2}$|univ(ersit|-|\.)"
         r"|(^|\.)(msu|spbu|nsu|nsc|mipt|hse|bmstu|mephi|itmo|urfu|kpfu|tsu|spbstu|"
-        r"misis|rudn|tpu|susu|nstu|unn|ras|mccme|mathnet|math-net|elibrary|"
+        r"misis|rudn|tpu|susu|nstu|unn|teach-in|ras|imath|mccme|mathnet|math-net|elibrary|"
         r"cyberleninka|arxiv|springer|sciencedirect|jstor|ams|ieee|nature|nih|"
         r"wiley|tandfonline|cambridge|oup)\."
     ),
     re.compile(
         r"(^|\.)(wikipedia\.org|bigenc\.ru|britannica\.com|encyclopediaofmath\.org|"
-        r"scholarpedia\.org|mathworld\.wolfram\.com|academic\.ru|ncatlab\.org|"
+        r"scholarpedia\.org|wolfram\.com|academic\.ru|ncatlab\.org|"
         r"planetmath\.org)$"
     ),
     re.compile(
@@ -191,17 +193,22 @@ def _sources(response: object) -> list[Source]:
     except Exception:
         return []
     found: list[tuple[int, Source]] = []
+    sites: set[str] = set()
     for chunk in (getattr(meta, "grounding_chunks", None) or []) if meta else []:
         web = getattr(chunk, "web", None)
         uri = getattr(web, "uri", None) if web else None
-        if not uri or any(uri == kept.uri for _, kept in found):
+        if not uri:
             continue
         title = getattr(web, "title", None) or getattr(web, "domain", None) or uri
         # The link is Google's redirect and says nothing about where it
         # leads; the site is named by the chunk itself, and on the Gemini API
-        # its title is that name.
-        site = getattr(web, "domain", None) or title
-        found.append((_tier(str(site)), Source(title=title, uri=uri)))
+        # its title is that name. One link a site: a second page of it is
+        # printed under the same name and reads as the first one twice.
+        site = str(getattr(web, "domain", None) or title).strip().lower().removeprefix("www.")
+        if site in sites:
+            continue
+        sites.add(site)
+        found.append((_tier(site), Source(title=title, uri=uri)))
     # sorted() is stable: within a tier the search's own order stands.
     return [source for _, source in sorted(found, key=lambda pair: pair[0])][:_MAX_SOURCES]
 
