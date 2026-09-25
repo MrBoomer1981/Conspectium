@@ -268,3 +268,16 @@ def test_text_too_small_to_read_is_still_refused():
     assert verdict.line_height_px < photoguard.MIN_LINE_HEIGHT_PX
     assert verdict.ok is False
     assert "мелкий" in verdict.reason
+
+
+def test_a_densely_written_page_is_read_rather_than_refused():
+    """Record 45: a notebook written densely and sent through Telegram, which
+    compresses a photo to 1280 px, measured 19.75 px on the page the old
+    threshold of 20 cut off, while four pages of it at 22.75 px read well.
+    Taken again from the same distance it would have measured the same."""
+    verdict = photoguard._check(
+        _written_page(pitch=19, lines=70, ink=10, paper=250)
+    )
+
+    assert verdict.line_height_px < 20
+    assert verdict.ok, verdict.reason

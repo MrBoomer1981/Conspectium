@@ -252,6 +252,73 @@ def reason_en(frame: photoguard.PhotoVerdict) -> str:
     return "none"
 
 
+def _log_refusal(page: int, frame: photoguard.PhotoVerdict) -> None:
+    # Against the thresholds, because the number alone says nothing about how
+    # far off it was.
+    logger.warning(
+        "album page %d refused by the frame check (%s): "
+        "line height %.1f/%d, sharpness %.0f/%.0f, "
+        "paper %.0f%%/%.0f%%, contrast %.1f/%.0f",
+        page,
+        reason_en(frame),
+        frame.line_height_px, photoguard.MIN_LINE_HEIGHT_PX,
+        frame.sharpness, photoguard.MIN_SHARPNESS,
+        frame.paper_fraction * 100, photoguard.MIN_PAPER_FRACTION * 100,
+        frame.contrast, photoguard.MIN_CONTRAST,
+    )
+
+
+def _frame_refused(page: int, frame: photoguard.PhotoVerdict, reason: str,
+                   stats: list[CallStats]) -> PageResult:
+    """A skipped page, carrying the frame metrics whatever skipped it.
+
+    They used to be dropped, so the album was the one path where a page could
+    be turned away and leave nothing to check the decision against — while a
+    single photo wrote all four to photo_rejected. A page that passed the
+    frame and then failed recognition lost them too, for no reason: the
+    numbers had already been measured.
+    """
+    return PageResult(
+        page,
+        stats,
+        skip_reason=reason,
+        photo_sharpness=frame.sharpness,
+        photo_line_height=frame.line_height_px,
+        photo_paper_fraction=frame.paper_fraction,
+        photo_contrast=frame.contrast,
+    )
+
+
+async def refused_frames(ordered: list[PageInput]) -> list[PageResult]:
+    """The pages of an album the frame check turns away, checked before any
+    page is read — numbered in the order given.
+
+    A refused frame is the one reason a page is lost that only the
+    photographer can fix, and at this point nothing has been spent. So the
+    album is not read with a hole in it; it waits to come again, whole
+    (task 43 — record 45 came back without its first page and a line saying
+    "send it separately", which is not being asked to retake it). A frame that
+    cannot even be opened is not refused here: process_page reports it as a
+    page that failed, as it always has.
+    """
+
+    async def check(page_input: PageInput, page: int) -> PageResult | None:
+        try:
+            frame = await asyncio.to_thread(photoguard.check_photo_bytes, page_input.data)
+        except Exception:
+            logger.exception("album page %d: the frame could not be checked", page)
+            return None
+        if frame.ok:
+            return None
+        _log_refusal(page, frame)
+        return _frame_refused(page, frame, frame.reason, [])
+
+    checked = await asyncio.gather(
+        *(check(page_input, page) for page, page_input in enumerate(ordered, 1))
+    )
+    return [result for result in checked if result is not None]
+
+
 async def process_page(page_input: PageInput, page: int) -> PageResult:
     """One album page through the pipeline minus the database and minus any
     reply: frame check, three recognition runs, the result gates, then the
@@ -261,38 +328,12 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
     frame = photoguard.check_photo_bytes(page_input.data)
 
     def refused(reason: str, stats: list[CallStats]) -> PageResult:
-        """Every skip carries the frame metrics, refusals included.
-
-        They used to be dropped here, so the album was the one path where a
-        page could be turned away and leave nothing to check the decision
-        against — while a single photo wrote all four to photo_rejected. A
-        page that passed the frame and then failed recognition lost them too,
-        for no reason: the numbers had already been measured.
-        """
-        return PageResult(
-            page,
-            stats,
-            skip_reason=reason,
-            photo_sharpness=frame.sharpness,
-            photo_line_height=frame.line_height_px,
-            photo_paper_fraction=frame.paper_fraction,
-            photo_contrast=frame.contrast,
-        )
+        return _frame_refused(page, frame, reason, stats)
 
     if not frame.ok:
-        # Against the thresholds, because the number alone says nothing about
-        # how far off it was — and one of these four is a whole album now.
-        logger.warning(
-            "album page %d refused by the frame check (%s): "
-            "line height %.1f/%d, sharpness %.0f/%.0f, "
-            "paper %.0f%%/%.0f%%, contrast %.1f/%.0f",
-            page,
-            reason_en(frame),
-            frame.line_height_px, photoguard.MIN_LINE_HEIGHT_PX,
-            frame.sharpness, photoguard.MIN_SHARPNESS,
-            frame.paper_fraction * 100, photoguard.MIN_PAPER_FRACTION * 100,
-            frame.contrast, photoguard.MIN_CONTRAST,
-        )
+        # refused_frames has already asked for this page again before the
+        # album was read; a frame refused here is one that got past that.
+        _log_refusal(page, frame)
         return refused(frame.reason, [])
 
     result, stats = await vision.transcribe_consensus(page_input.data)

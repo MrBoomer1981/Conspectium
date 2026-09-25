@@ -346,6 +346,16 @@ fluent retelling. The first line is `photoguard`, and it was strengthened in
 answer (task 35); a retelling that gets past it reaches the corpus wearing
 "прочитано без сверки" rather than being refused.
 
+**A page the frame check refuses stops its album before anything is read.**
+`albums.refused_frames` checks every frame first, and if one fails the album is
+not read with a hole in it: the reply names the page and the reason and asks
+for the album again, whole (`album_retake_requested`), with nothing spent and
+nothing charged. A refused frame is the one loss only the photographer can
+fix — the author's decision, 2026-09-25, after record 45 came back without its
+first page and "пришлите их отдельно". The other two reasons a page is lost,
+not one run parsed and no text on it, are no fault of the photograph, and
+still leave a hole. → "Record 45, a lecture on remainders"
+
 **A record names the pages it is missing; it is thrown away only when there
 are none left.** `albums._assemble` puts a marker where each unread page
 stood, `notes.missing_pages` holds their numbers, and the document opens with
@@ -866,8 +876,9 @@ Redis. The data is already in Postgres, and a debounce would then only decide
 **Don't rewrite or "improve" them.** Only import and call. Found a bug in
 one — report it, don't fix it silently.
 
-**That rule has two exceptions, both in `photoguard._line_height`, each made
-after the failure was reproduced.** First the sentinel: `UNMEASURED_LINE_HEIGHT`
+**That rule has three exceptions, each made after the failure was
+reproduced — two in `photoguard._line_height` and one in the threshold it is
+compared with.** First the sentinel: `UNMEASURED_LINE_HEIGHT`
 names it, and the line-height criterion is skipped when the height was not
 measured, instead of `0.0` being read as a very small line. Then the
 measurement itself (task 35): the ink threshold is **Otsu** rather than a
@@ -876,14 +887,21 @@ pitch is the **median distance between bands of ink**, so a drawing or an
 empty margin no longer stretches it; and there is **no three-line minimum** —
 a single band answers with its own height, a lower bound on a pitch and so
 the right kind of answer for a threshold that looks for one.
-→ "The line height photoguard could not measure"
+→ "The line height photoguard could not measure". Then the threshold (task
+43): `MIN_LINE_HEIGHT_PX` went from 20 to 16. Telegram sends a photo at 1280 px,
+and record 45's notebook, written densely, measured 22.75 px on four pages
+that read well and 19.75 px on the fifth, which 20 cut off — retaken from the
+same distance it would have measured the same. → "Record 45, a lecture on
+remainders"
 
 What those exceptions left alone, and is still open:
 
-- **`MIN_LINE_HEIGHT_PX` is uncalibrated.** It is still the pitch in pixels of
-  the compressed frame, and 20 px on a 1500 px page — seventy lines to a
-  sheet — is defensible, not evidence. The module's own CLI over a folder of
-  real pages would settle it. The evidence path for that stands:
+- **`MIN_LINE_HEIGHT_PX` is calibrated from above only.** It is still the
+  pitch in pixels of the compressed frame. Record 45 showed 20 cutting off a
+  legible page; nothing yet shows where below 16 a page stops being legible —
+  a single photo refused at 15.0 px is the only frame measured there, and
+  whether it could have been read is unknown. The module's own CLI over a
+  folder of real pages would settle it. The evidence path for that stands:
   `albums.process_page` keeps all four frame metrics on every skip and logs a
   refusal against its thresholds, and the events carry them per page.
 - **`_paper_box` still has its edge.** It thresholds at `0.82 x percentile99`,
@@ -1091,18 +1109,18 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_limits.py` | `check_limits` / `consume` — the money-critical path |
 | `test_reliability.py` | retry classification, one owner per album batch, spend surviving a rollback |
 | `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, what an unparseable answer says and earns, and the chains mathcheck is not shown |
-| `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, the three reasons a page is dropped and the two that only mark it, `process_batch` survivor logic, an album's tag from whichever page carries it |
+| `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, the three reasons a page is dropped and the two that only mark it, `process_batch` survivor logic, an album's tag from whichever page carries it, the frames an album is refused for before it is read |
 | `test_docx.py` | heading styles to markdown, title derivation |
 | `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
 | `test_config.py` | the `DATABASE_URL` scheme rewrite, `VISION_RUNS >= 2`, stage three off by default with its model priced and its timeout bounded, and that `PROMPT_FILE` really selects the prompt — proved in a subprocess, because reloading `vision` rebinds its dataclasses under the rest of the suite |
-| `test_handlers.py` | `_split_message`, the catch-all reply, and in a group: an untagged album left alone, a tagged record owned by the chat and filed at once, a file that is not `.docx` unanswered, the welcome and the admin hint, and the three membership events |
+| `test_handlers.py` | `_split_message`, the catch-all reply, and in a group: an untagged album left alone, a tagged record owned by the chat and filed at once, a file that is not `.docx` unanswered, the welcome and the admin hint, and the three membership events; an album with a refused frame asked for again unread |
 | `test_middleware.py` | session per update, rollback, the early commit of a new user, what a group chat lets through before a session is opened, a group registered once and moved to a supergroup's new id, and a row two album pages race to insert |
 | `test_graphcheck.py` | the matrix against the graph: what it must catch, and — the longer half — every shape it must stay quiet about |
 | `test_corpus.py` | filing a record under a subject, finding it by a topic, statistics, the flags rebuilt from JSONB as callouts and as anchored remarks, the LaTeX a remark quotes marked to be drawn while its anchor stays raw — and that no query reaches another owner's records: a group reaches its own, a private chat the user's own, neither the other's, and a "#word" in a group never files |
 | `test_tags.py` | what a #tag normalizes to, what counts as one, which topics a record yields, the tag in a caption, and what counts as a search in a group |
 | `test_wiring.py` | router order in `main.py`, that every command the bot answers has a menu description, and that membership updates are subscribed to, given a session, and matched join before promotion |
 | `test_webhook.py` | that the endpoint answers before processing, and still checks the secret |
-| `test_photoguard.py` | the two rules in photoguard this project has edited: a line height that could not be measured is not a small one, and what the measurement answers on pages whose pitch is known by construction |
+| `test_photoguard.py` | the rules in photoguard this project has edited: a line height that could not be measured is not a small one, what the measurement answers on pages whose pitch is known by construction, and a densely written page read rather than refused |
 | `test_explain.py` | stage three: off by default, only text ever sent, a writing call in strict JSON with no search and a search call per explanation, the record sent numbered, sources read from each search's grounding and an explanation whose search found nothing dropped, the sources ranked science first with an everyday one kept behind them, the summary's numbers guard, never more than eight, LaTeX with single backslashes surviving the JSON, the grounding fee in the bill, and a failed search costing only its own explanation |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, which headings are taken back, and the two main-formula marks a section it may keep while the author's frames are never touched |
 | `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, congruences, bold words in a formula, a long division drawn as a ruled table, a title's formula drawn and turned into characters where it cannot be, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |

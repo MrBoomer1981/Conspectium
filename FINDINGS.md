@@ -647,7 +647,12 @@ notebook is written densely: every earlier record measured between 54 and
 not the grid's, so the number was real, not the paper's. Retaken from the same
 distance it would have measured the same. The bot's reply named the page and
 the reason, then said "send it separately and it will be a separate record";
-the author read that, rightly, as not being asked to retake it.
+the author read that, rightly, as not being asked to retake it. Offered the
+choice between delivering at once and inserting the retaken page later, or
+asking first, the author chose asking first: every frame is now checked
+before the album is read, and a refused one brings the album back unread and
+unpaid (task 43). The threshold went to 16 px, below the 19.75 that was cut
+off and above the 15.0 of the one single photo refused so far.
 
 **What it cost.** $0.337: twelve recognition calls $0.080, composition $0.021,
 the explaining call $0.013, and six grounded searches $0.223 — two thirds of

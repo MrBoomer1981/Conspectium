@@ -1044,7 +1044,8 @@ async def test_a_refused_frame_is_logged_against_its_thresholds(monkeypatch, cap
 
     line = next(m for m in (r.getMessage() for r in caplog.records) if "frame check" in m)
     assert "line height" in line
-    assert "0.0/20" in line  # the number and the threshold it missed
+    # the number and the threshold it missed
+    assert f"0.0/{albums.photoguard.MIN_LINE_HEIGHT_PX}" in line
 
 
 async def test_a_page_that_failed_recognition_keeps_them_too(monkeypatch):
@@ -1097,3 +1098,44 @@ def test_between_two_tags_the_earlier_page_decides():
 
 def test_an_album_nobody_tagged_has_no_tag():
     assert albums.tag_of([_tagged(1, None), _tagged(2, None)]) is None
+
+
+# ── refused_frames: every frame checked before any page is read ──────────────
+# A refused frame is the one loss only the photographer can fix, and before
+# the album is read nothing has been spent. Record 45 came back without its
+# first page and "send it separately"; the album is asked for again instead.
+
+
+async def test_the_frames_an_album_is_refused_for_are_named_with_their_metrics(
+    monkeypatch,
+):
+    verdicts = {
+        b"p1": _verdict(ok=False, line_height_px=12.0, reason="Текст мелкий"),
+        b"p2": _verdict(),
+        b"p3": _verdict(ok=False, contrast=10.0, reason="Слишком темно"),
+    }
+    monkeypatch.setattr(albums.photoguard, "check_photo_bytes", lambda data: verdicts[data])
+    pages = [_input(i) for i in (1, 2, 3)]
+    for page, data in zip(pages, verdicts):
+        page.data = data
+
+    refused = await albums.refused_frames(pages)
+
+    assert [(p.page, p.skip_reason) for p in refused] == [
+        (1, "Текст мелкий"),
+        (3, "Слишком темно"),
+    ]
+    assert refused[0].photo_line_height == 12.0
+    assert refused[0].stats == []  # nothing was spent
+
+
+async def test_an_album_whose_frames_all_pass_is_not_held_back(monkeypatch):
+    monkeypatch.setattr(albums.photoguard, "check_photo_bytes", lambda data: _verdict())
+
+    assert await albums.refused_frames([_input(1), _input(2)]) == []
+
+
+async def test_a_frame_that_cannot_be_opened_is_left_to_the_page_that_failed():
+    # b"x" is not an image. process_page reports such a page as it always has;
+    # the album is not held back over it.
+    assert await albums.refused_frames([_input(1)]) == []

@@ -1126,3 +1126,51 @@ async def test_removed_from_a_group_it_is_logged(session):
 
     event = (await session.execute(select(Event))).scalar_one()
     assert (event.type, event.group_id) == ("group_left", group.id)
+
+
+# ── a refused frame stops the album before it is read ────────────────────────
+
+
+async def test_an_album_with_a_refused_frame_is_asked_for_again_unread(
+    session, monkeypatch
+):
+    """Record 45 came back without its first page and "пришлите их отдельно";
+    the author read that, rightly, as not being asked to retake it. Now
+    nothing is read, nothing is charged, and the reply names the page."""
+    user = await _user(session)
+
+    async def refused(pages):
+        return [
+            albums.PageResult(
+                page=1,
+                stats=[],
+                skip_reason="Текст мелкий — снимите одну страницу крупным планом",
+                photo_sharpness=1682.0,
+                photo_line_height=12.0,
+                photo_paper_fraction=0.71,
+                photo_contrast=41.9,
+            )
+        ]
+
+    async def must_not_run(pages):
+        raise AssertionError("an album with a refused frame was read")
+
+    monkeypatch.setattr(handlers.albums, "refused_frames", refused)
+    monkeypatch.setattr(handlers.albums, "process_batch", must_not_run)
+    message = _AlbumMessage()
+
+    await handlers._process_album(message, session, user, [_input(i) for i in (1, 2, 3)])
+
+    assert message.replies == [
+        texts.album_retake([(1, "Текст мелкий — снимите одну страницу крупным планом")])
+    ]
+    assert "Страница 1: текст мелкий" in message.replies[0]
+    assert texts.PROCESSING not in message.replies
+    assert user.pages_used_today == 0
+    assert (await session.execute(select(Note))).first() is None
+    event = (
+        await session.execute(select(Event).where(Event.type == "album_retake_requested"))
+    ).scalar_one()
+    assert event.payload["pages"] == 3
+    assert event.payload["refused"][0]["page"] == 1
+    assert event.payload["refused"][0]["line_height_px"] == 12.0

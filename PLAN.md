@@ -130,9 +130,11 @@ and the group is tested later. These come before 40 and 41.
       title's formula; a LaTeX command written with one backslash repaired
       before recognition's JSON is parsed; and a congruence no longer read by
       mathcheck as a chain of equalities
-- [ ] 43. A page the frame check refuses is asked for again before anything is
-      read: the album waits for it instead of coming back with a hole. The
-      line-height threshold set on this notebook's evidence
+- [x] 43. A page the frame check refuses is asked for again before anything is
+      read: the album is not read with a hole in it but asked for again,
+      whole, with nothing charged — the author's choice on 2026-09-25 over
+      delivering now and inserting the page later. `MIN_LINE_HEIGHT_PX` 20 → 16
+      on this notebook's evidence
 - [ ] 44. What a record costs, and what can be cut without cutting the
       document: two thirds of record 45 was the fee on six grounded searches
 
@@ -179,9 +181,9 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-39, 42
+Done: 1-39, 42-43
 Current task: none
-Next task: 43
+Next task: 44
 Blockers: none
 ```
 
@@ -2248,6 +2250,19 @@ reason the search query used to be: what a person looks for is the most direct
 signal of what the corpus is for. `found: 0` is the interesting row — a search
 that missed is either a topic the bot never wrote or a subject spelled a
 second way.
+
+## Event `album_retake_requested`
+
+Written when the frame check refused a page of an album before any page was
+read. Nothing was read, nothing charged, no record saved; the reply names the
+pages and asks for the album again.
+
+    {"pages": 5, "refused": [{"page": 1, "reason": "Текст мелкий — …",
+      "line_height_px": 19.75, "sharpness": 1681.9,
+      "paper_fraction": 0.705, "contrast": 41.9}]}
+
+`refused` has the shape of `album_incomplete`'s `skipped`: the four numbers
+are the evidence each refusal was made on.
 
 ## The group an event happened in
 

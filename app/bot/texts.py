@@ -171,6 +171,25 @@ def album_incomplete(skips: list[tuple[int, str]]) -> str:
     return "\n".join(lines)
 
 
+# A page the frame check turned away, asked for again before anything is read.
+ALBUM_RETAKE = "Альбом пока не читаю — эти страницы нужно переснять:"
+
+ALBUM_RETAKE_HOW = (
+    "Пришлите альбом заново, все страницы вместе, — соберу одну полную "
+    "запись. Если переснять нельзя, пришлите альбом без них."
+)
+
+
+def album_retake(skips: list[tuple[int, str]]) -> str:
+    """Which pages to retake and why, before any of the album was read."""
+    lines = [ALBUM_RETAKE, ""]
+    lines += [
+        f"Страница {page}: {reason[:1].lower()}{reason[1:]}." for page, reason in skips
+    ]
+    lines += ["", ALBUM_RETAKE_HOW]
+    return "\n".join(lines)
+
+
 def album_partial(skips: list[tuple[int, str]]) -> str:
     """The record is saved; these pages are not in it."""
     lines = [ALBUM_PARTIAL, ""]

@@ -554,6 +554,25 @@ async def _process_album(
             group_id=group_id,
         )
 
+    # Every frame is checked before any page is read. A page the check turns
+    # away is the one loss only the photographer can fix, and nothing has been
+    # spent yet — so the album is not read with a hole in it: it is asked for
+    # again, whole, and nothing is charged (task 43, the author's decision
+    # after record 45).
+    refused = await albums.refused_frames(ordered)
+    if refused:
+        await log_event(
+            session,
+            user.id,
+            "album_retake_requested",
+            {"pages": len(ordered), "refused": _skip_payload(refused)},
+            group_id=group_id,
+        )
+        await message.answer(
+            texts.album_retake([(p.page, p.skip_reason) for p in refused])
+        )
+        return
+
     await message.answer(texts.PROCESSING)
 
     started = time.monotonic()  # note_processed.latency_ms: gather -> end of save
