@@ -802,6 +802,25 @@ not only on layout; `medium` is the next arm on the same album. Both readings
 carried the tail of the previous lecture into the record, and both misread
 the heading "Полная теория Ферма".
 
+**The key to that album, as the author read the photographs.** Six places
+whose right reading is known, for scoring any later arm on the same five
+pages:
+
+| where | the page has |
+|---|---|
+| page 2, the line of 243¹¹¹¹ | 243¹¹¹¹ + 16¹¹¹¹ **≡** 5¹¹¹¹ + 2¹¹¹¹ |
+| page 2, the two notes under it | "(243 сравнимо с 5, т.к. 243 ≡ 5 (mod 7))" and "(5¹¹¹¹ + 2¹¹¹¹ = 5 + 2, т.к. степени одинаковые)" — plain, **not crossed out** |
+| page 3, the line of 2⁹⁰⁰ | "… ≡ 1³²·2⁴ (mod 29) **≡**", the next line "≡ 16 (mod 29)" |
+| page 3, the polynomial | Pₙ(x) = a₀ + a₁**X** + a₂**X**² + … + aₙ**X**ⁿ — capital X |
+| page 4, "Подставляем корни ручками:" | an illegible word — **[неразборчиво]**, not crossed out |
+| page 4, "x = 2 — корень III кратности" | "III" **not framed** |
+
+Beside the key: page 1 opens with the tail of the previous lecture (the
+check of commutativity and associativity), which belongs to no reading of
+this one; the heading reads "Полная теория Ферма", which no reading so far has
+got; and "4b", "9)" and "по модулю 7" are where 46 and 47 agree and 48 does
+not — not checked by the author.
+
 **Record 48 against 46: `medium`, the same album again.** Recognition thought
 19 836 tokens against 23 693 at the default and 7 026 at `low` — `medium`
 thinks almost as long as the default — and cost $0.172 against $0.185, 7% less.

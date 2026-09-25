@@ -219,10 +219,62 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-39, 42-43, 45-46
-Current task: none
-Next task: 44
-Blockers: none
+Current task: 44
+Next task: none
+Blockers: 44 waits on the author — Flex, and the number of runs
 ```
+
+## Where the cost work stands, 2026-09-25
+
+Task 44, its second half, as the session of 2026-09-25 left it. The evidence
+is in `FINDINGS.md` → "What a record costs"; this is where it stopped.
+
+**What a record costs.** Record 46, five pages: $0.222 in tokens, $0.320
+with the search queries, which the cap counts and which are not billed under
+5,000 a month. Recognition is 84% of the tokens — its thinking 40%, its
+visible answer 35%, its input 8% — composition 7.5%, the explanations 6%,
+the source searches 2.5%. On 2027-01-01 `gemini-3.8-flash` doubles.
+
+**Four readings of one album** — the five pages of record 46, sent again:
+
+| record | what changed | recognition | thinking | answer | read |
+|---|---|---|---|---|---|
+| 46 | nothing: v6, default thinking | $0.185 | 23 693 | 20 767 | the reference |
+| 47 | thinking `low` | $0.125 | 7 026 | 21 298 | worse, five known places to one |
+| 48 | thinking `medium` | $0.172 | 19 836 | 21 155 | worse, digits and notes lost |
+| 49 | `prompts-v7.md`, no list of numbers | $0.211 | 40 110 | 11 669 | as well |
+
+**Settled.** Recognition stays at the model's default thinking and on
+`prompts-v6.md` — on Railway `VISION_THINKING_LEVEL=unset` and
+`PROMPT_FILE=prompts-v6.md`. Composition and the source searches stay at
+`low`. A shorter answer does not make a cheaper call while the model decides
+how long to think.
+
+**Open, and the author's to decide:**
+
+1. **Flex.** `service_tier: "flex"` bills every token at half price on the
+   same model, for 1–15 minutes a call and 503/429 when capacity runs short,
+   with no fallback. Before deciding: a probe of the real latency and refusals
+   on these calls — and the author's word on a record arriving in tens of
+   minutes. Every ceiling in `CLAUDE.md` → "Concurrency ceilings" is sized
+   for Standard.
+2. **The number of runs.** Two runs take 28% off the bill, one 56%. Since task
+   46 the runs' agreement shows nowhere a reader looks; they still pick the
+   most typical of three readings, cover a failed call (8% fail), and are the
+   instrument every arm is scored on. Before deciding: keep the three readings
+   of a few albums — text, not photos — and count how often the one chosen
+   beats a single run.
+3. Small: the explanations' writing call at `low`, about 3%, testable on
+   stored records with no album sent.
+
+**Scoring the next recognition arm.** Send the album of record 46 again and
+compare with 46: the numbers page by page, and the six places whose right
+reading the author checked against the photographs — the key in `FINDINGS.md`
+→ "What a record costs".
+
+**Loose ends, each on the author's word.** Records 47, 48 and 49 are test
+readings of 46's album, to be deleted. `DAILY_PAGES_PER_USER` stands at 30 on
+Railway, raised from 10 for the test albums, to go back to 10.
 
 ---
 
