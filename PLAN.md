@@ -136,7 +136,12 @@ and the group is tested later. These come before 40 and 41.
       delivering now and inserting the page later. `MIN_LINE_HEIGHT_PX` 20 → 16
       on this notebook's evidence
 - [ ] 44. What a record costs, and what can be cut without cutting the
-      document: two thirds of record 45 was the fee on six grounded searches
+      document. First half done: the accounting was wrong both ways — the
+      model priced at the Batch/Flex rate (half of Standard, so the cap let
+      twice its figure through), the search fee per call at the Gemini 2.5
+      price instead of per query at Gemini 3's — and the dated doubling of
+      2027-01-01 written down. Second half: the levers, measured, and the
+      author's choice among them
 
 ### Why the design comes before the explaining stage
 

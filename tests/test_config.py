@@ -103,7 +103,11 @@ def test_the_current_model_is_priced_correctly():
 
 
 def test_the_model_in_production_is_priced_correctly():
-    """Gemini 3.8 Flash: $0.375 in / $1.875 out per Mtok.
+    """Gemini 3.8 Flash, Standard tier: $0.75 in / $3.75 out per Mtok.
+
+    $0.375 / $1.875 stood here from 2026-09-23 to 09-25. That is the Batch and
+    Flex row of the price page, and this bot asks for neither: every row of
+    those days is half its price, and the daily cap let twice its figure by.
 
     It ran unpriced for days, so every ai_calls row it wrote carries a NULL
     cost and SUM skips NULL — DAILY_COST_LIMIT_USD was not a limit for the
@@ -115,7 +119,18 @@ def test_the_model_in_production_is_priced_correctly():
     three-page album measures at 14481 tokens in and 19807 out, which is about
     4.2 cents — two thirds of it thinking.
     """
-    assert PRICE_PER_MTOK["gemini-3.8-flash"] == (0.375, 1.875)
+    assert PRICE_PER_MTOK["gemini-3.8-flash"] == (0.75, 3.75)
+
+
+def test_a_price_the_page_has_announced_a_change_to_changes_on_its_day():
+    from datetime import date
+
+    from app.core.config import price_per_mtok
+
+    assert price_per_mtok("gemini-3.8-flash", date(2026, 12, 31)) == (0.75, 3.75)
+    assert price_per_mtok("gemini-3.8-flash", date(2027, 1, 1)) == (1.50, 7.50)
+    assert price_per_mtok("gemini-3.5-flash-lite", date(2027, 1, 1)) == (0.30, 2.50)
+    assert price_per_mtok("unknown-model", date(2027, 1, 1)) is None
 
 
 def test_the_retired_model_keeps_its_price():

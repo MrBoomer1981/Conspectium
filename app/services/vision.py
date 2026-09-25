@@ -16,6 +16,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass, replace
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -23,7 +24,7 @@ from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
 
-from app.core.config import PRICE_PER_MTOK, settings
+from app.core.config import price_per_mtok, settings
 from app.db.models import AiCall
 from app.db.session import async_session_maker
 from app.services import consensus, mathcheck
@@ -285,6 +286,7 @@ def _cost_usd(
     tokens_in: int | None,
     tokens_out: int | None,
     tokens_thought: int | None = None,
+    day: date | None = None,
 ) -> float | None:
     """None unless the model is priced and both token counts are known — we
     don't invent numbers.
@@ -295,7 +297,7 @@ def _cost_usd(
     without anything failing. A missing count is read as zero rather than as
     unknown: it is absent exactly when the model did not think.
     """
-    price = PRICE_PER_MTOK.get(model)
+    price = price_per_mtok(model, day or datetime.now(timezone.utc).date())
     if price is None or tokens_in is None or tokens_out is None:
         return None
     price_in, price_out = price

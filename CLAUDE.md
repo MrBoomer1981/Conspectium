@@ -756,9 +756,10 @@ the remarks of that line — and the summary last, after a section rule, both
 in a green no other box has, labelled "Пояснение бота" and "Итог · составлен
 ботом по тексту записи". At most eight explanations; an anchor found nowhere
 puts its box at the end, like a remark's. Rule 6 holds for the third call as
-for the second: limits before it, `pages=0`. A grounded call is billed per
-call on top of its tokens (`GROUNDING_USD_PER_CALL`), so the daily cap sees
-it. Off, refused or failed, the record goes out as it would have without the
+for the second: limits before it, `pages=0`. A Gemini 3 model's
+Google search is billed per query it runs, on top of the tokens —
+`GROUNDING_USD_PER_QUERY`, times the queries the call's grounding metadata
+lists — so the daily cap sees it. → "What a record costs" Off, refused or failed, the record goes out as it would have without the
 stage. `.docx` does not go through it: that path bypasses the model entirely.
 
 ### The matrix against the graph
@@ -1044,6 +1045,15 @@ its price in the same commit. `PRICED_MODEL_SETTINGS` and
 `Settings.unpriced_models()` are one list, read by both the refusal and the
 warning below, and a test asserts the two cover the same settings: any future
 setting that names a model goes in that tuple and nowhere else.
+
+**A price is the Standard tier's, and an announced change is written down
+with its day.** A plain call is billed at the Standard tier; the Batch and
+Flex rows of the price page are half of it, and one of them stood in
+`PRICE_PER_MTOK` for three days, so the cap let through twice its figure.
+`PRICE_CHANGES` holds a change the page has already announced — Gemini 3.8
+Flash doubles on 2027-01-01 — and `config.price_per_mtok` reads it by the day
+of the call, because a price change left to memory is the same silent
+halving of the cap. → "What a record costs"
 
 **`ALLOW_UNPRICED_MODEL=true` runs one anyway**, with a warning in the deploy
 log on every start. Trying a model before its price is published is a real

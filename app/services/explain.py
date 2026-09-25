@@ -43,7 +43,7 @@ from dataclasses import dataclass, field
 
 from google.genai import types
 
-from app.core.config import GROUNDING_USD_PER_CALL, settings
+from app.core.config import GROUNDING_USD_PER_QUERY, settings
 from app.services import pdf, vision
 from app.services.vision import CallStats
 
@@ -213,6 +213,20 @@ def _sources(response: object) -> list[Source]:
     return [source for _, source in sorted(found, key=lambda pair: pair[0])][:_MAX_SOURCES]
 
 
+def _search_queries(response: object) -> int:
+    """How many Google searches a call ran, which is what a Gemini 3 model is
+    billed for. The grounding metadata lists them; a call that returned pages
+    and listed no query still searched once. Never raises."""
+    try:
+        meta = response.candidates[0].grounding_metadata
+    except Exception:
+        return 0
+    if not meta:
+        return 0
+    queries = len(getattr(meta, "web_search_queries", None) or [])
+    return queries or (1 if _sources(response) else 0)
+
+
 def _stats(
     kind: str, response: object | None, started: float, exc: Exception | None = None
 ) -> CallStats:
@@ -226,10 +240,10 @@ def _stats(
         )
     tokens_in, tokens_out, tokens_thought = vision._usage(response)
     cost = vision._cost_usd(model, tokens_in, tokens_out, tokens_thought)
-    # A search is billed per grounded call on top of the tokens, and the
+    # A search is billed per query it ran, on top of the tokens, and the
     # daily cap has to see it.
-    if cost is not None and _sources(response):
-        cost += GROUNDING_USD_PER_CALL
+    if cost is not None:
+        cost += GROUNDING_USD_PER_QUERY * _search_queries(response)
     answered = bool(vision._response_text(response).strip())
     return CallStats(
         kind=kind, model=model, tokens_in=tokens_in, tokens_out=tokens_out,

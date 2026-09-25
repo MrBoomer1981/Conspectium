@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.core.config import GROUNDING_USD_PER_CALL
+from app.core.config import GROUNDING_USD_PER_QUERY
 from app.services import explain, vision
 
 RECORD = (
@@ -244,8 +244,9 @@ async def test_every_call_is_billed_and_a_search_is_billed_for_its_search(monkey
     writing, searching = result.stats
     assert writing.kind == "explain" and searching.kind == "source"
     assert writing.cost_usd == pytest.approx(vision._cost_usd("gemini-3.8-flash", 1000, 1000, None))
+    # One query ran (the fake's grounding metadata lists one).
     assert searching.cost_usd == pytest.approx(
-        vision._cost_usd("gemini-3.8-flash", 40, 20, None) + GROUNDING_USD_PER_CALL
+        vision._cost_usd("gemini-3.8-flash", 40, 20, None) + GROUNDING_USD_PER_QUERY
     )
 
 
@@ -382,3 +383,26 @@ async def test_one_link_a_site(monkeypatch):
     assert [s.uri for s in result.explanations[0].sources] == [
         "https://spbu.ru/d", "https://ru.wikipedia.org/b", "https://wikilivres.ru/a",
     ]
+
+
+# ── the search fee, by the query ─────────────────────────────────────────────
+# A Gemini 3 model is billed for every Google search it runs, not for the call.
+
+
+def _grounded(queries: list[str], uris: list[str]) -> SimpleNamespace:
+    chunks = [SimpleNamespace(web=SimpleNamespace(uri=u, title="msu.ru", domain=None)) for u in uris]
+    meta = SimpleNamespace(web_search_queries=queries, grounding_chunks=chunks)
+    return SimpleNamespace(candidates=[SimpleNamespace(grounding_metadata=meta)])
+
+
+def test_a_call_that_ran_three_searches_pays_for_three():
+    assert explain._search_queries(_grounded(["a", "b", "c"], ["https://x/1"])) == 3
+
+
+def test_a_call_that_returned_pages_without_listing_its_query_ran_one():
+    assert explain._search_queries(_grounded([], ["https://x/1"])) == 1
+
+
+def test_a_call_that_did_not_search_pays_nothing_for_it():
+    assert explain._search_queries(_grounded([], [])) == 0
+    assert explain._search_queries(SimpleNamespace(candidates=[])) == 0

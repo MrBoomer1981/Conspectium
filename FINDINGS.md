@@ -657,3 +657,36 @@ off and above the 15.0 of the one single photo refused so far.
 **What it cost.** $0.337: twelve recognition calls $0.080, composition $0.021,
 the explaining call $0.013, and six grounded searches $0.223 — two thirds of
 the record, almost all of it the $0.035 fee a search.
+
+## What a record costs
+
+**The accounting was wrong in both directions until 2026-09-25.** Checked
+against the price page that day: `gemini-3.8-flash` bills a plain call at the
+Standard tier, $0.75 in and $3.75 out per million tokens through 2026-12-31
+and double that from 2027-01-01. The $0.375 / $1.875 set on 2026-09-23 "from
+the published rate" is the Batch and Flex row, which this bot never asks for.
+Every row since carries half its real token cost, and `DAILY_COST_LIMIT_USD`
+let through twice its figure. The search fee went the other way: the $0.035
+per grounded call is Gemini 2.5's price per prompt, while a Gemini 3 model is
+billed $14 per 1,000 search queries it runs, with the first 5,000 a month free
+across the key. At this bot's volume — 24 grounded calls in two days — the
+searches have so far cost nothing at all, and "two thirds of record 45 was the
+search fee" was an artefact of the old constant.
+
+**Re-priced, record 45's tokens were about $0.25**, not $0.11: recognition
+$0.160 over twelve calls, composition $0.042, the explaining call $0.025, the
+searches' own tokens $0.027. Its searches ran at least six queries — about
+$0.08 once the free 5,000 are used up.
+
+**Most of the token spend is thinking.** Over the two days before, thinking
+was 67% of what a recognition call produced (2135 tokens of 3177), 85% of a
+composition's (12388 of 14525), 83% of the explaining call's and 91% of a
+search call's (2913 of 3200): the call that only has to find a page and quote
+one sentence from it thinks nine tokens for every one it writes. Thinking is
+billed as output.
+
+**Ten probe calls are not in `ai_calls`.** The script that ran the first
+thinking-level probe on record 45's explanations called a function the
+deployed code did not have yet, after the calls had returned; the rows were
+never written. About $0.15–0.30, and no rows were invented to stand in for
+them.

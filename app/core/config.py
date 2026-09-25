@@ -1,5 +1,7 @@
 """Application settings, read from the environment once at import time."""
 
+from datetime import date
+
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,13 +13,35 @@ PRICE_PER_MTOK: dict[str, tuple[float, float]] = {
     # tokens against 4029 of answer over one three-page album, and thinking is
     # billed as output. Roughly two thirds of an album's price is the part
     # nobody could see until ai_calls.tokens_thought existed.
-    "gemini-3.8-flash": (0.375, 1.875),
+    #
+    # The Standard tier, which is what a plain call is billed at. It stood at
+    # 0.375 / 1.875 from 2026-09-23 to 09-25 — the Batch and Flex row of the
+    # price page, which this bot never asks for — so every row of those days
+    # is half its real price, and DAILY_COST_LIMIT_USD let through twice its
+    # own figure.
+    "gemini-3.8-flash": (0.75, 3.75),
     "gemini-3.5-flash-lite": (0.30, 2.50),
     # Retired: closed to new accounts since September 2026, kept for the
     # ai_calls rows already written against it and for any key that still
     # has access.
     "gemini-2.5-flash-lite": (0.10, 0.40),
 }
+
+# A price the page has already announced a change to, with the day it takes
+# effect (UTC). Gemini 3.8 Flash doubles on 2027-01-01; left to memory, the cap
+# would quietly start letting through twice its figure that morning.
+PRICE_CHANGES: dict[str, tuple[date, tuple[float, float]]] = {
+    "gemini-3.8-flash": (date(2027, 1, 1), (1.50, 7.50)),
+}
+
+
+def price_per_mtok(model: str, day: date) -> tuple[float, float] | None:
+    """What a model's tokens cost on `day`, or None when it is not priced."""
+    change = PRICE_CHANGES.get(model)
+    if change is not None and day >= change[0]:
+        return change[1]
+    return PRICE_PER_MTOK.get(model)
+
 
 # The settings whose model has to be priced for DAILY_COST_LIMIT_USD to mean
 # anything. Both of them: half the spend going out unpriced breaks the cap just
@@ -27,12 +51,14 @@ PRICE_PER_MTOK: dict[str, tuple[float, float]] = {
 # while the validator looked at both.
 PRICED_MODEL_SETTINGS = ("VISION_MODEL", "COMPOSE_MODEL", "EXPLAIN_MODEL")
 
-# A call grounded in Google Search is billed per call on top of its tokens:
-# the published $35 per 1,000 grounded prompts. Counted into cost_usd, or the
-# explaining stage would spend outside DAILY_COST_LIMIT_USD. If the price page
-# says less for a newer model, this overstates the spend, which is the safe
-# side of a cap to err on.
-GROUNDING_USD_PER_CALL = 0.035
+# Google Search grounding on a Gemini 3 model is billed per search query the
+# model runs — $14 per 1,000 — not per call: $35 per 1,000 grounded prompts,
+# which stood here until 2026-09-25, is the Gemini 2.5 price. A call can run
+# several queries, so the count comes from the call's own grounding metadata
+# (explain._search_queries). The first 5,000 queries a month are free and are
+# not subtracted: the key's free allowance is shared with everything else on
+# it, and counting them is the safe side of a cap to err on.
+GROUNDING_USD_PER_QUERY = 0.014
 
 
 class Settings(BaseSettings):
