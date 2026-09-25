@@ -121,6 +121,21 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 - [ ] 41. Limits and spend counted per group; the scale-debt rows that come due
       with a second person in the chat
 
+**Back to the record — what record 45 showed.** The author put the group on
+hold on 2026-09-25, after 39 shipped: every effort goes to the records first,
+and the group is tested later. These come before 40 and 41.
+
+- [x] 42. What record 45 printed as source: `\pmod` and its kin, a long
+      division drawn as a ruled table, a bold word inside `\text`, a quote, a
+      title's formula; a LaTeX command written with one backslash repaired
+      before recognition's JSON is parsed; and a congruence no longer read by
+      mathcheck as a chain of equalities
+- [ ] 43. A page the frame check refuses is asked for again before anything is
+      read: the album waits for it instead of coming back with a hole. The
+      line-height threshold set on this notebook's evidence
+- [ ] 44. What a record costs, and what can be cut without cutting the
+      document: two thirds of record 45 was the fee on six grounded searches
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -164,9 +179,9 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-39
+Done: 1-39, 42
 Current task: none
-Next task: 40
+Next task: 43
 Blockers: none
 ```
 

@@ -603,3 +603,52 @@ under one name, "wikipedia.org, wikipedia.org" and "unn.ru, unn.ru", which a
 reader takes for a duplicate; an explanation carries one link a site. Replayed
 through the new code, that run's searches give every explanation distinct
 sites, a university's first wherever the search found one.
+
+## Record 45, a lecture on remainders
+
+On 2026-09-25 the author sent five pages of a lecture on congruences and
+polynomial division — `gemini-3.8-flash`, `prompts-v6.md`, compose v3, stage
+three on — and said the quality had dropped sharply. It had, and nearly all
+of the drop was the document failing to draw what the page said.
+
+**27 of the record's 93 formulas printed as their own source.** Put through
+the renderer one by one: 21 for `\pmod`, which mathtext does not know and
+which a lecture on remainders writes on nearly every line; five long
+divisions written as `\begin{array}{l|l}` with `\cline` — mathtext draws no
+rules at all; and one `\phantom{... корня "c"}`, refused for the double
+quote, not for the Cyrillic. The title carried `$2^{1001}$` onto every page
+head, and the file went out as `45-Найти-остаток-от-деления-21001.pdf`.
+Re-rendered from the production row after task 42: none refused.
+
+**"¤extbfполином" was mathtext, not the JSON.** The first reading blamed the
+recognition parser, which had no repair for a LaTeX command written with one
+backslash; the stored markdown carries `\text{ - \textbf{полином}}` intact.
+Inside `\text` mathtext reads no command at all: the backslash comes out as an
+empty box and the name as letters. The bold word is now lifted out of the
+`\text` round it into `\mathbf`. The parser did need the repair anyway, on
+other evidence: over the four days before, 17 of about 280 recognition calls
+on `gemini-3.8-flash` came back unparseable, 9 of them with
+`finish_reason=STOP` — the model finished and the JSON did not read, which is
+what a lone `\pmod` or `\varphi` does to it.
+
+**A congruence was read as a chain of equalities.** mathcheck compares
+neighbouring numbers on any line with two "=", so
+`1001 = 12·83 + 5 ⇒ 2^1001 = (2^12)^83·2^5 ≡ 1^83·2^5 = 32` set 1001 against 32
+across an implication and a congruence, and the record carried a critical
+"звенья цепочки не сходятся" and `needs_review` for it.
+
+**The missing page was refused by a hair.** Page 1 was turned away as
+"Текст мелкий": line height 19.75 px against `MIN_LINE_HEIGHT_PX` = 20,
+sharpness 1682, the sheet 71% of the frame. The four pages read from the
+same notebook at the same distance measured 22.75 px and read well. The
+photos arrived at 960×1280 — Telegram's own compression of a photo — and this
+notebook is written densely: every earlier record measured between 54 and
+213 px. A synthetic page on squared paper measured the handwriting's pitch,
+not the grid's, so the number was real, not the paper's. Retaken from the same
+distance it would have measured the same. The bot's reply named the page and
+the reason, then said "send it separately and it will be a separate record";
+the author read that, rightly, as not being asked to retake it.
+
+**What it cost.** $0.337: twelve recognition calls $0.080, composition $0.021,
+the explaining call $0.013, and six grounded searches $0.223 — two thirds of
+the record, almost all of it the $0.035 fee a search.

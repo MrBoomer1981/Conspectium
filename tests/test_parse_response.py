@@ -196,3 +196,46 @@ def test_never_raises_on_garbage():
         "```\nnot json\n```",
     ]:
         parse_response(bad)  # must not raise
+
+
+# ── LaTeX written with one backslash ─────────────────────────────────────────
+# The model is asked for JSON and mostly doubles a LaTeX backslash. When it
+# does not, a command whose letter is an escape JSON has — \t, \f, \b, \r —
+# parsed into a control character without a word, and one whose letter is not
+# — \pmod, \varphi — failed the whole answer, which cost the run.
+
+
+def _markdown_of(body: str) -> str | None:
+    t = parse_response('{"markdown": "' + body + '"}')
+    return t.markdown if t is not None else None
+
+
+def test_a_command_that_collides_with_an_escape_survives():
+    assert _markdown_of(r"$\frac{a}{b}$, $\beta$, $\rho$, $\textbf{x}$") == (
+        r"$\frac{a}{b}$, $\beta$, $\rho$, $\textbf{x}$"
+    )
+
+
+def test_a_command_json_has_no_escape_for_no_longer_fails_the_answer():
+    assert _markdown_of(r"$23 \equiv 2 \pmod 7$ и $\varphi$") == (
+        r"$23 \equiv 2 \pmod 7$ и $\varphi$"
+    )
+
+
+def test_a_line_break_before_latin_letters_stays_a_line_break():
+    # Only a command no line of notes starts with is taken for one: "Re z"
+    # and "sin x" begin lines of a page on complex numbers.
+    assert _markdown_of(r"строка\nRe z = x\nsin x") == "строка\nRe z = x\nsin x"
+
+
+def test_a_negation_is_read_as_the_command_it_is():
+    assert _markdown_of(r"$a \neq b$") == r"$a \neq b$"
+
+
+def test_a_unicode_escape_is_still_one():
+    assert _markdown_of(r"\u0430 и $\underline{x}$") == r"а и $\underline{x}$"
+
+
+def test_an_answer_escaped_properly_is_read_exactly_as_before():
+    body = r"$\\frac{a}{b} \\\\ \\textbf{x}$\nдалее \"цитата\""
+    assert _markdown_of(body) == '$\\frac{a}{b} \\\\ \\textbf{x}$\nдалее "цитата"'

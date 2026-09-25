@@ -319,7 +319,7 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
         )
 
     report = mathcheck.Report(
-        issues=mathcheck.check(result.best.markdown).issues
+        issues=vision.arithmetic_issues(result.best.markdown)
         + graphcheck.check(result.best.markdown)
     )
     # Two things lower a verdict here and nothing raises one: a page nobody

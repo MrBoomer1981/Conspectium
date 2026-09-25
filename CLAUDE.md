@@ -141,7 +141,10 @@ No linter is configured — don't add one without an explicit request.
    then names the response's own `finish_reason` — `MAX_TOKENS`: our
    `max_output_tokens` cut the JSON mid-string; `STOP`: the model finished and
    returned no JSON; `SAFETY`: it refused — and the **shape** of what came
-   back: `not json`, or the answer's top-level keys. Keys only; the values are
+   back: `not json`, or the answer's top-level keys. A LaTeX command the
+   model wrote with one backslash is repaired before recognition's answer is
+   parsed (`vision._JSON_BACKSLASH_RE`): `\pmod` failed the whole answer and
+   `\frac` read as a form feed. Keys only; the values are
    a student's lecture page and do not belong in a log. **The call is made
    again** unless the finish reason says a second one is pointless: `SAFETY`
    repeats, and `MAX_TOKENS` walks into the same ceiling.
@@ -536,7 +539,9 @@ receives, so none of it is left to reportlab's defaults:
   frames too.
 - **From page two the record's title stands over the text, and a record of
   more than one page is numbered "2 / 5"** — not "с. 2", which inside a
-  record means a photographed page.
+  record means a photographed page. The title draws its formulas; the
+  running head, the file's own title and its name, and a chat listing get
+  them as characters (`pdf.plain`: "2¹⁰⁰¹", never "$2^{1001}$" or "21001").
 - **Markup never prints as its source.** `$$` on lines of their own is a
   display formula, `$$…$$` inside a line is a formula, emphasis pairs across
   a formula, and `~~…~~` is drawn struck through, the way the author crossed
@@ -564,6 +569,11 @@ proves each one both rewrites *and* draws:
 | `\xrightarrow{t}` | `\overset{t}{\to}` — a braced argument, one level of nesting (`\xrightarrow{\text{фермент}}`); deeper goes out as source |
 | `\overbrace` / `\underbrace` | `\overline` / `\underline`; the grouping survives, the brace does not |
 | `\begin{cases}`, `pmatrix`, `bmatrix`, `vmatrix`, `array`, `aligned`, … | `\left<delimiter>\substack{row \\ row}\right<delimiter>` |
+| `\pmod{n}`, `\pmod 13` | `\quad(\mathrm{mod}\ n)` — a run of digits is one modulus, "(mod 13)" and never LaTeX's "(mod 1)3" |
+| `\bmod`, `\mod` | `\ \mathrm{mod}\ `, `\quad\mathrm{mod}\ ` |
+| `\textbf{…}`, `\textit{…}`, `\emph{…}` | `\mathbf{…}`, `\mathit{…}` with spaces kept as `\ `, lifted out of a `\text{…}` round them — inside `\text` mathtext reads no command and printed "¤extbf" |
+| `"` | `\text{"}`, outside a `\text` |
+| `\cline{a-b}` | dropped, argument and all, where the array is not drawn as a table |
 
 So `\begin{cases} A \\ B \end{cases}` becomes `\left\{\substack{A \\ B}\right.`
 and draws as a proper piecewise brace; `pmatrix` keeps its parentheses,
@@ -577,6 +587,16 @@ matrix is still asked for as a markdown table, which keeps its columns. And
 removed. **What is left is `\ce{...}`** — mhchem is a language, not a
 command, and needs a rule in the prompt forbidding it or the drawing
 contract.
+
+**An array ruled inside is drawn as a table, not as a formula.** A display
+formula that is nothing but arrays with a `|` in the column spec or a
+`\cline`/`\hline` in the body — a polynomial divided "уголком" — goes through
+`pdf.ruled_arrays` and is set as tables side by side: every cell a formula in
+its column's alignment, so `\phantom` still lines the steps up; a line under
+the cells a rule names; and the bar only along the rows with something on its
+far side, which in a long division is the corner itself. An array barred at
+both ends, `{|l|}` with `\hline`, is still the author's frame. → "Record 45,
+a lecture on remainders"
 
 **A formula mathtext refuses is a warning in the log**, carrying mathtext's
 own diagnosis (`Unknown symbol: \xrightarrow` names the command) — the *last*
@@ -873,6 +893,15 @@ What those exceptions left alone, and is still open:
 - **All four thresholds apply to the compressed image**, so `IMAGE_MAX_SIDE`
   silently recalibrates them.
 
+**`mathcheck.check_chains` is worked around, not fixed.** It reads any line
+with two "=" as one chain of equalities, and a line of modular arithmetic set
+1001 against 32 across a "⇒" and a "≡" — a critical finding and a
+`needs_review` on record 45. `vision.arithmetic_issues` is what both photo
+paths call: the constants check sees the page as it is, the chain check sees
+it with every line holding a relation other than "=" blanked, so the lines it
+does report keep the numbers mathcheck gave them.
+→ "Record 45, a lecture on remainders"
+
 **`consensus.extract_numbers` is worked around, not fixed.** It treats every
 numeric literal as a value to compare — list markers and subscripts included —
 so `compare()` reports a divergence wherever the runs align differently.
@@ -1058,10 +1087,10 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 
 | File | Covers |
 |---|---|
-| `test_parse_response.py` | the model's reply: garbage, the ```json fence, missing fields, wrong types |
+| `test_parse_response.py` | the model's reply: garbage, the ```json fence, missing fields, wrong types, and LaTeX written with one backslash |
 | `test_limits.py` | `check_limits` / `consume` — the money-critical path |
 | `test_reliability.py` | retry classification, one owner per album batch, spend surviving a rollback |
-| `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, and what an unparseable answer says and earns |
+| `test_vision_pure.py` | `_should_retry`, `_cost_usd`, `total_cost`, `_verdict` and the numbers that vouch for a page, `_short_error`, what an unparseable answer says and earns, and the chains mathcheck is not shown |
 | `test_albums.py` | `_assemble` aggregates and the marker it leaves where a page could not be read, the three reasons a page is dropped and the two that only mark it, `process_batch` survivor logic, an album's tag from whichever page carries it |
 | `test_docx.py` | heading styles to markdown, title derivation |
 | `test_images.py` | the 1500 px cap, EXIF orientation, JPEG output |
@@ -1076,7 +1105,7 @@ needs a database runs on in-memory SQLite through `aiosqlite`.
 | `test_photoguard.py` | the two rules in photoguard this project has edited: a line height that could not be measured is not a small one, and what the measurement answers on pages whose pitch is known by construction |
 | `test_explain.py` | stage three: off by default, only text ever sent, a writing call in strict JSON with no search and a search call per explanation, the record sent numbered, sources read from each search's grounding and an explanation whose search found nothing dropped, the sources ranked science first with an everyday one kept behind them, the summary's numbers guard, never more than eight, LaTeX with single backslashes surviving the JSON, the grounding fee in the bill, and a failed search costing only its own explanation |
 | `test_compose.py` | stage two: that it is off by default, that the photo never reaches it, every guard that makes it refuse itself, the ceiling it waits on, which failures earn a second call, which headings are taken back, and the two main-formula marks a section it may keep while the author's frames are never touched |
-| `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
+| `test_pdf.py` | how a page is parsed into blocks, `$$` on lines of their own, escaping and emphasis across a formula, the LaTeX mathtext refuses and the environments it now draws through `\substack`, graphs read back from `[граф: ...]` and cut to size, a graph beside its matrix, the author's frames in every notation and main formulas framed and numbered, congruences, bold words in a formula, a long division drawn as a ruled table, a title's formula drawn and turned into characters where it cannot be, heading levels, the rhythm, groups that are never nested, one anatomy for every box, the formula's serif, baseline and width, the page furniture, that nothing unreadable ever sinks the document — and that no file under `app/` carries an invalid escape sequence |
 
 `tests/conftest.py` does two things without which nothing imports: it fills
 the five required environment variables with placeholders, and it teaches the

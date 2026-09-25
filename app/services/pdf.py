@@ -215,9 +215,12 @@ _BREAK_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
 # \boxed{...} and framed text as [рамка: ...]; records read before that rule
 # carry "[в рамке: ...]", a bracket opened on one line and closed lines later,
 # or an array with a ruled column spec and \hline — all of them are frames.
+# The spec has to be barred at both ends, "{|l|}": a bar only between the
+# columns is a table ruled inside — a long division — and is drawn as one
+# (ruled_arrays), not framed and numbered as a main formula.
 _FRAME_NOTE_RE = re.compile(r"^(?:в\s+)?рамк\w*\s*:\s*(.*)$", re.IGNORECASE | re.DOTALL)
 _FRAME_OPEN_RE = re.compile(r"^\[\s*(?:в\s+)?рамк\w*\s*:?\s*(.*)$", re.IGNORECASE)
-_FRAMED_ARRAY_RE = re.compile(r"\\begin\{array\}\{[^{}]*\|[^{}]*\}")
+_FRAMED_ARRAY_RE = re.compile(r"\\begin\{array\}\{\|[^{}]*\|\}")
 _BOXED = "\\boxed{"
 # A frame round more than a dozen lines is not a frame the parser should guess
 # the end of; the bracket stays text.
@@ -646,6 +649,67 @@ def split_inline(text: str) -> list[tuple[str, str]]:
     return parts
 
 
+# A title is written with its formulas — "Найти остаток от деления
+# $2^{1001}$" — and three places cannot draw one: the running head, the
+# file's own title and its name. Record 45 carried "$2^{1001}$" at the top of
+# every page and went out as "45-Найти-остаток-от-деления-21001.pdf". Those
+# places get the formula in characters instead: digits raised and lowered,
+# the symbols a font has, and a command with no symbol dropped rather than
+# spelled out.
+_SUPERSCRIPT_OF = str.maketrans("0123456789+-=()ni", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿⁱ")
+_SUBSCRIPT_OF = str.maketrans("0123456789+-=()", "₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎")
+_RAISABLE = frozenset("0123456789+-=()ni")
+_LOWERABLE = frozenset("0123456789+-=()")
+_SCRIPT_RE = re.compile(r"([\^_])\s*(?:\{([^{}]*)\}|([^\s\\{}]))")
+_WORDS_IN_FORMULA_RE = re.compile(
+    r"\\(?:text|mathrm|mathbf|mathit|operatorname)\{([^{}]*)\}"
+)
+_PLAIN_FRACTION_RE = re.compile(r"\\[dt]?frac\{([^{}]*)\}\{([^{}]*)\}")
+_BLACKBOARD_RE = re.compile(r"\\mathbb\{([A-Z])\}")
+_BLACKBOARD = {"R": "ℝ", "N": "ℕ", "Z": "ℤ", "Q": "ℚ", "C": "ℂ"}
+_PLAIN_COMMAND_RE = re.compile(r"\\([A-Za-z]+)")
+_PLAIN_SYMBOLS = {
+    "cdot": "·", "times": "×", "equiv": "≡", "le": "≤", "leq": "≤",
+    "ge": "≥", "geq": "≥", "ne": "≠", "neq": "≠", "approx": "≈",
+    "infty": "∞", "pm": "±", "to": "→", "rightarrow": "→", "Rightarrow": "⇒",
+    "in": "∈", "sqrt": "√", "sum": "∑", "int": "∫", "partial": "∂",
+    "nabla": "∇", "pi": "π", "alpha": "α", "beta": "β", "gamma": "γ",
+    "delta": "δ", "Delta": "Δ", "varepsilon": "ε", "epsilon": "ε",
+    "lambda": "λ", "mu": "μ", "sigma": "σ", "theta": "θ", "varphi": "φ",
+    "phi": "φ", "psi": "ψ", "Psi": "Ψ", "omega": "ω", "Omega": "Ω",
+    "pmod": "mod ", "bmod": "mod ", "mod": "mod ",
+}
+
+
+def _plain_script(found: re.Match) -> str:
+    body = found.group(2) if found.group(2) is not None else found.group(3)
+    body = body.strip()
+    if found.group(1) == "^" and body and set(body) <= _RAISABLE:
+        return body.translate(_SUPERSCRIPT_OF)
+    if found.group(1) == "_" and body and set(body) <= _LOWERABLE:
+        return body.translate(_SUBSCRIPT_OF)
+    return found.group(1) + body
+
+
+def _plain_formula(latex: str) -> str:
+    latex = _BLACKBOARD_RE.sub(lambda found: _BLACKBOARD[found.group(1)], latex)
+    latex = _PLAIN_FRACTION_RE.sub(r"\1/\2", latex)
+    latex = _WORDS_IN_FORMULA_RE.sub(r"\1", latex)
+    latex = _SCRIPT_RE.sub(_plain_script, latex)
+    latex = _PLAIN_COMMAND_RE.sub(
+        lambda found: _PLAIN_SYMBOLS.get(found.group(1), ""), latex
+    )
+    latex = latex.replace("{", "").replace("}", "").replace("\\", "")
+    return " ".join(latex.split())
+
+
+def plain(text: str) -> str:
+    """A line with its formulas turned into characters, for the places that
+    cannot draw one."""
+    drawn = _MATH_RE.sub(lambda found: _plain_formula(_latex(found)), text)
+    return " ".join(drawn.replace("\\$", "$").split())
+
+
 def as_formula(fragment: str) -> str:
     """A fragment of what was read, with its LaTeX marked as formulas.
 
@@ -778,6 +842,76 @@ def _labelled_arrow(found: re.Match) -> str:
     direction = "to" if found.group(1) == "right" else "leftarrow"
     return rf"\overset{{{found.group(2)}}}{{\{direction}}}"
 
+
+# Congruences. mathtext has no \pmod, and a lecture on remainders is written in
+# little else: 21 of record 45's 93 formulas went out as their own source for
+# this one command. LaTeX sets "a \pmod n" as "a  (mod n)" after a wide space,
+# "a \bmod n" as "a mod n", and amsmath's "a \mod n" as "a  mod n".
+#
+# \pmod takes one token, as in LaTeX — except that a run of digits is one
+# token here: "\pmod 13" meant 13 on every page it was written on, and
+# LaTeX's own reading of it, "(mod 1)3", never.
+_PMOD_RE = re.compile(
+    rf"\\pmod{_COMMAND_END}\s*(?:\{{{_BRACED}\}}|(\d+|\\[A-Za-z]+|[^\s{{}}\\]))"
+)
+_MOD_RE = re.compile(rf"\\(b?mod){_COMMAND_END}")
+
+
+def _pmod(found: re.Match) -> str:
+    argument = found.group(1) if found.group(1) is not None else found.group(2)
+    return rf"\quad(\mathrm{{mod}}\ {argument.strip()})"
+
+
+def _mod(found: re.Match) -> str:
+    return r"\ \mathrm{mod}\ " if found.group(1) == "bmod" else r"\quad\mathrm{mod}\ "
+
+
+# A line under some of an array's cells. mathtext draws no rules, so it is
+# dropped from a formula that is not drawn as a ruled table (ruled_arrays);
+# the rows survive, the line does not. Its argument goes with it — left
+# behind, "{2-2}" printed as a stray "2-2".
+_CLINE_RE = re.compile(r"\\cline\{[^{}]*\}")
+# A bold or italic word in a formula — "x^n \text{ - \textbf{полином}}" in
+# record 45. mathtext has no \textbf, and inside \text it reads no command at
+# all: the backslash came out as an empty box and the name as letters,
+# "¤extbfполином". Its \mathbf and \mathit do set Cyrillic, but only in maths,
+# so the word is lifted out of the \text round it, and its spaces are kept
+# as "\ " — in maths a plain space is not a space.
+_TEXT_GROUP_RE = re.compile(r"\\text\{((?:[^{}]|\{[^{}]*\})*)\}")
+# Inside \text, either spelling is a word to lift; outside it, only the text
+# commands need translating — \mathbf there is already what mathtext reads.
+_STYLED_WORDS_RE = re.compile(r"\\(textbf|textit|emph|mathbf|mathit)\{([^{}]*)\}")
+_TEXT_STYLE_RE = re.compile(r"\\(textbf|textit|emph)\{([^{}]*)\}")
+
+
+def _styled_words(found: re.Match) -> str:
+    font = "mathbf" if found.group(1) in ("textbf", "mathbf") else "mathit"
+    words = found.group(2).replace(" ", "\\ ")
+    return rf"\{font}{{{words}}}"
+
+
+def _lift_styles(found: re.Match) -> str:
+    """One \text{...} with the styled words in it set outside it."""
+    inner = found.group(1)
+    if not _STYLED_WORDS_RE.search(inner):
+        return found.group(0)
+    pieces: list[str] = []
+    position = 0
+    for styled in _STYLED_WORDS_RE.finditer(inner):
+        if styled.start() > position:
+            pieces.append(rf"\text{{{inner[position:styled.start()]}}}")
+        pieces.append(_styled_words(styled))
+        position = styled.end()
+    if position < len(inner):
+        pieces.append(rf"\text{{{inner[position:]}}}")
+    return "".join(pieces)
+
+
+# A double quote is not a character mathtext reads in a formula; inside
+# \text it is. Record 45 wrote \phantom{... корня "c"} to line an arrow up
+# under a word, and the whole line went out as source.
+_QUOTE_RE = re.compile(r'(\\text\{[^{}]*\})|"')
+
 # LaTeX spells each of these two ways and mathtext knows only one of them. The
 # model writes the other: a page of inequalities came back with every \le and
 # \ge printed as its own source, while the formulas around them drew fine.
@@ -871,11 +1005,93 @@ def _environment(found: re.Match) -> str:
 def for_mathtext(latex: str) -> str:
     """LaTeX as close to it as matplotlib's mathtext will accept."""
     latex, _ = unbox(latex)
+    latex = _CLINE_RE.sub("", latex)
     latex = _ENVIRONMENT_RE.sub(_environment, latex)
     latex = _LABELLED_ARROW_RE.sub(_labelled_arrow, latex)
+    latex = _PMOD_RE.sub(_pmod, latex)
+    latex = _MOD_RE.sub(_mod, latex)
+    latex = _TEXT_GROUP_RE.sub(_lift_styles, latex)
+    latex = _TEXT_STYLE_RE.sub(_styled_words, latex)
     latex = _UNSUPPORTED_RE.sub("", latex)
     latex = _SYNONYM_RE.sub(lambda found: "\\" + _SYNONYMS[found.group(1)], latex)
+    latex = _QUOTE_RE.sub(lambda found: found.group(1) or r'\text{"}', latex)
     return _THIN_SPACE_RE.sub(" ", latex)
+
+
+# ── An array ruled inside: long division ─────────────────────────────────────
+# An array with a bar between its columns, or a line under some of its cells,
+# is how the model writes a polynomial divided "уголком":
+#
+#     \begin{array}{l|l} 4x^3 + 2x^2 - 3x + 1 & x - 1 \\ \cline{2-2}
+#     -4x^3 - 4x^2 & 4x^2 + 6x + 3 \\ \cline{1-1} ...
+#
+# mathtext draws no rules at all, and all five in record 45 went out as their
+# own source. A formula that is nothing but such arrays, with space between
+# them, is drawn as tables instead — see _ruled_row.
+
+_ARRAY_RE = re.compile(r"\\begin\{array\}\{([^{}]*)\}(.*?)\\end\{array\}", re.DOTALL)
+_BETWEEN_ARRAYS_RE = re.compile(r"(?:\s|\\q?quad(?![A-Za-z])|\\[ ,;:!]|~)*")
+_RULE_COMMAND_RE = re.compile(r"\\cline\{(\d+)-(\d+)\}|\\hline(?![A-Za-z])")
+
+
+@dataclass
+class RuledArray:
+    align: list[str]  # "l", "c" or "r", one a column
+    bars: list[int]  # a bar before column i; i == len(align) is the right edge
+    rows: list[list[str]]  # each cell's LaTeX, every row as wide as align
+    rules: list[tuple[int, int, int]]  # a line under row r over columns a..b; r == -1 is above the first
+
+
+def ruled_arrays(latex: str) -> list[RuledArray] | None:
+    """The arrays a display formula is made of, when it is nothing but arrays
+    with rules in them and space between; None for any other formula."""
+    found = list(_ARRAY_RE.finditer(latex))
+    if not found:
+        return None
+    position = 0
+    for match in found:
+        if not _BETWEEN_ARRAYS_RE.fullmatch(latex[position : match.start()]):
+            return None
+        position = match.end()
+    if not _BETWEEN_ARRAYS_RE.fullmatch(latex[position:]):
+        return None
+    arrays = [_ruled(match.group(1), match.group(2)) for match in found]
+    return None if any(array is None for array in arrays) else arrays
+
+
+def _ruled(spec: str, body: str) -> RuledArray | None:
+    align: list[str] = []
+    bars: list[int] = []
+    for char in spec:
+        if char in "lcr":
+            align.append(char)
+        elif char == "|":
+            bars.append(len(align))
+    if not align:
+        return None
+
+    rows: list[list[str]] = []
+    rules: list[tuple[int, int, int]] = []
+    for raw in re.split(r"\\\\", body):
+        text = raw.strip()
+        # A rule stands at the start of a row and belongs under the row before.
+        while (rule := _RULE_COMMAND_RE.match(text)) is not None:
+            if rule.group(1):
+                first, last = int(rule.group(1)) - 1, int(rule.group(2)) - 1
+            else:
+                first, last = 0, len(align) - 1
+            rules.append((len(rows) - 1, first, last))
+            text = text[rule.end() :].strip()
+        if text:
+            rows.append([cell.strip() for cell in _COLUMN_SEPARATOR_RE.split(text)])
+
+    # Without a rule it is an ordinary array, and _environment stacks it.
+    if not rows or not (bars or rules):
+        return None
+    width = max(len(align), *(len(row) for row in rows))
+    align += ["l"] * (width - len(align))
+    rows = [row + [""] * (width - len(row)) for row in rows]
+    return RuledArray(align, bars, rows, rules)
 
 
 # The empty margin savefig leaves round a formula, in inches and in points.
@@ -1455,6 +1671,115 @@ def _layout_table(
     return table
 
 
+# Between two arrays set side by side — three divisions in a row, one after
+# the other, as record 45 had them.
+_ARRAYS_GAP_PT = 18.0
+_CELL_PAD_PT = 4.0
+
+
+def _ruled_table(
+    array: RuledArray, formulas: _Formulas, styles: dict[str, ParagraphStyle], size_pt: float
+) -> tuple[Table, float]:
+    r"""One ruled array as a table, and how wide it came out.
+
+    Every cell a formula, in its column's alignment, so the steps of a
+    division stay under one another the way \phantom lined them up. A line
+    under the cells a \cline or an \hline names. The bar the column spec
+    asks for runs only along the rows that have something on its far side:
+    in a long division that is the divisor and the quotient, and the bar
+    stops where the corner does, as on the page.
+    """
+    columns = len(array.align)
+    widths = [0.0] * columns
+    cells: list[list] = []
+    for row in array.rows:
+        drawn: list = []
+        for column, latex in enumerate(row):
+            if not latex:
+                drawn.append("")
+                continue
+            image = formulas.display(latex, size_pt, max_width=_TEXT_WIDTH_PT)
+            if image is None:
+                cell = Paragraph(_markup(f"${latex}$"), styles["layout_cell"])
+                width = pdfmetrics.stringWidth(f"${latex}$", _TEXT_FONT, _BODY_PT)
+            else:
+                cell, width = image, image.drawWidth
+            drawn.append(cell)
+            widths[column] = max(widths[column], width)
+        cells.append(drawn)
+    widths = [width + 2 * _CELL_PAD_PT for width in widths]
+
+    ink = colors.HexColor(_INK)
+    alignment = {"l": "LEFT", "c": "CENTER", "r": "RIGHT"}
+    style = [
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), _CELL_PAD_PT),
+        ("RIGHTPADDING", (0, 0), (-1, -1), _CELL_PAD_PT),
+        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+    ]
+    for column, side in enumerate(array.align):
+        style.append(("ALIGN", (column, 0), (column, -1), alignment[side]))
+    for bar in array.bars:
+        far_side = min(bar, columns - 1)
+        for row, cells_of_row in enumerate(array.rows):
+            if not cells_of_row[far_side]:
+                continue
+            if bar < columns:
+                style.append(("LINEBEFORE", (bar, row), (bar, row), 0.6, ink))
+            else:
+                style.append(("LINEAFTER", (columns - 1, row), (columns - 1, row), 0.6, ink))
+    for row, first, last in array.rules:
+        first, last = max(first, 0), min(last, columns - 1)
+        if row < 0:
+            style.append(("LINEABOVE", (first, 0), (last, 0), 0.6, ink))
+        else:
+            style.append(("LINEBELOW", (first, row), (last, row), 0.6, ink))
+
+    table = Table(cells, colWidths=widths, hAlign="CENTER")
+    table.setStyle(TableStyle(style))
+    return table, sum(widths)
+
+
+def _ruled_row(
+    arrays: list[RuledArray], formulas: _Formulas, styles: dict[str, ParagraphStyle]
+) -> Flowable:
+    """A formula made of ruled arrays, drawn as tables side by side, kept on
+    one page — a division split between two is two halves of a sum. Wider
+    than the column, it is drawn again at the size that fits."""
+    size = _DISPLAY_PT
+    for _ in range(2):
+        drawn = [_ruled_table(array, formulas, styles, size) for array in arrays]
+        total = sum(width for _, width in drawn) + _ARRAYS_GAP_PT * (len(drawn) - 1)
+        if total <= _TEXT_WIDTH_PT:
+            break
+        size = max(7.0, size * _TEXT_WIDTH_PT / total)
+    if len(drawn) == 1:
+        return KeepTogether([drawn[0][0]])
+    gaps = [_ARRAYS_GAP_PT] * (len(drawn) - 1)
+    row: list = []
+    widths: list[float] = []
+    for position, (table, width) in enumerate(drawn):
+        row.append(table)
+        widths.append(width)
+        if position < len(gaps):
+            row.append("")
+            widths.append(gaps[position])
+    side_by_side = Table([row], colWidths=widths, hAlign="CENTER")
+    side_by_side.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    return KeepTogether([side_by_side])
+
+
 class _Label(Flowable):
     """A box's label: small capitals with their letters spaced, the way the
     reference sets "ЗАМЕЧАНИЕ". A reportlab paragraph cannot space letters,
@@ -1900,6 +2225,9 @@ def _flowables(
         return [Paragraph(_line_markup(block.text, formulas, _SMALL_PT), styles["note"])]
 
     if block.kind == "math":
+        arrays = ruled_arrays(block.text)
+        if arrays is not None:
+            return [_ruled_row(arrays, formulas, styles)]
         image = formulas.display(block.text, _DISPLAY_PT)
         if image is None:
             return [Paragraph(_markup(f"${block.text}$"), styles["math"])]
@@ -2029,6 +2357,19 @@ def _fit(text: str, width: float, size: float) -> str:
     return text.rstrip() + "…"
 
 
+def _draw_runs(page_canvas, x: float, y: float, text: str, size: float) -> None:
+    """drawString with the fallback a paragraph gets from _text: a run of
+    characters Lato lacks — "⇒", "ℝ" in a title turned plain — is set in
+    DejaVu rather than printed as empty boxes."""
+    known = _lato_glyphs()
+    for in_lato, run in itertools.groupby(text, key=lambda char: ord(char) in known):
+        run = "".join(run)
+        font = _TEXT_FONT if in_lato else _FALLBACK_FONT
+        page_canvas.setFont(font, size)
+        page_canvas.drawString(x, y, run)
+        x += pdfmetrics.stringWidth(run, font, size)
+
+
 def _draw_furniture(page_canvas, number: int, total: int, running_title: str) -> None:
     """What a page carries besides the record.
 
@@ -2047,8 +2388,12 @@ def _draw_furniture(page_canvas, number: int, total: int, running_title: str) ->
     page_canvas.setFillColor(colors.HexColor(_MUTED))
     if number > 1 and running_title:
         baseline = height - 12 * mm
-        page_canvas.drawString(
-            left, baseline, _fit(running_title, right - left, _FURNITURE_PT)
+        _draw_runs(
+            page_canvas,
+            left,
+            baseline,
+            _fit(running_title, right - left, _FURNITURE_PT),
+            _FURNITURE_PT,
         )
         page_canvas.setStrokeColor(colors.HexColor(_HAIRLINE))
         page_canvas.setLineWidth(0.8)
@@ -2113,7 +2458,12 @@ def render(
     with tempfile.TemporaryDirectory(prefix="conspectium-pdf-") as directory:
         formulas = _Formulas(directory)
         story: list = [
-            Paragraph(_markup(title), styles["title"]),
+            # With its formulas drawn: "$2^{1001}$" stood in record 45's title.
+            # Not through _line_markup, which sets the lines of the record.
+            Paragraph(
+                _inline(split_inline(title), formulas, styles["title"].fontSize),
+                styles["title"],
+            ),
             _hairline(space_after=0),
         ]
         # What was written in the margin — whose lecture, which date — and
@@ -2251,10 +2601,10 @@ def render(
             rightMargin=_MARGIN_PT - _FRAME_PADDING_PT,
             topMargin=_TOP_PT - _FRAME_PADDING_PT,
             bottomMargin=_BOTTOM_PT - _FRAME_PADDING_PT,
-            title=title,
+            title=plain(title),
         ).build(
             story,
-            canvasmaker=functools.partial(_PagedCanvas, running_title=title),
+            canvasmaker=functools.partial(_PagedCanvas, running_title=plain(title)),
         )
 
     return buffer.getvalue()

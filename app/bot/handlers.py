@@ -249,7 +249,7 @@ async def handle_photo(
     # against the graph drawn beside it. Its findings join the same list, so
     # they reach the same downgrade, the same event and the same callout.
     report = mathcheck.Report(
-        issues=mathcheck.check(result.best.markdown).issues
+        issues=vision.arithmetic_issues(result.best.markdown)
         + graphcheck.check(result.best.markdown)
     )
     has_critical = any(i.severity == "critical" for i in report.issues)

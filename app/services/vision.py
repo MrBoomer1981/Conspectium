@@ -26,7 +26,7 @@ from google.genai import types
 from app.core.config import PRICE_PER_MTOK, settings
 from app.db.models import AiCall
 from app.db.session import async_session_maker
-from app.services import consensus
+from app.services import consensus, mathcheck
 
 logger = logging.getLogger(__name__)
 
@@ -144,16 +144,44 @@ class TranscriptionResult:
 
 _FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```$", re.DOTALL)
 
+# A LaTeX command written into a JSON string with one backslash instead of
+# two. Where its letter is an escape JSON has, it parses into garbage without
+# a word: record 45 printed "¤extbfполином", because "\textbf" was read as a
+# tab and "extbf". Where the letter is not one — "\pmod", "\varphi" — the
+# whole answer fails to parse and the run is lost: 9 of about 280 runs in four
+# days came back finished and unreadable. explain.parse repairs the same
+# thing, more bluntly; a page of notes is full of real line breaks, so "\n" is
+# taken for a command only where the letters after it are one no line of
+# notes starts with. A tab, a form feed, a backspace or a carriage return is
+# never what a page meant. An escaped backslash is matched first and kept, so
+# the pairs are counted from the left and "\\\\" is never split.
+_JSON_BACKSLASH_RE = re.compile(
+    r"(\\\\)"
+    r"|\\(?="
+    r"[bfrt][A-Za-z]"
+    r"|n(?:eq|abla|eg|otin|ewline|exists|mid|leq|geq|subseteq)(?![A-Za-z])"
+    r"|u(?![0-9A-Fa-f]{4})"
+    r'|[^\\"/bfnrtu]'
+    r")"
+)
+
+
+def _repair_backslashes(text: str) -> str:
+    return _JSON_BACKSLASH_RE.sub(
+        lambda found: found.group(1) or "\\\\", text
+    )
+
 
 def _load_json(raw: str) -> object | None:
     """json.loads, tolerating a ```json ... ``` fence even though
-    response_mime_type=application/json should already have stripped it."""
+    response_mime_type=application/json should already have stripped it, and
+    the LaTeX commands written with one backslash (_JSON_BACKSLASH_RE)."""
     text = raw.strip()
     fenced = _FENCE_RE.match(text)
     if fenced:
         text = fenced.group(1)
     try:
-        return json.loads(text)
+        return json.loads(_repair_backslashes(text))
     except (ValueError, TypeError):
         return None
 
@@ -545,6 +573,33 @@ def _is_value(variant: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+# mathcheck compares neighbouring numbers on any line with two "=" in it, as
+# links of one chain of equalities. A line of modular arithmetic is not one:
+# "1001 = 12·83 + 5 ⇒ 2^1001 = (2^12)^83·2^5 ≡ 1^83·2^5 = 32" set 1001
+# against 32 across an implication and a congruence, and record 45 carried a
+# critical "звенья цепочки не сходятся" — the box, and the needs_review with
+# it. A line with a relation other than "=" in it is a derivation, not a
+# chain, and the chain check does not read it; the constants check still
+# does. mathcheck is a module this project only calls, so the line is masked
+# here rather than the rule changed there — the numbering of the lines left
+# is the one mathcheck would have given them.
+_NOT_EQUALITY_RE = re.compile(
+    r"\\(?:Rightarrow|Leftarrow|Leftrightarrow|implies|impliedby|iff|equiv|"
+    r"pmod|bmod|mod|to|rightarrow|approx|sim|simeq|cong|le|leq|ge|geq|ne|neq|"
+    r"lt|gt)(?![A-Za-z])|[⇒⇔≡≈<>≤≥≠→]"
+)
+
+
+def arithmetic_issues(markdown: str) -> list[mathcheck.Issue]:
+    """mathcheck's findings on a page, without the chains it read across a
+    relation that is not an equality."""
+    chains = "\n".join(
+        "" if _NOT_EQUALITY_RE.search(line) else line
+        for line in markdown.splitlines()
+    )
+    return mathcheck.check_constants(markdown) + mathcheck.check_chains(chains)
 
 
 def meaningful_divergences(divergences: list) -> list:

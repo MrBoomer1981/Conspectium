@@ -1914,3 +1914,145 @@ def test_a_formula_in_a_drawing_note_is_drawn(monkeypatch):
     )
     pdf.render("Т", "[схема: окружность с вершинами $x_0 = 1$, $x_1$]")
     assert any("$x_0 = 1$" in text for text in seen)
+
+
+# ── record 45: a lecture on remainders ───────────────────────────────────────
+# 27 of its 93 formulas printed as their own source: 21 for \pmod, five long
+# divisions for the rules mathtext cannot draw, one for a quote. And its title
+# carried "$2^{1001}$" onto every page and into its file name.
+
+import tempfile  # noqa: E402
+
+from reportlab.platypus import KeepTogether, Table  # noqa: E402
+
+
+def _draws(latex: str) -> bool:
+    with tempfile.TemporaryDirectory() as directory:
+        return pdf._Formulas(directory).display(latex, 12.0) is not None
+
+
+def test_a_congruence_is_drawn_the_way_latex_sets_it():
+    assert pdf.for_mathtext(r"23 \equiv 2 \pmod 7") == r"23 \equiv 2 \quad(\mathrm{mod}\ 7)"
+    assert pdf.for_mathtext(r"2^{12} \equiv 1 \pmod{13}").endswith(r"(\mathrm{mod}\ 13)")
+    for latex in (r"23 \equiv 2 \pmod 7", r"a \pmod{\varphi(n)}", r"a \bmod b", r"a \mod n"):
+        assert _draws(latex), latex
+
+
+def test_a_run_of_digits_is_one_modulus():
+    # "\pmod 13" meant 13 wherever it was written; LaTeX would read "(mod 1)3".
+    assert pdf.for_mathtext(r"\pmod 13") == r"\quad(\mathrm{mod}\ 13)"
+
+
+def test_a_command_that_only_starts_with_mod_is_left_alone():
+    assert pdf.for_mathtext(r"a \models b") == r"a \models b"
+
+
+def test_a_bold_word_in_a_formula_is_drawn_bold_not_spelled():
+    # Inside \text mathtext reads no command: "¤extbfполином" was on the page.
+    latex = r"x^n \text{ - \textbf{полином}}"
+    assert pdf.for_mathtext(latex) == r"x^n \text{ - }\mathbf{полином}"
+    assert _draws(latex)
+
+
+def test_a_bold_phrase_keeps_its_spaces():
+    # In maths a plain space is no space: "кратностькорня".
+    assert pdf.for_mathtext(r"\textbf{кратность корня}") == r"\mathbf{кратность\ корня}"
+
+
+def test_a_quote_in_a_formula_draws():
+    assert _draws(r'\phantom{Определить кратность корня "c"}')
+
+
+def test_a_rule_under_cells_is_dropped_where_the_array_is_not_drawn_as_a_table():
+    latex = r"q = \begin{array}{l|l} a & b \\ \cline{2-2} c & d \end{array}"
+    assert pdf.ruled_arrays(latex) is None  # something else stands beside it
+    assert "cline" not in pdf.for_mathtext(latex)
+    assert "2-2" not in pdf.for_mathtext(latex)
+    assert _draws(latex)
+
+
+_DIVISION = (
+    r"\begin{array}{l|l} \phantom{-} 4x^3 + 2x^2 - 3x + 1 & x - 1 \\ \cline{2-2} "
+    r"- 4x^3 - 4x^2 & 4x^2 + 6x + 3 \\ \cline{1-1} "
+    r"\phantom{- 4x^3 +} 6x^2 - 3x + 1 & \\ \phantom{4x^3} - 6x^2 - 6x & \\ \cline{1-1} "
+    r"\phantom{- 4x^3 + 6x^2 +} 3x + 1 & \\ \phantom{- 4x^3 + 6x^2} - 3x - 3 & \\ \cline{1-1} "
+    r"\phantom{- 4x^3 + 6x^2 - 3x +} 4 & \end{array}"
+)
+
+
+def test_a_long_division_is_read_as_a_ruled_array():
+    [array] = pdf.ruled_arrays(_DIVISION)
+    assert array.align == ["l", "l"]
+    assert array.bars == [1]  # between the dividend and the divisor
+    assert len(array.rows) == 7
+    assert array.rows[0][1] == "x - 1" and array.rows[2][1] == ""
+    # A \cline belongs under the row before it.
+    assert array.rules == [(0, 1, 1), (1, 0, 0), (3, 0, 0), (5, 0, 0)]
+
+
+def test_divisions_set_side_by_side_are_read_one_by_one():
+    one = r"\begin{array}{r|l} x^2 + x + 1 & x - 2 \\ \cline{2-2} - x^2 - 2x & x + 3 \end{array}"
+    assert len(pdf.ruled_arrays(f"{one} \\quad {one} \\quad {one}")) == 3
+
+
+def test_an_array_without_rules_is_not_a_ruled_one():
+    # It is stacked by \substack, as every matrix environment is.
+    assert pdf.ruled_arrays(r"\begin{array}{cc} 1 & 2 \\ 3 & 4 \end{array}") is None
+
+
+def test_the_authors_frame_is_still_a_frame_and_not_a_division():
+    framed = r"\begin{array}{|l|} \hline (0, 1) = i \\ \hline \end{array}"
+    assert pdf.blocks(f"$${framed}$$")[0].main is True
+    division = r"\begin{array}{l|l} a & b \\ \hline c & d \end{array}"
+    assert pdf.blocks(f"$${division}$$")[0].main is False
+
+
+def test_a_long_division_is_drawn_as_a_table_with_its_corner():
+    styles = pdf._styles()
+    with tempfile.TemporaryDirectory() as directory:
+        formulas = pdf._Formulas(directory)
+        [drawn] = pdf._flowables(pdf.Block("math", _DIVISION), formulas, styles)
+        assert isinstance(drawn, KeepTogether)
+        [table] = drawn._content
+        assert isinstance(table, Table)
+        commands = table._linecmds
+    bars = [c for c in commands if c[0] == "LINEBEFORE"]
+    # The bar runs beside the divisor and the quotient and stops with them.
+    assert sorted(start[1] for _, start, *_ in bars) == [0, 1]
+    unders = [c for c in commands if c[0] == "LINEBELOW"]
+    assert len(unders) == 4
+
+
+def test_record_45s_divisions_no_longer_print_as_source(caplog):
+    three = " \\quad ".join(
+        [r"\begin{array}{r|l} x^2 + x + 1 & x - 2 \\ \cline{2-2} - x^2 - 2x & x + 3 "
+         r"\\ \cline{1-1} 3x + 1 & \\ - 3x - 6 & \\ \cline{1-1} 7 & \text{- не корень.} \end{array}"] * 3
+    )
+    with caplog.at_level("WARNING", logger="app.services.pdf"):
+        data = pdf.render("Деление", f"$${_DIVISION}$$\n\n$${three}$$")
+    assert data.startswith(b"%PDF-")
+    assert "mathtext refused" not in caplog.text
+
+
+def test_a_title_with_a_formula_is_turned_into_characters_where_it_cannot_be_drawn():
+    assert pdf.plain("Найти остаток от деления $2^{1001}$") == "Найти остаток от деления 2¹⁰⁰¹"
+    assert pdf.plain(r"Функция $f(x) = x^2 + 1$") == "Функция f(x) = x² + 1"
+    assert pdf.plain(r"Множество $\mathbb{R}$ и $\frac{1}{2}$") == "Множество ℝ и 1/2"
+    assert pdf.plain(r"Сравнения $a \equiv b \pmod{n}$") == "Сравнения a ≡ b mod n"
+    assert pdf.plain("Без формул") == "Без формул"
+    assert pdf.plain(r"Цена \$5") == "Цена $5"
+
+
+def test_the_title_draws_its_formula_and_the_running_head_gets_characters(monkeypatch):
+    seen: dict[str, str] = {}
+    original = pdf._draw_furniture
+
+    def spy(page_canvas, number, total, running_title):
+        seen["running"] = running_title
+        return original(page_canvas, number, total, running_title)
+
+    monkeypatch.setattr(pdf, "_draw_furniture", spy)
+    long_record = "\n\n".join(f"Строка {n}" for n in range(120))
+    data = pdf.render("Найти остаток от деления $2^{1001}$", long_record)
+    assert data.startswith(b"%PDF-")
+    assert seen["running"] == "Найти остаток от деления 2¹⁰⁰¹"

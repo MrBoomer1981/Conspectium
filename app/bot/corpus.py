@@ -306,8 +306,11 @@ _FILENAME_GAPS = re.compile(r"[\s_]+")
 
 def pdf_filename(note_id: int, title: str) -> str:
     """A file name a phone will not choke on, still recognisable in a
-    downloads folder, and carrying the record number."""
-    safe = _FILENAME_GAPS.sub("-", _FILENAME_KEEP.sub("", title).strip())[:40]
+    downloads folder, and carrying the record number. A formula in the title
+    is written out in characters first: stripped of its markup as it stood,
+    "$2^{1001}$" became "21001"."""
+    safe = _FILENAME_KEEP.sub("", pdf.plain(title)).strip()
+    safe = _FILENAME_GAPS.sub("-", safe)[:40]
     safe = safe.strip("-")
     return f"{note_id}-{safe}.pdf" if safe else f"zapis-{note_id}.pdf"
 
@@ -491,7 +494,8 @@ async def _listing(
     by_note: dict[int, list[str]] = {}
     for note_id, topic in rows:
         by_note.setdefault(note_id, []).append(topic)
-    return [(n.title, by_note.get(n.id, [])) for n in notes]
+    # The title as characters: a chat message cannot draw "$2^{1001}$".
+    return [(pdf.plain(n.title), by_note.get(n.id, [])) for n in notes]
 
 
 async def ask_for_tag(

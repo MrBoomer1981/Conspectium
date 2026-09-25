@@ -13,7 +13,7 @@ import pytest
 from google.genai import errors as genai_errors
 from google.genai import types
 
-from app.services import consensus, vision
+from app.services import consensus, mathcheck, vision
 from app.services.vision import CallStats
 
 
@@ -1217,3 +1217,24 @@ async def test_a_model_that_does_not_think_reports_none_not_zero(monkeypatch):
     _, stats, _ = await _attempt(monkeypatch, _response("не json"))
 
     assert stats.tokens_thought is None
+
+
+# ── arithmetic_issues ────────────────────────────────────────────────────────
+# mathcheck reads any line with two "=" as one chain of equalities. A line of
+# modular arithmetic is a derivation, and record 45 was marked for review over
+# 1001 set against 32 across a "⇒" and a "≡".
+
+
+def test_a_congruence_is_not_read_as_a_chain_of_equalities():
+    line = (
+        r"1001 = 12 \cdot 83 + 5 \Rightarrow 2^{1001} = (2^{12})^{83} \cdot 2^5"
+        r" \equiv 1^{83} \cdot 2^5 = 32"
+    )
+    assert any(i.kind == "chain" for i in mathcheck.check(line).issues)  # the bug
+    assert vision.arithmetic_issues(line) == []
+
+
+def test_a_chain_that_really_does_not_converge_is_still_caught_on_its_line():
+    markdown = "a \\equiv b = c = d\n\n2 + 2 = 4 = 5"
+    issues = vision.arithmetic_issues(markdown)
+    assert [i.message for i in issues] == ["строка 3: звенья цепочки не сходятся"]
