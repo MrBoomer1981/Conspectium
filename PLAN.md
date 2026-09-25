@@ -272,9 +272,11 @@ compare with 46: the numbers page by page, and the six places whose right
 reading the author checked against the photographs — the key in `FINDINGS.md`
 → "What a record costs".
 
-**Loose ends, each on the author's word.** Records 47, 48 and 49 are test
-readings of 46's album, to be deleted. `DAILY_PAGES_PER_USER` stands at 30 on
-Railway, raised from 10 for the test albums, to go back to 10.
+**Kept, and why.** Records 46–49 are four readings of one album and stay in
+the corpus: they are the evidence these arms were judged on and, with the
+author's check of the photographs, the benchmark for the next one — the
+author's decision, 2026-09-25. `DAILY_PAGES_PER_USER` stands at 30 on Railway,
+raised from 10 for the test albums; the author sets it back.
 
 ---
 
