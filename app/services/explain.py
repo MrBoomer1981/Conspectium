@@ -276,8 +276,27 @@ async def _write(text: str) -> tuple[object | None, CallStats, bool]:
     return response, _stats("explain", response, started), False
 
 
-async def _search(item: dict) -> tuple[list[Source], CallStats]:
-    """One explanation searched for: the sources its call returned."""
+async def _search(item: dict) -> tuple[list[Source], list[CallStats]]:
+    """One explanation searched for: the sources its call returned, and every
+    call it took.
+
+    At a low thinking level the model sometimes answers without running a
+    search at all, and the explanation is then dropped for having no source —
+    three of six in record 47, none at the model's own default in any call
+    measured. So a search that answered and found nothing is made once more
+    at the default. The cheap call is the usual one; the dear one only where
+    the cheap one did not look. A call that failed is not asked again: a
+    timeout would only double the wait, and an error is not a search the
+    model chose to skip.
+    """
+    sources, stats = await _search_once(item, settings.SOURCE_THINKING_LEVEL)
+    if sources or not stats.success or settings.SOURCE_THINKING_LEVEL == "unset":
+        return sources, [stats]
+    again, second = await _search_once(item, "unset")
+    return again, [stats, second]
+
+
+async def _search_once(item: dict, thinking: str) -> tuple[list[Source], CallStats]:
     started = time.monotonic()
     try:
         async with vision._API_SLOTS:
@@ -289,9 +308,7 @@ async def _search(item: dict) -> tuple[list[Source], CallStats]:
                         temperature=1.0,
                         max_output_tokens=vision.MAX_OUTPUT_TOKENS,
                         tools=[types.Tool(google_search=types.GoogleSearch())],
-                        thinking_config=vision.thinking_config(
-                            settings.SOURCE_THINKING_LEVEL
-                        ),
+                        thinking_config=vision.thinking_config(thinking),
                     ),
                 ),
                 timeout=_SOURCE_TIMEOUT_S,
@@ -342,7 +359,7 @@ async def explain(markdown: str) -> Explaining:
     explanations: list[Explanation] = []
     unsourced = 0
     for item, (sources, stats) in zip(items, searched):
-        all_stats.append(stats)
+        all_stats.extend(stats)
         if not sources:
             unsourced += 1
             continue

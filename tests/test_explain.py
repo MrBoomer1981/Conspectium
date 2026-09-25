@@ -420,3 +420,47 @@ async def test_a_search_thinks_low_and_the_writing_call_at_the_models_default(mo
         kw["config"].thinking_config.thinking_level == types.ThinkingLevel.LOW
         for kw in searching
     )
+
+
+
+async def test_a_low_search_that_did_not_look_is_made_again_at_the_default(monkeypatch):
+    """Record 47: three of six searches at "low" answered without running a
+    search, and their explanations were dropped for having no source."""
+    seen: list[dict] = []
+
+    async def generate_content(**kwargs):
+        seen.append(kwargs)
+        if not kwargs["config"].tools:
+            return _written(_answer())
+        if kwargs["config"].thinking_config is not None:
+            return _found()  # answered, looked nowhere
+        return _found("https://ru.wikipedia.org/x")
+
+    monkeypatch.setattr(explain.settings, "EXPLAIN_ENABLED", True)
+    monkeypatch.setattr(explain.settings, "SOURCE_THINKING_LEVEL", "low")
+    monkeypatch.setattr(vision, "_client", SimpleNamespace(aio=SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))))
+    result = await explain.explain(RECORD)
+
+    assert [item.title for item in result.explanations] == ["Формула Эйлера"]
+    assert result.unsourced == 0
+    searches = [kw for kw in seen if kw["config"].tools]
+    assert [kw["config"].thinking_config is None for kw in searches] == [False, True]
+    assert [s.kind for s in result.stats] == ["explain", "source", "source"]
+
+
+async def test_a_search_at_the_default_that_found_nothing_is_not_made_twice(monkeypatch):
+    calls: list[int] = []
+
+    async def generate_content(**kwargs):
+        if not kwargs["config"].tools:
+            return _written(_answer())
+        calls.append(1)
+        return _found()
+
+    monkeypatch.setattr(explain.settings, "EXPLAIN_ENABLED", True)
+    monkeypatch.setattr(explain.settings, "SOURCE_THINKING_LEVEL", "unset")
+    monkeypatch.setattr(vision, "_client", SimpleNamespace(aio=SimpleNamespace(models=SimpleNamespace(generate_content=generate_content))))
+    result = await explain.explain(RECORD)
+
+    assert calls == [1]
+    assert result.unsourced == 1
