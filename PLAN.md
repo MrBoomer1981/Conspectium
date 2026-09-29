@@ -5,7 +5,9 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
 **How to work with this file:**
 
 1. The user names a task number. You do **only that one**.
-2. Before writing code, describe the plan of changes and wait for confirmation.
+2. Before writing code, describe the plan of changes. When it leaves no open
+   question, carry it out in the same turn; ask only when it holds a decision
+   that is the author's — `CLAUDE.md` → "How to work in this project".
 3. Once done, check `[x]` in the list below and update the "State" section
    strictly following the template.
 4. Don't do anything from the following tasks, even if it "would only take
@@ -170,10 +172,12 @@ and the group is tested later. These come before 40 and 41.
       still — closed; recognition stays at the default. `prompts-v7.md` on
       the same album (record 49), no list of numbers and no doubtful spots:
       the answer 44% shorter, the thinking 69% longer, recognition 14% dearer
-      and read as well — rolled back to v6. What is left is Flex and the
-      number of runs, both the author's to decide
-      Flex — half price for 1–15 minutes a call — and fewer runs are the
-      author's to decide after
+      and read as well — rolled back to v6. On 2026-09-29 the author ruled
+      that the document's quality is not traded for its price, which closes
+      fewer runs; `gemini-3.5-flash-lite` for recognition was measured the
+      same day (record 52 against 50 and 51) and read worse — closed. Paused
+      there by the author: Flex, another provider measured on an album
+      already read, and the explanations' writing call at `low` are left
 
 ### Why the design comes before the explaining stage
 
@@ -219,15 +223,16 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-39, 42-43, 45-46
-Current task: 44
+Current task: none — 44 paused by the author on 2026-09-29
 Next task: none
-Blockers: 44 waits on the author — Flex, and the number of runs
+Blockers: 44 waits on the author — Flex, or another provider measured on an album already read
 ```
 
-## Where the cost work stands, 2026-09-25
+## Where the cost work stands, 2026-09-29
 
-Task 44, its second half, as the session of 2026-09-25 left it. The evidence
-is in `FINDINGS.md` → "What a record costs"; this is where it stopped.
+Task 44, its second half, as the sessions of 2026-09-25 and 2026-09-29 left
+it — paused by the author on the 29th. The evidence is in `FINDINGS.md` →
+"What a record costs"; this is where it stopped.
 
 **What a record costs.** Record 46, five pages: $0.222 in tokens, $0.320
 with the search queries, which the cap counts and which are not billed under
@@ -250,6 +255,13 @@ the source searches 2.5%. On 2027-01-01 `gemini-3.8-flash` doubles.
 `low`. A shorter answer does not make a cheaper call while the model decides
 how long to think.
 
+**Settled on 2026-09-29.** The document's quality is not traded for its price
+— the author's decision — so the number of runs stays at three, and nothing
+that reads worse is a saving. Recognition stays on `gemini-3.8-flash`:
+`gemini-3.5-flash-lite` read the album of records 50 and 51 again (record 52)
+and made three errors of substance that both readings of 3.8-flash avoided,
+and `VISION_MODEL` on Railway goes back to `gemini-3.8-flash`.
+
 **Open, and the author's to decide:**
 
 1. **Flex.** `service_tier: "flex"` bills every token at half price on the
@@ -258,19 +270,20 @@ how long to think.
    on these calls — and the author's word on a record arriving in tens of
    minutes. Every ceiling in `CLAUDE.md` → "Concurrency ceilings" is sized
    for Standard.
-2. **The number of runs.** Two runs take 28% off the bill, one 56%. Since task
-   46 the runs' agreement shows nowhere a reader looks; they still pick the
-   most typical of three readings, cover a failed call (8% fail), and are the
-   instrument every arm is scored on. Before deciding: keep the three readings
-   of a few albums — text, not photos — and count how often the one chosen
-   beats a single run.
+2. **Another provider.** Measured the way flash-lite was: the album of records
+   50 and 51 read by the candidate and set against those two readings, the
+   places they dispute checked on the photographs. It needs a script outside
+   the bot and the album's four photographs kept for it, which is the
+   author's to decide under rule 3.
 3. Small: the explanations' writing call at `low`, about 3%, testable on
    stored records with no album sent.
 
 **Scoring the next recognition arm.** Send the album of record 46 again and
 compare with 46: the numbers page by page, and the six places whose right
 reading the author checked against the photographs — the key in `FINDINGS.md`
-→ "What a record costs".
+→ "What a record costs". Or the album of records 50 and 51, which has two
+readings of the current model to set a candidate against: where those two
+agree and the candidate does not, the candidate is the one to doubt first.
 
 **Kept, and why.** Records 46–49 are four readings of one album and stay in
 the corpus: they are the evidence these arms were judged on and, with the

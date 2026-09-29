@@ -30,6 +30,14 @@ better" and "build another way into the corpus", choose the document. Four
 days of production said this plainly: 133 pages went in and exactly one search
 came back out, by the author, minutes after the search shipped.
 
+**The document's quality is not traded for its price.** A record that costs
+less and reads worse is not a saving — the author's decision, 2026-09-29, when
+the cost work had come down to fewer runs and a cheaper model. A saving leaves
+the document as it is: a model that reads as well for less, a call paid for
+and thrown away. A candidate that might touch the reading is measured on an
+album already read, and the author's check against the photographs decides,
+not the price. → "What a record costs"
+
 **Marked is the whole licence to add.** The reference document the author works
 from puts every addition of its own in a marked box. Adding is not forbidden;
 adding unmarked is. In a group this stops being a matter of taste: the reader
@@ -46,14 +54,16 @@ design is correct: when a shortcut only breaks under concurrency, say so and
 record it under "Scale debt" rather than calling it done.
 
 **Stage:** the pipeline runs in production for one chat — the author's. Capture
-works (133 pages over four days, 37 records), and it still loses about one
-album in five. The three phases in `PLAN.md` are, in order: **reliability** (a
-record has to exist), **the ideal record** (the explaining stage and a PDF that
-never prints raw LaTeX), and **the group** (the bot in a course chat, a record
-owned by the chat rather than by a person) — under way since task 39 put the
-bot in the chat. The question the whole thing exists
-to answer is whether a group uses this weekly. Not launch, not growth, not
-revenue, not scale.
+works (133 pages over four days, 37 records), and on 2026-09-23, before phase
+A, it still lost about one album in five. The three phases in `PLAN.md` are,
+in order: **reliability** (a record has to exist), **the ideal record** (the
+explaining stage and a PDF that never prints raw LaTeX), and **the group**
+(the bot in a course chat, a record owned by the chat rather than by a
+person). Task 39 put the bot in the chat, and on 2026-09-25 the author put the
+group on hold: every effort goes to the record first, and the group is tested
+later. What is under way now is `PLAN.md` → "State". The question the whole
+thing exists to answer is whether a group uses this weekly. Not launch, not
+growth, not revenue, not scale.
 
 ---
 
@@ -63,8 +73,9 @@ revenue, not scale.
 - FastAPI — bot webhook and the future home of the Mini App API, single process
 - aiogram 3.x — bot, webhook only, no polling
 - SQLAlchemy 2.x (async) + Alembic + PostgreSQL (Railway addon)
-- Google Gemini — recognition, and composition when it is on. The version is a
-  setting, not a fact about the stack: it has changed twice, and the startup
+- Google Gemini — recognition, and composition and explanation when they are
+  on, the explanations sourced through its Google Search tool. The version is
+  a setting, not a fact about the stack: it has changed twice, and the startup
   log names what a deploy reads with
 - Pillow + numpy — image processing
 - reportlab + matplotlib — a record as a PDF, formulas drawn by mathtext
@@ -94,6 +105,11 @@ anything importing `app.*` needs the five required variables: copy
 `.env.example` to `.env` before running `alembic` or `uvicorn`, or they crash
 with a validation error before reaching the database. `pytest` is the
 exception — `tests/conftest.py` fills the same variables with placeholders.
+It fills only those five, and `settings` still reads `.env` from the working
+directory for everything else: a copy of `.env.example` changes nothing, but a
+`.env` with a prompt or a stage set the way production runs fails the tests in
+`test_config`, `test_compose` and `test_explain` that pin the defaults. Move
+it aside before blaming the change.
 
 `asyncio_mode = "auto"` in `pyproject.toml`: async tests and fixtures need no
 `@pytest.mark.asyncio`. One test needs a real PostgreSQL and is skipped
@@ -106,8 +122,12 @@ it, the suite also runs on 3.11 in a virtualenv built with an explicit
 interpreter path, bypassing the shim — nothing under `tests/` needs 3.12:
 
     ~/.pyenv/versions/3.11.9/bin/python -m venv .venv
-    .venv/bin/pip install -r requirements-dev.txt
-    .venv/bin/pytest
+    .venv/bin/python -m pip install -r requirements-dev.txt
+    .venv/bin/python -m pytest
+
+`python -m` rather than `.venv/bin/pytest`: a venv's scripts carry the absolute
+path it was built at, so once the repository moves they fail with "bad
+interpreter" while its `python` still works.
 
 Revision ids are hand-written, not the generated hash — `001_users_events`
 through `011_groups`, which is the current head. The next one is
@@ -150,7 +170,8 @@ No linter is configured — don't add one without an explicit request.
    `\frac` read as a form feed. Keys only; the values are
    a student's lecture page and do not belong in a log. **The call is made
    again** unless the finish reason says a second one is pointless: `SAFETY`
-   repeats, and `MAX_TOKENS` walks into the same ceiling.
+   repeats, `MAX_TOKENS` walks into the same ceiling, and `RECITATION` is
+   left alone with them (`vision._FINISH_NOT_WORTH_REPEATING`).
    → "Unparseable answers"
 
 ---
@@ -195,6 +216,11 @@ note. `PLAN.md` → "Where the quality work stands" is how to run the next arm.
   recognition 14% dearer, read as well. Output tokens are not the lever they
   look like while thinking is billed at the same rate and the model decides
   how much of it to spend. → "What a record costs"
+- **`gemini-3.5-flash-lite` reads worse than `gemini-3.8-flash`.** Set against
+  two readings of one album by 3.8-flash (records 50 and 51), it wrote
+  `Z/Im Z` for `ℤ/mℤ`, `36Z + 26Z` for `3·6ℤ + 2·6ℤ` and `(uy)` for `(vy)`,
+  and dropped a step of a proof. Recognition stays on 3.8-flash, and a
+  cheaper model is not a saving here. → "What a record costs"
 - **v5 against v4 is open, not settled.** Every v5 album so far scored above
   every v4 album on mean `numeric_agreement`, by three times the noise — on
   four observations against two. A reason to run two more v4 albums, not a
@@ -854,7 +880,7 @@ one number never leaves another quietly cutting the work short:
 | `max_overflow` | `db/session.py` | 15 — `MAX_ALBUM_PAGES` updates each hold a session through the debounce, and the one that wins the batch holds its own for the whole album |
 
 `TIMEOUT_MARGIN = 1.3` is the ratio the old hand-written 120 s held to 93 s.
-The startup log prints all four timeouts: three are computed, and the only way
+The startup log prints all five timeouts: two are computed, and the only way
 to know what a deploy runs on is for it to say so.
 
 **The two timeout settings are not interchangeable.** Recognition is one call
@@ -1101,8 +1127,8 @@ request.
 `PRICE_PER_MTOK` in `core/config.py` writes `cost_usd = NULL`, the `SUM`
 behind `DAILY_COST_LIMIT_USD` skips `NULL`, and the cost breaker stops working
 with nothing visible to show for it. So a validator refuses to start on an
-unpriced `VISION_MODEL` or `COMPOSE_MODEL`, and changing either means adding
-its price in the same commit. `PRICED_MODEL_SETTINGS` and
+unpriced `VISION_MODEL`, `COMPOSE_MODEL` or `EXPLAIN_MODEL`, and changing any
+of them means adding its price in the same commit. `PRICED_MODEL_SETTINGS` and
 `Settings.unpriced_models()` are one list, read by both the refusal and the
 warning below, and a test asserts the two cover the same settings: any future
 setting that names a model goes in that tuple and nowhere else.
@@ -1183,8 +1209,9 @@ that isn't in the repo kills the process at startup, deliberately.
 unmeasurable.** Its first line is `Recognition: <model>, N runs` — the run
 count because a page scored on two runs agrees more easily than one scored on
 three — then the prompt file, its word count and where `numeric_agreement`
-takes its numbers, image compression, the
-compose stage, the two call knobs and the four timeouts. What is still
+takes its numbers, image compression, the compose and explain stages, the
+two call knobs, the five timeouts, and whether the bot can see a group's
+photos. What is still
 missing is the other direction: a **record** does not say which prompt made
 it, so pooling albums across days rests on remembering — `PLAN.md` → "Where
 the quality work stands", gap 3.
@@ -1224,7 +1251,9 @@ SQLite compiler to render `JSONB` as `JSON` — a test-side adapter for the
 sqlite dialect only; `app/db/models.py` stays PostgreSQL.
 
 Deliberately **not** covered: `consensus` and `mathcheck`, which arrived with
-their own tests; `photoguard` beyond the two rules this project changed; and
+their own tests — tests that never came into this repository, so the suite
+reaches the two only through the code that calls them; `photoguard` beyond the
+two rules this project changed; and
 the photo and document pipelines end to end — those break on every
 reordering of a handler, and the pipeline is not settled yet.
 

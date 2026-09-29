@@ -847,6 +847,70 @@ One album, an observation — but the direction was a saving, and this is not
 one. What is left of the second half of the cost work is Flex and the number
 of runs, both the author's to decide.
 
+**The document's quality is not traded for its price — the author,
+2026-09-29.** Offered Flex and the number of runs as what was left, the author
+stopped the framing itself: a record that costs less and reads worse is not a
+saving. That closes fewer runs, as the lower thinking levels were closed before
+it. What stays open is what leaves the document as it is — a model that reads
+as well for less, Flex, a cut measured to change nothing — and a candidate that
+might touch the reading is measured on an album already read, with the
+author's check against the photographs deciding rather than the price.
+
+**Why `gemini-3.5-flash-lite` was worth one album.** Its list price is 2.5
+times lower on input and 1.5 times lower on output. At record 46's own token
+counts it would have read that album for $0.119 instead of $0.185 — the record
+30% cheaper, 57% once `gemini-3.8-flash` doubles on 2027-01-01 — and
+recognition had moved off it without the two ever being set against each other
+on one album. The $0.00504 a call that `PLAN.md` → "What production says"
+gives for it was read from rows written before `tokens_thought` existed, so it
+may leave the thinking out: it is not the price of a flash-lite page.
+
+**Recognition on `gemini-3.5-flash-lite`, once (record 52, 2026-09-29).** The
+four pages of "Идеалы и фактор-кольца" had been read twice on
+`gemini-3.8-flash` already — records 50 (27.09) and 51 (28.09) — so the arm had
+two readings of the reference model to be set against rather than one.
+`VISION_MODEL` was the one setting changed. The formulas were compared first as
+the pictures the document draws, since one LaTeX draws one picture: 50 and 51
+share 78 in sequence (of 128 and 121), while 52 shares 37 with 51 and 38 with
+50 (of 117). Then every difference by eye.
+
+Where both readings of 3.8-flash agree and flash-lite does not:
+
+| where | 3.8-flash, records 50 and 51 | flash-lite, record 52 |
+|---|---|---|
+| the end of a proof | ℤ/mℤ ≃ ℤₘ | Z/Im Z ≅ Zₘ |
+| zero divisors in ℤ/6ℤ | 6 + 3·6ℤ + 2·6ℤ + 6ℤ·6ℤ | 6 + 36Z + 26Z + 6Z6Z |
+| a field has no zero divisors | 1 = (ux)(vy) | (1) = (ux)(uy) |
+| the product of two classes | xy + Jy + xJ + J² | xy + yJ + xJ + J² |
+| the idea of a proof | the step ah ∈ ker f | the step left out |
+| an invertible element | ⇔ ∃v: uv = 1 | ⇒ ∃v. uv = 1 |
+
+It also dropped the f* over "≅" and the ⟨A, +⟩ of "нормальное в ⟨A, +⟩", and
+wrote "Z ≠ 0" for "z ≠ 0". The first three rows are errors of substance, and
+the second puts numbers on the page — 36 and 26 — that the work does not have.
+
+Five places go the other way, and there flash-lite may be the one that is
+right: both readings of 3.8-flash agree with each other, and a mistake common
+to one model is exactly what agreement between its runs cannot see. ⟨R/J, +, ·⟩
+where 3.8-flash puts a stray "(m" before it; \overline{m−1} = {x : x ≡ m−1}
+where it writes m̄; "≡" through 3¹…3⁵ (mod 5) where it writes "=", as record 46
+once wrote "=" for the page's "≡"; "группа А." where it has "группа."; and an
+[неразборчиво] before the left distributive law, where it marks nothing. Not
+yet checked on the photographs. Whichever way they go, they are notation; the
+errors in the table are content.
+
+Closed: recognition stays on `gemini-3.8-flash`. What the arm cost was not read
+from `ai_calls` — the reading decided it before the price had to.
+
+**What the three readings showed about the document.** Two formulas printed as
+LaTeX source. Record 50's used `\textcircled{1}`, which mathtext does not know
+("Expected \text, found 'circled'"). Record 52's was an `aligned` holding a
+`\left. \begin{matrix} … \end{matrix} \right|`: `for_mathtext` turned the outer
+environment into `\substack` and left the inner one as it was. And record 50's
+explanation called its m̄ an "описка" — if the photograph has \overline{m−1},
+as flash-lite read it, the explaining stage printed the model's own misreading
+as the lecturer's mistake.
+
 ## Remarks about the reading
 
 **What the documents carried (production, 2026-09-25, 47 records).** 36
