@@ -3,7 +3,8 @@
 import asyncio
 import logging
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
+from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatMemberStatus
@@ -15,12 +16,13 @@ from aiogram.filters import (
     CommandStart,
 )
 from aiogram.types import ChatMemberUpdated, Message
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, tags, texts
+from app.bot import albums, corpus, middlewares, tags, texts
 from app.core.config import settings
 from app.core.events import log_event
-from app.db.models import Group, Note, User
+from app.db.models import Group, GroupPage, Note, User
 from app.services import (
     compose,
     docx,
@@ -38,6 +40,12 @@ router = Router()
 
 # Telegram documents over this size are refused before download.
 _MAX_DOCX_BYTES = 5 * 1024 * 1024
+# An image sent as a file: the most Telegram lets a bot download.
+_MAX_IMAGE_BYTES = 20 * 1024 * 1024
+
+# How long a page of a group's album can still be called on by a reply. A
+# lecture is reached for within days of it — the author's choice, 2026-09-29.
+_PAGES_KEPT = timedelta(days=7)
 
 
 @router.message(CommandStart())
@@ -111,7 +119,9 @@ async def on_left(
     await log_event(session, user.id, "group_left", group_id=group.id)
 
 
-@router.message(F.photo)
+# A photo, or an image sent as a file: middlewares.page_file decides which
+# messages carry a page, for this handler and for a group's filter alike.
+@router.message(middlewares.is_page)
 async def handle_photo(
     message: Message,
     session: AsyncSession,
@@ -119,54 +129,84 @@ async def handle_photo(
     bot: Bot,
     group: Group | None = None,
 ) -> None:
-    photo = message.photo[-1]
+    page = middlewares.page_file(message)
     # The subject the photo was sent with; in a private chat it spares the
     # question afterwards. In a group it is what makes the photo the bot's at
     # all. middlewares.heard stops an untagged one before a session is even
     # opened, and this keeps a group's record from ever being made without
     # its subject whatever reaches here. An album is judged whole, in
-    # _process_album.
+    # _process_album, and a page sent without its subject can still be called
+    # on by a reply that carries one — handle_summon.
     tag = tags.from_caption(message.caption)
     if group is not None and tag is None and not message.media_group_id:
         return
-    group_id = group.id if group is not None else None
-    # Announced before the download, not after: albums.collect() times the
-    # album from here, and a page that takes seconds to fetch must not let the
-    # batch close without it (albums.announce explains the rest).
-    if message.media_group_id:
-        albums.announce(message.media_group_id, message.message_id)
-
-    original = (await bot.download(photo)).read()
-    # Resizing a 12-megapixel photo is CPU-bound; on the event loop it would
-    # freeze every other page of the same album while it runs.
-    compressed = await asyncio.to_thread(
-        images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
-    )
+    source_key = corpus.source_key(message) if group is not None else None
 
     # Step 0: an album arrives as separate messages sharing a media_group_id.
     # Buffer this page and let a single update assemble the whole batch; the
-    # individual-photo steps 4-16 below do not run for an album page.
+    # individual-photo steps 4-16 do not run for an album page. The page goes
+    # in as Telegram's reference and is not downloaded here: the update that
+    # claims the batch fetches the pages once it knows the album is to be read,
+    # so in a group an album nobody tagged is never fetched at all.
     if message.media_group_id:
+        # Announced first: albums.collect() times the album from here.
+        albums.announce(message.media_group_id, message.message_id)
+        if group is not None:
+            await _remember_page(session, group, message, page)
         albums.add_page(
             message.media_group_id,
             albums.PageInput(
-                data=compressed,
+                data=b"",
                 message_id=message.message_id,
                 chat_id=message.chat.id,
                 media_group_id=message.media_group_id,
-                bytes_before=len(original),
-                bytes_after=len(compressed),
-                width=photo.width,
-                height=photo.height,
+                bytes_before=0,
+                bytes_after=0,
+                width=page.width,
+                height=page.height,
                 tag=tag,
+                file_id=page.file_id,
             ),
         )
         pages = await albums.collect(message.media_group_id)
         if pages is None:
             return  # another update owns this batch
-        await _process_album(message, session, user, pages, group)
+        await _process_album(
+            message, session, user, pages, group, bot=bot, source_key=source_key
+        )
         return
 
+    if message.document is not None and (
+        message.document.file_size or 0
+    ) > _MAX_IMAGE_BYTES:
+        await message.answer(texts.IMAGE_TOO_BIG)
+        return
+    original = (await bot.download(page.file_id)).read()
+    # Resizing a 12-megapixel photo is CPU-bound; on the event loop it would
+    # freeze every other update while it runs.
+    compressed = await asyncio.to_thread(
+        images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
+    )
+    await _read_photo(
+        message, session, user, group, tag, original, compressed, page, source_key
+    )
+
+
+async def _read_photo(
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    group: Group | None,
+    tag: str | None,
+    original: bytes,
+    compressed: bytes,
+    page: middlewares.PageFile,
+    source_key: str | None,
+) -> None:
+    """Steps 4-17 for one page: a page sent with its subject, or a page
+    somebody else sent that a reply called the bot on. The answers go under
+    `message`, and `user` is who pays for the reading."""
+    group_id = group.id if group is not None else None
     await log_event(
         session,
         user.id,
@@ -174,8 +214,8 @@ async def handle_photo(
         {
             "bytes_before": len(original),
             "bytes_after": len(compressed),
-            "width": photo.width,
-            "height": photo.height,
+            "width": page.width,
+            "height": page.height,
             "source_type": "photo",
         },
         group_id=group_id,
@@ -295,6 +335,7 @@ async def handle_photo(
     note = Note(
         user_id=user.id,
         group_id=group_id,
+        source_key=source_key,
         tag=tag,
         title=result.best.title,
         subject=result.best.subject,
@@ -456,6 +497,105 @@ async def handle_document(
     await corpus.ask_for_tag(message, session, user, note, group)
 
 
+async def _remember_page(
+    session: AsyncSession,
+    group: Group,
+    message: Message,
+    page: middlewares.PageFile,
+) -> None:
+    """Write down an album page posted in a group, as Telegram's reference to
+    it, for a reply that may call the bot on the album later — and drop the
+    references that have outlived _PAGES_KEPT on the way."""
+    await session.execute(
+        delete(GroupPage)
+        .where(GroupPage.created_at < datetime.now(timezone.utc) - _PAGES_KEPT)
+        # Nothing this session holds is being deleted, and matching the rows
+        # in Python as well would compare timestamps SQLite hands back naive.
+        .execution_options(synchronize_session=False)
+    )
+    session.add(
+        GroupPage(
+            group_id=group.id,
+            media_group_id=message.media_group_id,
+            message_id=message.message_id,
+            file_id=page.file_id,
+            width=page.width,
+            height=page.height,
+        )
+    )
+    # Committed now rather than with the update. The update that claims the
+    # batch holds its session through the whole album, and a reference lost to
+    # that album's rollback would be a page missing from every later call on it.
+    await session.commit()
+
+
+async def _remembered_album(
+    session: AsyncSession, group: Group, chat_id: int, media_group_id: str
+) -> list[albums.PageInput]:
+    """The pages of one of the group's albums that the bot saw and still keeps,
+    as references to download, in page order."""
+    rows = (
+        await session.execute(
+            select(GroupPage)
+            .where(
+                GroupPage.group_id == group.id,
+                GroupPage.media_group_id == media_group_id,
+                GroupPage.created_at >= datetime.now(timezone.utc) - _PAGES_KEPT,
+            )
+            .order_by(GroupPage.message_id)
+        )
+    ).scalars().all()
+    # One page a message: an update Telegram delivers twice writes its row twice.
+    by_message = {row.message_id: row for row in rows}
+    return [
+        albums.PageInput(
+            data=b"",
+            message_id=row.message_id,
+            chat_id=chat_id,
+            media_group_id=media_group_id,
+            bytes_before=0,
+            bytes_after=0,
+            width=row.width,
+            height=row.height,
+            file_id=row.file_id,
+        )
+        for row in by_message.values()
+    ]
+
+
+async def _fetch_pages(
+    bot: Bot | None, pages: list[albums.PageInput]
+) -> list[albums.PageInput]:
+    """Download and compress the pages still held as references, all at once.
+
+    A page that cannot be fetched stays empty, and the recognition reports it
+    as a page that could not be opened: the record is delivered with the hole
+    named in it rather than the album lost."""
+
+    async def fetch(page: albums.PageInput) -> albums.PageInput:
+        if page.data or page.file_id is None:
+            return page
+        try:
+            original = (await bot.download(page.file_id)).read()
+            compressed = await asyncio.to_thread(
+                images.compress,
+                original,
+                settings.IMAGE_MAX_SIDE,
+                settings.IMAGE_QUALITY,
+            )
+        except Exception:
+            logger.exception("album page %d could not be fetched", page.message_id)
+            return page
+        return replace(
+            page,
+            data=compressed,
+            bytes_before=len(original),
+            bytes_after=len(compressed),
+        )
+
+    return list(await asyncio.gather(*(fetch(page) for page in pages)))
+
+
 def _skip_payload(skips: list[albums.PageResult]) -> list[dict]:
     """What a refused page leaves behind: its number, its reason, and the four
     frame metrics the refusal was made on."""
@@ -478,15 +618,23 @@ async def _process_album(
     user: User,
     pages: list[albums.PageInput],
     group: Group | None = None,
+    bot: Bot | None = None,
+    tag: str | None = None,
+    source_key: str | None = None,
 ) -> None:
     """Assemble a buffered album into one Note. The single-photo pipeline never
     runs for album pages — this is the batch equivalent, and the per-page work
     (frame check, recognition, mathcheck) happens in albums.process_batch,
-    which never touches the database."""
+    which never touches the database.
+
+    `tag` is the subject a reply called the bot with, for an album that came
+    without one (handle_summon); `source_key` is what a group's record is made
+    of. Pages still held as Telegram's references are downloaded with `bot`."""
     # In a group an album is the bot's only when one of its pages carries a
-    # "#word" in its caption; without one it is people sharing photos, and the
-    # bot says nothing — before the size check too, which would answer.
-    tag = albums.tag_of(pages)
+    # "#word" in its caption, or a reply called the bot on it; without one it
+    # is people sharing photos, and the bot says nothing — before the size
+    # check too, which would answer.
+    tag = tag or albums.tag_of(pages)
     if group is not None and tag is None:
         return
     group_id = group.id if group is not None else None
@@ -505,6 +653,10 @@ async def _process_album(
     if limit_message is not None:
         await message.answer(limit_message)
         return
+
+    # Downloaded now and not earlier: up to here the album could still be
+    # turned away — untagged, too large, over the limit — with nothing fetched.
+    ordered = await _fetch_pages(bot, ordered)
 
     for number, page in enumerate(ordered, 1):
         await log_event(
@@ -594,6 +746,7 @@ async def _process_album(
     note = Note(
         user_id=user.id,
         group_id=group_id,
+        source_key=source_key,
         tag=tag,
         title=rec.title,
         subject=rec.subject,
@@ -664,6 +817,88 @@ async def _process_album(
         )
 
     await corpus.ask_for_tag(message, session, user, note, group)
+
+
+@router.message(F.text, middlewares.is_summon)
+async def handle_summon(
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+    group: Group | None = None,
+) -> None:
+    """A reply in a group that calls the bot on a page or an album somebody
+    else sent: "#матан" under it, with the bot's name beside it or not. The
+    record is the chat's like any other, filed under the reply's subject and
+    paid for by whoever replied, and a second call on the same pages sends the
+    record already made — the author's decisions, 2026-09-29."""
+    if group is None:
+        return
+    target = message.reply_to_message
+    bot_username = (await bot.me()).username
+    tag = tags.from_reply(message.text, bot_username)
+    if tag is None:
+        # middlewares.heard lets a reply without a subject through only when it
+        # names the bot; anything else reaching here is not addressed to it.
+        if tags.mentions(message.text, bot_username):
+            await log_event(
+                session, user.id, "note_summoned", {"outcome": "no_tag"},
+                group_id=group.id,
+            )
+            await message.answer(texts.SUMMON_NEEDS_TAG)
+        return
+
+    key = corpus.source_key(target)
+    existing = await corpus.recorded(session, group, key)
+    if existing is not None:
+        await log_event(
+            session, user.id, "note_summoned",
+            {"outcome": "existing", "note_id": existing.id},
+            group_id=group.id,
+        )
+        await corpus.send_record(message, existing)
+        return
+
+    if target.media_group_id:
+        # The reply carries one page of the album; the rest is what the bot
+        # wrote down when the album was posted. An album it never saw whole —
+        # older than the references are kept, or posted before it could see
+        # the chat — is not read with pages missing that nobody would notice.
+        pages = await _remembered_album(
+            session, group, message.chat.id, target.media_group_id
+        )
+        if target.message_id not in {page.message_id for page in pages}:
+            await log_event(
+                session, user.id, "note_summoned", {"outcome": "album_unknown"},
+                group_id=group.id,
+            )
+            await message.answer(texts.SUMMON_ALBUM_UNKNOWN)
+            return
+        await log_event(
+            session, user.id, "note_summoned",
+            {"outcome": "read", "pages": len(pages)},
+            group_id=group.id,
+        )
+        await _process_album(
+            message, session, user, pages, group, bot=bot, tag=tag, source_key=key
+        )
+        return
+
+    page = middlewares.page_file(target)
+    if target.document is not None and (
+        target.document.file_size or 0
+    ) > _MAX_IMAGE_BYTES:
+        await message.answer(texts.IMAGE_TOO_BIG)
+        return
+    await log_event(
+        session, user.id, "note_summoned", {"outcome": "read", "pages": 1},
+        group_id=group.id,
+    )
+    original = (await bot.download(page.file_id)).read()
+    compressed = await asyncio.to_thread(
+        images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
+    )
+    await _read_photo(message, session, user, group, tag, original, compressed, page, key)
 
 
 # Registered last on purpose: aiogram matches handlers in registration order,

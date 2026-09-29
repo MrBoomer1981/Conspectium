@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -56,6 +57,31 @@ class Group(Base):
     )
 
 
+class GroupPage(Base):
+    """A page of an album posted in a group chat, as Telegram's reference to
+    the photo — never the photo itself, which stays on Telegram (rule 3).
+
+    A reply that calls the bot on an album points at one of its pages, and the
+    update carries that page alone: these rows are how the bot finds the rest.
+    Kept for seven days, the author's decision on 2026-09-29 — a lecture is
+    reached for within days of it — and deleted as new pages come in.
+    """
+
+    __tablename__ = "group_pages"
+    __table_args__ = (Index("ix_group_pages_album", "group_id", "media_group_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("groups.id"))
+    media_group_id: Mapped[str] = mapped_column(String)
+    message_id: Mapped[int] = mapped_column(BigInteger)
+    file_id: Mapped[str] = mapped_column(String)
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
 class Event(Base):
     __tablename__ = "events"
 
@@ -95,11 +121,18 @@ class Note(Base):
     __tablename__ = "notes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    # Who photographed it. Its owner is `group_id` when that is set, and this
-    # user only when it is not — a record made in a group chat belongs to the
-    # chat, and its photographer finds it there like everyone else.
+    # Who brought the pages to the bot: the photographer, or in a group
+    # whoever replied "#word" to pages somebody else sent — their page quota
+    # paid for it. Its owner is `group_id` when that is set, and this user only
+    # when it is not — a record made in a group chat belongs to the chat, and
+    # the person who brought it finds it there like everyone else.
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id"), index=True)
+    # What the record was made of in its group chat: "album:<media group>" or
+    # "msg:<message id>". A second call on the same pages finds this and gets
+    # the record already made rather than a second bill. NULL in a private
+    # chat, where nobody can call the bot on somebody else's pages.
+    source_key: Mapped[str | None] = mapped_column(String, index=True)
     title: Mapped[str] = mapped_column(String)
     subject: Mapped[str | None] = mapped_column(String)
     markdown: Mapped[str] = mapped_column(Text)

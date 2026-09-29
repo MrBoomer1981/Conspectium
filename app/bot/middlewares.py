@@ -2,7 +2,7 @@
 group chat, and in a group lets through only what is addressed to the bot."""
 
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar
+from typing import Any, NamedTuple, TypeVar
 
 from aiogram import BaseMiddleware
 from aiogram.types import Message
@@ -19,10 +19,51 @@ from app.db.session import async_session_maker
 # bot a page of notes there.
 GROUP_CHATS = ("group", "supergroup")
 
+# An image sent as a file is a page like a photo: people send one uncompressed
+# to keep the handwriting sharp. These are the formats Pillow opens; a HEIC
+# from an iPhone it cannot, and stays a file like any other.
+PAGE_IMAGE_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+
 _Row = TypeVar("_Row", User, Group)
 
 
-def heard(message: Message) -> bool:
+class PageFile(NamedTuple):
+    """A page as Telegram holds it: what the bot downloads it by, and its size
+    where Telegram says it — a photo does, a file does not."""
+
+    file_id: str
+    width: int | None
+    height: int | None
+
+
+def page_file(message: Message | None) -> PageFile | None:
+    """The page a message carries — the largest size of a photo, or an image
+    sent as a file — and None for anything else."""
+    if message is None:
+        return None
+    if message.photo:
+        size = message.photo[-1]
+        return PageFile(size.file_id, size.width, size.height)
+    document = message.document
+    if document is not None and document.mime_type in PAGE_IMAGE_TYPES:
+        return PageFile(document.file_id, None, None)
+    return None
+
+
+def is_page(message: Message) -> bool:
+    return page_file(message) is not None
+
+
+def is_summon(message: Message) -> bool:
+    """A reply in a group chat to a page somebody sent. What the reply says
+    decides whether it calls the bot (tags.from_reply) — but a "#word" under a
+    page is never a search, so the corpus leaves every one of these alone."""
+    return message.chat.type in GROUP_CHATS and (
+        page_file(message.reply_to_message) is not None
+    )
+
+
+def heard(message: Message, bot_username: str | None = None) -> bool:
     """Whether a message is any of the bot's business.
 
     In a private chat every message is. In a group the bot, once it can see
@@ -30,9 +71,10 @@ def heard(message: Message) -> bool:
     people talking to each other. Those stop here: no session is opened, no
     user row is made for a classmate who only ever said hello, nothing is
     logged and nothing is answered. What gets through is what the bot acts on
-    in a group — a command, a "#word" on its own, a photo or a file whose
-    caption carries a "#word" — and every page of an album, because an
-    album's caption rides on one page only and the album is judged whole, in
+    in a group — a command, a "#word" on its own, a photo or an image file
+    whose caption carries a "#word", a reply to a page that calls the bot on
+    it or names it — and every page of an album, because an album's caption
+    rides on one page only and the album is judged whole, in
     handlers._process_album. So does the notice that the chat's id changed:
     it is what moves the group.
     """
@@ -41,12 +83,30 @@ def heard(message: Message) -> bool:
     if message.migrate_to_chat_id or message.migrate_from_chat_id:
         return True
     if message.text is not None:
-        return message.text.startswith("/") or tags.is_bare(message.text)
-    if message.photo and message.media_group_id:
+        if message.text.startswith("/") or tags.is_bare(message.text):
+            return True
+        # Naming the bot without a subject earns a hint rather than silence:
+        # silence is what made the bot look broken in a group.
+        return is_summon(message) and (
+            tags.from_reply(message.text, bot_username) is not None
+            or tags.mentions(message.text, bot_username)
+        )
+    if message.media_group_id and is_page(message):
         return True
     if message.photo or message.document:
         return tags.from_caption(message.caption) is not None
     return False
+
+
+async def _bot_username(event: Any, data: dict[str, Any]) -> str | None:
+    """The bot's own @name, which a reply in a group may call it by. Only a
+    group asks — a private chat is heard whole — and aiogram keeps the answer
+    from the first time, which the startup log already asked for."""
+    bot = data.get("bot")
+    chat = getattr(event, "chat", None)
+    if bot is None or chat is None or chat.type not in GROUP_CHATS:
+        return None
+    return (await bot.me()).username
 
 
 class DbSessionMiddleware(BaseMiddleware):
@@ -58,7 +118,9 @@ class DbSessionMiddleware(BaseMiddleware):
     ) -> Any:
         # Registered for messages and for the bot's own membership changes;
         # only a message can be chatter.
-        if isinstance(event, Message) and not heard(event):
+        if isinstance(event, Message) and not heard(
+            event, await _bot_username(event, data)
+        ):
             return None
         async with async_session_maker() as session:
             data["session"] = session

@@ -96,6 +96,34 @@ def is_bare(text: str | None) -> bool:
     return bool(text) and _BARE_TAG.fullmatch(text.strip()) is not None
 
 
+def _named(bot_username: str) -> re.Pattern[str]:
+    # Telegram compares usernames without regard to case.
+    return re.compile(rf"@{re.escape(bot_username)}\b", re.IGNORECASE)
+
+
+def mentions(text: str | None, bot_username: str | None) -> bool:
+    """Whether a message names the bot — "@konspekt_bot" — anywhere in it."""
+    if not text or not bot_username:
+        return False
+    return _named(bot_username).search(text) is not None
+
+
+def from_reply(text: str | None, bot_username: str | None = None) -> str | None:
+    """The subject a reply in a group calls the bot with, `None` when it does
+    not call it.
+
+    One "#word" and nothing else, as for a search in a group — the bot's own
+    name may stand beside it, since naming the bot is what calling it looks
+    like. "#дз на завтра" under a photo is for the classmates, and so is "@вася
+    #матан": another member's name makes it a message to that member.
+    """
+    if not text:
+        return None
+    if bot_username:
+        text = _named(bot_username).sub(" ", text)
+    return parse(text) if is_bare(text) else None
+
+
 def topics_of(title: str, markdown: str) -> list[str]:
     """A record's five main topics: its title, then its headings.
 

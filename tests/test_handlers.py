@@ -176,28 +176,6 @@ class _SlowBot:
         return io.BytesIO(_jpeg())
 
 
-async def test_an_album_page_is_announced_while_still_downloading(session):
-    albums.reset()
-    user = await _user(session)
-    message = _PhotoMessage("grp-1", message_id=11)
-    bot = _SlowBot()
-
-    handling = asyncio.create_task(handlers.handle_photo(message, session, user, bot))
-    try:
-        await asyncio.wait_for(bot.started.wait(), timeout=2)
-
-        # Mid-download: Telegram has told us this page exists, so the album
-        # must already know about it.
-        assert albums._announced.get("grp-1") == {11}
-        # And its bytes are, of course, not there yet.
-        assert albums._buffer.get("grp-1") is None
-    finally:
-        handling.cancel()
-        bot.finish.set()
-        await asyncio.gather(handling, return_exceptions=True)
-        albums.reset()
-
-
 async def test_a_single_photo_is_not_registered_as_an_album(session):
     albums.reset()
     user = await _user(session)

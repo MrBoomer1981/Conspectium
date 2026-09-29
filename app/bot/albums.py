@@ -25,11 +25,13 @@ from app.services.vision import CallStats, Transcription
 logger = logging.getLogger(__name__)
 
 # Wait this long with no *new* page before assembling the batch. Measured from
-# the last arrival, not as a single fixed sleep: pages do not land in the
-# buffer as fast as Telegram delivers them, because handle_photo downloads and
-# compresses each photo before calling add_page. A large page over a slow link
-# can take seconds, and at 1.0 s the first page decided the album was over and
-# claimed the batch alone — one album arrived as four one-page records.
+# the last arrival, not as a single fixed sleep. It was set when each page was
+# downloaded and compressed before it reached the buffer, which over a slow link
+# took seconds: at 1.0 s the first page decided the album was over and claimed
+# the batch alone — one album arrived as four one-page records. A page is
+# buffered on arrival now and downloaded once the batch is claimed, so the
+# window only has to cover Telegram's own spacing; 3 s stays because it was
+# measured and nothing has been measured since.
 _QUIET_SECONDS = 3.0
 
 # How often the quiet window is re-checked. Only an upper bound: the wait is
@@ -62,17 +64,23 @@ _ALBUM_TIMEOUT_S = int(_WAVES * vision.RUN_WORST_CASE_S * vision.TIMEOUT_MARGIN)
 
 @dataclass
 class PageInput:
+    # The compressed page. Empty until the batch is claimed and the page is
+    # downloaded by `file_id` (handlers._fetch_pages): an album is buffered as
+    # Telegram's references, so one nobody tagged in a group is never fetched.
     data: bytes
     message_id: int
     chat_id: int
     media_group_id: str
     bytes_before: int
     bytes_after: int
-    width: int
-    height: int
+    # None for an image sent as a file: Telegram gives a photo's size, not a
+    # file's.
+    width: int | None
+    height: int | None
     # The "#word" in this page's caption. Telegram puts an album's caption on
     # one page only, so most pages carry None; see tag_of.
     tag: str | None = None
+    file_id: str | None = None
 
 
 def tag_of(pages: list[PageInput]) -> str | None:
@@ -85,9 +93,9 @@ def tag_of(pages: list[PageInput]) -> str | None:
     return None
 
 
-# Pages whose bytes have arrived.
+# Pages handed in by their updates.
 _buffer: dict[str, list[PageInput]] = {}
-# Pages Telegram has told us about, downloaded or not. This is the authority
+# Pages Telegram has told us about, handed in or not. This is the authority
 # on what the album contains; _buffer only says how much of it is ready.
 _announced: dict[str, set[int]] = {}
 _first_page_at: dict[str, float] = {}
@@ -98,15 +106,16 @@ _claimed: dict[str, float] = {}
 
 
 def announce(media_group_id: str, message_id: int) -> None:
-    """Register a page the moment its update arrives, *before* it is
-    downloaded.
+    """Register a page the moment its update arrives, before anything else is
+    done with it.
 
-    This is the whole point of the two steps. Telegram delivers the updates of
-    an album milliseconds apart, but a page only reaches `_buffer` once it has
-    been fetched and compressed, which takes seconds per photo. Timing the
-    debounce from the buffer measured our own download speed: the first page to
-    finish saw a quiet album and claimed the batch alone while the rest were
-    still in flight. Timing it from here measures what it is supposed to.
+    This was the whole point of the two steps while each page was fetched and
+    compressed before it reached `_buffer`, which took seconds per photo:
+    timing the debounce from the buffer measured our own download speed, and
+    the first page to finish saw a quiet album and claimed the batch alone
+    while the rest were still in flight. A page is handed in right after this
+    now — in a group, after its reference is written down — and the batch is
+    still timed from here, which measures what it is supposed to.
     """
     now = time.monotonic()
     _prune_claimed(now)
@@ -118,9 +127,10 @@ def announce(media_group_id: str, message_id: int) -> None:
 
 
 def add_page(media_group_id: str, page: PageInput) -> None:
-    """The page's bytes, once downloaded. Announcing first is the normal path;
-    a page that was never announced is taken as its own announcement so the
-    buffer can never be fed behind the registry's back."""
+    """The page itself, as a reference the batch's owner downloads. Announcing
+    first is the normal path; a page that was never announced is taken as its
+    own announcement so the buffer can never be fed behind the registry's
+    back."""
     if media_group_id in _claimed:
         logger.warning(
             "page %d arrived after album %s was assembled; dropped",
@@ -165,24 +175,24 @@ async def collect(media_group_id: str) -> list[PageInput] | None:
     without replying — otherwise the batch is processed once per page.
 
     Two conditions have to hold: _QUIET_SECONDS with nothing new announced, so
-    the album has stopped growing, and every announced page downloaded, so
+    the album has stopped growing, and every announced page handed in, so
     nothing still in flight is left behind. The _COLLECT_MAX_S ceiling bounds
-    the wait either way — a download that never finishes must not strand the
-    pages that did."""
+    the wait either way — an update that never hands its page in must not
+    strand the pages that did."""
     while True:
         if media_group_id not in _announced:
             return None  # another caller already claimed this batch
         now = time.monotonic()
         quiet_for = now - _last_page_at[media_group_id]
-        downloaded = len(_buffer.get(media_group_id, ()))
+        handed_in = len(_buffer.get(media_group_id, ()))
         expected = len(_announced[media_group_id])
-        if quiet_for >= _QUIET_SECONDS and downloaded >= expected:
+        if quiet_for >= _QUIET_SECONDS and handed_in >= expected:
             break
         if now - _first_page_at[media_group_id] >= _COLLECT_MAX_S:
             logger.warning(
                 "album %s: %d of %d pages ready after %ds, assembling anyway",
                 media_group_id,
-                downloaded,
+                handed_in,
                 expected,
                 _COLLECT_MAX_S,
             )

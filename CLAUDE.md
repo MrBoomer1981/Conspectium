@@ -130,8 +130,8 @@ path it was built at, so once the repository moves they fail with "bad
 interpreter" while its `python` still works.
 
 Revision ids are hand-written, not the generated hash — `001_users_events`
-through `011_groups`, which is the current head. The next one is
-`012_`.
+through `012_group_pages`, which is the current head. The next one is
+`013_`.
 
 No linter is configured — don't add one without an explicit request.
 
@@ -149,7 +149,11 @@ No linter is configured — don't add one without an explicit request.
    numbers are settings so the claim can be measured on the same album rather
    than argued, and the defaults do not drift.
 
-3. **Never store the original photos.** Only the recognized text.
+3. **Never store the original photos.** Only the recognized text. What
+   `group_pages` keeps for seven days is Telegram's reference to a group
+   album's page (`file_id`), which the bot fetches the photo by while Telegram
+   keeps it — not the photo. It exists so a reply can call the bot on an
+   album somebody else sent; the author's decision, 2026-09-29.
 
 4. **Every model call is written to `ai_calls`** — model, tokens, cost,
    latency, success, error. No exceptions, a failed attempt included.
@@ -296,7 +300,12 @@ model". The essentials, because they shape every handler:
    any, in `data["group"]`. A user or group row that two updates insert at
    once — the pages of an album from someone the bot has never seen — is
    fetched by the loser rather than failing on the unique index
-   (`middlewares._insert_or_fetch`): a lost race used to be a lost page.
+   (`middlewares._insert_or_fetch`): a lost race used to be a lost page. A
+   second deliberate exception: a group album page's reference is committed
+   as soon as it is written (`handlers._remember_page`), because the update
+   that claims the batch holds its session through the whole album, and a
+   reference lost to that album's rollback would be a page missing from every
+   later call on it.
 
 2. **`events` are transactional and disappear on rollback — deliberately.**
    An event describes something that, in the end, didn't happen. `log_event`
@@ -338,7 +347,10 @@ The canonical step order for a photo is `PLAN.md` → "Final processing order
 for a photo"; every "does this come before or after that?" question is
 answered there. There are three **capture paths** — a photo, an album, a
 `.docx` — and two of them, the **photo paths** (`handlers.handle_photo` and
-`albums.process_page`), read photographs.
+`albums.process_page`), read photographs. An image sent as a file (JPEG, PNG,
+WebP — `middlewares.page_file`) is a photo to both. In a group a reply can
+also call the bot on pages somebody else sent (`handlers.handle_summon`), and
+it enters the same two paths.
 
 **`.docx` bypasses the model entirely.** No limits are checked and no quota
 is spent, so a Word file is processed even with `AI_ENABLED=false` — it is
@@ -421,20 +433,26 @@ update with its own session. `albums.collect()` waits for the group to go
 quiet and hands the whole batch to one caller; every other caller gets `None`
 and **must return without replying**, or the album is processed once per page.
 
-**Register a page with `albums.announce` the moment its update arrives,
-before downloading it**, and call `add_page` with the bytes afterwards.
-Telegram never says how many items a media group holds, so the end of an
-album is a guess at silence: the debounce times the announcements, which
-arrive milliseconds apart, and a batch closes only once every announced page
-has also downloaded. Timed from the downloads, it measures our own network
-and splits the album. → "The album that came back as four records"
+**Register a page with `albums.announce` the moment its update arrives**, and
+hand it to `add_page` as Telegram's reference, not downloaded. Telegram never
+says how many items a media group holds, so the end of an album is a guess at
+silence: the debounce times the announcements, which arrive milliseconds
+apart, and a batch closes only once every announced page has been handed in.
+Pages used to be downloaded before they were handed in, and timed from the
+downloads the debounce measured our own network and split the album. **The
+update that claims the batch downloads the pages** (`handlers._fetch_pages`),
+after the album's tag, size and limits have passed — so in a group an album
+nobody tagged is never fetched at all. → "The album that came back as four
+records"
 
 **Router order in `main.py` is load-bearing.** `handlers.router` ends with a
 filterless catch-all, so any router included after it receives nothing.
 `corpus.router` goes **first**, capture second; a third router has to be
 placed relative to that catch-all. `on_tag` matches on the message text
 rather than a `Command`, so that ordering is the only thing between a "#word"
-and "пришли фотографию страницы".
+and "пришли фотографию страницы". A "#word" in reply to a page in a group is
+not a search: `on_tag` refuses it (`middlewares.is_summon`), and it falls
+through to `handlers.handle_summon`, which stands before the catch-all.
 
 ### The corpus
 
@@ -468,7 +486,8 @@ on PostgreSQL and on the suite's SQLite.
 ### A group chat
 
 **A record made in a group belongs to the chat** (`notes.group_id`); its
-`user_id` only says who photographed it. Every corpus query goes through
+`user_id` only says who brought the pages to the bot — the photographer, or
+whoever called the bot on them. Every corpus query goes through
 `corpus._owned`: in a group, the group's records, which any member reaches;
 in a private chat, the user's own records that belong to no group. So the
 photographer finds a group's record in the group like everyone else, and a
@@ -487,15 +506,30 @@ record belongs to, and a "#word" there only searches. That removes the
 failure the stateless question could not survive in a chat, where the newest
 record is everyone's and the next "#word" anyone's.
 
+**Pages sent without their subject can still be called on, by a reply that
+carries it** (task 40, the author's decisions of 2026-09-29). A reply to a
+photo, an image file or any page of an album that is one "#word" — the bot's
+own @name may stand beside it (`tags.from_reply`) — makes those pages the
+chat's record under that word. Whoever replied is its `user_id` and is
+charged the pages; the photographer need not use the bot at all. The reply
+carries one page, so an album is found whole from `group_pages`, where every
+album page posted in a group is written down on arrival and kept seven days;
+an album the bot never saw whole is asked for again with its subject rather
+than read with pages missing. A record remembers what it was made of
+(`notes.source_key`, `corpus.source_key`), and a second call on the same
+pages — or a call on pages that came with their subject — sends that record
+rather than paying again. Naming the bot without a subject earns one line of
+hint. Every call writes `note_summoned` → `PLAN.md` → Contracts.
+
 **What is not addressed to the bot never reaches it.** `middlewares.heard`
 runs before a session is opened. In a group it lets through a command, a
 message that is one "#word" and nothing else (`tags.is_bare` — "#дз на
-завтра" is for the classmates), a photo or a file with a tagged caption,
-every page of an album (judged whole in `_process_album`), and the migration
-notice. Everything else is dropped with no session, no user row and no event:
+завтра" is for the classmates), a photo or an image file with a tagged
+caption, a reply to a page that calls the bot on it or names it, every page
+of an album (judged whole in `_process_album`), and the migration notice. Everything else is dropped with no session, no user row and no event:
 a classmate who only ever said hello is not a user. What gets through and is
 still not the bot's — an untagged album, a search that finds nothing, an
-unreadable tag, a file that is not `.docx`, a notice — gets no answer in a
+unreadable tag, a file that is neither `.docx` nor an image, a notice — gets no answer in a
 group; the missed search is still logged.
 
 **Whether the bot sees a group's photos is decided in BotFather, not here.**
@@ -923,7 +957,7 @@ here instead.
 | An update is processed in a background task | **any deploy** | in-flight updates are cancelled; paid Gemini calls are wasted |
 | No deduplication on `update_id` | **a delivery timeout** | Telegram retries, producing a duplicate record and a second set of paid calls |
 | `DAILY_COST_LIMIT_USD` is global, not per user | **two users** — reached with the group | one person, or one group, can exhaust the day's budget for everyone; task 41 |
-| In a group every album page is downloaded before the album's tag is known | **a chat that shares many photo albums** | bandwidth and memory spent on albums the bot then drops unread |
+| A call on pages is matched to an earlier record only once that record is saved | **two people calling on one album at once**, or a call while its tagged album is still being read | a second record and a second bill |
 | `limits.consume` takes no row lock | **concurrent uploads by one user** | the page quota undercounts |
 | DB pool is 5 + 15 | **~20 updates in flight** | connection checkout starts timing out |
 | `_API_SLOTS` is a per-process `Semaphore(10)` | **tens of active chats** | the queue to Gemini grows into timeouts |
@@ -1029,7 +1063,7 @@ app/
   bot/
     handlers.py       aiogram handlers
     texts.py          all user-facing messages, and the command list
-    middlewares.py    DB session, user and group injected; group chatter dropped
+    middlewares.py    DB session, user and group injected; group chatter dropped; what a page is
     albums.py         album buffer and assembly
     corpus.py         tags, search by tag, and a record as a file, scoped to its chat
     tags.py           what a #tag is, and where a record's topics come from
@@ -1273,6 +1307,8 @@ transactions.
   trade-off with no clear default, a change of scope, a conflict with
   `PLAN.md` or this file — and give a recommendation with the question.
 - One task from `PLAN.md` — one session — one commit.
+- No new tests while the project is in active development — the author's
+  decision, 2026-09-29.
 - Nothing beyond the current task. Got an idea — put it in the `PLAN.md`
   backlog.
 - Write code that can be explained out loud. A non-obvious decision gets

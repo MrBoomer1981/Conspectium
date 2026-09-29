@@ -31,7 +31,7 @@ from aiogram.types import BufferedInputFile, Message
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import tags, texts
+from app.bot import middlewares, tags, texts
 from app.core.events import log_event
 from app.db.models import Group, Note, NoteTopic, User
 from app.services import graphcheck, pdf, vision
@@ -390,7 +390,34 @@ async def _matching(
     return list((await session.execute(stmt)).scalars().all())
 
 
-@router.message(F.text.startswith("#"))
+def source_key(message: Message) -> str:
+    """What a record in a group chat is made of: an album by its media group,
+    a single page by its message. The same pages always give the same key,
+    whether they came with their subject or were called on later."""
+    if message.media_group_id:
+        return f"album:{message.media_group_id}"
+    return f"msg:{message.message_id}"
+
+
+async def recorded(session: AsyncSession, group: Group, key: str) -> Note | None:
+    """The chat's record already made of these pages, if there is one — so a
+    second call on them sends it rather than paying to read them again."""
+    stmt = (
+        select(Note)
+        .where(Note.group_id == group.id, Note.source_key == key)
+        .order_by(Note.id.desc())
+        .limit(1)
+    )
+    return (await session.execute(stmt)).scalars().first()
+
+
+def _not_a_summon(message: Message) -> bool:
+    # A "#word" under a page somebody sent calls the bot on that page; it is
+    # handled in handlers.handle_summon and is never a search.
+    return not middlewares.is_summon(message)
+
+
+@router.message(F.text.startswith("#"), _not_a_summon)
 async def on_tag(
     message: Message, session: AsyncSession, user: User, group: Group | None = None
 ) -> None:

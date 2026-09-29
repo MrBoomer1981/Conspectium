@@ -116,10 +116,17 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
       "#word" in its caption, and that word is the record's subject — so a
       group is never asked, and what is not addressed to the bot is dropped
       before a session is opened
-- [ ] 40. The tag question rebound to its record — the stateless trick does not
-      survive several people answering in one chat. 39 took the question out
-      of groups: a record is made there only with its subject, and a "#word"
-      in a group only searches. What 40 still means is the author's to say
+- [x] 40. A page somebody else sent becomes the chat's record by a reply with
+      its subject. What 40 would mean was the author's to say, and on
+      2026-09-29, taking the group up again, the author said this: "#матан" in
+      reply to a photo, an image file or any page of an album — the bot's
+      name may stand beside it — reads it, files it under the reply's word
+      and charges whoever replied. An album is found whole from the
+      references kept seven days in `group_pages`, never the photos, so an
+      album nobody tagged is no longer downloaded at all; a second call on the
+      same pages sends the record already made (`notes.source_key`); naming
+      the bot without a subject earns a hint. An image sent as a file is a
+      page everywhere
 - [ ] 41. Limits and spend counted per group; the scale-debt rows that come due
       with a second person in the chat
 
@@ -222,7 +229,7 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-39, 42-43, 45-46
+Done: 1-40, 42-43, 45-46
 Current task: none — 44 paused by the author on 2026-09-29
 Next task: none
 Blockers: 44 waits on the author — Flex, or another provider measured on an album already read
@@ -2261,11 +2268,19 @@ unused: the model's self-assessment turned out to be a useless signal.
 ## `PageInput`
 
 Album buffer fields: `data`, `message_id`, `chat_id`, `media_group_id`,
-`bytes_before`, `bytes_after`, `width`, `height`, `tag`.
+`bytes_before`, `bytes_after`, `width`, `height`, `tag`, `file_id`.
+
+A page enters the buffer as Telegram's reference: `file_id` set, `data` empty,
+both byte counts 0. The update that claims the batch downloads the pages
+(`handlers._fetch_pages`) once the album is known to be read, and fills `data`
+and the byte counts then; a page that cannot be fetched stays empty and is
+reported as a page that could not be opened. `width` and `height` are `None`
+for an image sent as a file.
 
 `tag` is the "#word" in that page's caption, `None` on most pages: Telegram
 puts an album's caption on one page only. `albums.tag_of` takes the first one
-in page order, and in a group chat an album without one is not processed.
+in page order, and in a group chat an album without one is not processed —
+unless a reply calls the bot on it, and then the reply's word is the tag.
 
 `media_group_id` is stored on every page and used when building
 `note_captured`. It's the same across every page of one batch.
@@ -2360,6 +2375,23 @@ pages and asks for the album again.
 
 `refused` has the shape of `album_incomplete`'s `skipped`: the four numbers
 are the evidence each refusal was made on.
+
+## Event `note_summoned`
+
+Written when a reply in a group calls the bot on a page or an album somebody
+else sent (task 40). The one event to count to know whether the call is used.
+
+    {"outcome": "read", "pages": 4}
+    {"outcome": "existing", "note_id": 52}
+    {"outcome": "album_unknown"}
+    {"outcome": "no_tag"}
+
+`read`: the pages go through the pipeline, and `note_captured` and
+`note_processed` follow as for any record. `existing`: a record of the same
+pages was already made in the chat and was sent again, nothing spent.
+`album_unknown`: the bot never saw that album whole, or saw it more than seven
+days ago, and asked for it again with its subject. `no_tag`: the reply named
+the bot without a subject and got a hint.
 
 ## The group an event happened in
 
