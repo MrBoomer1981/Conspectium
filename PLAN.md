@@ -1,13 +1,15 @@
 # PLAN.md
 
-The work plan. Since 2026-09-30 development is the responsibility of the
-author's staff developer, and the author reviews it with Claude Code —
-"Review", below "State". Lives in the repo root next to `CLAUDE.md`;
-`README.md` says how the work around it is organised.
+The work plan. Since 2026-09-30 the work is divided by area: the CEO owns the
+interface and the product for students, the CPO the database and the model,
+and both push to `main` — `README.md` maps every area to its code. "The
+author" in this file is the owner of the area a decision falls in, and both
+for what is shared; a decision dated before that day was made when the CEO
+was the only author. Lives in the repo root next to `CLAUDE.md`.
 
 **How to work with this file:**
 
-1. A task is named — by the author, or by "State" → "Next task". You do
+1. A task is named by its owner, or by the owner's line in "State". You do
    **only that one**.
 2. Before writing code, describe the plan of changes. When it leaves no open
    question, carry it out in the same turn; ask only when it holds a decision
@@ -22,10 +24,11 @@ author's staff developer, and the author reviews it with Claude Code —
    decide on your own.
 7. A disputed question about types, boundaries, and field semantics —
    check the "Contracts" section at the end of the file first.
-8. A change to this file beyond your task's checkbox and "State" is the
-   author's to agree to: it goes in a commit of its own (`plan: …`, saying
-   why) with a line in "Plan changes", below "State". The same holds for a
-   rule in `CLAUDE.md`.
+8. A change to this file beyond your task's checkbox and your line in
+   "State" goes in a commit of its own (`plan: …`, saying why) with a line
+   in "Plan changes", below "State". One in the other owner's area, or in
+   what is shared — the order of work, a rule in `CLAUDE.md` — waits there
+   for the other's word. The same holds for a rule in `CLAUDE.md`.
 
 ---
 
@@ -136,7 +139,7 @@ author's staff developer, and the author reviews it with Claude Code —
       the bot without a subject earns a hint. An image sent as a file is a
       page everywhere
 - [ ] 41. Limits and spend counted per group; the scale-debt rows that come due
-      with a second person in the chat
+      with a second person in the chat — the CPO's, in phase D's order
 
 **Back to the record — what record 45 showed.** The author put the group on
 hold on 2026-09-25, after 39 shipped: every effort goes to the records first,
@@ -195,21 +198,24 @@ and the group is tested later. These come before 40 and 41.
       already read, and the explanations' writing call at `low` are left
 
 **Phase D — the subject: a course a group builds up and gets back whole.**
-Set by the author on 2026-09-30. The work goes in this order — **47, 41, 52,
-51, 48** — and each task's specification is under "# Task N", after the task
-descriptions of week 2. 41 is the one listed under phase C.
+Set by the CEO on 2026-09-30, in two tracks, one an owner: **the CEO's 47,
+52, 51 and the CPO's 41, 48**, each in that order. 52's overview is a model
+call and waits for 41, which counts its cost against the chat's cap. Each
+task's specification is under "# Task N", after the task descriptions of
+week 2; 41 is the one listed under phase C.
 
 - [ ] 47. The bot added to a group chat in one tap, and seeing its pages
-      there without being made an admin
+      there without being made an admin — the CEO's
 - [ ] 52. A subject's records as one document to study from — the course,
       opened by an overview the model writes over it, sent only when
-      somebody asks for it with a command
-- [ ] 51. The document's own look: the brand around the text, never in it
+      somebody asks for it with a command — the CEO's
+- [ ] 51. The document's own look: the brand around the text, never in it —
+      the CEO's
 - [ ] 48. A subject's materials: a PDF sent with its "#word" is kept as
       Telegram's reference and its text, its topics are read out of what is
-      in it, and a "#word" finds it the way it finds a record
+      in it, and a "#word" finds it the way it finds a record — the CPO's
 
-Put off by the author on 2026-09-30 — not to be started without the author's
+Put off on 2026-09-30 — the CPO's area, not to be started without the CPO's
 word:
 
 - 49. The teacher's drive by link — Yandex Disk and Google Drive files and
@@ -262,38 +268,25 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-46
-Current task: none — 44 paused by the author on 2026-09-29
-Next task: 47
-Blockers: none for 47; 44 waits on the author — Flex, or another provider measured on an album already read
+CEO — current: none; next: 47
+CPO — current: none; next: 41
+Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read
 ```
 
 ## Plan changes
 
-The plan is the author's, and it is also the staff developer's working
-document, so it will change in other hands. Every change to this file that
-the author did not make — anything beyond a task's checkbox and "State" — is
-a line here, written in the same commit, and it stands as unaccepted until
-the author's word is in the last column. A rule changed in `CLAUDE.md` is
-logged here as well. `README.md` → "Changing the plan" says what needs the
-author's agreement before it is made.
+Every change to this file beyond a task's checkbox and its owner's line in
+"State", and every change to a rule in `CLAUDE.md`, is a line here, written
+in the same commit — so that the plan's history reads without its diff, and
+neither owner learns of a change to their area from one. A change in the
+other owner's area, or in what is shared, stands as unaccepted until the
+other's word is in the last column.
 
-| Date | Who | What changed, and why | The author's word |
+| Date | Who | What changed, and why | Accepted |
 |---|---|---|---|
-| 2026-09-30 | the author, with Claude Code | Phase D set: 47, 41, 52, 51, 48, in that order; 49 put off, 50 not scheduled. The plan opened to the staff developer, and this log started | the author's own |
-| 2026-09-30 | the author, with Claude Code | Task 52: the course document opens with an overview the model writes over its records. Development handed to the staff developer; the author reviews, and "Review" started | the author's own |
-
-## Review
-
-Development is the staff developer's since 2026-09-30, and the author, with
-Claude Code, reviews it. A review reads the commits since the last line of
-this table — the author's own left out — against each task's specification
-and `CLAUDE.md`, together with "Plan changes". The author's verdict, and
-what the developer is asked to put right, go in a new line. The developer
-reads this table before starting work.
-
-| Date | Reviewed up to | What was found | Asked of the developer |
-|---|---|---|---|
-| 2026-09-30 | `8a1cb2c` | The handover: everything up to here is the author's own work | — |
+| 2026-09-30 | the CEO, with Claude Code | Phase D set: 47, 41, 52, 51, 48; 49 put off, 50 not scheduled; this log started | the CEO's own |
+| 2026-09-30 | the CEO, with Claude Code | Task 52: the course document opens with an overview the model writes over its records | the CEO's own |
+| 2026-09-30 | the CEO, with Claude Code | The work divided by area: the CEO — the interface and the product for students; the CPO — the database and the model; both push to `main`. Phase D in two tracks and "State" in two lines. This replaces the staff developer and "Review" set up earlier the same day | the CEO's own |
 
 ## Where this is going, decided 2026-09-30
 
@@ -303,12 +296,13 @@ its records, the materials the group uploads for it, and in the end a course
 the group gets back as one document. The record is still what all of it is
 made of, and every rule about the record stands.
 
-The author's decisions of that day, each one what its task is built on:
+The CEO's decisions of that day, each one what its task is built on:
 
-- **The order: 47, 41, 52, 51, 48.** A group that can add the bot by itself
-  comes first, because the question the project exists to answer needs more
-  than one group; 41 comes before anything else that spends, because with
-  several groups one of them can exhaust the day's budget for all.
+- **Two tracks, one an owner.** The CEO's — 47, 52, 51: a group that can add
+  the bot by itself comes first, because the question the project exists to
+  answer needs more than one group. The CPO's — 41, 48: 41 first, because
+  with several groups one of them can exhaust the day's budget for all, and
+  both 52's overview and 48's topics spend.
 - **A course as one document is an overview to study from, not an export**,
   and the barrier `CLAUDE.md` put on any bulk export of the corpus is lifted
   for it — for it alone. It opens with an overview the model writes over the
@@ -322,9 +316,11 @@ The author's decisions of that day, each one what its task is built on:
   its subject and through topics read out of what is in it. Task 48.
 - **The teacher's drive by link is put off** (49), and so is what context
   would do inside the pipeline (50).
-- **Development passes to the staff developer, and the author reviews.** The
-  developer takes the tasks in order and answers for them; the author, with
-  Claude Code, reads what was done against the plan — "Review".
+- **The work is divided by area**: the CEO owns the interface and the
+  product for students, the CPO the database and the model, and both push to
+  `main`. What is shared — the order of work, the rules in `CLAUDE.md`, the
+  contract between the prompts and `pdf.py` — is decided by both, and where
+  they disagree, what is stays as it is. `README.md` has the map.
 
 **What context does not do, whenever it comes: it never enters recognition.**
 The worst failure this project has reproduced is a fluent retelling of a page
@@ -2267,11 +2263,14 @@ never been used.
 
 # Phase D: the tasks
 
-Specified on 2026-09-30, in the order they are done: 47, 41, 52, 51, 48.
-Where a specification and the code disagree, the code is what exists and the
-specification is what the author decided: ask before choosing either.
+Specified on 2026-09-30. Two tracks: the CEO's 47, 52, 51 and the CPO's 41,
+48, each in that order. Where a specification and the code disagree, the
+code is what exists and the specification is what was decided: ask the
+task's owner before choosing either.
 
 # Task 47. The bot added to a group in one tap
+
+**Owner: the CEO.**
 
 ## Why
 
@@ -2283,13 +2282,15 @@ usually not one. Every group but the author's has to be able to do it alone.
 
 ## Do
 
-1. **Privacy mode off** — the author's action, since the token is the
-   author's: BotFather → the bot → Bot Settings → Group Privacy → Turn off.
+1. **Privacy mode off** — done in BotFather by whoever holds the bot, since
+   no code can do it: BotFather → the bot → Bot Settings → Group Privacy →
+   Turn off.
    The bot then receives a group's messages as an ordinary member, which is
    what it receives as an admin today and no more, and `middlewares.heard`
    drops what is not addressed to it before a session is opened, as it does
    now. The change takes effect in a group only when the bot is added to it
-   afterwards; the author's own chat has it as an admin and needs nothing.
+   afterwards; the course chat it runs in today has it as an admin and
+   needs nothing.
 2. **A button.** `/start` and `/help` in a private chat carry one inline URL
    button, «Добавить в чат группы», opening
    `https://t.me/<username>?startgroup=add`: Telegram shows its own chat
@@ -2332,6 +2333,8 @@ usually not one. Every group but the author's has to be able to do it alone.
 
 # Task 41. Limits and spend counted per group
 
+**Owner: the CPO.** Its lines in `texts.py` are agreed with the CEO.
+
 ## Why
 
 Two limits exist: a person's pages a day (`DAILY_PAGES_PER_USER`), charged in
@@ -2351,7 +2354,7 @@ only once that record is saved.
    commands": the group a call was made for, `NULL` in a private chat.
    `vision.log_ai_calls` takes it, and every call made for a group's record
    writes it. A new setting, `DAILY_COST_LIMIT_PER_GROUP_USD` — default 2, the
-   value the author's — and `limits.check_limits` refuses a group's pages once
+   value the CPO's — and `limits.check_limits` refuses a group's pages once
    that group's spend today has reached it, with a line of its own in
    `texts.py`. The global cap stays above it as the breaker and is checked
    first; a person's page quota stays as it is.
@@ -2386,6 +2389,9 @@ only once that record is saved.
 ---
 
 # Task 52. A course as one document, on command
+
+**Owner: the CEO.** The overview's call — its prompt, model and guard — is in
+the CPO's area: written by the CPO or agreed with the CPO, and after 41.
 
 ## Why
 
@@ -2464,7 +2470,8 @@ the course a student needs before reading twenty lectures of it.
 
 ## Acceptance criterion
 
-- `/report матан` in the author's chat: one PDF — the cover, the contents
+- `/report матан` in the course chat the bot runs in: one PDF — the cover,
+  the contents
   with the right pages, the overview in its box, every "#матан" record oldest
   first, each from a new page and drawn as it is alone, the index, the pages
   numbered through.
@@ -2483,7 +2490,7 @@ the course a student needs before reading twenty lectures of it.
   document as they are stored, never rewritten, re-read or re-explained.
 - Don't keep an overview to use it again: a report is asked for rarely, and
   each one is written over the records as they stand. If repeated reports
-  start to cost, that is the author's to decide.
+  start to cost, that is for both owners to decide.
 - Nothing is sent that nobody asked for — not after a record, not on a day.
 - No other format and no archive: no Markdown, no ZIP, no "every subject at
   once". This document is the one exception to the barrier.
@@ -2494,16 +2501,18 @@ the course a student needs before reading twenty lectures of it.
 
 # Task 51. The document's own look
 
+**Owner: the CEO.**
+
 ## Why
 
-The group gets a document from the bot, and so far it looks like the
-author's own notes: task 36 copied `матан 24.09.2026.pdf`, and its
+The group gets a document from the bot, and so far it looks like the notes
+it was copied from: task 36 copied `матан 24.09.2026.pdf`, and its
 readability is settled. What it lacks is a face of its own — a group that
 receives one cannot tell whose it is, and the course document of task 52 has
-a cover that says nothing. The author agreed on 2026-09-30 how that is done:
+a cover that says nothing. The CEO agreed on 2026-09-30 how that is done:
 the brand stands around the text and never in it.
 
-## Before starting — the author's brief
+## Before starting — the CEO's brief
 
 The name the document carries (the repository is "Conspectium"), a mark or a
 logo if there is one, colours if there are any, and the character — strict
@@ -2528,16 +2537,16 @@ and academic, or modern. Without the brief the task does not start.
 3. **How it is decided:** three variants, each rendered on the same real
    records — 45 (a long division and findings) and 51 (explanations and many
    definitions), taken from the database — and on a course document from
-   task 52. The author picks one, or parts of several. The pick becomes the
+   task 52. The CEO picks one, or parts of several. The pick becomes the
    new reference: its values go into `pdf.py` as named constants and into
    `CLAUDE.md` → "The document", the way task 36's did.
-4. **The chat's face, the author's actions:** the bot's name, picture and
-   description in BotFather, in the same identity.
+4. **The chat's face, in BotFather**, done by whoever holds the bot: its
+   name, picture and description, in the same identity.
 
 ## Acceptance criterion
 
 - Records 45 and 51 and a course document re-rendered in the chosen look,
-  and the author's word that it is the one.
+  and the CEO's word that it is the one.
 - The body measures as before: the same scale, column and rhythm, and the
   page count of a record within one page of what it was.
 - `CLAUDE.md` → "The document" describes the new reference.
@@ -2553,6 +2562,9 @@ and academic, or modern. Without the brief the task does not start.
 ---
 
 # Task 48. A subject's materials: kept, read into topics, found
+
+**Owner: the CPO.** What the replies say and how a search shows its results
+are in the CEO's area, and agreed with the CEO.
 
 ## Why
 

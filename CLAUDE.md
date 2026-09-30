@@ -66,9 +66,10 @@ later. The author took the group up again on 2026-09-29 (task 40), and on
 itself, spend is counted per group, a subject's records come back as one
 document on command, the document gets a look of its own, and materials
 uploaded under a subject are found by "#word" — `PLAN.md` → "Where this is
-going, decided 2026-09-30". The same day development passed to the author's
-staff developer, and the author, with Claude Code, reviews it. What is under
-way now is `PLAN.md` → "State". The question the whole
+going, decided 2026-09-30". The same day the work was divided by area: the
+CEO owns the interface and the product for students, the CPO the database
+and the model, and both push to `main`. What is under way now is `PLAN.md` →
+"State". The question the whole
 thing exists to answer is whether a group uses this weekly. Not launch, not
 growth, not revenue, not scale.
 
@@ -1311,29 +1312,43 @@ transactions.
   one-line, single-point change still gets its plan stated before any edit.
   "It's just one line" is not a reason to skip straight to code. If the plan
   is satisfactory and leaves no open question, carry it out straight away;
-  stop and ask only when it holds a decision that is the user's to make — a
+  stop and ask only when it holds a decision that is the author's to make — a
   trade-off with no clear default, a change of scope, a conflict with
   `PLAN.md` or this file — and give a recommendation with the question.
 - One task from `PLAN.md` — one session — one commit.
-- **Development is the staff developer's; the author, with Claude Code,
-  reviews it** — the author's decision, 2026-09-30. The developer works from
-  `PLAN.md` and sometimes changes it; `README.md` says what needs the
-  author's agreement, and every such change is a line in `PLAN.md` → "Plan
-  changes". Whose session this is, `git config user.name` says: `Sokrat` is
-  the author.
-  - **In the author's session, review before anything else.** `git fetch`,
-    then the commits since the one the last line of `PLAN.md` → "Review"
-    names (`git log --format='%h %an %as %s' <that commit>..origin/main`),
-    the author's own left out, and the "Plan changes" log. Read each commit
-    against its task's specification and the rules in this file, and check
-    that "Progress", "State" and this file were brought up to date. Tell the
-    author what was done, what departs from the plan or breaks a rule, and
-    every plan change that is not logged or still waits for their word.
-    Take no task from `PLAN.md` here unless the author asks for it; when the
-    author accepts a review, it gets its line in "Review".
-  - **In anybody else's session,** every change to `PLAN.md` beyond a task's
-    checkbox and "State", and every change to a rule in this file, gets its
-    line in "Plan changes" in the same commit.
+- **Two owners, by area** — the CEO's decision, 2026-09-30. The **CEO** owns
+  the interface and the product for students: what the bot says and does in
+  a chat, the document the group gets, how a "#word" finds things. The
+  **CPO** owns the database and the model: schema, migrations and queries,
+  recognition, prompts, the model stages and their measurements, cost and
+  limits, the infrastructure. `README.md` maps every area to its code.
+  **Shared, and decided by both:** the order of work in `PLAN.md`, the rules
+  in this file, and the contract between the prompts and `pdf.py` — the
+  syntax of a graph, a table or a frame, which one side writes and the other
+  draws. Where they disagree, what is stays as it is. "The author" in this
+  file and in `PLAN.md` is the owner of the area a decision falls in, and
+  both for what is shared; a decision dated before 2026-09-30 was made when
+  the CEO was the only author, and stands until the owner of its area
+  revises it.
+  - **Whose session this is**, `git config user.name` says: `Sokrat` is the
+    CEO, and any other author is the CPO.
+  - **Start with what the other pushed.** Both push to `main`: `git fetch`,
+    then `git log --format='%h %an %as %s' HEAD..origin/main` and the lines
+    of `PLAN.md` → "Plan changes" waiting for this person's word. Say what
+    changed and in whose area, and anything that breaks a rule here.
+  - **The other's area needs the other's word.** Work freely in the area of
+    the person you work for. Before changing a decision in the other's — a
+    prompt, a model setting, the schema; a text students read, a command,
+    the document's look — ask whether it is agreed, and say so in the
+    commit. A migration is the CPO's or agreed with the CPO: two written at
+    once give Alembic two heads, and the deploy stops.
+  - **Every change to `PLAN.md` beyond a task's checkbox and its owner's
+    line in "State", and every change to a rule in this file, is a line in
+    `PLAN.md` → "Plan changes"** in the same commit. One in the other's area,
+    or in what is shared, waits there for the other's word.
+  - **Pull before pushing, and never force-push `main`**: two people push to
+    it, GitHub's free plan cannot protect a private repository's branch, and
+    every push deploys.
 - No new tests while the project is in active development — the author's
   decision, 2026-09-29.
 - Nothing beyond the current task. Got an idea — put it in the `PLAN.md`
