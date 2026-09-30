@@ -1,10 +1,14 @@
 # PLAN.md
 
-Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
+The work plan. Since 2026-09-30 development is the responsibility of the
+author's staff developer, and the author reviews it with Claude Code —
+"Review", below "State". Lives in the repo root next to `CLAUDE.md`;
+`README.md` says how the work around it is organised.
 
 **How to work with this file:**
 
-1. The user names a task number. You do **only that one**.
+1. A task is named — by the author, or by "State" → "Next task". You do
+   **only that one**.
 2. Before writing code, describe the plan of changes. When it leaves no open
    question, carry it out in the same turn; ask only when it holds a decision
    that is the author's — `CLAUDE.md` → "How to work in this project".
@@ -18,6 +22,10 @@ Work plan for Claude Code. Lives in the repo root next to `CLAUDE.md`.
    decide on your own.
 7. A disputed question about types, boundaries, and field semantics —
    check the "Contracts" section at the end of the file first.
+8. A change to this file beyond your task's checkbox and "State" is the
+   author's to agree to: it goes in a commit of its own (`plan: …`, saying
+   why) with a line in "Plan changes", below "State". The same holds for a
+   rule in `CLAUDE.md`.
 
 ---
 
@@ -186,6 +194,30 @@ and the group is tested later. These come before 40 and 41.
       there by the author: Flex, another provider measured on an album
       already read, and the explanations' writing call at `low` are left
 
+**Phase D — the subject: a course a group builds up and gets back whole.**
+Set by the author on 2026-09-30. The work goes in this order — **47, 41, 52,
+51, 48** — and each task's specification is under "# Task N", after the task
+descriptions of week 2. 41 is the one listed under phase C.
+
+- [ ] 47. The bot added to a group chat in one tap, and seeing its pages
+      there without being made an admin
+- [ ] 52. A subject's records as one document to study from — the course,
+      opened by an overview the model writes over it, sent only when
+      somebody asks for it with a command
+- [ ] 51. The document's own look: the brand around the text, never in it
+- [ ] 48. A subject's materials: a PDF sent with its "#word" is kept as
+      Telegram's reference and its text, its topics are read out of what is
+      in it, and a "#word" finds it the way it finds a record
+
+Put off by the author on 2026-09-30 — not to be started without the author's
+word:
+
+- 49. The teacher's drive by link — Yandex Disk and Google Drive files and
+      folders read into a subject's materials
+- 50. The subject's context in the explaining stage — explanations that know
+      the course's earlier records and cite its materials. Discussed, not
+      scheduled
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -231,9 +263,78 @@ Update strictly following this template, adding or removing nothing:
 ```
 Done: 1-40, 42-43, 45-46
 Current task: none — 44 paused by the author on 2026-09-29
-Next task: none
-Blockers: 44 waits on the author — Flex, or another provider measured on an album already read
+Next task: 47
+Blockers: none for 47; 44 waits on the author — Flex, or another provider measured on an album already read
 ```
+
+## Plan changes
+
+The plan is the author's, and it is also the staff developer's working
+document, so it will change in other hands. Every change to this file that
+the author did not make — anything beyond a task's checkbox and "State" — is
+a line here, written in the same commit, and it stands as unaccepted until
+the author's word is in the last column. A rule changed in `CLAUDE.md` is
+logged here as well. `README.md` → "Changing the plan" says what needs the
+author's agreement before it is made.
+
+| Date | Who | What changed, and why | The author's word |
+|---|---|---|---|
+| 2026-09-30 | the author, with Claude Code | Phase D set: 47, 41, 52, 51, 48, in that order; 49 put off, 50 not scheduled. The plan opened to the staff developer, and this log started | the author's own |
+| 2026-09-30 | the author, with Claude Code | Task 52: the course document opens with an overview the model writes over its records. Development handed to the staff developer; the author reviews, and "Review" started | the author's own |
+
+## Review
+
+Development is the staff developer's since 2026-09-30, and the author, with
+Claude Code, reviews it. A review reads the commits since the last line of
+this table — the author's own left out — against each task's specification
+and `CLAUDE.md`, together with "Plan changes". The author's verdict, and
+what the developer is asked to put right, go in a new line. The developer
+reads this table before starting work.
+
+| Date | Reviewed up to | What was found | Asked of the developer |
+|---|---|---|---|
+| 2026-09-30 | `8a1cb2c` | The handover: everything up to here is the author's own work | — |
+
+## Where this is going, decided 2026-09-30
+
+**From the record to the subject.** Up to phase C the unit was a record: one
+lecture, one PDF. Phase D makes it a group's subject — "#матан" — which has
+its records, the materials the group uploads for it, and in the end a course
+the group gets back as one document. The record is still what all of it is
+made of, and every rule about the record stands.
+
+The author's decisions of that day, each one what its task is built on:
+
+- **The order: 47, 41, 52, 51, 48.** A group that can add the bot by itself
+  comes first, because the question the project exists to answer needs more
+  than one group; 41 comes before anything else that spends, because with
+  several groups one of them can exhaust the day's budget for all.
+- **A course as one document is an overview to study from, not an export**,
+  and the barrier `CLAUDE.md` put on any bulk export of the corpus is lifted
+  for it — for it alone. It opens with an overview the model writes over the
+  records, marked as the bot's like every addition. It is sent only when
+  somebody asks with the command; the bot never sends it by itself. Task 52.
+- **The brand stands around the text and never in it.** The body keeps what
+  task 36 measured off the reference; what is designed is the head of the
+  page, its furniture, the course's cover. Variants are rendered on real
+  records, and the author picks. Task 51.
+- **Context is uploaded as simply as a page, and found by "#word"** — through
+  its subject and through topics read out of what is in it. Task 48.
+- **The teacher's drive by link is put off** (49), and so is what context
+  would do inside the pipeline (50).
+- **Development passes to the staff developer, and the author reviews.** The
+  developer takes the tasks in order and answers for them; the author, with
+  Claude Code, reads what was done against the plan — "Review".
+
+**What context does not do, whenever it comes: it never enters recognition.**
+The worst failure this project has reproduced is a fluent retelling of a page
+the model could not read. With a teacher's slides in the prompt, a bad shot
+would come back as the slides — convincing and wrong, and a lecture may
+differ from its slides on purpose. If it is ever tried there, it is an arm on
+an album already read, and the author's check against the photographs
+decides. Where it could help is the explaining stage (50): record 50's
+explanation called its m̄ an «описка», with nothing to tell it how the course
+writes.
 
 ## Where the cost work stands, 2026-09-29
 
@@ -2164,6 +2265,374 @@ never been used.
 
 ---
 
+# Phase D: the tasks
+
+Specified on 2026-09-30, in the order they are done: 47, 41, 52, 51, 48.
+Where a specification and the code disagree, the code is what exists and the
+specification is what the author decided: ask before choosing either.
+
+# Task 47. The bot added to a group in one tap
+
+## Why
+
+Today a group gets the bot in two steps: somebody adds it, and then an admin
+of the chat makes it an admin — the welcome asks for that, because with
+privacy mode on a bot sees nothing else there. The second step is open only
+to the chat's admins, and in a course chat the student who wants the bot is
+usually not one. Every group but the author's has to be able to do it alone.
+
+## Do
+
+1. **Privacy mode off** — the author's action, since the token is the
+   author's: BotFather → the bot → Bot Settings → Group Privacy → Turn off.
+   The bot then receives a group's messages as an ordinary member, which is
+   what it receives as an admin today and no more, and `middlewares.heard`
+   drops what is not addressed to it before a session is opened, as it does
+   now. The change takes effect in a group only when the bot is added to it
+   afterwards; the author's own chat has it as an admin and needs nothing.
+2. **A button.** `/start` and `/help` in a private chat carry one inline URL
+   button, «Добавить в чат группы», opening
+   `https://t.me/<username>?startgroup=add`: Telegram shows its own chat
+   picker and adds the bot to the chat picked. The username comes from
+   `bot.me()`, never from a constant, and the label lives in `texts.py`. It
+   is the first button the bot shows, and it is not styling — the chat stays
+   plain text; it is the only way Telegram offers to open its picker.
+3. **One welcome, not two.** A group the bot joins through the link gets
+   `on_joined`'s welcome, and then a `/start@<bot> add` that the person's
+   client sends on its own. In a group a `/start` with a payload is not
+   answered; it writes `group_invited` with `{"via": "<payload>"}`, which is
+   how the button's use is counted.
+4. **The welcome stops asking to be made an admin** where the bot sees the
+   chat — `texts.group_welcome(sees)` already leaves the request out when
+   `sees` is true. `GROUP_CANNOT_SEE` and `on_promoted` stay, for the day
+   privacy mode is turned back on.
+5. `CLAUDE.md` → "A group chat", the paragraph on BotFather; `PLAN.md` →
+   "Contracts", `group_invited` in the table of a group's events.
+
+## Acceptance criterion
+
+- From a private chat: `/start` shows the button, it opens Telegram's picker,
+  and the chat picked gets the bot and **one** welcome, which does not ask
+  for admin rights.
+- In that chat, the bot an ordinary member, a photo with "#матан" in its
+  caption comes back as a PDF, and a message not addressed to the bot gets no
+  answer and opens no session.
+- The deploy log's `Groups:` line reads "sees every message".
+- `events` holds `group_joined` with `sees_photos: true`, and `group_invited`.
+- The suite is green.
+
+## Don't do
+
+- Don't put `&admin=…` in the link: Telegram then lists only the chats where
+  the person can appoint admins — the very limit this task removes.
+- Don't hard-code the bot's username.
+- Don't change `heard()`: what reaches the bot in a group stays as it is.
+
+---
+
+# Task 41. Limits and spend counted per group
+
+## Why
+
+Two limits exist: a person's pages a day (`DAILY_PAGES_PER_USER`), charged in
+a group to whoever brought the pages, and one cost cap for the whole bot
+(`DAILY_COST_LIMIT_USD`), a breaker over every chat at once. With the bot in
+more than one group — which is what task 47 is for — one busy group can
+exhaust the day for every other group and every private chat. That is the
+first `CLAUDE.md` → "Scale debt" row to come due. The second comes due with a
+second person in one chat: two people calling the bot on one album at once
+get two records and two bills, because a call is matched to an earlier record
+only once that record is saved.
+
+## Do
+
+1. **A group's day has a cap of its own.** `ai_calls.group_id`, in a
+   migration — the next revision id is in `CLAUDE.md` → "Development
+   commands": the group a call was made for, `NULL` in a private chat.
+   `vision.log_ai_calls` takes it, and every call made for a group's record
+   writes it. A new setting, `DAILY_COST_LIMIT_PER_GROUP_USD` — default 2, the
+   value the author's — and `limits.check_limits` refuses a group's pages once
+   that group's spend today has reached it, with a line of its own in
+   `texts.py`. The global cap stays above it as the breaker and is checked
+   first; a person's page quota stays as it is.
+2. **One reading of the same pages at a time.** While a group's pages are
+   being read — `corpus.source_key` names them, a tagged album and a reply's
+   call alike — a second call on them starts no second reading: it is told in
+   a line that the record is on its way, and the record goes to the chat once.
+   An in-process set of the keys being read is enough while the bot is one
+   replica; it is emptied in a `finally`.
+3. `CLAUDE.md`: "Scale debt" — the two rows this closes, and the new set
+   beside the album buffer in the row a second replica breaks — "Environment
+   variables", and the limits sentence of "A group chat".
+
+## Acceptance criterion
+
+- A group whose spend today reached its cap gets the new line for its next
+  page and nothing is spent; another group and a private chat go on as
+  before.
+- The global cap still stops every chat.
+- Two replies "#матан" to one untagged album a second apart: one record, one
+  set of `ai_calls` rows, one PDF in the chat.
+- The `ai_calls` rows of a group's record carry its `group_id`.
+- The suite is green.
+
+## Don't do
+
+- Don't reserve budget ahead of a call, and don't lock rows: the cap stays
+  soft, as `PLAN.md` → "Known risks" says.
+- Don't move the album buffer or the new set out of the process — that is the
+  first row of "Scale debt" and a task of its own.
+
+---
+
+# Task 52. A course as one document, on command
+
+## Why
+
+A group builds a subject up lecture by lecture, and before an exam it wants
+the course, not twenty files. The author ruled on 2026-09-30 that such a
+document is an overview to study from, not an export, and lifted the barrier
+`CLAUDE.md` put on bulk export of the corpus — for this document alone, and
+only when somebody asks for it. The same day the author decided that the
+group gets it with an overview the model writes over the records: the map of
+the course a student needs before reading twenty lectures of it.
+
+## Do
+
+1. **A command**, `/report <subject>` — `/report матан` or `/report #матан`,
+   and in a group `/report@<bot> матан` as well. On the menu and in `/help`
+   through `texts.COMMANDS` («отчёт по предмету одним PDF»), which
+   `test_wiring` requires of every command. Without a subject it answers with
+   the chat's subjects (`corpus.known_tags`) and how to ask; a subject with
+   no records gets a line saying so, with the subjects there are.
+2. **What it collects:** the chat's records (`corpus._owned`) whose subject
+   is that word — `Note.tag`, not the topics, which would pull in other
+   subjects' lectures — oldest first.
+3. **The document**, one PDF:
+   - **a cover** — the subject, the chat's title in a group, the dates of the
+     first and the last record, how many records and pages;
+   - **contents** — every record's date and title, with the page of this
+     document it starts on;
+   - **an overview of the course**, after the contents and before the
+     records — the one text in the document a model writes for it, set in
+     the box the bot's summary has, in the tone no other box has, under a
+     label of its own in `texts.py` («Обзор курса · составлен ботом по
+     записям»);
+   - **the records**, each from a new page and each exactly as
+     `corpus.send_record` draws it alone: the title, the margin line, the
+     missing-pages box, the text, the findings, the explanations, the
+     summary. `pdf.render` is split so that a record's story can be built on
+     its own and set into one document;
+   - **an index of the terms defined** — under every heading «Определение»,
+     the term the definition sets in bold (rule 3 of `prompts-compose-v3.md`
+     has the composer bold the term it defines, once, where it is
+     introduced), with the date of its record and its page. A definition with
+     no bold term is left out rather than guessed;
+   - pages numbered through the whole document ("12 / 87"), and a running
+     head naming the record the page belongs to.
+4. **The overview is one call, and every rule of a call holds.** Text only,
+   over the records as they are stored, oldest first, each headed by its date
+   and title; never the photographs. What it is asked for, in a prompt file
+   of its own (`prompts-overview-v1.md`): what the course covered and in what
+   order, how the topics build on one another, the main definitions and
+   results, what to go back to before an exam — a page or two, in
+   paragraphs, as JSON. On `EXPLAIN_MODEL` at the model's default thinking —
+   it is text of the document, and its quality is not traded for price —
+   within `EXPLAIN_CALL_TIMEOUT_S`. Limits are checked before it and its cost
+   counts against the chat's cap from task 41 (rule 6); every attempt is
+   written to `ai_calls` with `kind="overview"` (rule 4); its answer is
+   parsed without trust (rule 7).
+5. **Its guard is the summary's, by code.** The overview says what the
+   records say, so a paragraph that states a number no record carries is
+   dropped — `explain`'s summary check, applied to each paragraph against
+   the numbers of all the subject's records — and counted. Off
+   (`AI_ENABLED=false`), over the limits, failed, or with nothing left after
+   the guard, the document goes out without the overview, exactly as it
+   would have without the step.
+6. **Nothing sinks it.** A record whose drawing raises stands as its plain
+   text, the way `send_record` falls back, and the document goes on. It is
+   drawn in a thread, like a record, and the chat is told first that it is
+   being put together — a course of fifteen records and its overview take a
+   while.
+7. **An event**, `report_requested`: `{"tag": str | null, "records": int,
+   "overview": bool, "overview_dropped": int}` — whether the overview went
+   in, and how many of its paragraphs the guard took out — added to
+   "Contracts".
+8. `CLAUDE.md`: "What NOT to do" already names the exception; "The document"
+   gets the course document and its overview beside stage three's summary;
+   "Structure", "Concurrency ceilings" and "Tests" whatever changed.
+
+## Acceptance criterion
+
+- `/report матан` in the author's chat: one PDF — the cover, the contents
+  with the right pages, the overview in its box, every "#матан" record oldest
+  first, each from a new page and drawn as it is alone, the index, the pages
+  numbered through.
+- The overview's call is in `ai_calls` with its cost; with `AI_ENABLED=false`
+  the same command sends the document without the overview; a paragraph
+  given a number no record carries, in a local run, is dropped and counted.
+- `/report` alone lists the subjects; an unknown subject says so.
+- A record made to raise in a local run comes out as text, and the rest of
+  the document is whole.
+- `report_requested` is in `events`.
+- The suite is green.
+
+## Don't do
+
+- The model writes the overview and nothing else: the records go into the
+  document as they are stored, never rewritten, re-read or re-explained.
+- Don't keep an overview to use it again: a report is asked for rarely, and
+  each one is written over the records as they stand. If repeated reports
+  start to cost, that is the author's to decide.
+- Nothing is sent that nobody asked for — not after a record, not on a day.
+- No other format and no archive: no Markdown, no ZIP, no "every subject at
+  once". This document is the one exception to the barrier.
+- Don't design the cover and the contents beyond the system task 36 fixed:
+  task 51 does that.
+
+---
+
+# Task 51. The document's own look
+
+## Why
+
+The group gets a document from the bot, and so far it looks like the
+author's own notes: task 36 copied `матан 24.09.2026.pdf`, and its
+readability is settled. What it lacks is a face of its own — a group that
+receives one cannot tell whose it is, and the course document of task 52 has
+a cover that says nothing. The author agreed on 2026-09-30 how that is done:
+the brand stands around the text and never in it.
+
+## Before starting — the author's brief
+
+The name the document carries (the repository is "Conspectium"), a mark or a
+logo if there is one, colours if there are any, and the character — strict
+and academic, or modern. Without the brief the task does not start.
+
+## Do
+
+1. **What the brand may touch:**
+   - the head of the first page — the name or mark, the subject, the date;
+   - the page furniture — the running head, the page numbers;
+   - a closing line after the last box, naming who made the document and for
+     which chat;
+   - the course document's cover and contents (task 52);
+   - the file name and the PDF's metadata — author, creator;
+   - one accent colour of the brand's, in the furniture and on the cover;
+   - a colour per subject, if the author wants one.
+2. **What it may not touch:** the body — the scale, the leading, the column,
+   the rhythm, the faces — and the tones of the boxes, which carry meaning:
+   amber for what is certainly wrong, blue for what may be, green for what
+   the bot added. A brand colour that could be read as one of them is not
+   used.
+3. **How it is decided:** three variants, each rendered on the same real
+   records — 45 (a long division and findings) and 51 (explanations and many
+   definitions), taken from the database — and on a course document from
+   task 52. The author picks one, or parts of several. The pick becomes the
+   new reference: its values go into `pdf.py` as named constants and into
+   `CLAUDE.md` → "The document", the way task 36's did.
+4. **The chat's face, the author's actions:** the bot's name, picture and
+   description in BotFather, in the same identity.
+
+## Acceptance criterion
+
+- Records 45 and 51 and a course document re-rendered in the chosen look,
+  and the author's word that it is the one.
+- The body measures as before: the same scale, column and rhythm, and the
+  page count of a record within one page of what it was.
+- `CLAUDE.md` → "The document" describes the new reference.
+- The suite is green.
+
+## Don't do
+
+- No cover on a single record: a sheet of paper for a page of notes.
+- No band or picture that takes height from the column on every page.
+- No new font unless the brief asks for one — and then bundled with its
+  licence, as Lato is.
+
+---
+
+# Task 48. A subject's materials: kept, read into topics, found
+
+## Why
+
+A group has more for a subject than its own notes: the teacher's slides, a
+problem set, a chapter of a textbook. The author asked on 2026-09-30 for that
+context to be uploaded as simply as a page is and found again easily — by its
+tags and by what is in it. The teacher's drive by link is task 49, put off;
+this one takes a file.
+
+## Do
+
+1. **Upload.** A PDF sent with "#subject" in its caption, in a group or a
+   private chat, is a **material** of that subject, owned the way a record
+   is: by the group in a group, by the user in a private chat. Without a
+   "#word" a private chat is asked for one in a line and a group gets
+   nothing, as with an untagged photo. Up to 20 MB, what a bot can download.
+   A `.docx` stays what it is today, a record.
+2. **What is kept** — a `materials` table, in a migration: the owner
+   (`group_id`; `user_id`, who brought it), the subject, the file's name,
+   Telegram's `file_id` and `file_unique_id`, the page count, the text of its
+   text layer, when. **Not the file:** it stays on Telegram, and the bot sends
+   it back by its `file_id` — the pattern `group_pages` set for rule 3. The
+   same file (`file_unique_id`) sent again under the same subject is the same
+   material. The text is read by code, with `pypdf` — pure Python, the one new
+   dependency, and this task is its reason. A PDF with no text layer — a scan
+   — is kept all the same and found by its subject and its name, and the
+   reply says that what is in it could not be read; reading a scan with the
+   model is not this task.
+3. **Its topics, from what is in it.** One text-only model call over the
+   text: its main terms, five to ten, in the nominative, as JSON — on
+   `COMPOSE_MODEL`, the text stage's model. Every rule of a model call holds:
+   limits checked before it (rule 6) and its cost counted against the chat's
+   cap from task 41, written to `ai_calls` with `kind="topics"` (rule 4), its
+   answer never trusted (rule 7). A term the text does not contain is dropped
+   — checked by code, word stems against the text, the way the summary's
+   numbers are checked against the record. Nothing is recognised, so a
+   material's pages count against nobody's page quota. The terms are stored
+   in `material_topics` — a table, for the reason `note_topics` is one —
+   normalized by `tags.normalize`, and the reply names them: «Добавил в
+   материалы #матан: «Лекция 5.pdf», 24 стр. Темы: #ряд #признак_даламбера …»
+   — the user sees what the bot will find it by, as with a record's topics.
+4. **Found by "#word", like a record.** `corpus.on_tag` searches the chat's
+   records and materials together: a material matches by its subject, by a
+   topic, or by a word of its file name. One match that is a material comes
+   back as the file itself; several are one list, the materials marked as
+   such. When no tag matches, the word is looked for in the text of the
+   chat's records and materials — PostgreSQL full-text search with the
+   Russian configuration, so that «ряды» finds «ряд» — kept behind one
+   function, since the suite's SQLite has none. `topic_searched` gains
+   `materials` beside `found`.
+5. **An event**, `material_added`: `{"material_id": int, "tag": str, "pages":
+   int, "has_text": bool, "topics": int}`, added to "Contracts".
+6. `CLAUDE.md`: rule 3 (what a material keeps), "The corpus", "Structure",
+   and the new dependency.
+
+## Acceptance criterion
+
+- A PDF of slides with "#матан" in a group: the reply names it, its pages and
+  its topics; the database holds its text and its reference, not the file.
+- "#матан" lists the chat's records and the material; one of its topics
+  brings the file back; a word that stands only inside its text finds it
+  through the full-text search.
+- A scanned PDF is kept, the reply says its content could not be read, and
+  "#матан" finds it.
+- The same file sent twice is one material.
+- `ai_calls` holds the topics call with its cost, and a chat over its cap
+  gets no call.
+- The suite is green.
+
+## Don't do
+
+- No drive links (49), and no reading of a scan by the model.
+- Nothing from a material goes into recognition, composition or the
+  explanations — that is 50, not scheduled — and into recognition never
+  without an arm (`PLAN.md` → "Where this is going, decided 2026-09-30").
+- No embeddings and no vector search: a "#word" is the way in.
+- Don't change what a `.docx` or a photo becomes.
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -2626,8 +3095,9 @@ under the three-character floor an explanation's anchor already had.
 - A targeted re-ask to the model about found discrepancies
 - Video, lecture transcription
 - Payments, subscriptions
-- Export to Anki, and any bulk export of the corpus (`/pdf` renders one
-  record for reading — not a download-everything button)
+- Export to Anki, and any export of the corpus as data. A subject's course as
+  one document to study from, sent on command, is task 52 — the one
+  exception, made by the author on 2026-09-30
 - Styling and design of responses
 - Caching, queues, workers, Redis — until the album buffer has to leave
   process memory (`CLAUDE.md` → Scale debt), and then Postgres first

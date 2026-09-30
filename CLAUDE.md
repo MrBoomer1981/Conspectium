@@ -61,7 +61,14 @@ explaining stage and a PDF that never prints raw LaTeX), and **the group**
 (the bot in a course chat, a record owned by the chat rather than by a
 person). Task 39 put the bot in the chat, and on 2026-09-25 the author put the
 group on hold: every effort goes to the record first, and the group is tested
-later. What is under way now is `PLAN.md` → "State". The question the whole
+later. The author took the group up again on 2026-09-29 (task 40), and on
+2026-09-30 set a fourth phase, **the subject**: a group adds the bot by
+itself, spend is counted per group, a subject's records come back as one
+document on command, the document gets a look of its own, and materials
+uploaded under a subject are found by "#word" — `PLAN.md` → "Where this is
+going, decided 2026-09-30". The same day development passed to the author's
+staff developer, and the author, with Claude Code, reviews it. What is under
+way now is `PLAN.md` → "State". The question the whole
 thing exists to answer is whether a group uses this weekly. Not launch, not
 growth, not revenue, not scale.
 
@@ -1089,6 +1096,7 @@ app/
     config.py         settings from the environment
     events.py         event logging (log_event + log_event_standalone)
 tests/
+README.md            how the work is organised: the plan first, and who may change it
 CLAUDE.md
 PLAN.md
 FINDINGS.md          the evidence behind the rules in this file
@@ -1307,6 +1315,25 @@ transactions.
   trade-off with no clear default, a change of scope, a conflict with
   `PLAN.md` or this file — and give a recommendation with the question.
 - One task from `PLAN.md` — one session — one commit.
+- **Development is the staff developer's; the author, with Claude Code,
+  reviews it** — the author's decision, 2026-09-30. The developer works from
+  `PLAN.md` and sometimes changes it; `README.md` says what needs the
+  author's agreement, and every such change is a line in `PLAN.md` → "Plan
+  changes". Whose session this is, `git config user.name` says: `Sokrat` is
+  the author.
+  - **In the author's session, review before anything else.** `git fetch`,
+    then the commits since the one the last line of `PLAN.md` → "Review"
+    names (`git log --format='%h %an %as %s' <that commit>..origin/main`),
+    the author's own left out, and the "Plan changes" log. Read each commit
+    against its task's specification and the rules in this file, and check
+    that "Progress", "State" and this file were brought up to date. Tell the
+    author what was done, what departs from the plan or breaks a rule, and
+    every plan change that is not logged or still waits for their word.
+    Take no task from `PLAN.md` here unless the author asks for it; when the
+    author accepts a review, it gets its line in "Review".
+  - **In anybody else's session,** every change to `PLAN.md` beyond a task's
+    checkbox and "State", and every change to a rule in this file, gets its
+    line in "Plan changes" in the same commit.
 - No new tests while the project is in active development — the author's
   decision, 2026-09-29.
 - Nothing beyond the current task. Got an idea — put it in the `PLAN.md`
@@ -1337,7 +1364,12 @@ Everything below is deliberately postponed. Don't suggest or implement:
 - An admin panel
 - Export to Anki, and any bulk export of the corpus. A record comes back as
   one PDF when a tag matches it — that is presentation, not an exit door, and
-  it is not licence to add "download everything"
+  it is not licence to add "download everything". The one exception is the
+  author's, 2026-09-30: a subject's records as one document to study from,
+  opened by an overview the model writes over them and marks as the bot's,
+  sent only when somebody asks for it with a command (`PLAN.md` → task 52).
+  It is an overview, not a download — no other format, no archive, no
+  "everything at once"
 - A language trainer, text rewriting, or any second feature
 - Visual design and styling of **bot responses** — the chat stays plain text.
   This is not the document: the PDF is what the group receives, so its design
