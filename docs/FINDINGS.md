@@ -954,3 +954,26 @@ to "Не смог обработать фото" after the recognition was paid 
 album the page became "ошибка обработки" and a hole. Production has no
 `note_failed` event at all, so no record is known to have hit it. Worked
 around in `vision`, the module left as it is.
+
+## Moved from CLAUDE.md, 2026-10-01
+
+When `CLAUDE.md` was rewritten to hold the rules rather than their history,
+four pieces of evidence it carried had no section here. They are kept as it
+told them.
+
+**The corpus in its first days, to 2026-09-23.** 133 pages went in over four
+days, as 37 records, and exactly one search came back out — by the author,
+minutes after the search shipped. That is why the document comes before any
+other way into the corpus.
+
+**Albums before phase A.** On 2026-09-23 capture still lost about one album in
+five. Phase A was the work of making a record exist.
+
+**The verification pass**, an early experiment. Asked to compare the
+transcription with the photo and list the discrepancies, the model invented
+one that did not exist, repeated it three times, and found none of the real
+ones. No verification pass with the model has been tried since.
+
+**Arithmetic**, the same early pages. `mathcheck` found a wrong constant and
+a chain of equalities that diverged — both missed by the model across four
+runs. Given a chain that does not add up, the model fixes it silently.

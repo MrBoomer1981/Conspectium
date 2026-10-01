@@ -298,6 +298,7 @@ other's word is in the last column.
 | 2026-10-01 | the CEO, with Claude Code | A definition's amber line reads the composing stage's rule 6 heading, "### Определение", which makes that heading part of the contract between the prompts and `pdf.py` | waits for the CPO |
 | 2026-10-01 | the CEO, with Claude Code | Backlog, from the guide: the pages as PNGs for a phone, the QR code carrying `?start=note_<id>`, "Школа × SUM" | the CEO's own |
 | 2026-10-01 | the CEO, with Claude Code | The repository in folders: `PLAN.md`, `FINDINGS.md` and `BRAND.md` in `docs/`; the prompts in `prompts/`, where `vision.load_prompt` reads them — the file names, and so the variables on Railway, unchanged; the records, reference notes and logs kept locally in `evidence/`, out of git | the CEO's; the prompts with the CPO aware |
+| 2026-10-01 | the CEO, with Claude Code | `CLAUDE.md` rewritten, on the branch `claude-md-rewrite`: the same rules with their reasons, in a third fewer words. The two owners and what production runs come first — its variables differ from the code's defaults, which the old file listed as if they were production's. The history moved to `FINDINGS.md`, four facts with no section there to "Moved from CLAUDE.md, 2026-10-01". Its shared sections and the CPO's areas are the CPO's to read before it is merged | waits for the CPO |
 
 ## Where this is going, decided 2026-09-30
 
