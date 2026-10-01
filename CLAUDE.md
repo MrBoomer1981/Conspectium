@@ -177,7 +177,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `012_group_pages`, the head. The next is `013_`.
+  `013_note_figures`, the head. The next is `014_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
