@@ -43,10 +43,19 @@ COMPOSE_PROMPT_WORDS = len(COMPOSE_PROMPT.split())
 # only catches that when the lost part had numbers in it.
 _MIN_LENGTH_RATIO = 0.8
 
-# "1. " and "2) " at the start of a line are markdown, not values on the page.
-# Rule 8 lets the composer turn a run of lines into a list, which renumbers
-# them, and that must not read as arithmetic being rewritten.
-_LIST_MARKER_RE = re.compile(r"^[ \t]*\d+[.)][ \t]+", re.MULTILINE)
+# "1. " and "2) " that count items are markdown, not values on the page. Rule 8
+# lets the composer turn a run of lines into a list, which renumbers them, and
+# that must not read as arithmetic being rewritten. Such a marker opens a line,
+# a heading or a bold label ...
+_LIST_MARKER_RE = re.compile(
+    r"^([ \t]*(?:#{1,6}[ \t]+)?(?:\*\*|__)?)\d+[.)][ \t]+", re.MULTILINE
+)
+# ... or follows, inside a line, the colon or semicolon that introduces it.
+# Record 59 lost its whole composition, headings and all, to "Примеры: 1) …"
+# made into the list it was: the 1 counted inside the line and not at its
+# start, so a number seemed to vanish. Inside a line only "1)": "Ответ: 2."
+# ends on a value, and the value is what this guard is for.
+_INLINE_MARKER_RE = re.compile(r"(?<=[:;][ \t])\d+\)(?=[ \t])")
 _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
 # Letters only. Digits are the numbers guard's business and punctuation is
 # markup's, so neither belongs in a count of words.
@@ -98,8 +107,19 @@ class Composition:
     stats: list[CallStats] = field(default_factory=list)
 
 
+def _inline_marker(match: re.Match) -> str:
+    """An inline item marker dropped — unless its bracket closes one opened
+    before it on the line: "(0; 1)" is an interval, and its 1 is a value."""
+    text = match.string
+    line = text[text.rfind("\n", 0, match.start()) + 1 : match.start()]
+    if match.group(0).endswith(")") and line.count("(") > line.count(")"):
+        return match.group(0)
+    return ""
+
+
 def _numbers(markdown: str) -> Counter[str]:
-    return Counter(_NUMBER_RE.findall(_LIST_MARKER_RE.sub("", markdown)))
+    unmarked = _INLINE_MARKER_RE.sub(_inline_marker, _LIST_MARKER_RE.sub(r"\1", markdown))
+    return Counter(_NUMBER_RE.findall(unmarked))
 
 
 def _words(markdown: str) -> Counter[str]:
@@ -319,13 +339,18 @@ async def compose(markdown: str) -> Composition:
     composed, unmarked = _cap_marks(markdown, composed)
     refused = _refusal(markdown, composed)
     drift = _drift(markdown, composed)
+    # How many numbers went and came, never which: they are the page's.
+    # Record 59's refusal took two paid calls in the container to explain.
+    before, after = _numbers(markdown), _numbers(composed)
     logger.info(
-        "compose: %s, %d -> %d chars, word drift %d, %d headings demoted, "
-        "%d marks taken back, model %s",
+        "compose: %s, %d -> %d chars, word drift %d, numbers %d lost %d gained, "
+        "%d headings demoted, %d marks taken back, model %s",
         f"refused ({refused})" if refused else "accepted",
         len(markdown),
         len(composed),
         drift,
+        sum((before - after).values()),
+        sum((after - before).values()),
         demoted,
         unmarked,
         settings.COMPOSE_MODEL,

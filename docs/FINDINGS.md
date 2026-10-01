@@ -1012,5 +1012,39 @@ shadow of the hand holding it, the other side of the sheet showing through.
   document as a pasted rectangle. Four drawings cut in 82 ms; 19 to 35 KB a
   PNG.
 
-None of this has met the model's own frames yet: the drawings were framed by
-hand. Record 59's album under `prompts-v8.md` is the measurement.
+**The measurement, the same evening: worse, and rolled back.** Record 59's
+album sent again under `prompts-v8.md` became record 60: nine drawings
+described, eight cut out and placed, 98 KB of them. Its hand is light — thin
+strokes on squared paper — and the cut-outs came out faint, the grid standing
+over the strokes rather than under them; the first frame took in the words
+beside the drawing and most of what it held was grid; and the arrows' labels
+were still written out as lines of text, rule 6 notwithstanding. One page's
+numeric agreement fell to 0.385 with its text agreement at 1.000. The CEO
+read the document as worse than 59's sentences, and production went back to
+`prompts-v6.md` within the hour; the code stays, asleep without frames. A
+cleaning set on a dark ballpoint does not carry to a light hand, and a frame
+from the model is looser than one drawn by hand — both before any next try.
+
+## The composition record 59 lost
+
+Record 59 came out with no heading at all, so with no numbered section either,
+and record 60 — the same album, read again under `prompts-v8.md` — the same:
+`compose: refused (numbers)` both times, while every other composition of
+the days before was accepted, nine of nine in the logs that remained. Run
+again inside the production container on the stored text, the composition
+was refused once more, and its numbers, aligned against the source's, showed
+one change: the source's `Примеры: 1) $x_n = …$` had become `**Примеры:**`
+and, on a line of its own, `1) $x_n = …$`. The composer had done what its
+rule 8 asks — made the list the line was — and the guard, which left out an
+item's number only at the start of a line, counted the 1 inside the line and
+not at its start: a number seemed to vanish, and the whole composition went,
+headings and all.
+
+The guard now leaves out what counts items wherever it does: "1)" or "2."
+opening a line, a heading or a bold label, and "1)" after a colon or a
+semicolon inside a line unless it closes a bracket opened before it, since
+"(0; 1)" is an interval and its 1 a value. "Ответ: 2." keeps its 2 — a value
+the guard is there for. Checked against record 59's case and its neighbours:
+the list, a heading and a bold label pass; an interval, an answer and a value
+changed are still refused. Two diagnostic calls cost $0.016, written to
+`ai_calls` against the CEO.

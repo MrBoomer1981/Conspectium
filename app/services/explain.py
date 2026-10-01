@@ -96,7 +96,8 @@ class Source:
 # dropped for being everyday; it only stands behind what is better (the
 # author's decision, 2026-09-25). The lists are kept by hand and short on
 # purpose: a site nobody listed is "everything else" and keeps the search's
-# own order, so a name missing here costs a place, never a source. The Gemini
+# own order, so a name missing here costs a place, never a source — a forum
+# excepted, which is no source at all (_NOT_SOURCES, 2026-10-01). The Gemini
 # API names a site by its registered domain — "wolfram.com", never
 # "mathworld.wolfram.com" — so that is the form a name is listed in.
 _TIERS = (
@@ -117,6 +118,20 @@ _TIERS = (
         r"intuit\.ru|foxford\.ru|problems\.ru|libelli\.ru|mathprofi\.ru|"
         r"studfile\.net|studme\.org|studopedia\.ru)$"
     ),
+)
+
+
+# A forum, a social network or a video is not a source, whatever else stands
+# under the explanation: record 59 printed reddit.com beside ucdavis.edu. Its
+# page is dropped, and an explanation left with none is dropped with it, by
+# the rule that already holds (`explain_unsourced`). Registered domains, the
+# form the Gemini API names a site in — see _TIERS.
+_NOT_SOURCES = re.compile(
+    r"(^|\.)(reddit\.com|quora\.com|mail\.ru|pikabu\.ru|vk\.com|vk\.ru|ok\.ru|"
+    r"facebook\.com|instagram\.com|x\.com|twitter\.com|t\.me|tiktok\.com|"
+    r"youtube\.com|youtu\.be|rutube\.ru|dzen\.ru|stackexchange\.com|"
+    r"stackoverflow\.com|mathoverflow\.net|answers\.com|brainly\.(com|ru)|"
+    r"znanija\.com)$"
 )
 
 
@@ -205,7 +220,7 @@ def _sources(response: object) -> list[Source]:
         # its title is that name. One link a site: a second page of it is
         # printed under the same name and reads as the first one twice.
         site = str(getattr(web, "domain", None) or title).strip().lower().removeprefix("www.")
-        if site in sites:
+        if site in sites or _NOT_SOURCES.search(site):
             continue
         sites.add(site)
         found.append((_tier(site), Source(title=title, uri=uri)))

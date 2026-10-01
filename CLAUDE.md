@@ -441,10 +441,15 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   needs an image to invent from. → "Why reading and composing are two calls"
 - **Its output is checked against its input by code** — text against text,
   not the forbidden verification against a photograph: the multiset of
-  numbers identical (list markers stripped), the count of `[неразборчиво]`
-  identical, the document not materially shorter. Otherwise the record is the
-  one stage one produced: off, refused or failed, the worst case of the stage
-  is the pipeline without it.
+  numbers identical, the count of `[неразборчиво]` identical, the document
+  not materially shorter. Otherwise the record is the one stage one produced:
+  off, refused or failed, the worst case of the stage is the pipeline without
+  it — and a refusal costs the record its headings, which is why the numbers
+  leave out what only counts items: "1)" or "2." opening a line, a heading or
+  a bold label, and "1)" after a colon or a semicolon inside a line unless it
+  closes a bracket — "(0; 1)" is a value. Record 59 lost its composition to
+  "Примеры: 1) …" made into a list. The log line says how many numbers went
+  and came, never which. → "The composition record 59 lost"
 - **A heading that is not one is repaired, not refused**
   (`_demote_invented_headings`, before `_refusal`, counted as
   `compose_demoted`): the marker comes off, every word stays. → "Headings the
@@ -474,10 +479,13 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   from what the model writes — one with none is dropped
   (`explain_unsourced`); and the summary may not state a number the record does
   not carry (`summary_refused`).
-- **Sources are ranked, never filtered** (`explain._TIERS`): science first,
-  then encyclopedias, study sites, the rest; three a box, one link a site; the
-  site read from the grounding chunk's `web.domain` or `web.title`, never from
-  the link, which is Google's redirect (2026-09-25).
+- **Sources are ranked, and a forum is none** (`explain._TIERS`): science
+  first, then encyclopedias, study sites, the rest; three a box, one link a
+  site; the site read from the grounding chunk's `web.domain` or `web.title`,
+  never from the link, which is Google's redirect (2026-09-25). A forum, a
+  social network or a video is dropped (`explain._NOT_SOURCES`, 2026-10-01:
+  record 59 printed reddit.com), and an explanation left with no source goes
+  with it, as `explain_unsourced`.
 - **Stored apart, printed as the bot's**: `notes.explanations` (with the
   sources) and `notes.summary`, never mixed into `markdown`. An explanation
   stands under the line it quotes or the formula it numbers, after that line's
@@ -633,6 +641,11 @@ why each is what it is. What a change must not break:
   perception (`\boxed{…}`, `[рамка: …]`, older `[в рамке: …]` and arrays
   ruled with `\hline`), a section's result is the composing stage's
   interpretation, capped by `compose._cap_marks`.
+- **Under the title stands a name, a date or a page, or nothing**
+  (`texts.byline`): what the margin said of whose lecture, which day, which
+  page — the notebook's print, a doodle described and stray letters are not
+  that, and record 59 printed «фор · 21:27 (0, 1)» there. Chosen when the
+  document is drawn, so a record stored before the rule is drawn by it too.
 - **Every page carries a head and the signature** (`pdf.Page`, built by
   `corpus._page`): the subject as its "#word", the day and "стр. 2/5" — never
   "с. 2", which inside a record means a photographed page; no number on a

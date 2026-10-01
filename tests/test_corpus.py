@@ -388,7 +388,8 @@ def test_an_empty_margin_has_no_byline():
 
 
 def test_a_byline_survives_a_stored_shape_that_is_not_a_string():
-    assert texts.byline([None, 3, "с. 4"]) == "None · 3 · с. 4"
+    # What is not a name, a date or a page has no place under the title.
+    assert texts.byline([None, 3, "с. 4"]) == "3 · с. 4"
 
 
 async def test_the_document_is_built_with_the_byline_of_the_record(

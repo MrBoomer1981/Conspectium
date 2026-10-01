@@ -415,10 +415,43 @@ def record_caption(note_id: int, page_count: int) -> str:
     return f"#{note_id} · {pages}"
 
 
+# What may stand under a record's title: whose lecture, which day, which page —
+# all that rule 8 of the prompt asks for. What the margin held on real pages
+# was mostly not that: the notebook's own print ("DATE", "BRAUBERG®"), a
+# doodle described, stray letters, once a whole "[схема: …]", and on record 59
+# «фор · 21:27 (0, 1)». So the line is chosen here rather than trusted, and a
+# record stored before the rule is drawn by it too.
+_MARGIN_NAME_RE = re.compile(
+    r"^(?:[А-ЯЁA-Z][а-яёa-z]+(?:-[А-ЯЁA-Z][а-яёa-z]+)?\s+[А-ЯЁA-Z]\.\s?(?:[А-ЯЁA-Z]\.)?"
+    r"|[А-ЯЁA-Z]\.\s?(?:[А-ЯЁA-Z]\.\s?)?[А-ЯЁA-Z][а-яёa-z]+(?:-[А-ЯЁA-Z][а-яёa-z]+)?)$"
+)
+_MARGIN_DATE_RE = re.compile(
+    rf"^(?:\d{{1,2}}[./]\d{{1,2}}(?:[./](?:\d{{4}}|\d{{2}}))?"
+    rf"|\d{{1,2}}\s+(?:{'|'.join(_MONTHS)})(?:\s+\d{{4}})?)$",
+    re.IGNORECASE,
+)
+_MARGIN_PAGE_RE = re.compile(r"^(?:(?:с|стр|л|лист)\.?\s*)?\d{1,3}$", re.IGNORECASE)
+_MARGIN_SEPARATOR_RE = re.compile(r"\s*[·,;]\s*")
+
+
+def _belongs_under_title(part: str) -> bool:
+    return bool(
+        _MARGIN_NAME_RE.match(part)
+        or _MARGIN_DATE_RE.match(part)
+        or _MARGIN_PAGE_RE.match(part)
+    )
+
+
 def byline(margin_notes: list[str]) -> str | None:
-    """What stood in the margin, as one line under the title. None when the
-    margin was empty — an empty line under a title is worse than none."""
-    parts = [str(n).strip() for n in margin_notes if str(n).strip()]
+    """What stood in the margin that says whose lecture, which day or which
+    page, as one line under the title. None when nothing did — an empty line
+    under a title is worse than none."""
+    parts = [
+        part
+        for note in margin_notes
+        for part in _MARGIN_SEPARATOR_RE.split(str(note).strip())
+        if part and _belongs_under_title(part)
+    ]
     return " · ".join(parts) if parts else None
 
 
