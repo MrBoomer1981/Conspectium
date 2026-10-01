@@ -230,7 +230,7 @@ def test_every_prompt_that_ships_loads_and_carries_a_prompt():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    names = sorted(path.name for path in root.glob("prompts-v*.md"))
+    names = sorted(path.name for path in (root / "prompts").glob("prompts-v*.md"))
 
     assert len(names) >= 3
     for name in names:

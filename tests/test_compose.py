@@ -566,9 +566,9 @@ async def test_a_frame_changes_no_number_and_passes_the_guards(monkeypatch):
 def test_the_prompt_that_marks_main_formulas_ships():
     import pathlib
 
-    text = pathlib.Path("prompts-compose-v3.md").read_text(encoding="utf-8")
+    text = pathlib.Path("prompts/prompts-compose-v3.md").read_text(encoding="utf-8")
     assert "\\boxed" in text and "Не больше двух на раздел" in text
-    assert "\\boxed" in pathlib.Path("prompts-v6.md").read_text(encoding="utf-8")
+    assert "\\boxed" in pathlib.Path("prompts/prompts-v6.md").read_text(encoding="utf-8")
 
 # ── the ceiling, and the attempt after the first ─────────────────────────────
 

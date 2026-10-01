@@ -5,7 +5,8 @@ interface and the product for students, the CPO the database and the model,
 and both push to `main` — `README.md` maps every area to its code. "The
 author" in this file is the owner of the area a decision falls in, and both
 for what is shared; a decision dated before that day was made when the CEO
-was the only author. Lives in the repo root next to `CLAUDE.md`.
+was the only author. Lives in `docs/` with `FINDINGS.md` and `BRAND.md`;
+`CLAUDE.md` and `README.md` stay in the repo root.
 
 **How to work with this file:**
 
@@ -296,6 +297,7 @@ other's word is in the last column.
 | 2026-10-01 | the CEO, with Claude Code | "Проверь себя" proposed, from the guide: a question at the end of a page or a section, written by the model. A new output and its guards are the CPO's, its display the CEO's; it stands next to the flashcards `CLAUDE.md` sets aside, so it is for both. Not scheduled | waits for the CPO |
 | 2026-10-01 | the CEO, with Claude Code | A definition's amber line reads the composing stage's rule 6 heading, "### Определение", which makes that heading part of the contract between the prompts and `pdf.py` | waits for the CPO |
 | 2026-10-01 | the CEO, with Claude Code | Backlog, from the guide: the pages as PNGs for a phone, the QR code carrying `?start=note_<id>`, "Школа × SUM" | the CEO's own |
+| 2026-10-01 | the CEO, with Claude Code | The repository in folders: `PLAN.md`, `FINDINGS.md` and `BRAND.md` in `docs/`; the prompts in `prompts/`, where `vision.load_prompt` reads them — the file names, and so the variables on Railway, unchanged; the records, reference notes and logs kept locally in `evidence/`, out of git | the CEO's; the prompts with the CPO aware |
 
 ## Where this is going, decided 2026-09-30
 

@@ -7,7 +7,7 @@ Project context. Read at the start of every session.
 
 It holds the rules and each one's reason in a sentence. The failure or the
 measurement a rule was bought with — the date, the album, the numbers — is in
-`FINDINGS.md`, and a `→ "…"` after a rule names the section there. New
+`docs/FINDINGS.md`, and a `→ "…"` after a rule names the section there. New
 evidence goes there; the rule it produces goes here.
 
 ---
@@ -1140,31 +1140,35 @@ app/
     config.py         settings from the environment
     events.py         event logging (log_event + log_event_standalone)
 tests/
+docs/
+  PLAN.md            the work: tasks and their owners, "State", "Plan changes", contracts
+  FINDINGS.md        the evidence behind the rules in this file
+  BRAND.md           the guide to how a record looks — pdf.py draws what it says
+prompts/
+  prompts-v3.md        TRANSCRIBE_PROMPT, read from disk at import
+  prompts-v4.md        the longer variant under test, behind PROMPT_FILE
+  prompts-v5.md        extraction only — no rule about how a page should look
+  prompts-v6.md        v5, and the author's frames written as \boxed{...}
+  prompts-v7.md        v6 without the list of numbers and the doubtful spots — tried, rolled back
+  prompts-compose-v1.md  stage two: markup over text already trusted
+  prompts-compose-v2.md  the same job, said as instructions rather than bans
+  prompts-compose-v3.md  v2, and the main formula of a section framed
+  prompts-explain-v1.md  stage three: explanations and a summary, as JSON
+  prompts-explain-source-v1.md  stage three: the search for one explanation's source
+  prompts-explain-source-v2.md  the same search, asked for science first
+evidence/            local only, never in git: records, reference notes, Railway logs
 README.md            how the work is organised: the plan first, and who may change it
-BRAND.md             the guide to how a record looks — pdf.py draws what it says
 CLAUDE.md
-PLAN.md
-FINDINGS.md          the evidence behind the rules in this file
-prompts-v3.md        TRANSCRIBE_PROMPT, read from disk at import
-prompts-v4.md        the longer variant under test, behind PROMPT_FILE
-prompts-v5.md        extraction only — no rule about how a page should look
-prompts-compose-v1.md  stage two: markup over text already trusted
-prompts-compose-v2.md  the same job, said as instructions rather than bans
-prompts-compose-v3.md  v2, and the main formula of a section framed
-prompts-explain-v1.md  stage three: explanations and a summary, as JSON
-prompts-explain-source-v1.md  stage three: the search for one explanation's source
-prompts-explain-source-v2.md  the same search, asked for science first
-prompts-v6.md        v5, and the author's frames written as \boxed{...}
-prompts-v7.md        v6 without the list of numbers and the doubtful spots — tried, rolled back
 ```
 
 The prompt files hold the prompts as plain text. `vision.py` doesn't copy
-one — it reads `PROMPT_FILE` from the repo root at **import time**, so the
+one — it reads `PROMPT_FILE` from `prompts/` at **import time**, so the
 file has to ship with the deploy or the process dies at startup, and editing
 it changes the prompt without touching any Python.
 
-The `.pdf` records and Railway log dumps in the repository root are **not**
-tracked — `.gitignore` covers `*.pdf` and `*.log`. They are the evidence
+The `.pdf` records, the author's reference notes and the Railway log dumps
+are kept in `evidence/` and **not** tracked — `.gitignore` covers the folder,
+`*.pdf` and `*.log`. They are the evidence
 behind `FINDINGS.md`, the albums the arms were measured on and the logs a
 number was read out of; nothing reads them at runtime or in the suite. A
 record is a user's page of notes, and the corpus lives in the database, not
@@ -1378,7 +1382,7 @@ transactions.
     CEO, and any other author is the CPO.
   - **Start with what the other pushed.** Both push to `main`: `git fetch`,
     then `git log --format='%h %an %as %s' HEAD..origin/main` and the lines
-    of `PLAN.md` → "Plan changes" waiting for this person's word. Say what
+    of `docs/PLAN.md` → "Plan changes" waiting for this person's word. Say what
     changed and in whose area, and anything that breaks a rule here.
   - **The other's area needs the other's word.** Work freely in the area of
     the person you work for. Before changing a decision in the other's — a

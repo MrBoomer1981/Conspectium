@@ -32,11 +32,16 @@ from app.services import consensus, graphcheck, mathcheck, pdf
 logger = logging.getLogger(__name__)
 
 def load_prompt(name: str) -> str:
-    """One prompt file from the repo root, verbatim. A bare file name, not a
-    path: the file ships with the deploy. A missing one raises here, at import,
-    so the process dies on the deploy rather than on somebody's first photo."""
+    """One prompt file from the repo's `prompts/`, verbatim. A bare file name,
+    not a path: PROMPT_FILE and its siblings name the file, and where the
+    prompts live is the code's to know — so the variables set on Railway stayed
+    as they were when the prompts left the repo root. The file ships with the
+    deploy. A missing one raises here, at import, so the process dies on the
+    deploy rather than on somebody's first photo."""
     return (
-        (Path(__file__).resolve().parents[2] / name).read_text(encoding="utf-8").strip()
+        (Path(__file__).resolve().parents[2] / "prompts" / name)
+        .read_text(encoding="utf-8")
+        .strip()
     )
 
 
