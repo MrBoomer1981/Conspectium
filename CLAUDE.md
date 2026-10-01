@@ -570,61 +570,92 @@ three capture paths finish with `corpus.send_record`. Rendering is CPU-bound
 and runs in a thread; if it fails for any reason the record is sent as plain
 text. A record is never lost over its presentation.
 
-**The document's look is one system, decided in `pdf.py` (task 36), and it is
-copied from one file: the author's `матан 24.09.2026.pdf`.** Its values were
-read out of that PDF — sizes, greys, rules, the column — not chosen by eye;
-a change to the look is a change measured against it. It is what the group
-receives, so none of it is left to reportlab's defaults:
+**The document's look is one system, decided in `pdf.py`, and it follows one
+file: `BRAND.md`, the CEO's guide to how a SUM record looks** — given on
+2026-09-30 and rewritten the next day to v1.1 where the records demanded it,
+with what changed and why at its end. It replaced the look task 36 had copied
+out of the author's `матан 24.09.2026.pdf`. The record is also SUM's
+advertisement: it is forwarded to a group's chat, and whoever opens it has to
+see where it came from and how to get one. A change to the look is a change
+to both files, in one commit. None of it is left to reportlab's defaults:
 
-- **Lato for the text, Computer Modern for the formulas**, as the reference's
-  Lato and KaTeX. Lato 2 is bundled in `app/assets/fonts/` under its OFL
-  licence: the Lato Google serves has no Cyrillic. Lato lacks some symbols —
-  `∀ ∈ ⇒ ► ℝ` — and reportlab has no fallback of its own, so `pdf._text`
-  sets every run of them in DejaVu; without it they print as empty boxes.
-  Computer Modern has no Cyrillic either, and mathtext sets a `\text{кольца}`
-  in a serif of its own, which is what the reference does too.
-- **One scale and one rhythm.** Body 12 pt at a leading of 1.6, title 24,
-  sections 18 and 14, formulas ×1.06. Heading levels are counted from the top
-  one the record uses, so "##" sections look like "#" ones. The space between
-  two blocks comes from `_space_before`, which knows what both of them are:
-  lines of one paragraph sit at the leading alone, a blank line opens a
-  paragraph, a display formula, a table or a drawing is set apart, and a run
-  of display formulas is one close block.
-- **The column is the reference's: 66 pt either side, 463 pt of text.**
-  reportlab's frame pads its content by 6 pt inside the margins, and the
-  margins allow for it; left out, every box as wide as the column ran 12 pt
-  past its right edge.
+- **Paper and ink, and five colours off the logo.** Every page is filled with
+  the guide's paper, `#F1E8D8`, never white; the text is its ink, `#1A1612`.
+  Amber is graphics only — the star, the line beside a definition — being too
+  pale for text on paper; dark amber is its text: a section's number, a
+  finding's label. Kraft is for dividers, and a lighter kraft is the ground
+  under a formula. The guide's "grey ink" had no value and has one here:
+  `#6E655A`, ink at 65%, 4.7 to 1 against the paper.
+- **Onest for the text, Unbounded for the title and the sections, JetBrains
+  Mono for what serves the page** — the head, a section's number, a box's
+  label, the sources, the bot's name. All three are bundled in
+  `app/assets/fonts/` under their OFL licences, as static weights cut from
+  the variable fonts, which reportlab reads at their default weight only.
+  Onest lacks some symbols — `∀ ∈ ⇒ ► ℝ`, Greek, even the zero-width space —
+  and reportlab has no fallback of its own, so `pdf._text` sets every run of
+  them in DejaVu; without it they print as empty boxes.
+- **The formulas stay in Computer Modern, not the guide's monospace.** Set in
+  JetBrains Mono by mathtext, record 51's "ker φ" ran together, its dotted
+  zero read as a θ, and a variable could not be told from an operator
+  without italics. Computer Modern has no Cyrillic, and mathtext sets a
+  `\text{кольца}` in a serif of its own.
+- **One scale and one rhythm, the guide's.** Body 11 pt at a leading of 1.5,
+  title 22, sections 13.5 in Unbounded, subsections 12.5 in Onest, formulas
+  ×1.1 — Computer Modern's x-height is smaller than Onest's. Heading levels
+  are counted from the top one the record uses, so "##" sections look like
+  "#" ones, and the top ones are numbered "01", "02" through the record.
+  Sections are set apart by air, not rules. The space between two blocks
+  comes from `_space_before`, which knows what both of them are: lines of one
+  paragraph sit at the leading alone, a blank line opens a paragraph, a
+  display formula, a table or a drawing is set apart, and a run of display
+  formulas stands on one ground.
+- **The column is 66 pt either side, 463 pt of text, and it ends above the
+  signature.** reportlab's frame pads its content by 6 pt inside the margins,
+  and the margins allow for it; left out, every box as wide as the column ran
+  12 pt past its right edge.
 - **A formula is a picture, and is made to sit like text.** It is lowered by
   its measured depth so its baseline is the line's, shrunk to the column when
   wider, and drawn with a quarter-point stroke — Computer Modern's hairlines,
-  smoothed as pixels, came out a pale grey beside Lato. A zero-width space
+  smoothed as pixels, came out a pale grey beside the text. A zero-width space
   after an inline formula, where the page had a space, is the only place
-  reportlab will break a line after an image.
+  reportlab will break a line after an image. A display formula stands on
+  the kraft ground as wide as the column (`pdf._grounded`).
 - **A heading is held back and set in one group with what it heads**, a
   finding with its line, a table whole. The groups are built by hand and flat:
   reportlab's own `keepWithNext` nests one `KeepTogether` in another, the inner
   one reports an effectively infinite height, and the heading stays behind. A
   unit that keeps itself whole — a long division — is opened into the group it
   joins (`pdf._opened`): nested, it sent the group to the next page even where
-  it fitted, and record 47 went from eight pages to six.
-- **Every box beside the text has one anatomy**, the reference's
-  "ЗАМЕЧАНИЕ": a 3 pt bar down the left, a label in spaced capitals (drawn by
-  `pdf._Label` — a paragraph cannot space letters), the lines at the size of
-  the text. A callout about the record and a finding under its line carry an
-  accent in the bar and the label — amber for what is certainly wrong, blue
-  for what only may be. The explanation of task 38 is the same box in a tone
-  of its own.
-- **A graph is cut to what is drawn**, at one scale for every graph. A graph
+  it fitted, and record 47 went from eight pages to six. Opened too before it
+  is put on its ground, which is one cell and keeps it whole.
+- **Every box beside the text has one anatomy**: a 3 pt bar down the left, a
+  label in spaced capitals in the monospace (drawn by `pdf._Label` — a
+  paragraph cannot space letters), the lines at the size of the text. The
+  tone says what it is. Dark amber for what is certainly wrong, kraft with a
+  grey label for what only may be. Ink for the bot's explanation, the colour
+  of "Суть", the other block the bot writes; the green it had was a sixth
+  colour, and the label has always been what says whose words these are.
+- **A definition gets the guide's amber line, and no label**
+  (`pdf._definition_end`): the lines under a heading "Определение…" — the
+  composing stage writes one over each definition, its prompt's rule 6 — or a
+  line opened with a bold "**Определение**" and those right after it. Only
+  its lines of text and list items: a formula, a table or a blank line ends
+  it, so the line marks what the definition says and not its examples. A row
+  a line, so a long one splits over a page with its line.
+- **A graph is cut to what is drawn**, at one scale for every graph, its
+  vertices circles of the paper's colour. A graph
   or a matrix name ("A =") followed directly by a table is set beside it — a
   blank line may stand between them, a line of text may not. A table is ruled
   under its header, and after its first column when that column names the
-  rows; never caged in a grid. A table the composing stage used for layout —
+  rows, in ink; the lines between the rows of a list are kraft; never caged
+  in a grid. A table the composing stage used for layout —
   lines stacked with `<br>` in a cell, cells as long as sentences — is set as
   columns of text with no rules at all, and a header with nothing in it is
   not a header.
 - **Lists hang**, bullets and the author's own "1)" and "2." alike.
 - **A main formula is framed, larger (×1.2) and numbered "(1)", "(2)"** at
-  the column's edge, through the whole record. When every formula stood at
+  the column's edge, through the whole record, on a ground of its own set
+  apart from the formulas round it. When every formula stood at
   one size the one a section leads to was lost among the steps to it. Two
   sources mark one, and they are kept apart on purpose: what the author
   framed on the page is perception, and recognition writes it as `\boxed{…}`
@@ -634,11 +665,20 @@ receives, so none of it is left to reportlab's defaults:
   a frame the source already had. Older records' frames — `[в рамке: …]`, a
   bracket closed lines later, an array ruled with `\hline` — are read as
   frames too.
-- **From page two the record's title stands over the text, and a record of
-  more than one page is numbered "2 / 5"** — not "с. 2", which inside a
-  record means a photographed page. The title draws its formulas; the
-  running head, the file's own title and its name, and a chat listing get
-  them as characters (`pdf.plain`: "2¹⁰⁰¹", never "$2^{1001}$" or "21001").
+- **Every page has a head and a signature** (`pdf.Page`, built by
+  `corpus._page`). The head, in the monospace, grey, in capitals: the subject
+  as the "#word" that finds the record, from page two the record's title,
+  and at the right its day and "стр. 2/5" — not "с. 2", which inside a record
+  means a photographed page; a record of one page has no page number. There
+  is no lecture number, which the bot does not know. The signature, at the
+  foot of every page under a line of kraft: the SUM sign with its amber star,
+  the invitation and the bot's name, and a QR code 16 mm square that opens
+  the bot — the guide's 18 put its last row 3 mm off the paper's edge, where
+  a printer does not print. The name is asked of the bot itself
+  (`bot.me()`), so the QR opens the bot that sent the document; without it
+  there is only the sign. The title draws its formulas; the running head,
+  the file's own title and its name, and a chat listing get them as
+  characters (`pdf.plain`: "2¹⁰⁰¹", never "$2^{1001}$" or "21001").
 - **Markup never prints as its source.** `$$` on lines of their own is a
   display formula, `$$…$$` inside a line is a formula, emphasis pairs across
   a formula, and `~~…~~` is drawn struck through, the way the author crossed
@@ -737,7 +777,7 @@ album went out without are named there. → "Remarks about the reading"
 **The one box at the top is the pages a record is missing** (`corpus._callouts`,
 from the `Note`'s own columns; `pdf.py` receives a list of `Callout` and knows
 nothing about where a record came from). A hole is about the record, not about
-its reading.
+its reading. Only "Суть" stands above it — the bot's summary, below.
 
 **A remark is an error the code found in the work, set where it is.** What
 `mathcheck` and `graphcheck` find — a chain that does not add up, a constant
@@ -871,9 +911,12 @@ with.
 **Stored apart, printed as the bot's.** `notes.explanations` (JSONB, with the
 sources) and `notes.summary` (text), never mixed into `markdown`. The PDF sets
 each explanation under the line it quotes or the formula it numbers — after
-the findings of that line — and the summary last, after a section rule, both
-in a green no other box has, labelled "Пояснение бота" and "Итог · составлен
-ботом по тексту записи". At most eight explanations; an anchor found nowhere
+the findings of that line — in ink, labelled "Пояснение бота". The summary
+comes first, before the record, as the guide's "Суть": the page's one dark
+block, labelled "Суть · составлено ботом по тексту записи" (`BRAND.md`).
+The guide asks for one or two sentences and 35 words, and the prompt still
+asks for three to five — the CPO's to decide, `PLAN.md` → "Plan changes".
+At most eight explanations; an anchor found nowhere
 puts its box at the end, like a finding's. Rule 6 holds for the third call as
 for the second: limits before it, `pages=0`. A Gemini 3 model's
 Google search is billed per query it runs, on top of the tokens —
@@ -1088,7 +1131,7 @@ app/
     mathcheck.py      ready-made
     graphcheck.py     a matrix against the graph drawn beside it
   assets/
-    fonts/            Lato 2 and its OFL licence — the document's text face
+    fonts/            Onest, Unbounded, JetBrains Mono and their OFL licences — BRAND.md's faces
   db/
     models.py
     session.py
@@ -1098,6 +1141,7 @@ app/
     events.py         event logging (log_event + log_event_standalone)
 tests/
 README.md            how the work is organised: the plan first, and who may change it
+BRAND.md             the guide to how a record looks — pdf.py draws what it says
 CLAUDE.md
 PLAN.md
 FINDINGS.md          the evidence behind the rules in this file

@@ -198,19 +198,20 @@ and the group is tested later. These come before 40 and 41.
       already read, and the explanations' writing call at `low` are left
 
 **Phase D — the subject: a course a group builds up and gets back whole.**
-Set by the CEO on 2026-09-30, in two tracks, one an owner: **the CEO's 47,
-52, 51 and the CPO's 41, 48**, each in that order. 52's overview is a model
+Set by the CEO on 2026-09-30, in two tracks, one an owner: **the CEO's 51,
+47, 52 and the CPO's 41, 48**, each in that order — 51 moved first on
+2026-10-01, when the CEO's guide to the look came in. 52's overview is a model
 call and waits for 41, which counts its cost against the chat's cap. Each
 task's specification is under "# Task N", after the task descriptions of
 week 2; 41 is the one listed under phase C.
 
+- [ ] 51. The document's own look: the CEO's guide, `BRAND.md`, the body
+      included — the CEO's
 - [ ] 47. The bot added to a group chat in one tap, and seeing its pages
       there without being made an admin — the CEO's
 - [ ] 52. A subject's records as one document to study from — the course,
       opened by an overview the model writes over it, sent only when
       somebody asks for it with a command — the CEO's
-- [ ] 51. The document's own look: the brand around the text, never in it —
-      the CEO's
 - [ ] 48. A subject's materials: a PDF sent with its "#word" is kept as
       Telegram's reference and its text, its topics are read out of what is
       in it, and a "#word" finds it the way it finds a record — the CPO's
@@ -253,7 +254,9 @@ per-user, and the styling of chat messages — those stay plain on purpose.
 The fonts were in that list — "nothing beyond the DejaVu family already
 bundled" — until the author moved the reference on 2026-09-24: record 42 came
 back heavy, and the document is now a copy of `матан 24.09.2026.pdf`, Lato and
-Computer Modern included. Lato 2 lives in `app/assets/fonts/`.
+Computer Modern included. On 2026-10-01 the look moved again, to the CEO's
+guide, `BRAND.md` (task 51): Onest, Unbounded and JetBrains Mono live in
+`app/assets/fonts/` now, and Computer Modern stays for the formulas.
 
 The order of 33-35 is the author's, made on three albums run through the
 deployed bot on 2026-09-23: the seam and the raw LaTeX were in the documents
@@ -268,7 +271,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-46
-CEO — current: none; next: 47
+CEO — current: 51; next: 47
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read
 ```
@@ -287,6 +290,12 @@ other's word is in the last column.
 | 2026-09-30 | the CEO, with Claude Code | Phase D set: 47, 41, 52, 51, 48; 49 put off, 50 not scheduled; this log started | the CEO's own |
 | 2026-09-30 | the CEO, with Claude Code | Task 52: the course document opens with an overview the model writes over its records | the CEO's own |
 | 2026-09-30 | the CEO, with Claude Code | The work divided by area: the CEO — the interface and the product for students; the CPO — the database and the model; both push to `main`. Phase D in two tracks and "State" in two lines. This replaces the staff developer and "Review" set up earlier the same day | the CEO's own |
+| 2026-10-01 | the CEO, with Claude Code | Task 51 rebuilt on the CEO's guide, `BRAND.md` — v1.0 of 2026-09-30, rewritten to v1.1 where the records demanded it: the look goes into the body, where the task said "around the text, never in it". `CLAUDE.md` → "The document" rewritten for it | the CEO's own |
+| 2026-10-01 | the CEO, with Claude Code | The CEO's track in the order 51, 47, 52: the guide came in. Nothing of the CPO's moves | waits for the CPO |
+| 2026-10-01 | the CEO, with Claude Code | "Суть": the explaining stage's summary opens the document. The guide asks for one or two sentences and 35 words; `prompts-explain-v1.md` asks for three to five. Shortening it is a prompt change | waits for the CPO |
+| 2026-10-01 | the CEO, with Claude Code | "Проверь себя" proposed, from the guide: a question at the end of a page or a section, written by the model. A new output and its guards are the CPO's, its display the CEO's; it stands next to the flashcards `CLAUDE.md` sets aside, so it is for both. Not scheduled | waits for the CPO |
+| 2026-10-01 | the CEO, with Claude Code | A definition's amber line reads the composing stage's rule 6 heading, "### Определение", which makes that heading part of the contract between the prompts and `pdf.py` | waits for the CPO |
+| 2026-10-01 | the CEO, with Claude Code | Backlog, from the guide: the pages as PNGs for a phone, the QR code carrying `?start=note_<id>`, "Школа × SUM" | the CEO's own |
 
 ## Where this is going, decided 2026-09-30
 
@@ -308,10 +317,11 @@ The CEO's decisions of that day, each one what its task is built on:
   for it — for it alone. It opens with an overview the model writes over the
   records, marked as the bot's like every addition. It is sent only when
   somebody asks with the command; the bot never sends it by itself. Task 52.
-- **The brand stands around the text and never in it.** The body keeps what
-  task 36 measured off the reference; what is designed is the head of the
-  page, its furniture, the course's cover. Variants are rendered on real
-  records, and the author picks. Task 51.
+- **The document gets a look of its own — the CEO's guide, `BRAND.md`.** The
+  first word was "around the text and never in it"; the guide the CEO gave
+  the same evening goes into the body too — paper, faces, blocks, a
+  signature with a QR code on every page — because the record is SUM's
+  advertisement as well as the group's notes. Task 51.
 - **Context is uploaded as simply as a page, and found by "#word"** — through
   its subject and through topics read out of what is in it. Task 48.
 - **The teacher's drive by link is put off** (49), and so is what context
@@ -2505,59 +2515,74 @@ the course a student needs before reading twenty lectures of it.
 
 ## Why
 
-The group gets a document from the bot, and so far it looks like the notes
-it was copied from: task 36 copied `матан 24.09.2026.pdf`, and its
-readability is settled. What it lacks is a face of its own — a group that
-receives one cannot tell whose it is, and the course document of task 52 has
-a cover that says nothing. The CEO agreed on 2026-09-30 how that is done:
-the brand stands around the text and never in it.
+The group gets a document from the bot, and the document is SUM's
+advertisement as well: it is forwarded to a group's chat, and whoever opens
+it has to see where it came from and how to get one. Until 2026-09-30 it
+looked like the notes it was copied from — task 36, `матан 24.09.2026.pdf` —
+with no face of its own.
 
-## Before starting — the CEO's brief
+## The brief: the CEO's guide, `BRAND.md`
 
-The name the document carries (the repository is "Conspectium"), a mark or a
-logo if there is one, colours if there are any, and the character — strict
-and academic, or modern. Without the brief the task does not start.
+Given on 2026-09-30:
 
-## Do
+- the name SUM and the bot `@sum_konspictiumbot`;
+- paper, ink and amber off the logo;
+- Onest, Unbounded and JetBrains Mono;
+- "Суть" on top and numbered sections;
+- an amber line beside a definition, formulas on kraft;
+- a signature with a QR code on every page.
 
-1. **What the brand may touch:**
-   - the head of the first page — the name or mark, the subject, the date;
-   - the page furniture — the running head, the page numbers;
-   - a closing line after the last box, naming who made the document and for
-     which chat;
-   - the course document's cover and contents (task 52);
-   - the file name and the PDF's metadata — author, creator;
-   - one accent colour of the brand's, in the furniture and on the cover;
-   - a colour per subject, if the author wants one.
-2. **What it may not touch:** the body — the scale, the leading, the column,
-   the rhythm, the faces — and the tones of the boxes, which carry meaning:
-   amber for what is certainly wrong, blue for what may be, green for what
-   the bot added. A brand colour that could be read as one of them is not
-   used.
-3. **How it is decided:** three variants, each rendered on the same real
-   records — 45 (a long division and findings) and 51 (explanations and many
-   definitions), taken from the database — and on a course document from
-   task 52. The CEO picks one, or parts of several. The pick becomes the
-   new reference: its values go into `pdf.py` as named constants and into
-   `CLAUDE.md` → "The document", the way task 36's did.
-4. **The chat's face, in BotFather**, done by whoever holds the bot: its
-   name, picture and description, in the same identity.
+It goes past this task's first specification — "around the text, never in
+it" — and into the body. That is the CEO's call: the document's look is the
+CEO's area. On 2026-10-01 the guide was rewritten to v1.1 where the records
+demanded it, with what changed and why at its end:
 
-## Acceptance criterion
+- the formulas stay in Computer Modern;
+- the QR code is 16 mm;
+- "Суть" is marked as the bot's;
+- nothing the bot does not know goes in the head;
+- the boxes the guide did not have are in its palette.
 
-- Records 45 and 51 and a course document re-rendered in the chosen look,
-  and the CEO's word that it is the one.
-- The body measures as before: the same scale, column and rhythm, and the
-  page count of a record within one page of what it was.
-- `CLAUDE.md` → "The document" describes the new reference.
-- The suite is green.
+## Done, 2026-10-01
+
+- **`pdf.py` draws the guide:**
+  - paper, and the three faces bundled with their licences (Lato removed);
+  - the scale and the colours;
+  - the head, and the signature with its QR code — the bot's name taken from
+    `bot.me()`;
+  - "Суть" first, numbered sections, a definition's amber line;
+  - formulas on kraft, the boxes in the guide's palette.
+- **`CLAUDE.md` → "The document"** describes it, and `BRAND.md` is the
+  reference.
+- **The QR code** was read back by a decoder off every page of a sample, at
+  72 to 150 dpi.
+- **The suite is green.** The tests that pinned the old look pin the new one,
+  and none was added.
+
+## Left before the checkbox
+
+- **The CEO's word on a real record** delivered by the deployed bot, the
+  guide's check — the QR code scanned with a phone — included.
+- **The chat's face in BotFather**, done by whoever holds the bot: SUM's name,
+  picture and description.
+
+## Waiting for the CPO — see "Plan changes"
+
+- **"Суть" is the explaining stage's summary.** The guide asks for one or two
+  sentences and 35 words; `prompts-explain-v1.md` asks for three to five.
+- **"Проверь себя"**: a question the model writes at the end of a page or a
+  section. Its output and guards are the CPO's; its display is the CEO's.
+- **The definition's line reads the composing stage's rule 6**, "###
+  Определение", so that heading is part of the contract between the prompts
+  and `pdf.py`.
 
 ## Don't do
 
-- No cover on a single record: a sheet of paper for a page of notes.
-- No band or picture that takes height from the column on every page.
-- No new font unless the brief asks for one — and then bundled with its
-  licence, as Lato is.
+- **No cover on a single record**: a sheet of paper for a page of notes. The
+  course document's cover is task 52's.
+- **Nothing invented for the look**: no lecture number, no lecturer the
+  margin did not name, no question, no "Суть" without a summary.
+- **No fourth face**, and no colour outside the guide's.
 
 ---
 
@@ -3111,6 +3136,11 @@ under the three-character floor an explanation's anchor already had.
   one document to study from, sent on command, is task 52 — the one
   exception, made by the author on 2026-09-30
 - Styling and design of responses
+- The record's pages as PNGs for a phone, beside the PDF — `BRAND.md` sizes
+  them; a second format of one document
+- The QR code carrying `?start=note_<id>`, so the bot sees which record a
+  newcomer came from; the visible name stays as it is
+- "Школа × SUM": a school's logo beside the sign in the signature
 - Caching, queues, workers, Redis — until the album buffer has to leave
   process memory (`CLAUDE.md` → Scale debt), and then Postgres first
 - Merging the three runs block by block instead of picking the medoid.
