@@ -215,7 +215,9 @@ specification is under "# Task N", after the task descriptions of week 2;
       included — the CEO's
 - [ ] 54. Drawings cut out of the page: recognition names each drawing's
       frame, the code cuts it out of the photograph, keeps its ink and sets
-      it in the document — the CEO's
+      it in the document — the CEO's. Built, measured on record 59's album
+      the same evening (record 60), read as worse and put to sleep:
+      production back on `prompts-v6.md`, the code waiting without frames
 - [ ] 55. What record 59 showed besides its drawings: a record with no
       headings, the margin line «фор · 21:27 (0, 1)», a forum among an
       explanation's sources — the CEO's
@@ -293,9 +295,9 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-46, 51
-CEO — current: 54; next: 55
+CEO — current: 55; next: 56
 CPO — current: none; next: 41
-Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read
+Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01
 ```
 
 ## Plan changes
@@ -326,6 +328,7 @@ since 2026-10-01.
 | 2026-10-01 | the CEO, with Claude Code | Task 54, drawings cut out of the page, after record 59 printed nine drawings as nine sentences: recognition names each drawing's frame, the code cuts it out of the photograph and sets its ink in the document; a drawing that is data — a graph, and later a function by its formula, a number line — is still drawn from the data. Rule 3 changes with it: the drawing cut out of a page is kept with its record, the photograph still never | the CEO's own |
 | 2026-10-01 | the CEO, with Claude Code | Task 55, record 59's other faults — no headings, the margin line, reddit.com as a source — after 54; the margin line's backlog item moves into it | the CEO's own |
 | 2026-10-01 | the CEO, with Claude Code | Task 56, the bot as a teacher — «Идея», «Зачем условие», «Пример»; a fact keeps its source, the bot's reasoning is printed without one under its own label and checked by code wherever there is something to check; «Проверь себя» its second step. After 55. The CEO's track is now 54, 55, 56, then 47 and 52 | the CEO's own |
+| 2026-10-01 | the CEO, with Claude Code | Task 54 measured on record 59's album (record 60) and put to sleep: its cut-outs of a light hand came out faint under the grid, one frame took in the text beside it, and the CEO read the document as worse. Production back on `prompts-v6.md` the same hour; the code stays, asleep without frames. The CEO's track: 55, 56, then 47 and 52 | the CEO's own |
 
 ## Where this is going, decided 2026-09-30
 
@@ -2862,6 +2865,18 @@ a function by its formula or a number line — it is still drawn from the data.
    the pipeline, "The document", "Structure"; `BRAND.md`: how a drawing
    looks.
 
+## Measured, 2026-10-01: worse, put to sleep
+
+Record 59's album under v8 became record 60: nine drawings described, eight
+cut out and placed. The hand is light, the cut-outs came out faint with the
+grid over the strokes, one frame took in the words beside its drawing, and
+the arrows' labels were still written out as text. The CEO read the document
+as worse than 59's sentences, and production went back to `prompts-v6.md`
+within the hour. What a next try needs first — a cleaning that holds for a
+light hand, a frame the model draws tighter — is in `FINDINGS.md` → "Drawings
+cut out of the page". The code stays: without frames it cuts nothing, and
+the lifting of a drawing out of a line of text works for v6 too.
+
 ## How it is tried
 
 The deploy changes nothing while production reads `prompts-v6.md` — no
@@ -2924,6 +2939,23 @@ drawings:
    explanation's sources, and an explanation left with none is dropped by
    the rule that already holds (`explain_unsourced`).
 4. `CLAUDE.md` → "Stage three" and "The document".
+
+## Done, 2026-10-01
+
+- **The headings**: record 59's composition was refused for "numbers" —
+  reproduced in the production container, the one change was
+  "Примеры: 1) …" made into a list. Item markers no longer count as
+  numbers wherever they count items; an interval, an answer and a value
+  changed are still refused (`FINDINGS.md` → "The composition record 59
+  lost").
+- **The margin line**: `texts.byline` keeps a name, a date or a page and
+  nothing else, for records already stored too.
+- **The sources**: forums, social networks and videos are dropped
+  (`explain._NOT_SOURCES`).
+
+## Left before the checkbox
+
+- **The CEO's look at record 59's album read again** after the deploy.
 
 ## Acceptance criterion
 
