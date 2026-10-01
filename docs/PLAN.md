@@ -226,6 +226,13 @@ word:
       the course's earlier records and cite its materials. Discussed, not
       scheduled
 
+Specified on 2026-10-01 and not scheduled — the CEO's, taken up when the CEO
+comes back to it:
+
+- [ ] 53. SUM's site: one page, outside this repository, that shows the
+      document and puts the bot into a group's chat with one button; the bot
+      counts the starts it brings
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -299,6 +306,7 @@ other's word is in the last column.
 | 2026-10-01 | the CEO, with Claude Code | Backlog, from the guide: the pages as PNGs for a phone, the QR code carrying `?start=note_<id>`, "Школа × SUM" | the CEO's own |
 | 2026-10-01 | the CEO, with Claude Code | The repository in folders: `PLAN.md`, `FINDINGS.md` and `BRAND.md` in `docs/`; the prompts in `prompts/`, where `vision.load_prompt` reads them — the file names, and so the variables on Railway, unchanged; the records, reference notes and logs kept locally in `evidence/`, out of git | the CEO's; the prompts with the CPO aware |
 | 2026-10-01 | the CEO, with Claude Code | `CLAUDE.md` rewritten, and merged into `main` on the CEO's word the same day: the same rules with their reasons, in a third fewer words. The two owners and what production runs come first — its variables differ from the code's defaults, which the old file listed as if they were production's. The history moved to `FINDINGS.md`, four facts with no section there to "Moved from CLAUDE.md, 2026-10-01". Its shared sections and the CPO's areas are the CPO's to read, in `main` now; what the CPO does not accept is changed back there | waits for the CPO |
+| 2026-10-01 | the CEO, with Claude Code | Task 53, SUM's site, specified and not scheduled: one page outside this repository that shows the document and sends a group to the bot, and the bot writing down the label a start came with. Its audience, domain, host and contact are left open. It goes up after 47 and is promoted after 41; neither task moves. The phase D intro's stale order of the CEO's track corrected to 51, 47, 52, as logged above | the CEO's own |
 
 ## Where this is going, decided 2026-09-30
 
@@ -2276,10 +2284,11 @@ never been used.
 
 # Phase D: the tasks
 
-Specified on 2026-09-30. Two tracks: the CEO's 47, 52, 51 and the CPO's 41,
-48, each in that order. Where a specification and the code disagree, the
-code is what exists and the specification is what was decided: ask the
-task's owner before choosing either.
+Specified on 2026-09-30. Two tracks: the CEO's 51, 47, 52 — 51 moved first
+on 2026-10-01 — and the CPO's 41, 48, each in that order. Where a
+specification and the code disagree, the code is what exists and the
+specification is what was decided: ask the task's owner before choosing
+either.
 
 # Task 47. The bot added to a group in one tap
 
@@ -2670,6 +2679,106 @@ this one takes a file.
   without an arm (`PLAN.md` → "Where this is going, decided 2026-09-30").
 - No embeddings and no vector search: a "#word" is the way in.
 - Don't change what a `.docx` or a photo becomes.
+
+---
+
+# Task 53. SUM's site: one page that sends a group to the bot
+
+**Owner: the CEO.** Specified on 2026-10-01 and not scheduled: the CEO comes
+back to it after the document. Its open decisions, at the end, are the CEO's.
+
+## Why
+
+Whoever hears of SUM outside Telegram — from a classmate, at an
+accelerator's demo day, from the deck — finds a bare link to the bot and
+nothing that shows what it makes. A page has a minute to say what SUM is, to
+show a real document and to put the bot into a group's chat with one button.
+It is a storefront, not a second interface: everything is still done in the
+bot, and `CLAUDE.md` → "What NOT to do" stands. Putting the records on the
+web would change that section, which is for both owners.
+
+## Do
+
+1. **One page, in Russian, for a phone first** — people arrive from
+   Telegram:
+   - the sign SUM ✦, one sentence of what it is, and two buttons:
+     «Добавить в чат группы» (`https://t.me/<bot>?startgroup=site`) and
+     «Открыть бота» (`https://t.me/<bot>?start=site`);
+   - three steps: a page photographed into the chat with its "#subject", the
+     bot reads it and checks its arithmetic, the group gets a PDF that the
+     "#word" finds again;
+   - the document itself, the page's centre: two or three pages of a sample
+     as pictures, and the sample to download;
+   - what the bot adds and how it shows — "Суть" and the explanations in
+     marked boxes with their sources, the author's text never rewritten;
+   - questions: is it free, which subjects, what becomes of a photo (not
+     kept — only the text), what the bot sees in a chat (only what is
+     addressed to it);
+   - a footer: the bot, a contact, the privacy policy.
+2. **Every claim true of the bot on the day the page goes up.** The deck
+   lists as working what is not built — the course's memory (50), a
+   lecture's audio ("What NOT to do"), uploading slides and books (48) — and
+   the team's charter (`SUM-ustav-komandy.docx`, outside this repository)
+   says that what is planned is called a plan.
+3. **The sample is one of the CEO's own records**, with no classmate's or
+   lecturer's name on it.
+4. **Built outside this repository**, a static page with no framework: every
+   push to `main` deploys the bot and cancels what it is processing, and the
+   site shares nothing with the bot's code but the look.
+5. **The look is `BRAND.md`'s**: paper, ink and amber; Onest, Unbounded and
+   JetBrains Mono, served by the site itself, not Google Fonts. A link to it
+   in a chat shows a card in the same look (Open Graph).
+6. **Nothing collected** — no forms, no cookies, no third-party scripts or
+   analytics. What the page brings is counted by the bot.
+7. **The bot writes down the label a start came with.** `/start` reads no
+   payload today. In a private chat a start with one writes it to `events`;
+   in a group, task 47's `group_invited` carries it as `via`; named in
+   "Contracts" when built. "How many groups came from the site, and do they
+   use it a week later" is then a query on our own tables — the question the
+   project exists to answer.
+8. **A privacy policy and terms of use**, written with a lawyer and linked
+   from the footer and from the bot's profile. They wait on the lawyer's
+   answer about where the data lives: the database is on Railway, outside
+   Russia, and 152-FZ asks for the personal data of Russia's citizens to be
+   stored in Russia. The charter already sends the CEO to a lawyer about it.
+9. **A host that opens from Russia** on mobile internet without a VPN —
+   some foreign CDNs are throttled there; a Russian static host, such as
+   Yandex Cloud, by default.
+
+## Before it goes public
+
+- **47 first.** The page's main button adds the bot to a group, where
+  without 47 it asks to be made an admin — the step 47 removes.
+- **41 before it is promoted widely.** The day's spend cap is one for the
+  whole bot, and a stream of groups from the page could exhaust it for
+  everyone on their first day.
+
+## Acceptance criterion
+
+- The page opens over HTTPS on its domain from a Russian mobile network
+  without a VPN.
+- One button opens the bot, the other Telegram's chat picker.
+- A link to it in a Telegram chat shows its card.
+- Every claim on it is true of the bot that day.
+- A start from the page is in `events` with its label.
+- The page makes no request to a third party.
+
+## Don't do
+
+- No login, account, records on the web, photo upload, prices or payment:
+  the bot is the one interface.
+- Don't change the document's QR code: it opens the bot directly, the
+  shorter way.
+- Nothing of the site in this repository but item 7.
+
+## Open — the CEO's to decide
+
+1. Who the page is for. Recommended: a student group first, and a short
+   block for tutors and schools, with a contact and no prices.
+2. The domain, and whose name it is in: the charter puts the brand in the
+   company's; until the company exists, the CEO's, moved later.
+3. The host. Recommended: a Russian one.
+4. The contact on the page: a personal Telegram, or an account of SUM's.
 
 ---
 
