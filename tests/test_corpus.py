@@ -126,9 +126,12 @@ async def test_how_the_page_was_read_is_never_printed(session):
     assert corpus._remarks(note) == []
 
 
-def test_the_subtitle_carries_no_doubt_about_the_reading():
-    subtitle = texts.pdf_subtitle(datetime(2026, 9, 25, tzinfo=timezone.utc), 5)
-    assert subtitle == "25.09.2026 · 5 страниц"
+def test_the_head_of_a_page_carries_no_doubt_about_the_reading():
+    # The subject and the day, as facts; the grey line that carried the date
+    # under the title once ended in "нужна проверка".
+    assert texts.pdf_date(datetime(2026, 9, 25, tzinfo=timezone.utc)) == "25.09.2026"
+    assert texts.pdf_subject("матан") == "#матан"
+    assert texts.pdf_subject(None) == ""
 
 
 async def test_a_finding_is_a_remark_under_the_text_it_is_about(session):
@@ -361,15 +364,15 @@ async def test_the_document_is_built_with_the_boxes_of_the_record(session, monke
     seen: list = []
     original = corpus.pdf.render
 
-    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=(), *rest):
-        seen.append((subtitle, list(callouts), list(remarks)))
-        return original(title, markdown, subtitle, callouts, byline, remarks, *rest)
+    def spy(title, markdown, **parts):
+        seen.append((parts["page"], list(parts["callouts"]), list(parts["remarks"])))
+        return original(title, markdown, **parts)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
     await corpus.send_record_pdf(_Message(), note)
 
-    subtitle, callouts, remarks = seen[0]
-    assert "проверка" not in subtitle
+    page, callouts, remarks = seen[0]
+    assert "проверка" not in f"{page.subject} {page.date}"
     assert [b.title for b in callouts] == [texts.CALLOUT_MISSING]
     assert [r.anchor for r in remarks] == ["2 + 2 = 5"]
 
@@ -396,9 +399,9 @@ async def test_the_document_is_built_with_the_byline_of_the_record(
     seen: list[str | None] = []
     original = corpus.pdf.render
 
-    def spy(title, markdown, subtitle=None, callouts=(), byline=None, remarks=(), *rest):
-        seen.append(byline)
-        return original(title, markdown, subtitle, callouts, byline, remarks, *rest)
+    def spy(title, markdown, **parts):
+        seen.append(parts["byline"])
+        return original(title, markdown, **parts)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
     await corpus.send_record_pdf(_Message(), note)

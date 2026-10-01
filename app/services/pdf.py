@@ -11,10 +11,14 @@ mathtext cannot read stays on the page as its own source, the same way
 parse_response returns None rather than exploding.
 
 The document is what the group receives, so its look is decided here rather
-than left to reportlab's defaults, and it is copied from one file: the
-author's `матан 24.09.2026.pdf`. Lato for the text and Computer Modern for the
-formulas, its sizes, its greys, its one kind of box beside the text — the
-values below were read out of that PDF, not chosen by eye.
+than left to reportlab's defaults, and it follows one file: `BRAND.md`, the
+CEO's guide to how a SUM record looks — paper and ink, Onest for the text,
+Unbounded for the headings, JetBrains Mono for the page's furniture, a
+signature with a QR code at the foot of every page. It is also the
+advertisement: a record is forwarded to the group's chat, and whoever opens
+it has to see where it came from and how to get one. What the guide leaves
+open — the boxes the bot adds, the findings of the checks, the formulas —
+is decided here and written back into it.
 """
 
 from __future__ import annotations
@@ -64,43 +68,57 @@ logger = logging.getLogger(__name__)
 _DPI = 300
 
 # ── The fonts ────────────────────────────────────────────────────────────────
-# Lato 2, which has Cyrillic — the Lato Google serves does not — bundled in the
-# repo under its OFL licence. DejaVu, which ships inside matplotlib, stays as
-# the face for the glyphs Lato lacks: ∀, ∈, ⇒, ►, ℝ in running text would
-# otherwise print as empty boxes.
+# The guide's three faces, all from Google Fonts with full Cyrillic, bundled in
+# the repo under their OFL licences as static weights cut from the variable
+# fonts — reportlab reads a variable font at its default weight only. Onest
+# for the text, Unbounded — the nearest to the logo's wide grotesque — for the
+# title and the sections, JetBrains Mono for what serves the page rather than
+# the lecture: the running head, a section's number, a box's label, the bot's
+# name. DejaVu, which ships inside matplotlib, stays as the face for the
+# glyphs they lack: Onest has no ∀, ∈, ⇒, ►, ℝ, nor a Greek letter, and
+# reportlab would print them as empty boxes.
 _FONT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts")
-_TEXT_FONT = "Lato"
-_HEAVY_FONT = "Lato-Black"
+_TEXT_FONT = "Onest"
+_TEXT_BOLD_FONT = "Onest-SemiBold"
+_HEADING_FONT = "Unbounded-Bold"
+_HEAVY_FONT = "Unbounded-ExtraBold"
+_MONO_FONT = "JetBrainsMono"
+_MONO_BOLD_FONT = "JetBrainsMono-SemiBold"
 _FALLBACK_FONT = "DejaVu"
-# Formulas in Computer Modern, as the reference's KaTeX draws them. It has no
-# Cyrillic, and mathtext sets a \text{кольца} in a serif of its own instead —
-# which is exactly what the reference does with its own Cyrillic in formulas.
+# Formulas in Computer Modern, not in the guide's monospace: set in JetBrains
+# Mono by mathtext, record 51's "ker φ" ran together into "kerφ", its zero —
+# dotted inside — read as a θ, and a variable could not be told from an
+# operator without italics. The monospace is kept for what serves the page.
+# Computer Modern has no Cyrillic, and mathtext sets a \text{кольца} in a
+# serif of its own instead.
 _MATH_FONT = "cm"
 # Computer Modern's hairlines, drawn as pixels and smoothed, came out a pale
-# grey beside the text: KaTeX in the reference is vector and as dark as Lato.
-# A quarter-point stroke round every glyph brings the weight back to the
-# reference's; half a point was already bold.
+# grey beside the text. A quarter-point stroke round every glyph brings the
+# weight up to the text's; half a point was already bold.
 _MATH_STROKE_PT = 0.25
 
-# ── The scale, read out of the reference ─────────────────────────────────────
-_BODY_PT = 12.0
-_LEADING = 1.6
-_TITLE_PT = 24.0
+# ── The scale: the guide's ───────────────────────────────────────────────────
+_BODY_PT = 11.0
+_LEADING = 1.5
+_TITLE_PT = 22.0
 # Levels are counted from the top one the record uses, so a record whose
 # sections are "##" looks like one whose sections are "#". The level blocks()
 # reads was once thrown away altogether, which made "#" and "###" the same.
-_HEADING_PT = {1: 18.0, 2: 14.0, 3: 12.0}
-_HEADING_SPACE_BEFORE = {1: 20, 2: 16, 3: 12}
-_HEADING_SPACE_AFTER = {1: 3, 2: 5, 3: 3}
-# KaTeX sets its formulas a little larger than the text round them: Computer
-# Modern's x-height is smaller than Lato's.
-_MATH_SCALE = 1.06
+# The guide has two sizes of heading, the lecture's and a section's, both in
+# Unbounded; a subsection is set in the text's own face, a step above it.
+_HEADING_PT = {1: 13.5, 2: 12.5, 3: 11.0}
+_HEADING_SPACE_BEFORE = {1: 22, 2: 14, 3: 10}
+_HEADING_SPACE_AFTER = {1: 6, 2: 4, 3: 3}
+# Computer Modern's x-height is smaller than Onest's, 0.43 of the size against
+# 0.53, so a formula is set a little larger than the text round it.
+_MATH_SCALE = 1.1
 _DISPLAY_PT = _BODY_PT * _MATH_SCALE
-_TABLE_PT = 11.0
-_SMALL_PT = 10.0
-_LABEL_PT = 8.5
+_TABLE_PT = 10.0
+_SMALL_PT = 9.5
+_LABEL_PT = 7.5
 _LABEL_TRACKING = 0.9
 _FURNITURE_PT = 8.0
+_FURNITURE_TRACKING = 0.5
 
 # ── The rhythm ───────────────────────────────────────────────────────────────
 # The space between two blocks depends on what both of them are. Lines of one
@@ -108,52 +126,76 @@ _FURNITURE_PT = 8.0
 # line by line, and space under every line made a page of them read as
 # double-spaced. A blank line in the record is a paragraph. A display
 # formula, a table and a drawing are set apart, and a run of display formulas
-# is one block, the way a chain of equalities is one thing on paper.
-_PARAGRAPH_GAP = 9.0
-_SET_APART_GAP = 10.0
-_STACK_GAP = 3.0
+# is one block, the way a chain of equalities is one thing on paper: their
+# grounds touch and read as one.
+_PARAGRAPH_GAP = 8.0
+_SET_APART_GAP = 9.0
 _ITEM_GAP = 3.0
 _BOX_GAP = 8.0
-_MAIN_GAP = 14.0
-_SET_APART = {"math", "main", "table", "figure", "note", "rule"}
+_MAIN_GAP = 12.0
+_SET_APART = {"math", "main", "frame", "table", "figure", "note", "rule", "definition"}
 
 # ── Main formulas ────────────────────────────────────────────────────────────
 # When every formula is set at one size, the one a section leads to is lost
 # among the steps to it. A main formula is larger, framed the way the author
 # frames it in the notebook, and numbered at the column's edge, so that an
-# explanation or the summary can say "(3)" and be found.
+# explanation can say "(3)" and be found.
 _MAIN_PT = _DISPLAY_PT * 1.2
 _FRAME_RULE_PT = 0.8
 _FRAME_PAD_X = 12.0
 _FRAME_PAD_Y = 6.0
-_NUMBER_PT = 11.0
+_NUMBER_PT = 9.0
 _NUMBER_COLUMN_PT = 36.0
 
 # ── The page ─────────────────────────────────────────────────────────────────
-# The reference's column: 66 pt either side of an A4 page, 463 pt of text.
+# 66 pt either side of an A4 page, 463 pt of text. The foot of every page is
+# the signature's, 22 mm under a line of kraft, and the column ends above it.
 _MARGIN_PT = 66.0
 _TOP_PT = 60.0
-_BOTTOM_PT = 56.0
+_SIGNATURE_PT = 22 * mm
+_BOTTOM_PT = _SIGNATURE_PT + 8 * mm
 _TEXT_WIDTH_PT = A4[0] - 2 * _MARGIN_PT
 # reportlab's frame pads its content by 6 pt on every side, inside the page
 # margins. Unaccounted for, the column was 12 pt narrower than every width
 # computed from it, and a box as wide as the column ran past its right edge.
 _FRAME_PADDING_PT = 6.0
 
-# ── The reference's tones, and the two accents the callouts already had ────
-_INK = "#24292f"
-_MUTED = "#6b7480"
-_HAIRLINE = "#d8dee4"  # under the title and a section heading, 0.8 pt
-_SECTION_RULE = "#e6e8eb"  # between two sections, 1.5 pt
-# The accent of a box about the record, and of a finding set under its line:
-# the bar down its side and its label.
+# ── The guide's five colours, and the one grey it names without a value ─────
+# Paper under everything, never white; ink for the text. Amber is graphics
+# only — the star, the line beside a definition — being too pale for text on
+# paper; the dark amber is its text: a section's number, a finding's label.
+# Kraft for lines, frames and the ground under a formula.
+_PAPER = "#F1E8D8"
+_INK = "#1A1612"
+_AMBER = "#F0A040"
+_DARK_AMBER = "#B8691A"
+_KRAFT = "#D9C9AE"
+_FORMULA_GROUND = "#E6DAC5"
+# "Серые чернила": ink two-thirds of the way to the paper would be too pale
+# for 8 pt, so the ink at 65% — 4.7 to 1 against the paper.
+_MUTED = "#6E655A"
+# On the one dark block, "Суть", the line that says whose words these are.
+_MUTED_ON_INK = "#A3947E"
+_HAIRLINE = _KRAFT
+# The label of a box about the record, and of a finding set under its line:
+# dark amber for what is certainly wrong, grey for what only may be. The bar
+# down its side is `_CALLOUT_BARS`'.
 _CALLOUT_TONES = {
-    "info": "#3f6f9f",
-    "warning": "#a8742c",
+    "info": _MUTED,
+    "warning": _DARK_AMBER,
 }
-# What the bot adds of its own — an explanation, the summary — in an accent no
-# other box has, so it is never read as the author's text or as a finding.
-_ADDED_TONE = "#2e7d5b"
+_CALLOUT_BARS = {
+    "info": _KRAFT,
+    "warning": _DARK_AMBER,
+}
+# What the bot adds of its own — an explanation — carries the colour of the
+# one block that is the bot's by definition, "Суть": ink, with its label. The
+# green it had before the guide was a sixth colour; the label says whose words
+# these are, as it always did.
+_ADDED_TONE = _INK
+# The line beside a definition, the author's own text: the guide's amber.
+_DEFINITION_BAR = _AMBER
+_BAR_PT = 3.0
 
 # ── Drawings ─────────────────────────────────────────────────────────────────
 # Three of them still fit across the reference's narrower column at full size.
@@ -284,11 +326,32 @@ class Explanation:
 
 @dataclass
 class Summary:
-    """The record summed up by the bot, last in the document and marked as
-    the bot's. It restates the record; it is not a source of anything."""
+    """The record summed up by the bot, set first as "Суть", the guide's one
+    dark block, and marked as the bot's. It restates the record; it is not a
+    source of anything.
+
+    `label` is "what it is · whose it is": the part before the first " · " is
+    set as the block's name, the rest as the note beside it."""
 
     label: str
     lines: list[str]
+
+
+@dataclass
+class Page:
+    """What every page carries besides the record. The caller builds it; this
+    module knows nothing about chats or bots.
+
+    The head says which lecture a sheet is from even when it is forwarded on
+    its own; the signature at the foot says where it came from and how to get
+    one — the bot's name and a QR code that opens it.
+    """
+
+    subject: str = ""  # "#матан", when the record is filed under one
+    date: str = ""  # "28.09.2026"
+    page_word: str = ""  # "стр."
+    invite: str = ""  # "Сделай такой конспект своей группе"
+    bot_username: str = ""  # without the "@"; none, and there is no QR either
 
 
 @dataclass
@@ -837,23 +900,34 @@ _FONTS_READY = False
 
 
 def _register_fonts() -> None:
-    """Lato from the repo, DejaVu from inside matplotlib. reportlab's built-in
-    fonts are Latin only, and a page of notes is Cyrillic."""
+    """The guide's faces from the repo, DejaVu from inside matplotlib.
+    reportlab's built-in fonts are Latin only, and a page of notes is
+    Cyrillic."""
     global _FONTS_READY
     if _FONTS_READY:
         return
     for name, filename in (
-        ("Lato", "Lato-Regular.ttf"),
-        ("Lato-Italic", "Lato-Italic.ttf"),
-        ("Lato-Bold", "Lato-Bold.ttf"),
-        ("Lato-BoldItalic", "Lato-BoldItalic.ttf"),
-        ("Lato-Black", "Lato-Black.ttf"),
+        (_TEXT_FONT, "Onest-Regular.ttf"),
+        (_TEXT_BOLD_FONT, "Onest-SemiBold.ttf"),
+        (_HEADING_FONT, "Unbounded-Bold.ttf"),
+        (_HEAVY_FONT, "Unbounded-ExtraBold.ttf"),
+        (_MONO_FONT, "JetBrainsMono-Regular.ttf"),
+        (_MONO_BOLD_FONT, "JetBrainsMono-SemiBold.ttf"),
     ):
         pdfmetrics.registerFont(TTFont(name, os.path.join(_FONT_DIR, filename)))
-    pdfmetrics.registerFontFamily(
-        "Lato", normal="Lato", bold="Lato-Bold", italic="Lato-Italic",
-        boldItalic="Lato-BoldItalic",
-    )
+    # Every face a paragraph is set in needs a family, or a "**" inside it —
+    # a bold word in a heading — is an exception inside reportlab. None of
+    # them has an italic, and the record asks for none: the upright face
+    # stands in for it rather than failing.
+    for normal, bold in (
+        (_TEXT_FONT, _TEXT_BOLD_FONT),
+        (_HEADING_FONT, _HEAVY_FONT),
+        (_HEAVY_FONT, _HEAVY_FONT),
+        (_MONO_FONT, _MONO_BOLD_FONT),
+    ):
+        pdfmetrics.registerFontFamily(
+            normal, normal=normal, bold=bold, italic=normal, boldItalic=bold
+        )
     for name, filename in (
         ("DejaVu", "DejaVuSans.ttf"),
         ("DejaVu-Bold", "DejaVuSans-Bold.ttf"),
@@ -868,13 +942,23 @@ def _register_fonts() -> None:
     _FONTS_READY = True
 
 
-@functools.lru_cache(maxsize=1)
-def _lato_glyphs() -> frozenset[int]:
-    """Every character Lato can draw. Anything else in running text is set in
+@functools.lru_cache(maxsize=2)
+def _glyphs(filename: str) -> frozenset[int]:
+    """Every character a bundled face can draw. Anything else is set in
     DejaVu, which draws nearly everything."""
     return frozenset(
-        TTFont("LatoCoverage", os.path.join(_FONT_DIR, "Lato-Regular.ttf")).face.charToGlyph
+        TTFont(f"Coverage-{filename}", os.path.join(_FONT_DIR, filename)).face.charToGlyph
     )
+
+
+def _text_glyphs() -> frozenset[int]:
+    """What Onest draws — the test for running text, headings included:
+    Unbounded draws at least as much of what a heading holds."""
+    return _glyphs("Onest-Regular.ttf")
+
+
+def _mono_glyphs() -> frozenset[int]:
+    return _glyphs("JetBrainsMono-Regular.ttf")
 
 
 def warm_up() -> None:
@@ -883,7 +967,8 @@ def warm_up() -> None:
     keeps them out of someone's first photo."""
     try:
         _register_fonts()
-        _lato_glyphs()
+        _text_glyphs()
+        _mono_glyphs()
         _formula_png("x^2", _DISPLAY_PT)
     except Exception:
         logger.exception("PDF warm-up failed; first render will be slower")
@@ -1232,9 +1317,16 @@ _FORMULA_PAD_PT = _FORMULA_PAD_IN * 72.0
 # chain of equalities ran past the margin and off the paper, where nobody can
 # read it; smaller is readable. Inside a line it leaves room for a list item.
 _INLINE_MAX_PT = _TEXT_WIDTH_PT - 30
+# The kraft ground a display formula stands on is as wide as the column, and
+# the formula keeps clear of its edges.
+_GROUND_PAD_X = 10.0
+_GROUND_PAD_Y = 5.0
+_GROUND_INNER_PT = _TEXT_WIDTH_PT - 2 * _GROUND_PAD_X
 
 
-def _formula_png(latex: str, size_pt: float) -> tuple[bytes, float, float, float]:
+def _formula_png(
+    latex: str, size_pt: float, color: str = _INK
+) -> tuple[bytes, float, float, float]:
     """One formula as a transparent PNG, with its width, height and depth in
     points. Raises when mathtext cannot read the LaTeX — callers fall back to
     the source text.
@@ -1243,15 +1335,18 @@ def _formula_png(latex: str, size_pt: float) -> tuple[bytes, float, float, float
     baseline sits above it. A formula set inside a line is lowered by exactly
     that much, so its baseline is the line's: a fixed fraction of the height
     lifted a subscript off the line and sank a fraction through it.
+
+    `color` is the ink's everywhere but on the one dark block, "Суть", where
+    a formula in ink would be ink on ink.
     """
     figure = plt.figure(figsize=(0.01, 0.01))
     try:
         text = figure.text(
             0, 0, f"${for_mathtext(latex)}$",
-            fontsize=size_pt, math_fontfamily=_MATH_FONT, color=_INK,
+            fontsize=size_pt, math_fontfamily=_MATH_FONT, color=color,
         )
         text.set_path_effects(
-            [patheffects.withStroke(linewidth=_MATH_STROKE_PT, foreground=_INK)]
+            [patheffects.withStroke(linewidth=_MATH_STROKE_PT, foreground=color)]
         )
         # The box savefig crops to is this one: the text's layout, baseline at
         # y=0, so whatever lies below zero is the depth.
@@ -1332,7 +1427,7 @@ def _graph_png(
     left, right = min(xs) - margin, max(xs) + margin
     bottom, top = min(ys) - margin, max(ys) + margin
 
-    label_font = FontProperties(fname=os.path.join(_FONT_DIR, "Lato-Bold.ttf"), size=9)
+    label_font = FontProperties(fname=os.path.join(_FONT_DIR, "Onest-SemiBold.ttf"), size=9)
     figure = plt.figure(
         figsize=(
             (right - left) * _GRAPH_INCHES_PER_UNIT,
@@ -1375,8 +1470,10 @@ def _graph_png(
                     lw=1.0, color=_INK, zorder=1,
                 )
         for vertex, (x, y) in positions.items():
+            # Filled with the paper, so an edge stops at the circle and the
+            # circle does not stand out as a white disc on the page.
             axes.add_patch(
-                plt.Circle((x, y), node, facecolor="white", edgecolor=_INK,
+                plt.Circle((x, y), node, facecolor=_PAPER, edgecolor=_INK,
                            lw=1.0, zorder=2)
             )
             axes.text(x, y, vertex, ha="center", va="center",
@@ -1411,12 +1508,12 @@ def _placement(vertices: list[str]) -> list[str]:
 
 def _text(value: str) -> str:
     """Plain text as reportlab markup: escaped, a <br> the composing stage
-    wrote as a line break, and every run of characters Lato does not have set
-    in DejaVu, which has them — reportlab has no fallback of its own and draws
-    an empty box for a glyph its font lacks."""
+    wrote as a line break, and every run of characters Onest does not have
+    set in DejaVu, which has them — reportlab has no fallback of its own and
+    draws an empty box for a glyph its font lacks."""
     if not value:
         return ""
-    known = _lato_glyphs()
+    known = _text_glyphs()
     out: list[str] = []
     for position, part in enumerate(_BREAK_RE.split(value)):
         if position:
@@ -1447,8 +1544,11 @@ _EMPHASIS_RE = re.compile(r"\*\*|~~")
 _EMPHASIS_TAGS = {"**": "b", "~~": "strike"}
 
 
-def _inline(runs: list[tuple[str, str]], formulas, size_pt: float) -> str:
-    """Runs of text and formulas as reportlab markup.
+def _inline(
+    runs: list[tuple[str, str]], formulas, size_pt: float, color: str = _INK
+) -> str:
+    """Runs of text and formulas as reportlab markup, the formulas drawn in
+    `color`.
 
     Emphasis is paired over the whole line, not inside one run of text:
     "**Регулярный граф степени $n$**" is one bold span with a formula in the
@@ -1484,7 +1584,7 @@ def _inline(runs: list[tuple[str, str]], formulas, size_pt: float) -> str:
     for kind, value in runs:
         if kind == "math":
             tag = (
-                formulas.inline(value, size_pt * _MATH_SCALE)
+                formulas.inline(value, size_pt * _MATH_SCALE, color)
                 if formulas is not None
                 else None
             )
@@ -1498,8 +1598,9 @@ def _inline(runs: list[tuple[str, str]], formulas, size_pt: float) -> str:
             # image: the word after a long formula stayed on its line and ran
             # off the paper. A zero-width space is a place it will break.
             # Only where the page had a space — never between a formula and
-            # its comma.
-            pieces.append("\u200b")
+            # its comma. Through _text, which sets it in DejaVu: Onest has no
+            # glyph for it, and it printed as an empty box after every formula.
+            pieces.append(_text("\u200b"))
         drawn_before = False
         position = 0
         for found in _EMPHASIS_RE.finditer(value):
@@ -1529,7 +1630,7 @@ class _Formulas:
 
     def __init__(self, directory: str):
         self._directory = directory
-        self._cache: dict[tuple[str, float], tuple[str, float, float, float]] = {}
+        self._cache: dict[tuple[str, float, str], tuple[str, float, float, float]] = {}
         self._count = 0
         self._refused_seen: set[str] = set()
 
@@ -1558,12 +1659,12 @@ class _Formulas:
             detail[-1] if detail else type(exc).__name__,
         )
 
-    def inline(self, latex: str, size_pt: float) -> str | None:
+    def inline(self, latex: str, size_pt: float, color: str = _INK) -> str | None:
         """An <img> tag for use inside a paragraph, or None if unrenderable."""
-        key = (latex, size_pt)
+        key = (latex, size_pt, color)
         if key not in self._cache:
             try:
-                data, width, height, depth = _formula_png(latex, size_pt)
+                data, width, height, depth = _formula_png(latex, size_pt, color)
             except Exception as exc:
                 self._refused(latex, exc)
                 return None
@@ -1583,7 +1684,7 @@ class _Formulas:
         )
 
     def display(
-        self, latex: str, size_pt: float, max_width: float = _TEXT_WIDTH_PT
+        self, latex: str, size_pt: float, max_width: float = _GROUND_INNER_PT
     ) -> Image | None:
         try:
             data, width, height, _ = _formula_png(latex, size_pt)
@@ -1620,12 +1721,16 @@ def _styles() -> dict[str, ParagraphStyle]:
     return {
         "title": ParagraphStyle(
             "title", parent=base, fontName=_HEAVY_FONT, fontSize=_TITLE_PT,
-            leading=_TITLE_PT * 1.2, spaceAfter=9,
+            leading=_TITLE_PT * 1.25, spaceAfter=6,
         ),
+        # The lecture's sections in Unbounded, as the guide sets them; a
+        # subsection in the text's own face, a step above it — Unbounded at the
+        # size of the text is a shout.
         **{
             f"heading{level}": ParagraphStyle(
-                f"heading{level}", parent=base, fontName=_HEAVY_FONT,
-                fontSize=size, leading=size * 1.3,
+                f"heading{level}", parent=base,
+                fontName=_HEADING_FONT if level == 1 else _TEXT_BOLD_FONT,
+                fontSize=size, leading=size * 1.35,
                 spaceBefore=_HEADING_SPACE_BEFORE[level],
                 spaceAfter=_HEADING_SPACE_AFTER[level],
             )
@@ -1633,32 +1738,34 @@ def _styles() -> dict[str, ParagraphStyle]:
         },
         # What stands under the title: small and grey, a line of facts rather
         # than a sentence the author was saying.
-        "byline": ParagraphStyle("byline", parent=muted),
+        "byline": ParagraphStyle("byline", parent=muted, fontSize=10, leading=14),
         "meta": ParagraphStyle("meta", parent=muted),
         # A box is set at the size of the text it sits in. Smaller and it
         # read as small print to skip.
         "callout_body": ParagraphStyle("callout_body", parent=base),
+        # "Суть": the text in the paper's colour on the ink.
+        "essence": ParagraphStyle("essence", parent=base, textColor=_PAPER),
         "body": base,
         "bullet": ParagraphStyle(
-            "bullet", parent=base, leftIndent=26, bulletIndent=10,
+            "bullet", parent=base, leftIndent=22, bulletIndent=8,
             bulletFontName=_TEXT_FONT,
         ),
         "caption": ParagraphStyle("caption", parent=muted, alignment=TA_CENTER),
         # A drawing the page had and the record could not draw: set where the
         # picture would be, the size of a caption, so it reads as a figure
         # that is missing rather than as a line of the author's text.
-        "note": ParagraphStyle(
-            "note", parent=muted, fontName="Lato-Italic", alignment=TA_CENTER,
-        ),
+        "note": ParagraphStyle("note", parent=muted, alignment=TA_CENTER),
         "math": ParagraphStyle("math", parent=base, alignment=TA_CENTER),
         "framed": ParagraphStyle("framed", parent=base, alignment=TA_CENTER),
         "number": ParagraphStyle(
-            "number", parent=base, fontSize=_NUMBER_PT, leading=_NUMBER_PT * 1.3,
-            textColor=_MUTED, alignment=TA_RIGHT,
+            "number", parent=base, fontName=_MONO_FONT, fontSize=_NUMBER_PT,
+            leading=_NUMBER_PT * 1.3, textColor=_MUTED, alignment=TA_RIGHT,
         ),
+        # Where an explanation comes from: names of sites, set as what serves
+        # the page rather than as the lecture.
         "sources": ParagraphStyle(
-            "sources", parent=muted, fontSize=9.5, leading=9.5 * 1.45,
-            spaceBefore=3,
+            "sources", parent=muted, fontName=_MONO_FONT, fontSize=8,
+            leading=8 * 1.6, spaceBefore=4,
         ),
         "cell": ParagraphStyle(
             "cell", parent=base, fontSize=_TABLE_PT, leading=_TABLE_PT * 1.35,
@@ -1739,8 +1846,11 @@ def _table(
         colWidths=_column_widths(rows),
         hAlign="CENTER",
     )
+    # The line under a header, or after the names of the rows, belongs to the
+    # table's reading and is ink; the lines between the rows of a list are
+    # the guide's kraft dividers.
     rule = colors.HexColor(_INK)
-    light = colors.HexColor(_HAIRLINE)
+    light = colors.HexColor(_KRAFT)
     style = [
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("LEFTPADDING", (0, 0), (-1, -1), 5),
@@ -1837,7 +1947,7 @@ def _ruled_table(
                     pdfmetrics.stringWidth(plain(latex), _TEXT_FONT, _BODY_PT) + 4,
                 )
                 continue
-            image = formulas.display(latex, size_pt, max_width=_TEXT_WIDTH_PT)
+            image = formulas.display(latex, size_pt, max_width=_GROUND_INNER_PT)
             if image is None:
                 cell = Paragraph(_markup(f"${latex}$"), styles["layout_cell"])
                 width = pdfmetrics.stringWidth(f"${latex}$", _TEXT_FONT, _BODY_PT)
@@ -1847,9 +1957,9 @@ def _ruled_table(
             widths[column] = max(widths[column], width)
         cells.append(drawn)
     widths = [width + 2 * _CELL_PAD_PT for width in widths]
-    if array.text and sum(widths) > _TEXT_WIDTH_PT:
-        # Text wraps where a formula cannot: the columns share the page.
-        widths = [width * _TEXT_WIDTH_PT / sum(widths) for width in widths]
+    if array.text and sum(widths) > _GROUND_INNER_PT:
+        # Text wraps where a formula cannot: the columns share the ground.
+        widths = [width * _GROUND_INNER_PT / sum(widths) for width in widths]
 
     ink = colors.HexColor(_INK)
     alignment = {"l": "LEFT", "c": "CENTER", "r": "RIGHT"}
@@ -1893,9 +2003,9 @@ def _ruled_row(
     for _ in range(2):
         drawn = [_ruled_table(array, formulas, styles, size) for array in arrays]
         total = sum(width for _, width in drawn) + _ARRAYS_GAP_PT * (len(drawn) - 1)
-        if total <= _TEXT_WIDTH_PT:
+        if total <= _GROUND_INNER_PT:
             break
-        size = max(7.0, size * _TEXT_WIDTH_PT / total)
+        size = max(7.0, size * _GROUND_INNER_PT / total)
     if len(drawn) == 1:
         return KeepTogether([drawn[0][0]])
     gaps = [_ARRAYS_GAP_PT] * (len(drawn) - 1)
@@ -1923,15 +2033,15 @@ def _ruled_row(
 
 
 class _Label(Flowable):
-    """A box's label: small capitals with their letters spaced, the way the
-    reference sets "ЗАМЕЧАНИЕ". A reportlab paragraph cannot space letters,
-    so the label is drawn."""
+    """A box's label: capitals with their letters spaced, in the monospace of
+    what serves the page. A reportlab paragraph cannot space letters, so the
+    label is drawn."""
 
     def __init__(self, text: str, color: str):
         super().__init__()
         self.text = text.upper()
         self.color = color
-        self._height = _LABEL_PT * 1.55
+        self._height = _LABEL_PT * 1.8
 
     def wrap(self, available_width, available_height):
         return available_width, self._height
@@ -1939,8 +2049,8 @@ class _Label(Flowable):
     def draw(self):
         self.canv.saveState()
         self.canv.setFillColor(colors.HexColor(self.color))
-        line = self.canv.beginText(0, _LABEL_PT * 0.45)
-        line.setFont(_HEAVY_FONT, _LABEL_PT)
+        line = self.canv.beginText(0, _LABEL_PT * 0.55)
+        line.setFont(_MONO_BOLD_FONT, _LABEL_PT)
         line.setCharSpace(_LABEL_TRACKING)
         line.textOut(self.text)
         self.canv.drawText(line)
@@ -1959,9 +2069,9 @@ def _box(
     """The one shape every box beside the text takes: a bar down the left,
     a label in spaced capitals, the lines under it. No panel behind it.
 
-    A callout about the whole record and a finding under one line are the
-    reference's "ЗАМЕЧАНИЕ" with an accent in the bar and the label; what the
-    bot adds of its own is the same box in a tone of its own.
+    A callout about the whole record and a finding under one line carry the
+    weight of what they say in the bar and the label; what the bot adds of its
+    own is the same box in ink, named as the bot's.
 
     reportlab has no such flowable, so it is a table of one cell — that is
     what gives a bar on one side only.
@@ -1975,8 +2085,8 @@ def _box(
     table.setStyle(
         TableStyle(
             [
-                ("LINEBEFORE", (0, 0), (0, -1), 3, colors.HexColor(bar)),
-                ("LEFTPADDING", (0, 0), (-1, -1), 18),
+                ("LINEBEFORE", (0, 0), (0, -1), _BAR_PT, colors.HexColor(bar)),
+                ("LEFTPADDING", (0, 0), (-1, -1), 16),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                 ("TOPPADDING", (0, 0), (-1, -1), 3),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -1992,8 +2102,11 @@ def _callout(
 ) -> Table:
     """A box at the top of the record: what the pipeline knows about how far
     the text can be trusted, in the tone of how much that matters."""
-    accent = _CALLOUT_TONES.get(box.tone, _CALLOUT_TONES["info"])
-    return _box(box.title, box.lines, accent, accent, styles["callout_body"], formulas)
+    tone = box.tone if box.tone in _CALLOUT_TONES else "info"
+    return _box(
+        box.title, box.lines, _CALLOUT_TONES[tone], _CALLOUT_BARS[tone],
+        styles["callout_body"], formulas,
+    )
 
 
 def _remark(
@@ -2002,9 +2115,10 @@ def _remark(
     """A finding under the line it is about, in the accent a callout of its
     weight would carry. It used to be a callout at the top of the record,
     which said what was wrong without saying where."""
-    accent = _CALLOUT_TONES.get(remark.tone, _CALLOUT_TONES["info"])
+    tone = remark.tone if remark.tone in _CALLOUT_TONES else "info"
     return _box(
-        remark.label, remark.lines, accent, accent, styles["callout_body"], formulas
+        remark.label, remark.lines, _CALLOUT_TONES[tone], _CALLOUT_BARS[tone],
+        styles["callout_body"], formulas,
     )
 
 
@@ -2028,13 +2142,85 @@ def _explanation(
     )
 
 
-def _summary(
+def _star(page_canvas, x: float, y: float, radius: float, color: str) -> None:
+    """The guide's star, ✦, centred on (x, y): four points, its sides curved
+    in. Drawn rather than set, so it is the same star in every face and the
+    amber the guide gives it."""
+    tips = [(0.0, radius), (radius, 0.0), (0.0, -radius), (-radius, 0.0)]
+    # Each side bows towards a point near the centre, between its two tips.
+    pull = radius * 0.2
+    bows = [(pull, pull), (pull, -pull), (-pull, -pull), (-pull, pull)]
+    path = page_canvas.beginPath()
+    path.moveTo(x, y + radius)
+    for (bx, by), (tx, ty) in zip(bows, tips[1:] + tips[:1]):
+        path.curveTo(x + bx, y + by, x + bx, y + by, x + tx, y + ty)
+    path.close()
+    page_canvas.setFillColor(colors.HexColor(color))
+    page_canvas.drawPath(path, stroke=0, fill=1)
+
+
+class _EssenceLabel(Flowable):
+    """"✦ СУТЬ · составлено ботом по тексту записи": the star in amber, the
+    block's name in the paper's colour, and whose words these are a step
+    quieter — the one dark block is the bot's, and says so."""
+
+    def __init__(self, label: str):
+        super().__init__()
+        name, _, note = label.partition(" · ")
+        self.name = name.upper()
+        self.note = note.upper()
+        self._height = _LABEL_PT * 2.0
+
+    def wrap(self, available_width, available_height):
+        return available_width, self._height
+
+    def draw(self):
+        canvas = self.canv
+        canvas.saveState()
+        size = _LABEL_PT
+        _star(canvas, size * 0.6, size * 0.95, size * 0.72, _AMBER)
+        line = canvas.beginText(size * 1.8, size * 0.6)
+        line.setCharSpace(_LABEL_TRACKING)
+        line.setFont(_MONO_BOLD_FONT, size)
+        line.setFillColor(colors.HexColor(_PAPER))
+        line.textOut(self.name)
+        if self.note:
+            line.setFont(_MONO_FONT, size)
+            line.setFillColor(colors.HexColor(_MUTED_ON_INK))
+            line.textOut(f" · {self.note}")
+        canvas.drawText(line)
+        canvas.restoreState()
+
+
+_ESSENCE_PAD_X = 16.0
+_ESSENCE_PAD_Y = 12.0
+
+
+def _essence(
     item: Summary, formulas: _Formulas, styles: dict[str, ParagraphStyle]
 ) -> Table:
-    return _box(
-        item.label, item.lines, _ADDED_TONE, _ADDED_TONE, styles["callout_body"],
-        formulas,
+    """"Суть": the record summed up, first in the document, on the page's one
+    dark block — the guide's. The bot wrote it, and its label says so."""
+    inside: list = [_EssenceLabel(item.label), Spacer(1, 3)]
+    inside += [
+        Paragraph(_inline(split_inline(line), formulas, _BODY_PT, _PAPER), styles["essence"])
+        for line in item.lines
+    ]
+    table = Table([[inside]], colWidths=[_TEXT_WIDTH_PT], hAlign="LEFT")
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(_INK)),
+                ("ROUNDEDCORNERS", [5, 5, 5, 5]),
+                ("LEFTPADDING", (0, 0), (-1, -1), _ESSENCE_PAD_X),
+                ("RIGHTPADDING", (0, 0), (-1, -1), _ESSENCE_PAD_X),
+                ("TOPPADDING", (0, 0), (-1, -1), _ESSENCE_PAD_Y - 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), _ESSENCE_PAD_Y),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
     )
+    return table
 
 
 # Spaces, dollars and the stars of bold: what a model quoting a line writes
@@ -2258,8 +2444,9 @@ def _graph(spec: str, width_pt: float = _GRAPH_WIDTH_PT) -> Image | None:
 def _hairline(
     width: str = "100%", space_before: float = 0, space_after: float = 0
 ) -> HRFlowable:
-    """The thin rule the reference puts under its title and under each section
-    heading. Quiet enough to separate without being furniture."""
+    """A thin line of kraft — the guide's divider. What is left of the rules
+    the reference drew under its title and between its sections is the seam
+    between two pages of an album; the sections are set apart by air."""
     return HRFlowable(
         width=width,
         thickness=0.8,
@@ -2270,27 +2457,42 @@ def _hairline(
     )
 
 
-def _section_rule() -> HRFlowable:
-    """The broader, paler rule the reference sets between two sections."""
-    return HRFlowable(
-        width="100%",
-        thickness=1.5,
-        hAlign="CENTER",
-        color=colors.HexColor(_SECTION_RULE),
-        spaceBefore=8,
-        spaceAfter=4,
+def _grounded(flowables: list) -> Table:
+    """A display formula on the guide's kraft ground, as wide as the column.
+
+    A group that keeps itself whole — a long division — is opened first: its
+    KeepTogether reports an effectively infinite height to the cell it would
+    sit in. The ground keeps it whole, being one cell."""
+    content, _ = _opened(flowables)
+    table = Table([[content]], colWidths=[_TEXT_WIDTH_PT], hAlign="CENTER")
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(_FORMULA_GROUND)),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), _GROUND_PAD_X),
+                ("RIGHTPADDING", (0, 0), (-1, -1), _GROUND_PAD_X),
+                ("TOPPADDING", (0, 0), (-1, -1), _GROUND_PAD_Y),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), _GROUND_PAD_Y),
+            ]
+        )
     )
+    return table
 
 
 _FRAME_INNER_MAX_PT = _TEXT_WIDTH_PT - 2 * _NUMBER_COLUMN_PT - 2 * _FRAME_PAD_X
 
 
-def _numbered(content, width: float, number: int | None, styles) -> Table:
+def _numbered(
+    content, width: float, number: int | None, styles, grounded: bool = True
+) -> Table:
     """`content` in a frame centred in the column, its number at the right edge.
 
     The frame is a table of one cell — it is what draws a box — and the row
     round it gives the number a column of its own, so the frame stays centred
-    whether it is numbered or not.
+    whether it is numbered or not. A formula's row stands on the kraft ground
+    the guide gives every formula; a frame round words alone does not.
     """
     frame = Table([[content]], colWidths=[width + 2 * _FRAME_PAD_X], hAlign="CENTER")
     frame.setStyle(
@@ -2313,19 +2515,20 @@ def _numbered(content, width: float, number: int | None, styles) -> Table:
         colWidths=[_NUMBER_COLUMN_PT, middle, _NUMBER_COLUMN_PT],
         hAlign="CENTER",
     )
-    row.setStyle(
-        TableStyle(
-            [
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("ALIGN", (1, 0), (1, 0), "CENTER"),
-                ("ALIGN", (2, 0), (2, 0), "RIGHT"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 0),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-            ]
-        )
-    )
+    pad = _GROUND_PAD_Y + 3 if grounded else 0
+    style = [
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (1, 0), (1, 0), "CENTER"),
+        ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (2, 0), (2, 0), _GROUND_PAD_X if grounded else 0),
+        ("TOPPADDING", (0, 0), (-1, -1), pad),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), pad),
+    ]
+    if grounded:
+        style.append(("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(_FORMULA_GROUND)))
+    row.setStyle(TableStyle(style))
     row.main_number = number  # what the tests and the reader both look for
     return row
 
@@ -2349,7 +2552,7 @@ def _framed(
 ) -> list:
     """What the author framed that is not one formula: a phrase, or several
     lines. Numbered when it holds a formula, since that is what a frame round
-    formulas means in the notebook."""
+    formulas means in the notebook — and on a formula's ground then."""
     markup = "<br/>".join(
         _line_markup(line, formulas, _BODY_PT) for line in block.text.split("\n")
     )
@@ -2357,7 +2560,38 @@ def _framed(
     paragraph.wrap(_FRAME_INNER_MAX_PT, 10_000)
     widths = paragraph.getActualLineWidths0() or [_FRAME_INNER_MAX_PT]
     width = min(max(widths) + 2, _FRAME_INNER_MAX_PT)
-    return [_numbered(Paragraph(markup, styles["framed"]), width, number, styles)]
+    return [
+        _numbered(
+            Paragraph(markup, styles["framed"]), width, number, styles,
+            grounded=number is not None,
+        )
+    ]
+
+
+def _definition(cells: list[list], gaps: list[float]) -> Table:
+    """The lines a definition is stated in, with the guide's amber line down
+    their left — the one mark the author's own text gets.
+
+    A row a line, not one cell for all of them: a table splits between its
+    rows, so a definition longer than what is left of a page goes on over
+    the next one with its line, where one cell would not fit anywhere."""
+    table = Table([[cell] for cell in cells], colWidths=[_TEXT_WIDTH_PT], hAlign="LEFT")
+    style = [
+        ("LINEBEFORE", (0, 0), (0, -1), _BAR_PT, colors.HexColor(_DEFINITION_BAR)),
+        ("LEFTPADDING", (0, 0), (-1, -1), 16),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        # The line runs a little past the first and the last line of text.
+        ("TOPPADDING", (0, 0), (0, 0), 2),
+        ("BOTTOMPADDING", (0, -1), (0, -1), 3),
+    ]
+    for row, gap in enumerate(gaps):
+        if row and gap:
+            style.append(("TOPPADDING", (0, row), (0, row), gap))
+    table.setStyle(TableStyle(style))
+    return table
 
 
 def _flowables(
@@ -2366,10 +2600,12 @@ def _flowables(
     styles: dict[str, ParagraphStyle],
     top_level: int = 1,
     numbers=None,
+    sections=None,
 ) -> list:
     """One parsed block as reportlab flowables, with no space around them —
     the space between blocks is the rhythm's, see _space_before."""
     numbers = numbers if numbers is not None else itertools.count(1)
+    sections = sections if sections is not None else itertools.count(1)
     if block.kind == "math" and block.main:
         return _main_formula(block, formulas, styles, next(numbers))
 
@@ -2387,10 +2623,17 @@ def _flowables(
     if block.kind == "heading":
         rank = _rank(block.level, top_level)
         style = styles[f"heading{rank}"]
-        out = [Paragraph(_line_markup(block.text, formulas, style.fontSize), style)]
+        markup = _line_markup(block.text, formulas, style.fontSize)
         if rank == 1:
-            out.append(_hairline(space_before=3, space_after=8))
-        return out
+            # The guide numbers a lecture's sections through the whole
+            # record, "01", "02", in the monospace and the dark amber.
+            number = next(sections)
+            markup = (
+                f'<font face="{_MONO_BOLD_FONT}" color="{_DARK_AMBER}" '
+                f'size="{style.fontSize * 0.82:.1f}">{number:02d}</font>'
+                f"&nbsp;&nbsp;{markup}"
+            )
+        return [Paragraph(markup, style)]
 
     if block.kind == "bullet":
         return [
@@ -2463,6 +2706,39 @@ def _pair(
     return members + [table], position + 1, flowables, "figure"
 
 
+# A definition, as the composing stage heads one — "### Определение", its
+# rule 6 — or as a line opens one: "**Определение.** Граф называется ...".
+_DEFINITION_HEADING_RE = re.compile(r"^[*\s]*определени[еяй]", re.IGNORECASE)
+_DEFINITION_LEAD_RE = re.compile(r"^\*\*\s*определени[еяй]", re.IGNORECASE)
+_DEFINITION_LINES = ("text", "bullet")
+
+
+def _definition_end(parsed: list[Block], index: int) -> int | None:
+    """Where the lines of a definition end when `index` is the first of them,
+    else None: the lines right under a heading "Определение…", or a line that
+    opens with a bold "Определение" and those right after it.
+
+    Its lines only — prose and list items with no blank line between them.
+    A formula, a table or a blank line ends it: the line marks what the
+    definition says, and a whole section under the heading would carry its
+    examples along."""
+    block = parsed[index]
+    if block.kind not in _DEFINITION_LINES:
+        return None
+    if not (block.kind == "text" and _DEFINITION_LEAD_RE.match(block.text.strip())):
+        before = index - 1
+        while before >= 0 and parsed[before].kind == "gap":
+            before -= 1
+        if before < 0 or parsed[before].kind != "heading":
+            return None
+        if not _DEFINITION_HEADING_RE.match(parsed[before].text):
+            return None
+    end = index + 1
+    while end < len(parsed) and parsed[end].kind in _DEFINITION_LINES:
+        end += 1
+    return end
+
+
 def _unit(
     parsed: list[Block],
     index: int,
@@ -2470,14 +2746,32 @@ def _unit(
     styles: dict[str, ParagraphStyle],
     top_level: int = 1,
     numbers=None,
+    sections=None,
 ) -> tuple[list[Block], int, list, str]:
     """The next thing set on the page: the blocks it is made of, where the one
     after it starts, its flowables, and the kind the rhythm knows it by.
 
     Mostly one block. A run of drawings is one row, and a graph or a matrix
-    name with the table right after it is one row too.
+    name with the table right after it is one row too; so are the lines of a
+    definition, beside one amber line.
     """
     block = parsed[index]
+
+    end = _definition_end(parsed, index)
+    if end is not None:
+        members = parsed[index:end]
+        cells: list[list] = []
+        gaps: list[float] = []
+        for position, member in enumerate(members):
+            cells.append(
+                _flowables(member, formulas, styles, top_level, numbers, sections)
+            )
+            gaps.append(
+                _space_before(members[position - 1].kind, member.kind, False)
+                if position
+                else 0.0
+            )
+        return members, end, [_definition(cells, gaps)], "definition"
 
     if block.kind == "graph":
         run = [block]
@@ -2501,9 +2795,17 @@ def _unit(
         if paired is not None:
             return paired
 
-    flowables = _flowables(block, formulas, styles, top_level, numbers)
-    main = block.kind == "framed" or (block.kind == "math" and block.main)
-    return [block], index + 1, flowables, "main" if main else block.kind
+    flowables = _flowables(block, formulas, styles, top_level, numbers, sections)
+    if block.kind == "math" and not block.main:
+        # A main formula's row draws its own ground, round its frame.
+        flowables = [_grounded(flowables)]
+    if block.kind == "math" and block.main:
+        kind = "main"
+    elif block.kind == "framed":
+        kind = "main" if "$" in block.text else "frame"
+    else:
+        kind = block.kind
+    return [block], index + 1, flowables, kind
 
 
 def _space_before(previous: str | None, kind: str, paragraph_break: bool) -> float:
@@ -2515,10 +2817,11 @@ def _space_before(previous: str | None, kind: str, paragraph_break: bool) -> flo
     one drops it rather than opening on a gap."""
     if previous is None or kind == "heading" or previous == "heading":
         return 0.0
-    if kind == "main" or previous == "main":
+    if kind in ("main", "frame") or previous in ("main", "frame"):
         return _MAIN_GAP
     if kind == "math" and previous == "math":
-        return _STACK_GAP
+        # One run of formulas on one ground: the grounds touch.
+        return 0.0
     if kind in _SET_APART or previous in _SET_APART:
         return _SET_APART_GAP
     if previous == "box":
@@ -2530,57 +2833,181 @@ def _space_before(previous: str | None, kind: str, paragraph_break: bool) -> flo
     return 0.0
 
 
-def _fit(text: str, width: float, size: float) -> str:
+def _width(text: str, font: str, size: float, tracking: float = 0.0) -> float:
+    return pdfmetrics.stringWidth(text, font, size) + tracking * len(text)
+
+
+def _fit(
+    text: str, width: float, size: float, font: str = _TEXT_FONT, tracking: float = 0.0
+) -> str:
     """`text` cut to `width` points, with an ellipsis where it was cut."""
-    if pdfmetrics.stringWidth(text, _TEXT_FONT, size) <= width:
+    if _width(text, font, size, tracking) <= width:
         return text
-    while text and pdfmetrics.stringWidth(text + "…", _TEXT_FONT, size) > width:
+    while text and _width(text + "…", font, size, tracking) > width:
         text = text[:-1]
     return text.rstrip() + "…"
 
 
-def _draw_runs(page_canvas, x: float, y: float, text: str, size: float) -> None:
+def _draw_runs(
+    page_canvas,
+    x: float,
+    y: float,
+    text: str,
+    size: float,
+    font: str = _TEXT_FONT,
+    tracking: float = 0.0,
+) -> float:
     """drawString with the fallback a paragraph gets from _text: a run of
-    characters Lato lacks — "⇒", "ℝ" in a title turned plain — is set in
-    DejaVu rather than printed as empty boxes."""
-    known = _lato_glyphs()
-    for in_lato, run in itertools.groupby(text, key=lambda char: ord(char) in known):
+    characters the face lacks — "⇒", "ℝ" in a title turned plain — is set in
+    DejaVu rather than printed as empty boxes. Where the text ended."""
+    known = _mono_glyphs() if font in (_MONO_FONT, _MONO_BOLD_FONT) else _text_glyphs()
+    for in_face, run in itertools.groupby(text, key=lambda char: ord(char) in known):
         run = "".join(run)
-        font = _TEXT_FONT if in_lato else _FALLBACK_FONT
-        page_canvas.setFont(font, size)
-        page_canvas.drawString(x, y, run)
-        x += pdfmetrics.stringWidth(run, font, size)
+        face = font if in_face else _FALLBACK_FONT
+        page_canvas.setFont(face, size)
+        page_canvas.drawString(x, y, run, charSpace=tracking)
+        x += _width(run, face, size, tracking)
+    return x
 
 
-def _draw_furniture(page_canvas, number: int, total: int, running_title: str) -> None:
-    """What a page carries besides the record.
+# ── The furniture: the head of every page and the signature at its foot ──────
+_HEAD_BASELINE_PT = 12 * mm
+_WORDMARK = "SUM"
+_WORDMARK_PT = 14.0
+_TAGLINE = "AI · КОНСПЕКТЫ"
+_TAGLINE_PT = 6.0
+_TAGLINE_TRACKING = 0.22 * _TAGLINE_PT  # the guide's 0.22 em
+_INVITE_PT = 8.0
+_HANDLE_PT = 9.5
+# 18 mm is the guide's size, 15 its least. At 18 in a band of 22 the last row
+# of modules came to 3 mm off the paper's edge, where a printer does not
+# print; at 16 it stands 5 mm clear, and the signature's line 1.5 mm above it.
+_QR_PT = 16 * mm
+_QR_BOTTOM_PT = 4.5 * mm
+_QR_BORDER_MODULES = 2
 
-    From the second page on, the record's title over the text: a printed page
-    four has to say which lecture it belongs to. On every page of a record
-    longer than one, its number — as "2 / 5" and not "с. 2", because inside a
-    record "с. 2" already means the second photographed page, which is what a
-    remark or a callout points at. A one-page record carries none of it.
-    """
-    if total < 2:
-        return
+
+def _draw_head(
+    page_canvas, number: int, total: int, page: Page, running_title: str
+) -> None:
+    """The head of a page: which lecture this is, even on a sheet forwarded
+    alone — the subject, the date, the page — in the monospace, in capitals,
+    in grey ink. From the second page on the record's title stands in it too,
+    since the title itself is on the first.
+
+    The page is "стр. 2/5", never "с. 2": inside a record "с. 2" means the
+    second photographed page, which is what a missing page's box names. A
+    record of one page has no page number."""
     width, height = A4
     left, right = _MARGIN_PT, width - _MARGIN_PT
-    page_canvas.saveState()
-    page_canvas.setFont(_TEXT_FONT, _FURNITURE_PT)
-    page_canvas.setFillColor(colors.HexColor(_MUTED))
+    facts = [page.date] if page.date else []
+    if total > 1:
+        facts.append(f"{page.page_word} {number}/{total}".strip())
+    at_right = " · ".join(facts).upper()
+    named = [page.subject] if page.subject else []
     if number > 1 and running_title:
-        baseline = height - 12 * mm
+        named.append(running_title)
+    at_left = " · ".join(named).upper()
+
+    page_canvas.saveState()
+    page_canvas.setFillColor(colors.HexColor(_MUTED))
+    size, tracking = _FURNITURE_PT, _FURNITURE_TRACKING
+    y = height - _HEAD_BASELINE_PT
+    right_width = _width(at_right, _MONO_FONT, size, tracking)
+    if at_right:
         _draw_runs(
-            page_canvas,
-            left,
-            baseline,
-            _fit(running_title, right - left, _FURNITURE_PT),
-            _FURNITURE_PT,
+            page_canvas, right - right_width, y, at_right, size, _MONO_FONT, tracking
         )
-        page_canvas.setStrokeColor(colors.HexColor(_HAIRLINE))
-        page_canvas.setLineWidth(0.8)
-        page_canvas.line(left, baseline - 2.2 * mm, right, baseline - 2.2 * mm)
-    page_canvas.drawCentredString(width / 2, 10 * mm, f"{number} / {total}")
+    if at_left:
+        room = right - left - right_width - (16 if at_right else 0)
+        _draw_runs(
+            page_canvas, left, y, _fit(at_left, room, size, _MONO_FONT, tracking),
+            size, _MONO_FONT, tracking,
+        )
+    page_canvas.restoreState()
+
+
+def _draw_qr(page_canvas, value: str, x: float, y: float, size: float) -> None:
+    """A QR code in ink on the paper, as the guide asks: not inverted, not in
+    amber, no star in its middle — each of those costs a scanner its read."""
+    from reportlab.graphics import renderPDF
+    from reportlab.graphics.barcode.qr import QrCodeWidget
+    from reportlab.graphics.shapes import Drawing
+
+    widget = QrCodeWidget(value, barLevel="M", barBorder=_QR_BORDER_MODULES)
+    widget.barWidth = size
+    widget.barHeight = size
+    widget.barFillColor = colors.HexColor(_INK)
+    drawing = Drawing(size, size)
+    drawing.add(widget)
+    renderPDF.draw(drawing, page_canvas, x, y)
+
+
+def _draw_signature(page_canvas, page: Page) -> None:
+    """The foot of every page, the last one included: the SUM sign, the
+    invitation with the bot's name, and a QR code that opens the bot. A
+    screenshot of one page has to lead to it too — the guide's reason for
+    putting it on every page rather than once at the end.
+
+    Nothing of it without the bot's name but the sign: an invitation to a bot
+    it cannot name is an invitation to nothing."""
+    width, _ = A4
+    left, right = _MARGIN_PT, width - _MARGIN_PT
+    page_canvas.saveState()
+    page_canvas.setStrokeColor(colors.HexColor(_KRAFT))
+    page_canvas.setLineWidth(0.5)
+    page_canvas.line(left, _SIGNATURE_PT, right, _SIGNATURE_PT)
+
+    # The sign: SUM in ink and the star in amber, "AI · конспекты" under it.
+    baseline = 12.9 * mm
+    page_canvas.setFillColor(colors.HexColor(_INK))
+    page_canvas.setFont(_HEAVY_FONT, _WORDMARK_PT)
+    page_canvas.drawString(left, baseline, _WORDMARK)
+    after = left + pdfmetrics.stringWidth(_WORDMARK, _HEAVY_FONT, _WORDMARK_PT)
+    radius = _WORDMARK_PT * 0.34
+    _star(page_canvas, after + 2.5 + radius, baseline + _WORDMARK_PT * 0.5, radius, _AMBER)
+    page_canvas.setFillColor(colors.HexColor(_MUTED))
+    _draw_runs(
+        page_canvas, left + 0.5, baseline - 3.6 * mm, _TAGLINE, _TAGLINE_PT,
+        _MONO_FONT, _TAGLINE_TRACKING,
+    )
+
+    if page.bot_username:
+        handle = f"@{page.bot_username}"
+        middle = width / 2
+        if page.invite:
+            page_canvas.setFillColor(colors.HexColor(_MUTED))
+            invite_width = _width(page.invite, _TEXT_FONT, _INVITE_PT)
+            _draw_runs(
+                page_canvas, middle - invite_width / 2, 14.6 * mm, page.invite, _INVITE_PT
+            )
+        page_canvas.setFillColor(colors.HexColor(_INK))
+        handle_width = _width(handle, _MONO_BOLD_FONT, _HANDLE_PT)
+        _draw_runs(
+            page_canvas, middle - handle_width / 2, 9.6 * mm, handle, _HANDLE_PT,
+            _MONO_BOLD_FONT,
+        )
+        _draw_qr(
+            page_canvas, f"https://t.me/{page.bot_username}", right - _QR_PT,
+            _QR_BOTTOM_PT, _QR_PT,
+        )
+    page_canvas.restoreState()
+
+
+def _draw_furniture(
+    page_canvas, number: int, total: int, page: Page, running_title: str
+) -> None:
+    """What a page carries besides the record: its head and its signature."""
+    _draw_head(page_canvas, number, total, page, running_title)
+    _draw_signature(page_canvas, page)
+
+
+def _draw_paper(page_canvas, _document=None) -> None:
+    """The page's paper, under everything drawn on it — never white."""
+    width, height = A4
+    page_canvas.saveState()
+    page_canvas.setFillColor(colors.HexColor(_PAPER))
+    page_canvas.rect(0, 0, width, height, stroke=0, fill=1)
     page_canvas.restoreState()
 
 
@@ -2592,8 +3019,9 @@ class _PagedCanvas(rl_canvas.Canvas):
     of them when the document is saved.
     """
 
-    def __init__(self, *args, running_title: str = "", **kwargs):
+    def __init__(self, *args, page: Page | None = None, running_title: str = "", **kwargs):
         super().__init__(*args, **kwargs)
+        self._page = page or Page()
         self._running_title = running_title
         self._held: list[dict] = []
 
@@ -2605,7 +3033,7 @@ class _PagedCanvas(rl_canvas.Canvas):
         total = len(self._held)
         for number, state in enumerate(self._held, 1):
             self.__dict__.update(state)
-            _draw_furniture(self, number, total, self._running_title)
+            _draw_furniture(self, number, total, self._page, self._running_title)
             rl_canvas.Canvas.showPage(self)
         rl_canvas.Canvas.save(self)
 
@@ -2619,11 +3047,13 @@ def render(
     remarks: Sequence[Remark] = (),
     explanations: Sequence[Explanation] = (),
     summary: Summary | None = None,
+    page: Page | None = None,
 ) -> bytes:
     """A record as PDF bytes. Never raises on the content of the record."""
     _register_fonts()
     styles = _styles()
     buffer = io.BytesIO()
+    page = page or Page()
 
     # A first heading repeating the title is the commonest shape a page takes:
     # the record is called "Графы" and the page is headed "Графы". Printing
@@ -2646,18 +3076,22 @@ def render(
                 _inline(split_inline(title), formulas, styles["title"].fontSize),
                 styles["title"],
             ),
-            _hairline(space_after=0),
         ]
         # What was written in the margin — whose lecture, which date — and
         # then the facts of the record. Under the title, where a reader looks
         # for them, not in the body, where they read as the author speaking.
         facts = [(byline, "byline"), (subtitle, "meta")]
-        if any(line for line, _ in facts):
-            story.append(Spacer(1, 7))
         for line, style in facts:
             if line:
                 story.append(Paragraph(_markup(line), styles[style]))
-        story.append(Spacer(1, 16))
+        story.append(Spacer(1, 14))
+
+        # The guide's one thought on top: what the lecture was, in the bot's
+        # words, before the lecture itself. It is about the whole record, and
+        # it is where a reader deciding whether to read on looks first.
+        if summary is not None and summary.lines:
+            story.append(_essence(summary, formulas, styles))
+            story.append(Spacer(1, 14))
 
         for box in callouts:
             # Above the record, not below it: these say how far the text that
@@ -2689,8 +3123,9 @@ def render(
         # height as effectively infinite and the heading stays behind anyway.
         held: list = []
         # Main formulas are numbered in the order they stand, through the
-        # whole record.
+        # whole record, and so are its sections.
         numbers = itertools.count(1)
+        sections = itertools.count(1)
         index = 0
         while index < len(parsed):
             if parsed[index].kind == "gap":
@@ -2699,7 +3134,7 @@ def render(
                 continue
 
             members, index, flowables, kind = _unit(
-                parsed, index, formulas, styles, top_level, numbers
+                parsed, index, formulas, styles, top_level, numbers, sections
             )
             space = _space_before(previous, kind, paragraph_break)
             paragraph_break = False
@@ -2726,16 +3161,6 @@ def render(
                 unexplained.remove(item)
                 group += [Spacer(1, 6), _explanation(item, formulas, styles)]
             attached = attached + explained
-
-            # A new top-level section after something else is set off by the
-            # broader rule the reference puts between two of its sections.
-            if (
-                kind == "heading"
-                and previous is not None
-                and not held
-                and _rank(members[0].level, top_level) == 1
-            ):
-                group = [_section_rule()] + group
 
             if held:
                 group = held + ([Spacer(1, space)] if space else []) + group
@@ -2766,13 +3191,6 @@ def render(
             story.append(Spacer(1, _SET_APART_GAP))
             story.append(_explanation(item, formulas, styles))
 
-        # The summary last, after the rule that separates sections: it is
-        # about the whole record, not about its last line.
-        if summary is not None and summary.lines:
-            story.append(_section_rule())
-            story.append(Spacer(1, 8))
-            story.append(_summary(summary, formulas, styles))
-
         SimpleDocTemplate(
             buffer,
             pagesize=A4,
@@ -2781,9 +3199,16 @@ def render(
             topMargin=_TOP_PT - _FRAME_PADDING_PT,
             bottomMargin=_BOTTOM_PT - _FRAME_PADDING_PT,
             title=plain(title),
+            author=_WORDMARK,
+            creator=_WORDMARK,
+            subject=page.subject,
         ).build(
             story,
-            canvasmaker=functools.partial(_PagedCanvas, running_title=plain(title)),
+            onFirstPage=_draw_paper,
+            onLaterPages=_draw_paper,
+            canvasmaker=functools.partial(
+                _PagedCanvas, page=page, running_title=plain(title)
+            ),
         )
 
     return buffer.getvalue()

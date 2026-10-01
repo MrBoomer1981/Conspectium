@@ -49,7 +49,9 @@ GRAPH_FINDING_LABEL = "Сверка с графом"
 # whose words these are: a reader who missed the lecture cannot tell an added
 # sentence from a remembered one unless the page tells them.
 EXPLANATION_LABEL = "Пояснение бота"
-SUMMARY_LABEL = "Итог · составлен ботом по тексту записи"
+# The record summed up, first in the document as the guide's "Суть": its name,
+# then whose words these are.
+SUMMARY_LABEL = "Суть · составлено ботом по тексту записи"
 SOURCES_LABEL = "Источники"
 
 
@@ -420,12 +422,22 @@ def byline(margin_notes: list[str]) -> str | None:
     return " · ".join(parts) if parts else None
 
 
-def pdf_subtitle(created_at: datetime, page_count: int) -> str:
-    """The grey line under the title inside the document itself. It used to
-    end in "нужна проверка" on a record the runs had disagreed about — a
-    doubt about the reading that told nobody what to check."""
-    parts = [
-        created_at.strftime("%d.%m.%Y"),
-        f"{page_count} {_plural(page_count, 'страница', 'страницы', 'страниц')}",
-    ]
-    return " · ".join(parts)
+# The head of every page of the document, and the signature at its foot —
+# app/services/pdf.py, BRAND.md. The invitation is the guide's and may change
+# with who it is for; the bot's name under it and the QR code never do.
+PDF_PAGE_WORD = "стр."
+PDF_INVITE = "Сделай такой конспект своей группе"
+
+
+def pdf_date(created_at: datetime) -> str:
+    """The record's day, in the head of every page. Facts only: the grey line
+    under the title that carried the date used to end in "нужна проверка" on
+    a record the runs had disagreed about — a doubt about the reading that
+    told nobody what to check."""
+    return created_at.strftime("%d.%m.%Y")
+
+
+def pdf_subject(tag: str | None) -> str:
+    """The subject in the head of every page, written as the "#word" that
+    finds the record again. Empty until the record is filed under one."""
+    return f"#{tag}" if tag else ""

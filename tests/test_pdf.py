@@ -553,7 +553,7 @@ class _FakeFormulas:
         self.renderable = renderable
         self.asked: list[str] = []
 
-    def inline(self, latex: str, size_pt: float) -> str | None:
+    def inline(self, latex: str, size_pt: float, color: str | None = None) -> str | None:
         self.asked.append(latex)
         return f"<img:{latex}>" if self.renderable else None
 
@@ -583,7 +583,8 @@ def test_a_space_after_a_formula_is_a_place_to_break():
     # reportlab will not break at a space that follows an image, and the word
     # after a long formula ran off the paper.
     result = pdf._line_markup("$x$ Ассоциативность", _FakeFormulas(), 10.0)
-    assert result == "<img:x>​ Ассоциативность"
+    # Set in DejaVu: Onest has no glyph for it, and it printed as a box.
+    assert result == '<img:x><font face="DejaVu">​</font> Ассоциативность'
 
 
 def test_a_formula_and_its_comma_are_never_parted():
@@ -790,7 +791,8 @@ def test_a_panel_escapes_its_lines_and_draws_its_title_as_written():
 
 
 def test_a_label_is_drawn_with_its_letters_spaced(monkeypatch):
-    # The reference's "ЗАМЕЧАНИЕ" is tracked; a paragraph cannot do that.
+    # A box's label is tracked; a paragraph cannot do that. The page's
+    # signature is drawn tracked too, so the label's is looked for among them.
     spaced: list[float] = []
     from reportlab.pdfgen.textobject import PDFTextObject
 
@@ -801,7 +803,7 @@ def test_a_label_is_drawn_with_its_letters_spaced(monkeypatch):
         lambda self, value: spaced.append(value) or original(self, value),
     )
     pdf.render("Т", "текст", callouts=[pdf.Callout("Нужна проверка", ["a"])])
-    assert spaced == [pdf._LABEL_TRACKING]
+    assert spaced[0] == pdf._LABEL_TRACKING
 
 
 def test_a_callout_and_a_remark_are_one_anatomy():
@@ -879,9 +881,9 @@ def test_render_draws_a_line_at_the_seam_between_pages(monkeypatch):
         pdf, "HRFlowable", lambda **kw: drawn.append(kw) or original(**kw)
     )
     pdf.render("Альбом", "первая\n\n---\n\nвторая")
-    # Two rules: the full-width one under the title, then the short one at the
-    # seam. Their widths are how they are told apart on the page.
-    assert [rule["width"] for rule in drawn] == ["100%", "35%"]
+    # One rule, the short one at the seam: since the guide the title stands
+    # over no line, and the sections are set apart by air.
+    assert [rule["width"] for rule in drawn] == ["35%"]
 
 
 def test_render_survives_a_graph_it_cannot_read():
@@ -1213,10 +1215,15 @@ def test_a_long_division_is_one_flat_group_with_its_heading_and_its_box(monkeypa
 
 
 def test_a_long_division_alone_is_still_kept_whole(monkeypatch):
+    # On its kraft ground: one cell, which reportlab never splits.
     story = _story(monkeypatch, "Т", f"текст\n\n$${_DIVISION}$$\n\nдальше")
-    groups = [f for f in story if type(f).__name__ == "KeepTogether"]
+    grounds = [
+        f for f in story
+        if type(f).__name__ == "Table" and len(f._cellvalues) == 1
+        and any(type(inner).__name__ == "Table" for inner in f._cellvalues[0][0])
+    ]
 
-    assert any(type(inner).__name__ == "Table" for g in groups for inner in g._content)
+    assert len(grounds) == 1
 
 
 def test_adjacent_drawings_are_set_in_one_row(monkeypatch):
@@ -1270,26 +1277,24 @@ def test_a_drawing_that_cannot_be_read_still_leaves_a_row():
     assert "граф:" in row[0]._cellvalues[0][0][0].text
 
 
-def test_render_draws_a_hairline_under_the_title(monkeypatch):
+def test_the_title_stands_over_no_line(monkeypatch):
+    # The reference drew a hairline under its title; the guide does not.
     story = _story(monkeypatch, "Графы", "текст записи")
-    assert type(story[1]).__name__ == "HRFlowable"
+    assert not [f for f in story if type(f).__name__ == "HRFlowable"]
 
 
-def test_a_top_level_heading_gets_a_hairline_and_a_deeper_one_does_not(monkeypatch):
+def test_a_top_level_heading_is_numbered_and_a_deeper_one_is_not(monkeypatch):
     story = _flat(_story(monkeypatch, "Т", "# Раздел\nтекст\n## Подраздел\nтекст"))
-    rules = [f for f in story if type(f).__name__ == "HRFlowable"]
-    # The title's and the section's; the subsection has none.
-    assert len(rules) == 2
-    assert type(story[_where(story, "Подраздел") + 1]).__name__ == "Paragraph"
+    assert ">01</font>" in story[_where(story, "Раздел")].text
+    assert "</font>" not in story[_where(story, "Подраздел")].text
 
 
-def test_a_second_section_is_set_off_by_the_broader_rule(monkeypatch):
-    # The reference puts a paler, thicker rule between two of its sections.
+def test_sections_are_numbered_through_the_record_and_set_apart_by_air(monkeypatch):
+    # The reference put a broader rule between two sections; the guide
+    # numbers them instead, "01", "02", and leaves air between them.
     story = _flat(_story(monkeypatch, "Т", "# Раз\nтекст\n# Два\nтекст"))
-    rules = [f for f in story if type(f).__name__ == "HRFlowable"]
-    broad = [rule for rule in rules if rule.lineWidth == 1.5]
-    assert len(broad) == 1
-    assert story.index(broad[0]) < _where(story, "Два")
+    assert not [f for f in story if type(f).__name__ == "HRFlowable"]
+    assert ">02</font>" in story[_where(story, "Два")].text
 
 
 # ── the sweep: what a page of chemistry writes that mathtext will not take ───
@@ -1654,14 +1659,20 @@ class _Canvas:
     def __init__(self):
         self.written: list[str] = []
 
-    def drawString(self, x, y, text):  # noqa: N802 — reportlab's name
+    def drawString(self, x, y, text, **kwargs):  # noqa: N802 — reportlab's name
         self.written.append(text)
 
-    def drawCentredString(self, x, y, text):  # noqa: N802 — reportlab's name
+    def drawCentredString(self, x, y, text, **kwargs):  # noqa: N802 — reportlab's name
         self.written.append(text)
 
     def __getattr__(self, name):
-        return lambda *args, **kwargs: None
+        # A path for the star answers every call with itself.
+        return lambda *args, **kwargs: _Anything()
+
+
+class _Anything:
+    def __getattr__(self, name):
+        return lambda *args, **kwargs: self
 
 
 def test_every_page_of_a_long_record_is_numbered_out_of_the_whole(monkeypatch):
@@ -1669,7 +1680,7 @@ def test_every_page_of_a_long_record_is_numbered_out_of_the_whole(monkeypatch):
     monkeypatch.setattr(
         pdf,
         "_draw_furniture",
-        lambda canvas, number, total, title: seen.append((number, total)),
+        lambda canvas, number, total, page, title: seen.append((number, total)),
     )
     pdf.render("Графы", "\n".join(f"строка {i}" for i in range(200)))
 
@@ -1678,20 +1689,25 @@ def test_every_page_of_a_long_record_is_numbered_out_of_the_whole(monkeypatch):
     assert seen == [(number, total) for number in range(1, total + 1)]
 
 
-def test_a_one_page_record_carries_no_furniture():
+def test_a_one_page_record_carries_no_page_number():
+    # Its head still says what it is and when; a "1/1" says nothing.
     canvas = _Canvas()
-    pdf._draw_furniture(canvas, 1, 1, "Графы")
-    assert canvas.written == []
+    page = pdf.Page(subject="#графы", date="21.09.2026", page_word="стр.")
+    pdf._draw_furniture(canvas, 1, 1, page, "Графы")
+    assert "21.09.2026" in canvas.written
+    assert not any("1/1" in text for text in canvas.written)
 
 
 def test_the_running_title_starts_on_the_second_page():
     first, later = _Canvas(), _Canvas()
-    pdf._draw_furniture(first, 1, 3, "Графы")
-    pdf._draw_furniture(later, 2, 3, "Графы")
+    page = pdf.Page(subject="#графы", date="21.09.2026", page_word="стр.")
+    pdf._draw_furniture(first, 1, 3, page, "Графы")
+    pdf._draw_furniture(later, 2, 3, page, "Графы")
 
-    # "2 / 3", not "с. 2": inside a record "с. 2" is a photographed page.
-    assert first.written == ["1 / 3"]
-    assert later.written == ["Графы", "2 / 3"]
+    # "стр. 2/3", not "с. 2": inside a record "с. 2" is a photographed page.
+    assert "21.09.2026 · СТР. 1/3" in first.written
+    assert "#ГРАФЫ" in first.written
+    assert "#ГРАФЫ · ГРАФЫ" in later.written
 
 
 def test_a_long_running_title_is_cut_to_the_column():
@@ -1701,30 +1717,35 @@ def test_a_long_running_title_is_cut_to_the_column():
     assert pdf.pdfmetrics.stringWidth(cut, pdf._TEXT_FONT, pdf._FURNITURE_PT) <= 100.0
 
 
-# ── the reference's style: Lato, and what Lato cannot draw ───────────────────
+# ── the guide's faces, and what they cannot draw ─────────────────────────────
 
 
-def test_the_text_is_set_in_the_bundled_lato():
-    # Lato 2, with Cyrillic, from the repo: the Lato Google serves has none.
+def test_the_text_is_set_in_the_bundled_faces():
+    # The guide's three faces, with Cyrillic, from the repo, each with its
+    # licence: Onest for the text, Unbounded for the title.
     import os
 
     styles = pdf._styles()
-    assert styles["body"].fontName == "Lato"
-    assert styles["title"].fontName == "Lato-Black"
-    assert os.path.exists(os.path.join(pdf._FONT_DIR, "Lato-Regular.ttf"))
-    assert os.path.exists(os.path.join(pdf._FONT_DIR, "OFL.txt"))
+    assert styles["body"].fontName == "Onest"
+    assert styles["title"].fontName == "Unbounded-ExtraBold"
+    for name in (
+        "Onest-Regular.ttf", "Unbounded-Bold.ttf", "JetBrainsMono-Regular.ttf",
+        "OFL-Onest.txt", "OFL-Unbounded.txt", "OFL-JetBrainsMono.txt",
+    ):
+        assert os.path.exists(os.path.join(pdf._FONT_DIR, name))
 
 
-def test_a_glyph_lato_lacks_is_set_in_dejavu():
+def test_a_glyph_onest_lacks_is_set_in_dejavu():
     # reportlab has no fallback of its own and draws an empty box instead.
+    # Onest has no Greek either.
     assert pdf._markup("► Так как") == '<font face="DejaVu">►</font> Так как'
     assert pdf._markup("∀ε ∈ ℝ") == (
-        '<font face="DejaVu">∀</font>ε <font face="DejaVu">∈</font> '
+        '<font face="DejaVu">∀ε</font> <font face="DejaVu">∈</font> '
         '<font face="DejaVu">ℝ</font>'
     )
 
 
-def test_text_lato_can_draw_is_left_as_it_is():
+def test_text_onest_can_draw_is_left_as_it_is():
     assert pdf._markup("Граф — пара «множеств»…") == "Граф — пара «множеств»…"
 
 
@@ -1970,15 +1991,19 @@ def test_an_explanation_that_anchors_nowhere_goes_to_the_end(monkeypatch):
     assert type(story[-1]).__name__ == "Table"
 
 
-def test_the_summary_is_last_after_the_section_rule(monkeypatch):
+def test_the_summary_comes_first_as_the_essence(monkeypatch):
+    # The guide's one thought on top: the bot's summary opens the record on
+    # the page's one dark block, named as the bot's, before the lecture.
     story = _story(
         monkeypatch, "Т", "первая\nвторая",
-        summary=pdf.Summary("Итог", ["Введена тригонометрическая форма."]),
+        summary=pdf.Summary(
+            "Суть · составлено ботом", ["Введена тригонометрическая форма."]
+        ),
     )
-    assert type(story[-1]).__name__ == "Table"
-    assert any(
-        type(f).__name__ == "HRFlowable" and f.lineWidth == 1.5 for f in story[-4:]
-    )
+    essence = next(f for f in story if type(f).__name__ == "Table")
+    assert story.index(essence) < _where(story, "первая")
+    label = essence._cellvalues[0][0][0]
+    assert (label.name, label.note) == ("СУТЬ", "СОСТАВЛЕНО БОТОМ")
 
 
 def test_an_explanation_carries_its_sources_as_links():
@@ -2152,9 +2177,9 @@ def test_the_title_draws_its_formula_and_the_running_head_gets_characters(monkey
     seen: dict[str, str] = {}
     original = pdf._draw_furniture
 
-    def spy(page_canvas, number, total, running_title):
+    def spy(page_canvas, number, total, page, running_title):
         seen["running"] = running_title
-        return original(page_canvas, number, total, running_title)
+        return original(page_canvas, number, total, page, running_title)
 
     monkeypatch.setattr(pdf, "_draw_furniture", spy)
     long_record = "\n\n".join(f"Строка {n}" for n in range(120))

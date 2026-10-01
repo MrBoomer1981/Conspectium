@@ -272,23 +272,50 @@ def pdf_filename(note_id: int, title: str) -> str:
     return f"{note_id}-{safe}.pdf" if safe else f"zapis-{note_id}.pdf"
 
 
+async def _bot_username(message: Message) -> str:
+    """The bot's own name, for the signature at the foot of every page and the
+    QR code that opens it. Asked of the bot itself rather than written down,
+    so a document always names the bot that sent it; aiogram keeps the answer
+    after the first time. A document without it is still a document."""
+    bot = getattr(message, "bot", None)
+    if bot is None:
+        return ""
+    try:
+        return (await bot.me()).username or ""
+    except Exception:
+        logger.warning("could not read the bot's name for the signature", exc_info=True)
+        return ""
+
+
+def _page(note: Note, bot_username: str) -> pdf.Page:
+    """What every page of the record carries besides it: its subject and day
+    at the head, the invitation and the bot's name at the foot."""
+    return pdf.Page(
+        subject=texts.pdf_subject(note.tag),
+        date=texts.pdf_date(note.created_at),
+        page_word=texts.PDF_PAGE_WORD,
+        invite=texts.PDF_INVITE,
+        bot_username=bot_username,
+    )
+
+
 async def send_record_pdf(message: Message, note: Note) -> bool:
     """Send one record as a PDF. Returns False if it could not be built, so the
     caller can fall back to plain text — a record is never worth losing over
     its presentation."""
-    subtitle = texts.pdf_subtitle(note.created_at, note.page_count)
+    page = _page(note, await _bot_username(message))
     try:
         # Drawing formulas is CPU-bound; the webhook must not stall on it.
         data = await asyncio.to_thread(
             pdf.render,
             note.title,
             note.markdown,
-            subtitle,
-            _callouts(note),
-            texts.byline(note.margin_notes),
-            _remarks(note),
-            _explanations(note),
-            _summary(note),
+            callouts=_callouts(note),
+            byline=texts.byline(note.margin_notes),
+            remarks=_remarks(note),
+            explanations=_explanations(note),
+            summary=_summary(note),
+            page=page,
         )
     except Exception:
         logger.exception("could not build a PDF for note %s", note.id)
