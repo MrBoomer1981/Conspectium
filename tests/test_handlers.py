@@ -647,7 +647,7 @@ async def _run_photo(
     async def no_spend(user_id, stats):
         return None
 
-    async def no_pdf(message, note):
+    async def no_pdf(message, session, note):
         return None
 
     monkeypatch.setattr(handlers.photoguard, "check_photo_bytes", lambda data: _verdict_ok())

@@ -977,3 +977,40 @@ ones. No verification pass with the model has been tried since.
 **Arithmetic**, the same early pages. `mathcheck` found a wrong constant and
 a chain of equalities that diverged — both missed by the model across four
 runs. Given a chain that does not add up, the model fixes it silently.
+
+## Drawings cut out of the page
+
+Task 54, 2026-10-01. Record 59, a lecture on compactness, printed nine
+drawings as nine sentences, and its proof was in the drawings. How a cut-out
+drawing should be cleaned was settled on thirteen drawings from four pages of
+the CEO's reference lecture (`матан 24.09.2026.pdf`, its photographs): a
+BRAUBERG squared notebook in ballpoint, the lower third of one page in the
+shadow of the hand holding it, the other side of the sheet showing through.
+
+- **Dividing by the paper's own light works.** A maximum filter on a
+  quarter-size copy, smoothed, takes the strokes out and leaves the paper with
+  its shadow; divided by it, a lit page's ink sits below 0.45 of the paper and
+  its grid near 0.8.
+- **A hard threshold left the grid in dashes.** In the lit parts a cut at
+  0.68 to 0.45 kept the drawing whole and dropped the grid; in the shadow the
+  grid fell to the ink's darkness — 175 pixels of a grid-only patch below
+  0.35 — and survived as broken strokes all over the picture.
+- **Colour does not tell them apart.** The ink and the grid measured the same
+  B − R, about −10, lit and in shadow alike.
+- **Width does not either.** Seeding only from strokes that survive a 3×3
+  erosion took the grid away and the drawing with it: a ballpoint stroke at
+  1500 px a page is two or three pixels, a grid line one or two.
+- **Removing long straight lines erased axes.** Runs longer than 45 px that
+  were lighter than the darkest ink took most of the grid, and with it the
+  axis of every number line — drawn along the grid, as students draw them —
+  and still left the shadow's lines.
+- **What was kept: the grid faint, not gone.** A smooth step from 0.30 to
+  0.78 of the paper's light keeps the ink whole, dashes and hatching
+  included, lays the grid down as thin even lines, and drops what shows
+  through from the other side. The cut-out is trimmed to its strokes with
+  16 px of page and fades out over its last 12, so it does not stand on the
+  document as a pasted rectangle. Four drawings cut in 82 ms; 19 to 35 KB a
+  PNG.
+
+None of this has met the model's own frames yet: the drawings were framed by
+hand. Record 59's album under `prompts-v8.md` is the measurement.

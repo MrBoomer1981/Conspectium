@@ -146,10 +146,13 @@ async def lifespan(app: FastAPI):
     # where numeric_agreement took its numbers from, since that follows the
     # prompt and the two sources do not measure the same thing.
     logger.info(
-        "Prompt: %s, %d words, numbers %s",
+        "Prompt: %s, %d words, numbers %s, drawings %s",
         settings.PROMPT_FILE,
         vision.PROMPT_WORDS,
         "listed by the model" if vision.PROMPT_LISTS_NUMBERS else "read from the text",
+        # From v8 on a drawing is cut out of the page; before it, only
+        # described — and a record does not say which prompt made it.
+        "cut out of the page" if vision.PROMPT_FRAMES_DRAWINGS else "described",
     )
     logger.info(
         "Images: %d px long side, quality %d",

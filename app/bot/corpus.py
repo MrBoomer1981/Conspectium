@@ -33,7 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import middlewares, tags, texts
 from app.core.events import log_event
-from app.db.models import Group, Note, NoteTopic, User
+from app.db.models import Group, Note, NoteFigure, NoteTopic, User
 from app.services import graphcheck, pdf, vision
 
 logger = logging.getLogger(__name__)
@@ -299,11 +299,22 @@ def _page(note: Note, bot_username: str) -> pdf.Page:
     )
 
 
-async def send_record_pdf(message: Message, note: Note) -> bool:
+async def figures_of(session: AsyncSession, note_id: int) -> dict[int, bytes]:
+    """The drawings a record keeps, by the N of "[рисунок N: …]" — read for
+    every document, so the record a "#word" brings back is drawn as whole as
+    the one that was just made."""
+    rows = await session.execute(
+        select(NoteFigure.number, NoteFigure.png).where(NoteFigure.note_id == note_id)
+    )
+    return {number: png for number, png in rows}
+
+
+async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -> bool:
     """Send one record as a PDF. Returns False if it could not be built, so the
     caller can fall back to plain text — a record is never worth losing over
     its presentation."""
     page = _page(note, await _bot_username(message))
+    drawings = await figures_of(session, note.id)
     try:
         # Drawing formulas is CPU-bound; the webhook must not stall on it.
         data = await asyncio.to_thread(
@@ -316,6 +327,7 @@ async def send_record_pdf(message: Message, note: Note) -> bool:
             explanations=_explanations(note),
             summary=_summary(note),
             page=page,
+            figures=drawings,
         )
     except Exception:
         logger.exception("could not build a PDF for note %s", note.id)
@@ -328,10 +340,10 @@ async def send_record_pdf(message: Message, note: Note) -> bool:
     return True
 
 
-async def send_record(message: Message, note: Note) -> None:
+async def send_record(message: Message, session: AsyncSession, note: Note) -> None:
     """A saved record delivered to the user: the PDF when it can be built, the
     plain text when it cannot."""
-    if await send_record_pdf(message, note):
+    if await send_record_pdf(message, session, note):
         return
     await message.answer(texts.PDF_FAILED)
     for chunk in texts.split_message(f"{note.title}\n\n{note.markdown}"):
@@ -483,7 +495,7 @@ async def on_tag(
         return
     if len(found) == 1:
         # One match is the answer itself, not a line about the answer.
-        await send_record(message, found[0])
+        await send_record(message, session, found[0])
         return
     await message.answer(texts.several_tagged(tag, await _listing(session, found)))
 

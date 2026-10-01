@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     func,
@@ -203,3 +204,24 @@ class NoteTopic(Base):
         ForeignKey("notes.id", ondelete="CASCADE"), index=True
     )
     topic: Mapped[str] = mapped_column(String, index=True)
+
+
+class NoteFigure(Base):
+    """A drawing from a page of the record, cut out of the photograph.
+
+    The one part of a photograph this database keeps (rule 3): the frame of a
+    drawing, reduced to the darkness of its ink — a greyscale PNG, the colour
+    the document's to give. Kept because the document is drawn again every
+    time a "#word" brings the record back, and a drawing that lived only in
+    the first PDF would be gone from every later one. `number` is the N of
+    "[рисунок N: …]" in the record's markdown.
+    """
+
+    __tablename__ = "note_figures"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    note_id: Mapped[int] = mapped_column(
+        ForeignKey("notes.id", ondelete="CASCADE"), index=True
+    )
+    number: Mapped[int] = mapped_column(Integer)
+    png: Mapped[bytes] = mapped_column(LargeBinary)

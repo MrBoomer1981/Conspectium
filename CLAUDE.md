@@ -194,7 +194,10 @@ Shared by both owners.
    photo costs several times more for no gain is evidence about a retired
    model; the numbers are settings so the claim can be measured on one album
    rather than argued, and the defaults do not drift.
-3. **The original photos are never stored**, only the recognised text. What
+3. **The original photos are never stored**, only the recognised text — and,
+   since 2026-10-01, the drawings cut out of them (`note_figures`): each the
+   frame of one drawing reduced to the darkness of its ink, kept because the
+   document is drawn again every time a "#word" brings the record back. What
    `group_pages` keeps for seven days is Telegram's reference to a group
    album's page (`file_id`), which the bot fetches the photo by while Telegram
    keeps it — not the photo. It lets a reply call the bot on an album somebody
@@ -484,6 +487,30 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   inside the cap. Off, refused or failed, the record goes out as without it;
   `.docx` skips it.
 
+### Drawings cut out of the page
+
+- **A drawing is taken from the page, not redrawn** (task 54, 2026-10-01):
+  record 59 carried its proof in nine drawings and printed nine sentences
+  about them, and a sketch redrawn from the model's words would be the
+  model's picture of the topic — the place it invents. From `prompts-v8.md`
+  on, recognition gives each `[схема: …]` its frame on the photo in
+  `drawings`, outside `markdown`, so neither agreement moves. A graph is
+  still data and still drawn from its edges.
+- **Cut while the image is here, placed after composing** (`figures.py`): both
+  photo paths cut the best run's frames out of the compressed image right
+  after recognition, pairing frames and `[схема: …]` lines in order and
+  cutting none when the counts differ. Composition never sees a drawing;
+  afterwards `figures.place` turns the `[схема: …]` that carries a cut-out's
+  words into `[рисунок N: …]`, N through the record, and a line the composer
+  reworded keeps none — a drawing can go missing, never land at the wrong
+  line. `note_processed` counts both, `drawings` and `figures`.
+- **What is kept is ink, not a photograph**: the paper's light, a shadow
+  across it included, divided out; ink kept whole, dashes and hatching too;
+  a notebook's grid left faint, since on squared paper in a hand's shadow it
+  could be told from the ink neither by colour nor by width; the other side
+  of the sheet gone; the edges faded. A greyscale PNG, the colour the
+  document's. → "Drawings cut out of the page"
+
 ### The matrix against the graph
 
 `graphcheck.check` decides a cell by the edges, not by a vote: the adjacency is
@@ -645,10 +672,15 @@ or two dollars with an environment, row break or column between them. →
 
 **A drawing comes back as data, not a sentence about itself**: rule 6 of the
 recognition prompt asks for a graph as `[граф: 1-2, 2->3]` and a matrix as a
-markdown table, `[схема: …]` for the rest, and `pdf.blocks()` draws them. That
-syntax — like the composing stage's "### Определение" — is one contract in two
-files: changed on one side, the record prints the spec. Nothing yet compares
-the runs' edge lists — `docs/PLAN.md` → Known risks.
+markdown table, `[схема: …]` with its frame for the rest, and `pdf.blocks()`
+draws them — a cut-out, `[рисунок N: …]`, as the author's drawing in the
+document's ink on its paper, at about its size on the page, with no caption;
+a `[схема: …]` with no cut-out as the line it always was. A drawing written
+inside a line of text is lifted onto its own (`pdf._lift_drawings`), for the
+document only. That syntax — like the composing stage's "### Определение" —
+is one contract in two files: changed on one side, the record prints the
+spec. Nothing yet compares the runs' edge lists — `docs/PLAN.md` → Known
+risks.
 
 **The document says nothing about how a page was read** (2026-09-25): no
 reading that could have been another, no numbers the runs read differently, no
@@ -808,6 +840,7 @@ app/
     compose.py        stage two: the trusted transcription, formatted
     explain.py        stage three: hard places explained with sources, a summary
     pdf.py            a record as a PDF
+    figures.py        drawings cut out of the page, placed back after composing
     images.py         compression
     limits.py         spend limits
     docx.py           .docx → markdown, no model call
@@ -826,9 +859,10 @@ evidence/             local only, never in git: records, reference notes, Railwa
 CLAUDE.md, README.md  in the root, where Claude Code and GitHub read them
 ```
 
-**The prompts**: recognition `prompts-v3.md` to `prompts-v7.md` — v5
+**The prompts**: recognition `prompts-v3.md` to `prompts-v8.md` — v5
 extraction only, v6 (production) v5 with the author's frames written as
-`\boxed{…}`, v7 without the list of numbers, tried and rolled back; composing
+`\boxed{…}`, v7 without the list of numbers, tried and rolled back, v8 v6
+with each drawing's frame, waiting for its measurement (task 54); composing
 `prompts-compose-v1.md` to `v3`, v3 framing a section's main formula;
 explaining `prompts-explain-v1.md`, with `prompts-explain-source-v2.md` for the
 searches. `vision.load_prompt` reads a prompt from `prompts/` by file name at
@@ -924,11 +958,11 @@ LOG_LEVEL=INFO
   the deployed bot and rolled back by one variable; a name not in `prompts/`
   kills the process at startup, deliberately.
 - **The startup log is the instrument's label**: `Recognition: <model>, N
-  runs`, the prompt file, its word count and where `numeric_agreement` takes
-  its numbers, the image compression, both stages, the call knobs, the five
-  timeouts, and whether the bot sees a group's photos. What a **record** does
-  not say is which prompt made it — `docs/PLAN.md` → "Where the quality work
-  stands", gap 3.
+  runs`, the prompt file, its word count, where `numeric_agreement` takes its
+  numbers and whether drawings are cut out, the image compression, both
+  stages, the call knobs, the five timeouts, and whether the bot sees a
+  group's photos. What a **record** does not say is which prompt made it —
+  `docs/PLAN.md` → "Where the quality work stands", gap 3.
 
 ---
 

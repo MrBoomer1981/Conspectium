@@ -22,11 +22,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import albums, corpus, middlewares, tags, texts
 from app.core.config import settings
 from app.core.events import log_event
-from app.db.models import Group, GroupPage, Note, User
+from app.db.models import Group, GroupPage, Note, NoteFigure, User
 from app.services import (
     compose,
     docx,
     explain,
+    figures,
     images,
     limits,
     mathcheck,
@@ -264,6 +265,13 @@ async def _read_photo(
         await message.answer(texts.NO_TEXT_FOUND)
         return
 
+    # The drawings recognition framed, cut out of the image it read while the
+    # image is still here — rule 3 keeps nothing else of it. In a thread:
+    # filtering pixels is CPU work, and the webhook must not stall on it.
+    cutouts = await asyncio.to_thread(
+        figures.cut, compressed, result.best.markdown, result.best.drawings
+    )
+
     # Disagreement between the runs used to end the photo here. It does not
     # any more: the pages behind those refusals carried legible text, and what
     # the disagreement measured was the shape the runs gave the page. The
@@ -319,6 +327,11 @@ async def _read_photo(
         composition = await compose.compose(result.best.markdown)
         await vision.log_ai_calls(user.id, composition.stats)
 
+    # The drawings go back where their lines stand: after composing, which
+    # never saw them, and before explaining, so the text explained and the
+    # text stored are one text.
+    markdown, placed = figures.place(composition.markdown, cutouts)
+
     # Step 12b: stage three, what the bot adds of its own — hard places
     # explained, each with the sources the search gave, and the record summed
     # up. Over the composed text and never the photograph, stored apart from
@@ -326,7 +339,7 @@ async def _read_photo(
     # is still a call, and the kill switch and the cost cap decide first.
     explaining = explain.Explaining()
     if await limits.check_limits(session, user, pages=0) is None:
-        explaining = await explain.explain(composition.markdown)
+        explaining = await explain.explain(markdown)
         await vision.log_ai_calls(user.id, explaining.stats)
 
     # Step 13: persist the record. "rejected" already exited at step 10, so the
@@ -339,7 +352,7 @@ async def _read_photo(
         tag=tag,
         title=result.best.title,
         subject=result.best.subject,
-        markdown=composition.markdown,
+        markdown=markdown,
         explanations=[asdict(item) for item in explaining.explanations],
         summary=explaining.summary,
         source_type="photo",
@@ -383,6 +396,8 @@ async def _read_photo(
             "explain_unsourced": explaining.unsourced,
             "summary": explaining.summary is not None,
             "summary_refused": explaining.summary_refused,
+            "drawings": figures.count(result.best.markdown),
+            "figures": len(placed),
             "latency_ms": int((time.monotonic() - started) * 1000),
             "cost_usd": vision.total_cost(stats + composition.stats + explaining.stats),
         },
@@ -396,8 +411,9 @@ async def _read_photo(
     # differently, the spots that read two ways, a page no second reading
     # confirmed — is not the group's business. The author's decision,
     # 2026-09-25; in a group chat that message was noise for everyone.
-    await session.flush()  # note.id, for the file name and the caption
-    await corpus.send_record(message, note)
+    await session.flush()  # note.id, for the file name, the caption, the drawings
+    await _keep_figures(session, note, placed)
+    await corpus.send_record(message, session, note)
 
     # Step 17: which subject does this belong to. Last, so the question is
     # what the user is looking at when they reply.
@@ -493,8 +509,21 @@ async def handle_document(
     )
 
     await session.flush()  # note.id, for the file name and the caption
-    await corpus.send_record(message, note)
+    await corpus.send_record(message, session, note)
     await corpus.ask_for_tag(message, session, user, note, group)
+
+
+async def _keep_figures(
+    session: AsyncSession, note: Note, placed: list[tuple[int, bytes]]
+) -> None:
+    """The drawings placed in a record, kept with it in the main transaction,
+    so the document drawn next reads them like any later one."""
+    if not placed:
+        return
+    session.add_all(
+        NoteFigure(note_id=note.id, number=number, png=png) for number, png in placed
+    )
+    await session.flush()
 
 
 async def _remember_page(
@@ -737,10 +766,14 @@ async def _process_album(
         composition = await compose.compose(rec.markdown)
         await vision.log_ai_calls(user.id, composition.stats)
 
+    # Every page's drawings back where their lines stand, numbered through
+    # the record — after composing, which never saw them.
+    markdown, placed = figures.place(composition.markdown, rec.cutouts)
+
     # Stage three once over the whole record too, for the same reason.
     explaining = explain.Explaining()
     if await limits.check_limits(session, user, pages=0) is None:
-        explaining = await explain.explain(composition.markdown)
+        explaining = await explain.explain(markdown)
         await vision.log_ai_calls(user.id, explaining.stats)
 
     note = Note(
@@ -750,7 +783,7 @@ async def _process_album(
         tag=tag,
         title=rec.title,
         subject=rec.subject,
-        markdown=composition.markdown,
+        markdown=markdown,
         explanations=[asdict(item) for item in explaining.explanations],
         summary=explaining.summary,
         source_type="photo",
@@ -797,6 +830,8 @@ async def _process_album(
             "explain_unsourced": explaining.unsourced,
             "summary": explaining.summary is not None,
             "summary_refused": explaining.summary_refused,
+            "drawings": rec.drawings,
+            "figures": len(placed),
             "latency_ms": int((time.monotonic() - started) * 1000),
             "cost_usd": vision.total_cost(
                 outcome.stats + composition.stats + explaining.stats
@@ -805,8 +840,9 @@ async def _process_album(
         group_id=group_id,
     )
 
-    await session.flush()  # note.id, for the file name and the caption
-    await corpus.send_record(message, note)
+    await session.flush()  # note.id, for the file name, the caption, the drawings
+    await _keep_figures(session, note, placed)
+    await corpus.send_record(message, session, note)
 
     # What follows the document is what only the photographer can act on: the
     # pages it went out without. The rest is in the document or nowhere, as on
@@ -856,7 +892,7 @@ async def handle_summon(
             {"outcome": "existing", "note_id": existing.id},
             group_id=group.id,
         )
-        await corpus.send_record(message, existing)
+        await corpus.send_record(message, session, existing)
         return
 
     if target.media_group_id:

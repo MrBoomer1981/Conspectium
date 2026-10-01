@@ -15,11 +15,11 @@ import logging
 import math
 import re
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 from app.bot import texts
 from app.core.config import settings
-from app.services import mathcheck, photoguard, vision
+from app.services import figures, mathcheck, photoguard, vision
 from app.services.vision import CallStats, Transcription
 
 logger = logging.getLogger(__name__)
@@ -235,6 +235,8 @@ class PageResult:
     photo_line_height: float | None = None
     photo_paper_fraction: float | None = None
     photo_contrast: float | None = None
+    # The page's drawings, cut out of its image before the image is let go.
+    cutouts: list[figures.Cutout] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -353,6 +355,12 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
     if len(result.best.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
         return refused(texts.SKIP_NO_TEXT, stats)
 
+    # The drawings recognition framed, cut out while the page's image is
+    # still here; the record places them after composing.
+    cutouts = await asyncio.to_thread(
+        figures.cut, page_input.data, result.best.markdown, result.best.drawings
+    )
+
     # A page is dropped for the frame, for nothing parsed, and for no text —
     # and for nothing else. Disagreement between the runs used to drop it too,
     # and the photographs behind those refusals turned out to carry perfectly
@@ -393,6 +401,7 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
         photo_line_height=frame.line_height_px,
         photo_paper_fraction=frame.paper_fraction,
         photo_contrast=frame.contrast,
+        cutouts=cutouts,
     )
 
 
@@ -421,6 +430,10 @@ class AssembledRecord:
     missing_pages: list[int]
     # The pages that are in the record with nothing to confirm their reading.
     unverified_pages: list[dict]
+    # Every page's drawings in page order, for figures.place, and how many the
+    # pages only described — the two numbers note_processed reports.
+    cutouts: list[figures.Cutout] = field(default_factory=list)
+    drawings: int = 0
 
 
 @dataclass
@@ -548,6 +561,8 @@ def _assemble(
             for p in pages_ok
             if p.unverified_reason
         ],
+        cutouts=[cutout for p in pages_ok for cutout in p.cutouts],
+        drawings=sum(figures.count(p.transcription.markdown) for p in pages_ok),
     )
 
 

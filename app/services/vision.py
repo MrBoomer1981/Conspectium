@@ -15,7 +15,7 @@ import json
 import logging
 import re
 import time
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -56,6 +56,10 @@ PROMPT_WORDS = len(TRANSCRIBE_PROMPT.split())
 # Decided by the prompt rather than by the answer, so one album can never be
 # measured half one way and half the other.
 PROMPT_LISTS_NUMBERS = '"numeric_tokens"' in TRANSCRIBE_PROMPT
+# Whether the prompt asks for each drawing's frame on the photo (v8 on), so
+# the drawing can be cut out of the page rather than only described. Read
+# from the prompt for the reason above, and printed at startup with it.
+PROMPT_FRAMES_DRAWINGS = '"drawings"' in TRANSCRIBE_PROMPT
 
 # One client per process, not one per call.
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -104,6 +108,11 @@ class Transcription:
     uncertain: list[Uncertain]
     numeric_tokens: list[str]
     unreadable_count: int
+    # The frame of each drawing the page described as "[схема: …]", in their
+    # order: (top, left, bottom, right) in thousandths of the photo's sides.
+    # None where the model gave something that is not a frame, so a bad one
+    # never shifts the ones after it. Empty under a prompt that asks for none.
+    drawings: list[tuple[int, int, int, int] | None] = field(default_factory=list)
 
 
 @dataclass
@@ -252,6 +261,31 @@ def _uncertain_list(value: object) -> list[Uncertain]:
     return out
 
 
+def _frame(value: object) -> tuple[int, int, int, int] | None:
+    """Four integers from 0 to 1000, top above bottom and left before right,
+    or None. A float the model wrote for an integer is taken at its value, and
+    the shape Gemini gives a detection, {"box_2d": [...]}, at its box."""
+    if isinstance(value, dict):
+        value = value.get("box_2d")
+    if not isinstance(value, list) or len(value) != 4:
+        return None
+    numbers: list[int] = []
+    for item in value:
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            return None
+        numbers.append(round(item))
+    top, left, bottom, right = numbers
+    if not (0 <= top < bottom <= 1000 and 0 <= left < right <= 1000):
+        return None
+    return top, left, bottom, right
+
+
+def _frames(value: object) -> list[tuple[int, int, int, int] | None]:
+    if not isinstance(value, list):
+        return []
+    return [_frame(item) for item in value]
+
+
 def parse_response(raw: str) -> Transcription | None:
     """Turn the model's reply into a Transcription, or None if it can't be
     trusted (not JSON, not an object, or no usable `markdown`). Never raises."""
@@ -270,6 +304,7 @@ def parse_response(raw: str) -> Transcription | None:
         uncertain=_uncertain_list(data.get("uncertain")),
         numeric_tokens=_str_list(data.get("numeric_tokens")),
         unreadable_count=_int_or_zero(data.get("unreadable_count")),
+        drawings=_frames(data.get("drawings")),
     )
 
 

@@ -369,7 +369,7 @@ async def test_the_document_is_built_with_the_boxes_of_the_record(session, monke
         return original(title, markdown, **parts)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
-    await corpus.send_record_pdf(_Message(), note)
+    await corpus.send_record_pdf(_Message(), session, note)
 
     page, callouts, remarks = seen[0]
     assert "проверка" not in f"{page.subject} {page.date}"
@@ -404,7 +404,7 @@ async def test_the_document_is_built_with_the_byline_of_the_record(
         return original(title, markdown, **parts)
 
     monkeypatch.setattr(corpus.pdf, "render", spy)
-    await corpus.send_record_pdf(_Message(), note)
+    await corpus.send_record_pdf(_Message(), session, note)
 
     assert seen == ["Шиманская Г. С."]
 
@@ -579,7 +579,7 @@ async def test_a_record_is_delivered_as_a_pdf(session):
     note = await _note(session, user, markdown="Граф $G$ — пара множеств.")
     message = _Message()
 
-    assert await corpus.send_record_pdf(message, note) is True
+    assert await corpus.send_record_pdf(message, session, note) is True
 
     filename, data, caption = message.documents[0]
     assert data.startswith(b"%PDF-")
@@ -602,7 +602,7 @@ async def test_a_record_that_cannot_be_drawn_still_reaches_the_user(session):
     original = pdf_module.render
     pdf_module.render = lambda *a, **k: 1 / 0
     try:
-        await corpus.send_record(message, note)
+        await corpus.send_record(message, session, note)
     finally:
         pdf_module.render = original
 

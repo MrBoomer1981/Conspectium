@@ -31,7 +31,7 @@ import math
 import os
 import re
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from xml.sax.saxutils import escape
 
@@ -41,6 +41,7 @@ matplotlib.use("Agg")  # no display on a server; must precede pyplot
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib import patheffects  # noqa: E402
 from matplotlib.font_manager import FontProperties  # noqa: E402
+from PIL import Image as PILImage  # noqa: E402
 from reportlab.lib import colors  # noqa: E402
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT  # noqa: E402
 from reportlab.lib.pagesizes import A4  # noqa: E402
@@ -260,6 +261,15 @@ _BREAK_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
 # columns is a table ruled inside — a long division — and is drawn as one
 # (ruled_arrays), not framed and numbered as a main formula.
 _FRAME_NOTE_RE = re.compile(r"^(?:в\s+)?рамк\w*\s*:\s*(.*)$", re.IGNORECASE | re.DOTALL)
+# "[рисунок 3: …]": a drawing cut out of the page, the record's third, and the
+# words recognition described it in (figures.place).
+_PICTURE_RE = re.compile(r"^рисунок\s+(\d+)\s*:\s*(.*)$", re.IGNORECASE | re.DOTALL)
+# A drawing written inside a line of text — "A ⊂ ⋃ U_α [схема: числовая ось]"
+# on record 59 — printed its brackets in the middle of the sentence.
+_INLINE_DRAWING_RE = re.compile(
+    r"\[\s*(?:схема|рисунок\s+\d+|граф[^\[\]:]{0,40}|graph[^\[\]:]{0,40})\s*:[^\[\]]*\]",
+    re.IGNORECASE,
+)
 _FRAME_OPEN_RE = re.compile(r"^\[\s*(?:в\s+)?рамк\w*\s*:?\s*(.*)$", re.IGNORECASE)
 _FRAMED_ARRAY_RE = re.compile(r"\\begin\{array\}\{\|[^{}]*\|\}")
 _BOXED = "\\boxed{"
@@ -356,7 +366,8 @@ class Page:
 
 @dataclass
 class Block:
-    # heading | bullet | text | math | note | framed | gap | rule | table | graph
+    # heading | bullet | text | math | note | framed | gap | rule | table |
+    # graph | picture
     kind: str
     text: str = ""
     level: int = 0
@@ -370,6 +381,9 @@ class Block:
     # The line of the record the block was read from, so a number given to it
     # here can be written back beside it for a model to point at.
     line: int = field(default=-1, compare=False, repr=False)
+    # A picture's drawing as the record keeps it — the darkness of its ink,
+    # a greyscale PNG — attached by render() from what the record stored.
+    image: bytes | None = field(default=None, compare=False, repr=False)
 
 
 def _latex(match: re.Match) -> str:
@@ -652,6 +666,33 @@ def parse_graph(spec: str) -> tuple[list[str], list[tuple[str, str]], bool] | No
     return vertices, edges, directed
 
 
+def _lift_drawings(markdown: str) -> str:
+    """Every drawing written inside a line of text moved onto a line of its
+    own, between the text before it and the text after it. Done for the
+    document only: the stages that number the record's lines read it as it
+    is stored."""
+    out: list[str] = []
+    for line in markdown.splitlines():
+        stripped = line.strip()
+        found = list(_INLINE_DRAWING_RE.finditer(line))
+        if stripped.startswith("|") or not found or (
+            len(found) == 1 and found[0].group(0) == stripped
+        ):
+            out.append(line)
+            continue
+        last = 0
+        for match in found:
+            before = line[last : match.start()].strip()
+            if before:
+                out.append(before)
+            out.append(match.group(0))
+            last = match.end()
+        after = line[last:].strip()
+        if after:
+            out.append(after)
+    return "\n".join(out)
+
+
 def blocks(markdown: str) -> list[Block]:
     """Split a record into renderable pieces.
 
@@ -746,14 +787,19 @@ def blocks(markdown: str) -> list[Block]:
             continue
 
         # "[схема: граф с петлёй]" — the model's note that something on the
-        # page is a drawing. We never store photos, so it stays a remark.
-        # "[граф: 1-2, 2-3]" is that same note with the edges in it, and is
-        # drawn instead of described.
+        # page is a drawing, and all the record has of it. "[рисунок 3: …]" is
+        # one cut out of the page, which the record keeps. "[граф: 1-2, 2-3]"
+        # is a drawing given as its edges, and is drawn from them.
         if stripped.startswith("[") and stripped.endswith("]"):
             inner = stripped[1:-1].strip()
+            picture = _PICTURE_RE.match(inner)
             drawing = _GRAPH_RE.match(inner)
             framed = _FRAME_NOTE_RE.match(inner)
-            if drawing:
+            if picture:
+                out.append(
+                    Block("picture", picture.group(2).strip(), marker=picture.group(1))
+                )
+            elif drawing:
                 out.append(
                     Block("graph", drawing.group(2).strip(), caption=drawing.group(1).strip())
                 )
@@ -2319,6 +2365,46 @@ _BESIDE_GAP_PT = 28.0
 _NAME_GAP_PT = 5.0
 
 
+# A drawing cut out of the page is set at about the size it had there: the
+# image the model saw is 1500 px on its long side, which across a notebook's
+# page comes close to this many points a pixel.
+_PICTURE_PT_PER_PX = 0.45
+# A drawing that would fill a page is a page of drawing, not a figure in the
+# text: never taller than this.
+_PICTURE_MAX_HEIGHT_PT = 300.0
+
+
+def _picture(block: Block, formulas: _Formulas, styles: dict[str, ParagraphStyle]):
+    """The author's drawing in the document's ink, on its paper. Without one
+    — cut by nothing, or the record made before drawings were kept — the line
+    that described it, as the record always printed it."""
+    described = Paragraph(
+        _line_markup(f"схема: {block.text}", formulas, _SMALL_PT), styles["note"]
+    )
+    if block.image is None:
+        return described
+    try:
+        with PILImage.open(io.BytesIO(block.image)) as stored:
+            ink = stored.convert("L")
+    except Exception:
+        # A drawing the record kept and cannot open is still described.
+        logger.warning("a kept drawing could not be opened", exc_info=True)
+        return described
+    drawn = PILImage.composite(
+        PILImage.new("RGB", ink.size, _INK), PILImage.new("RGB", ink.size, _PAPER), ink
+    )
+    buffer = io.BytesIO()
+    drawn.save(buffer, format="PNG")
+    buffer.seek(0)
+    width = min(_TEXT_WIDTH_PT, ink.width * _PICTURE_PT_PER_PX)
+    height = width * ink.height / ink.width
+    if height > _PICTURE_MAX_HEIGHT_PT:
+        width, height = width * _PICTURE_MAX_HEIGHT_PT / height, _PICTURE_MAX_HEIGHT_PT
+    picture = Image(buffer, width=width, height=height)
+    picture.hAlign = "CENTER"
+    return picture
+
+
 def _figure_cell(caption: str, drawn: Image, styles: dict[str, ParagraphStyle]) -> list:
     cell: list = [drawn]
     if caption:
@@ -2644,6 +2730,9 @@ def _flowables(
             )
         ]
 
+    if block.kind == "picture":
+        return [_picture(block, formulas, styles)]
+
     if block.kind == "note":
         # A description of a drawing names its points in LaTeX as often as
         # not — "$x_0 = 1$" — and printed as markup those were source.
@@ -2803,6 +2892,8 @@ def _unit(
         kind = "main"
     elif block.kind == "framed":
         kind = "main" if "$" in block.text else "frame"
+    elif block.kind == "picture":
+        kind = "figure" if block.image is not None else "note"
     else:
         kind = block.kind
     return [block], index + 1, flowables, kind
@@ -3048,8 +3139,10 @@ def render(
     explanations: Sequence[Explanation] = (),
     summary: Summary | None = None,
     page: Page | None = None,
+    figures: Mapping[int, bytes] | None = None,
 ) -> bytes:
-    """A record as PDF bytes. Never raises on the content of the record."""
+    """A record as PDF bytes. Never raises on the content of the record.
+    `figures` are the drawings the record keeps, by the N of "[рисунок N: …]"."""
     _register_fonts()
     styles = _styles()
     buffer = io.BytesIO()
@@ -3061,9 +3154,12 @@ def render(
     wanted = title.strip().casefold()
     parsed = [
         block
-        for block in blocks(markdown)
+        for block in blocks(_lift_drawings(markdown))
         if not (block.kind == "heading" and block.text.strip().casefold() == wanted)
     ]
+    for block in parsed:
+        if block.kind == "picture" and figures:
+            block.image = figures.get(int(block.marker))
     levels = [block.level for block in parsed if block.kind == "heading"]
     top_level = min(levels) if levels else 1
 
