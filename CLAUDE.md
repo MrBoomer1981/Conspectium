@@ -63,8 +63,14 @@ code.
 - **Both** — the order of work in `docs/PLAN.md`; three sections of this
   file, "Inviolable rules", "Established experimentally" and "What NOT to
   do"; and the contract between the prompts and `pdf.py` — the syntax of a
-  graph, a table, a frame, a definition's heading — which one side writes and
-  the other draws. Where they disagree, what is stays as it is.
+  graph, a table, a frame, a drawing, a definition's heading — which one side
+  writes and the other draws. Where they disagree, what is stays as it is.
+
+**Since 2026-10-01 the CEO's word is enough in every area** — the CPO's and
+what is shared included — agreed with the CPO beforehand. The CEO changes a
+prompt, a model setting, the schema or a rule here without waiting, and the
+change is still logged for the CPO to read. It is one way: the CPO's change
+in the CEO's area, or in what is shared, waits for the CEO.
 
 "The author" here and in the plan is the owner of the area a decision falls
 in, and both for what is shared. A decision dated before 2026-09-30 was made
@@ -79,16 +85,17 @@ In a session:
   `git log --format='%h %an %as %s' HEAD..origin/main` and the lines of
   `docs/PLAN.md` → "Plan changes" waiting for this person's word. Say what
   changed, in whose area, and anything that breaks a rule here.
-- **The other's area needs the other's word.** Work freely in the area of the
-  person you work for. Before changing a decision in the other's — a prompt,
-  a model setting, the schema; a text students read, a command, the
-  document's look — ask whether it is agreed, and say so in the commit. A
-  migration is the CPO's or agreed with the CPO: two written at once give
-  Alembic two heads, and the deploy stops.
+- **In the CPO's sessions, the CEO's area needs the CEO's word.** Before
+  changing a text students read, a command, the document's look, or what is
+  shared, ask whether it is agreed, and say so in the commit. In the CEO's
+  sessions every area is open. A migration is named to the other before it
+  is pushed, whoever writes it: two written at once give Alembic two heads,
+  and the deploy stops.
 - **Every change to `docs/PLAN.md` beyond a task's checkbox and its owner's
   line in "State", and every change to a rule here, is a line in "Plan
-  changes"**, in a `plan:` commit of its own. One in the other's area, or in
-  what is shared, waits there for the other's word.
+  changes"**, in a `plan:` commit of its own. One the CPO makes in the CEO's
+  area, or in what is shared, waits there for the CEO's word; the CEO's are
+  accepted as written.
 - **Pull before pushing, and never force-push `main`**: both push to it,
   GitHub's free plan cannot protect a private repository's branch, and every
   push deploys.

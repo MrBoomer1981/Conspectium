@@ -5,8 +5,11 @@ interface and the product for students, the CPO the database and the model,
 and both push to `main` — `README.md` maps every area to its code. "The
 author" in this file is the owner of the area a decision falls in, and both
 for what is shared; a decision dated before that day was made when the CEO
-was the only author. Lives in `docs/` with `FINDINGS.md` and `BRAND.md`;
-`CLAUDE.md` and `README.md` stay in the repo root.
+was the only author. Since 2026-10-01 the CEO's word is enough in every
+area, the CPO's and what is shared included — agreed with the CPO
+beforehand; `CLAUDE.md` → "Who decides". Lives in `docs/` with
+`FINDINGS.md` and `BRAND.md`; `CLAUDE.md` and `README.md` stay in the repo
+root.
 
 **How to work with this file:**
 
@@ -27,9 +30,10 @@ was the only author. Lives in `docs/` with `FINDINGS.md` and `BRAND.md`;
    check the "Contracts" section at the end of the file first.
 8. A change to this file beyond your task's checkbox and your line in
    "State" goes in a commit of its own (`plan: …`, saying why) with a line
-   in "Plan changes", below "State". One in the other owner's area, or in
-   what is shared — the order of work, a rule in `CLAUDE.md` — waits there
-   for the other's word. The same holds for a rule in `CLAUDE.md`.
+   in "Plan changes", below "State". One the CPO makes in the CEO's area,
+   or in what is shared — the order of work, a rule in `CLAUDE.md` — waits
+   there for the CEO's word; the CEO's need no one's since 2026-10-01. The
+   same holds for a rule in `CLAUDE.md`.
 
 ---
 
@@ -200,14 +204,24 @@ and the group is tested later. These come before 40 and 41.
 
 **Phase D — the subject: a course a group builds up and gets back whole.**
 Set by the CEO on 2026-09-30, in two tracks, one an owner: **the CEO's 51,
-47, 52 and the CPO's 41, 48**, each in that order — 51 moved first on
-2026-10-01, when the CEO's guide to the look came in. 52's overview is a model
-call and waits for 41, which counts its cost against the chat's cap. Each
-task's specification is under "# Task N", after the task descriptions of
-week 2; 41 is the one listed under phase C.
+54, 55, 56, 47, 52 and the CPO's 41, 48**, each in that order — 51 moved
+first on 2026-10-01, when the CEO's guide to the look came in, and 54 to 56
+came in after it the same day, from record 59. 52's overview is a model call
+and waits for 41, which counts its cost against the chat's cap. Each task's
+specification is under "# Task N", after the task descriptions of week 2;
+41 is the one listed under phase C.
 
-- [ ] 51. The document's own look: the CEO's guide, `BRAND.md`, the body
+- [x] 51. The document's own look: the CEO's guide, `BRAND.md`, the body
       included — the CEO's
+- [ ] 54. Drawings cut out of the page: recognition names each drawing's
+      frame, the code cuts it out of the photograph, keeps its ink and sets
+      it in the document — the CEO's
+- [ ] 55. What record 59 showed besides its drawings: a record with no
+      headings, the margin line «фор · 21:27 (0, 1)», a forum among an
+      explanation's sources — the CEO's
+- [ ] 56. The bot as a teacher: «Идея», «Зачем условие», «Пример», each a
+      box of its own, the bot's reasoning printed without a source under its
+      own label and checked by code — the CEO's
 - [ ] 47. The bot added to a group chat in one tap, and seeing its pages
       there without being made an admin — the CEO's
 - [ ] 52. A subject's records as one document to study from — the course,
@@ -278,8 +292,8 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-40, 42-43, 45-46
-CEO — current: 51; next: 47
+Done: 1-40, 42-43, 45-46, 51
+CEO — current: 54; next: 55
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read
 ```
@@ -289,9 +303,10 @@ Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take 
 Every change to this file beyond a task's checkbox and its owner's line in
 "State", and every change to a rule in `CLAUDE.md`, is a line here, written
 in the same commit — so that the plan's history reads without its diff, and
-neither owner learns of a change to their area from one. A change in the
-other owner's area, or in what is shared, stands as unaccepted until the
-other's word is in the last column.
+neither owner learns of a change to their area from one. A change the CPO
+makes in the CEO's area, or in what is shared, stands as unaccepted until
+the CEO's word is in the last column; the CEO's are accepted as written,
+since 2026-10-01.
 
 | Date | Who | What changed, and why | Accepted |
 |---|---|---|---|
@@ -299,14 +314,18 @@ other's word is in the last column.
 | 2026-09-30 | the CEO, with Claude Code | Task 52: the course document opens with an overview the model writes over its records | the CEO's own |
 | 2026-09-30 | the CEO, with Claude Code | The work divided by area: the CEO — the interface and the product for students; the CPO — the database and the model; both push to `main`. Phase D in two tracks and "State" in two lines. This replaces the staff developer and "Review" set up earlier the same day | the CEO's own |
 | 2026-10-01 | the CEO, with Claude Code | Task 51 rebuilt on the CEO's guide, `BRAND.md` — v1.0 of 2026-09-30, rewritten to v1.1 where the records demanded it: the look goes into the body, where the task said "around the text, never in it". `CLAUDE.md` → "The document" rewritten for it | the CEO's own |
-| 2026-10-01 | the CEO, with Claude Code | The CEO's track in the order 51, 47, 52: the guide came in. Nothing of the CPO's moves | waits for the CPO |
-| 2026-10-01 | the CEO, with Claude Code | "Суть": the explaining stage's summary opens the document. The guide asks for one or two sentences and 35 words; `prompts-explain-v1.md` asks for three to five. Shortening it is a prompt change | waits for the CPO |
-| 2026-10-01 | the CEO, with Claude Code | "Проверь себя" proposed, from the guide: a question at the end of a page or a section, written by the model. A new output and its guards are the CPO's, its display the CEO's; it stands next to the flashcards `CLAUDE.md` sets aside, so it is for both. Not scheduled | waits for the CPO |
-| 2026-10-01 | the CEO, with Claude Code | A definition's amber line reads the composing stage's rule 6 heading, "### Определение", which makes that heading part of the contract between the prompts and `pdf.py` | waits for the CPO |
+| 2026-10-01 | the CEO, with Claude Code | The CEO's track in the order 51, 47, 52: the guide came in. Nothing of the CPO's moves | accepted: the CEO's word, by the rule of 2026-10-01 |
+| 2026-10-01 | the CEO, with Claude Code | "Суть": the explaining stage's summary opens the document. The guide asks for one or two sentences and 35 words; `prompts-explain-v1.md` asks for three to five. Shortening it is a prompt change | the CEO's own, by the rule of 2026-10-01; the shortening not yet made |
+| 2026-10-01 | the CEO, with Claude Code | "Проверь себя" proposed, from the guide: a question at the end of a page or a section, written by the model. A new output and its guards are the CPO's, its display the CEO's; it stands next to the flashcards `CLAUDE.md` sets aside, so it is for both. Not scheduled | the CEO's own, by the rule of 2026-10-01; task 56's second step |
+| 2026-10-01 | the CEO, with Claude Code | A definition's amber line reads the composing stage's rule 6 heading, "### Определение", which makes that heading part of the contract between the prompts and `pdf.py` | accepted: the CEO's word, by the rule of 2026-10-01 |
 | 2026-10-01 | the CEO, with Claude Code | Backlog, from the guide: the pages as PNGs for a phone, the QR code carrying `?start=note_<id>`, "Школа × SUM" | the CEO's own |
 | 2026-10-01 | the CEO, with Claude Code | The repository in folders: `PLAN.md`, `FINDINGS.md` and `BRAND.md` in `docs/`; the prompts in `prompts/`, where `vision.load_prompt` reads them — the file names, and so the variables on Railway, unchanged; the records, reference notes and logs kept locally in `evidence/`, out of git | the CEO's; the prompts with the CPO aware |
-| 2026-10-01 | the CEO, with Claude Code | `CLAUDE.md` rewritten, and merged into `main` on the CEO's word the same day: the same rules with their reasons, in a third fewer words. The two owners and what production runs come first — its variables differ from the code's defaults, which the old file listed as if they were production's. The history moved to `FINDINGS.md`, four facts with no section there to "Moved from CLAUDE.md, 2026-10-01". Its shared sections and the CPO's areas are the CPO's to read, in `main` now; what the CPO does not accept is changed back there | waits for the CPO |
+| 2026-10-01 | the CEO, with Claude Code | `CLAUDE.md` rewritten, and merged into `main` on the CEO's word the same day: the same rules with their reasons, in a third fewer words. The two owners and what production runs come first — its variables differ from the code's defaults, which the old file listed as if they were production's. The history moved to `FINDINGS.md`, four facts with no section there to "Moved from CLAUDE.md, 2026-10-01". Its shared sections and the CPO's areas are the CPO's to read, in `main` now; what the CPO does not accept is changed back there | accepted: the CEO's word, by the rule of 2026-10-01 |
 | 2026-10-01 | the CEO, with Claude Code | Task 53, SUM's site, specified and not scheduled: one page outside this repository that shows the document and sends a group to the bot, and the bot writing down the label a start came with. Its audience, domain, host and contact are left open. It goes up after 47 and is promoted after 41; neither task moves. The phase D intro's stale order of the CEO's track corrected to 51, 47, 52, as logged above | the CEO's own |
+| 2026-10-01 | the CEO | The CEO's word is enough in every area of the bot — the CPO's included: prompts, the model, the schema and migrations, cost and limits, the infrastructure — and in what is shared, agreed with the CPO beforehand. The CPO's changes in the CEO's area or in what is shared still wait for the CEO, and a migration is still named to the other before it is pushed. `CLAUDE.md` → "Who decides", `README.md` and this file's rules say so, and the lines above that waited for the CPO are settled by it | agreed with the CPO beforehand, per the CEO |
+| 2026-10-01 | the CEO, with Claude Code | Task 54, drawings cut out of the page, after record 59 printed nine drawings as nine sentences: recognition names each drawing's frame, the code cuts it out of the photograph and sets its ink in the document; a drawing that is data — a graph, and later a function by its formula, a number line — is still drawn from the data. Rule 3 changes with it: the drawing cut out of a page is kept with its record, the photograph still never | the CEO's own |
+| 2026-10-01 | the CEO, with Claude Code | Task 55, record 59's other faults — no headings, the margin line, reddit.com as a source — after 54; the margin line's backlog item moves into it | the CEO's own |
+| 2026-10-01 | the CEO, with Claude Code | Task 56, the bot as a teacher — «Идея», «Зачем условие», «Пример»; a fact keeps its source, the bot's reasoning is printed without one under its own label and checked by code wherever there is something to check; «Проверь себя» its second step. After 55. The CEO's track is now 54, 55, 56, then 47 and 52 | the CEO's own |
 
 ## Where this is going, decided 2026-09-30
 
@@ -2284,11 +2303,11 @@ never been used.
 
 # Phase D: the tasks
 
-Specified on 2026-09-30. Two tracks: the CEO's 51, 47, 52 — 51 moved first
-on 2026-10-01 — and the CPO's 41, 48, each in that order. Where a
-specification and the code disagree, the code is what exists and the
-specification is what was decided: ask the task's owner before choosing
-either.
+Specified on 2026-09-30. Two tracks: the CEO's 51, 54, 55, 56, 47, 52 — 51
+moved first and 54 to 56 came in on 2026-10-01 — and the CPO's 41, 48, each
+in that order. Where a specification and the code disagree, the code is
+what exists and the specification is what was decided: ask the task's owner
+before choosing either.
 
 # Task 47. The bot added to a group in one tap
 
@@ -2779,6 +2798,195 @@ web would change that section, which is for both owners.
    company's; until the company exists, the CEO's, moved later.
 3. The host. Recommended: a Russian one.
 4. The contact on the page: a personal Telegram, or an account of SUM's.
+
+---
+
+# Task 54. Drawings cut out of the page
+
+**Owner: the CEO.** Decided on 2026-10-01, after record 59. The prompt, the
+schema and rule 3 are in it, on the CEO's word in every area.
+
+## Why
+
+Record 59, a lecture on compactness, carried its proof in its drawings —
+balls round points, a set covered by them, a point outside with its
+neighbourhood, the ε-strip round a limit — and the document gave each of the
+nine a sentence: «схема: множество, покрытое шарами». Two stood inside a line
+with their brackets, and the arrows of one came out as lines of text. A
+drawing the record only describes is one the reader does not have. Redrawn
+from what the model says about it, a sketch would be the model's picture of
+the topic rather than the author's — exactly where it invents. So the drawing
+is taken from the page. Where a drawing is data — a graph's edges, and later
+a function by its formula or a number line — it is still drawn from the data.
+
+## Do
+
+1. **Recognition names each drawing's frame** — `prompts-v8.md`, v6 with rule
+   6 extended: a drawing that is not a graph or a table stays one line
+   `[схема: …]` where it stands, and its frame goes into a new answer key,
+   `drawings`: `[top, left, bottom, right]` in thousandths of the photo's
+   sides, one per `[схема: …]`, in their order. Labels and arrows inside a
+   drawing are part of it and are not written out as text. The frames are not
+   in `markdown`, so neither agreement moves.
+2. **`parse_response` trusts no frame**: four integers from 0 to 1000, top
+   above bottom and left before right, or `None` in its place, so a bad frame
+   never shifts the ones after it. Without the key the list is empty, and
+   every prompt before v8 reads as it did.
+3. **The code cuts each drawing out** (`figures.py`), in both photo paths,
+   from the compressed image the model saw: the best run's frames paired with
+   its `[схема: …]` lines in order — none at all when the two counts differ.
+   A frame too small to hold a drawing, or covering most of the page, is not
+   cut. What is kept is the darkness of the page's ink, not its colours: the
+   paper's light, a shadow across it included, is measured and divided out,
+   the ink stays whole — dashes and hatching too — a notebook's grid stays
+   faint, the sheet's other side showing through goes, and the edges fade.
+4. **Placed after composing, by its words**: composition sees `[схема: …]`
+   as it always has, and afterwards each cut-out is placed at the
+   `[схема: …]` that carries its words, in order, which becomes
+   `[рисунок N: …]` — N through the whole record. A drawing whose line the
+   composition changed is not placed: a picture never lands at the wrong
+   line.
+5. **Stored with the record** — `note_figures`, migration
+   `013_note_figures`: the record, the number, the PNG. Rule 3 says what
+   changed: the drawing cut out of a page is kept, the photograph never is.
+   The document is drawn from what is stored, so a record a "#word" brings
+   back months later still has its drawings.
+6. **The document draws it** (`pdf.py`): `[рисунок N: …]` with its PNG is the
+   author's drawing in the document's ink on its paper, at about the size it
+   had on the page, never wider than the column, set apart like a graph, with
+   no caption — the author wrote none. Without one, it is the line «схема: …»
+   of today. A drawing written inside a line of text is lifted onto a line of
+   its own, `[граф: …]` included.
+7. `note_processed` gains `drawings` (the `[схема: …]` lines recognition
+   wrote) and `figures` (those placed) — "Contracts". `CLAUDE.md`: rule 3,
+   the pipeline, "The document", "Structure"; `BRAND.md`: how a drawing
+   looks.
+
+## How it is tried
+
+The deploy changes nothing while production reads `prompts-v6.md` — no
+frames, no cut-outs, `[схема: …]` as today — except that a drawing inside a
+line moves onto its own. `PROMPT_FILE=prompts-v8.md` on Railway turns it on,
+and the album of record 59 sent again is the measurement: the CEO compares
+the new record with 59 and with the photographs — every drawing there,
+nothing cut off, no text doubled as handwriting, the text read no worse. One
+variable takes it back.
+
+## Acceptance criterion
+
+- Record 59's album under v8: its drawings in the document, cut from the
+  page, clean on its paper.
+- A record under v6 reads as before, a drawing inside a line on a line of
+  its own.
+- A record found again by its "#word" has its drawings.
+- The suite is green.
+
+## Don't do
+
+- No redrawing a sketch from the model's words, and no picture the page did
+  not have.
+- Don't keep the photograph, or any of it but a drawing's ink.
+- No new setting: the prompt file is the switch.
+
+---
+
+# Task 55. What record 59 showed besides its drawings
+
+**Owner: the CEO.** After 54.
+
+## Why
+
+Record 59, the first read in the new look, had three faults that are not its
+drawings:
+
+- **No heading at all**, so no numbered section either: «Теорема Больцано -
+  Вейерштрасса» and «Понятие компактности» stand as lines of text. Headings
+  are the composing stage's; on 59 it either did not run or was refused.
+- **«фор · 21:27 (0, 1)» under the title** — what the model put in
+  `margin_notes`, which on real pages is mostly not a margin note: the
+  notebook's print ("DATE", "BRAUBERG®" — records 38, 40, 41), a doodle
+  described ("рисунок: солнце и смайлик в правом верхнем углу"), stray
+  letters, once a whole `[схема: …]`. Rule 8 of the prompt asks for the
+  lecturer, the date and the page number only, and does not hold.
+- **reddit.com among an explanation's sources.** Sources are ranked, never
+  filtered (`explain._TIERS`), so a forum stands under an explanation when
+  the search found one.
+
+## Do
+
+1. **Why 59 has no headings**, read off its `note_processed` (`composed`,
+   `compose_refused`, `compose_drift`) and its `ai_calls`, and fixed where
+   the cause lies — the stage, its guard, or what it was given.
+2. **A margin line is a name, a date or a page number, or nothing** — a rule
+   in code over `margin_notes`, so records already stored are drawn by it
+   too.
+3. **A forum is not a source**: reddit and its kind are dropped from an
+   explanation's sources, and an explanation left with none is dropped by
+   the rule that already holds (`explain_unsourced`).
+4. `CLAUDE.md` → "Stage three" and "The document".
+
+## Acceptance criterion
+
+- Record 59's album read again: its headings numbered, nothing under the
+  title that is not a name, a date or a page, no forum among the sources.
+- The suite is green.
+
+---
+
+# Task 56. The bot as a teacher: the idea, why a condition, an example
+
+**Owner: the CEO.** Decided on 2026-10-01; after 55.
+
+## Why
+
+"I don't want to just retell lectures mindlessly" — the CEO, 2026-10-01. The
+bot explains at most eight hard places a record, and only what a search
+confirms. The CEO's reference, `матан 24.09.2026.pdf`, has sixteen remarks in
+fourteen pages, an idea before a step, examples, a summary — and its remarks
+are of a kind the bot does not write: what a condition is for and what breaks
+without it, where a lemma will be used, the plan of a proof. Record 59 has
+four explanations in five pages, and the one that teaches — why the
+neighbourhoods of p are intersected, not joined — is the kind a search can
+barely confirm. The source rule fits a fact; a teacher's reasoning about one
+proof has no page on the web to cite.
+
+## Do
+
+1. **Three elements, each a box of the bot's under its own label**:
+   - «Идея» — the plan of a proof in one or two sentences, set before it;
+   - «Зачем условие» — what a definition's or a theorem's condition is for,
+     and what breaks without it;
+   - «Пример» — an example or a counterexample the lecture did not give.
+   Written by the explaining stage over the composed text, never the photo.
+2. **A fact keeps its source; the bot's reasoning is printed without one,
+   under its own label, and checked by code wherever there is something to
+   check** — an example's arithmetic by `mathcheck`, a number it states
+   against the record or its own working. One that fails a check is dropped
+   and counted. Explanations of hard places stay as they are, with sources.
+3. **How many**: by section rather than by record — about one element a
+   section, the reference's density — measured on an album already read.
+4. **The look** — `BRAND.md`: the three labels in the ink of the bot's
+   explanation, each where it belongs: an idea before its proof, a
+   condition's box under it, an example after what it shows.
+5. «Проверь себя» is the second step, once these three have been read.
+6. A new prompt file, `prompts-explain-v2.md`, behind `EXPLAIN_PROMPT_FILE`;
+   `CLAUDE.md` → "Stage three" and "The document".
+
+## Acceptance criterion
+
+- An album already read — record 59's, or 45's — under v2: the three
+  elements where they belong, none saying what the record or a check
+  contradicts; the CEO compares it with v1's document.
+- What a record costs before and after, in `FINDINGS.md` → "What a record
+  costs".
+- The suite is green.
+
+## Don't do
+
+- Nothing woven into the author's text, and nothing about how the page was
+  read: the reference's «В рукописи стоит …» stays out (2026-09-25).
+- Don't correct the author.
+- No flashcards, no spaced repetition.
 
 ---
 
@@ -3274,11 +3482,3 @@ under the three-character floor an explanation's anchor already had.
 - End-to-end tests of the photo and document handlers — the unit
   suite was extended by decision, these were left out on purpose
   (see `CLAUDE.md` → Tests)
-- What stands under a record's title is whatever the model put in
-  `margin_notes`, and on real pages that is mostly not a margin note: the
-  notebook's own print ("DATE", "BRAUBERG®" — records 38, 40, 41), a
-  description of a doodle ("рисунок: солнце и смайлик в правом верхнем углу"),
-  single stray letters ("м", "u", "f") and once a whole `[схема: …]`. Rule 8
-  of `prompts-v5.md` asks for the lecturer, the date and the page number only.
-  A recognition question — the prompt, or a rule about what a margin line may
-  be — not the document's design, which prints the line it is given
