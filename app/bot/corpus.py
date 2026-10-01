@@ -34,7 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import middlewares, tags, texts
 from app.core.events import log_event
 from app.db.models import Group, Note, NoteFigure, NoteTopic, User
-from app.services import graphcheck, pdf, vision
+from app.services import explain, graphcheck, pdf, vision
 
 logger = logging.getLogger(__name__)
 
@@ -138,18 +138,24 @@ def _drawn(detail: str) -> str:
 def _explanations(note: Note) -> list[pdf.Explanation]:
     """What the explaining stage added, as boxes to set in the document.
 
-    Each keeps the sources it was stored with; a stored shape this version
-    cannot read is skipped rather than allowed to sink the document.
+    Each keeps the sources it was stored with but a forum's, which is no
+    source (explain.not_a_source) — so a record stored before that rule is
+    drawn by it too, and one whose every source was a forum is not printed,
+    as it would not be made today. A stored shape this version cannot read
+    is skipped rather than allowed to sink the document.
     """
     boxes: list[pdf.Explanation] = []
     for item in note.explanations or []:
         if not isinstance(item, dict) or not str(item.get("text", "")).strip():
             continue
-        sources = [
+        stored = [
             (str(s.get("title", "")) or str(s.get("uri", "")), str(s.get("uri", "")))
             for s in item.get("sources") or []
             if isinstance(s, dict) and s.get("uri")
         ]
+        sources = [s for s in stored if not explain.not_a_source(s[0])]
+        if stored and not sources:
+            continue
         boxes.append(
             pdf.Explanation(
                 anchor=str(item.get("anchor", "")),

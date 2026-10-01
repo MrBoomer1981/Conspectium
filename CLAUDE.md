@@ -483,9 +483,10 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   first, then encyclopedias, study sites, the rest; three a box, one link a
   site; the site read from the grounding chunk's `web.domain` or `web.title`,
   never from the link, which is Google's redirect (2026-09-25). A forum, a
-  social network or a video is dropped (`explain._NOT_SOURCES`, 2026-10-01:
+  social network or a video is dropped (`explain.not_a_source`, 2026-10-01:
   record 59 printed reddit.com), and an explanation left with no source goes
-  with it, as `explain_unsourced`.
+  with it, as `explain_unsourced` — in a stored record too, when its document
+  is drawn (`corpus._explanations`).
 - **Stored apart, printed as the bot's**: `notes.explanations` (with the
   sources) and `notes.summary`, never mixed into `markdown`. An explanation
   stands under the line it quotes or the formula it numbers, after that line's

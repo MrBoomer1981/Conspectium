@@ -135,6 +135,12 @@ _NOT_SOURCES = re.compile(
 )
 
 
+def not_a_source(site: str) -> bool:
+    """A forum, a social network or a video, by the site's name. Asked when a
+    search returns its pages, and again when a stored record is drawn."""
+    return bool(_NOT_SOURCES.search(site.strip().lower().removeprefix("www.")))
+
+
 def _tier(site: str) -> int:
     """0 for a scientific site, 1 an encyclopedia, 2 a study site, 3 the rest."""
     site = site.strip().lower().removeprefix("www.")
@@ -220,7 +226,7 @@ def _sources(response: object) -> list[Source]:
         # its title is that name. One link a site: a second page of it is
         # printed under the same name and reads as the first one twice.
         site = str(getattr(web, "domain", None) or title).strip().lower().removeprefix("www.")
-        if site in sites or _NOT_SOURCES.search(site):
+        if site in sites or not_a_source(site):
             continue
         sites.add(site)
         found.append((_tier(site), Source(title=title, uri=uri)))
