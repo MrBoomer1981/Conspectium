@@ -329,6 +329,7 @@ since 2026-10-01.
 | 2026-10-01 | the CEO, with Claude Code | Task 55, record 59's other faults — no headings, the margin line, reddit.com as a source — after 54; the margin line's backlog item moves into it | the CEO's own |
 | 2026-10-01 | the CEO, with Claude Code | Task 56, the bot as a teacher — «Идея», «Зачем условие», «Пример»; a fact keeps its source, the bot's reasoning is printed without one under its own label and checked by code wherever there is something to check; «Проверь себя» its second step. After 55. The CEO's track is now 54, 55, 56, then 47 and 52 | the CEO's own |
 | 2026-10-01 | the CEO, with Claude Code | Task 54 measured on record 59's album (record 60) and put to sleep: its cut-outs of a light hand came out faint under the grid, one frame took in the text beside it, and the CEO read the document as worse. Production back on `prompts-v6.md` the same hour; the code stays, asleep without frames. The CEO's track: 55, 56, then 47 and 52 | the CEO's own |
+| 2026-10-02 | the CEO, with Claude Code | Task 44's "another provider" surveyed, not yet measured: the handwriting and formula readers on GitHub return what the pipeline cannot use — plain text, no formulas, no ℤ or ≡ — and open page models, the only kind that reads a page whole, are unmeasured on Russian cursive and behind Gemini on every independent handwriting benchmark. Three candidates named for an arm on an album already read; `FINDINGS.md` → "Cheaper readers, surveyed 2026-10-02". Nothing scheduled; 44 stays paused | the CEO's own |
 
 ## Where this is going, decided 2026-09-30
 
@@ -421,7 +422,14 @@ and `VISION_MODEL` on Railway goes back to `gemini-3.8-flash`.
    50 and 51 read by the candidate and set against those two readings, the
    places they dispute checked on the photographs. It needs a script outside
    the bot and the album's four photographs kept for it, which is the
-   author's to decide under rule 3.
+   author's to decide under rule 3. Surveyed on 2026-10-02 (`FINDINGS.md` →
+   "Cheaper readers, surveyed 2026-10-02"): nothing open replaces the
+   reading — handwriting readers return plain text, formula readers cannot
+   write ℤ or ≡ — and a GPU of our own is not to be had on Railway nor worth
+   renting at this volume. The candidates are Qwen through a per-token API
+   with `prompts-v6.md` as it is, the one kind whose three runs still differ,
+   and Chandra 2 and Mistral OCR through their own APIs: under $1 in calls
+   for one album.
 3. Small: the explanations' writing call at `low`, about 3%, testable on
    stored records with no album sent.
 

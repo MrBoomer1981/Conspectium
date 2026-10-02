@@ -1048,3 +1048,115 @@ the guard is there for. Checked against record 59's case and its neighbours:
 the list, a heading and a bold label pass; an interval, an answer and a value
 changed are still refused. Two diagnostic calls cost $0.016, written to
 `ai_calls` against the CEO.
+
+## Cheaper readers, surveyed 2026-10-02
+
+**A desk survey, not a measurement.** The CEO asked whether software on
+GitHub reads handwriting without a paid model call, to cut recognition — 84%
+of a record's tokens, $0.037 a page at three runs, $0.074 from 2027-01-01 —
+with no loss of reading. Four searches read repositories, papers, model cards
+and price pages on 2026-10-02. Nothing was installed or run, and no candidate
+read a page of ours. Every handwriting reader found is itself a neural
+network: what differs is where it runs and how it is paid for. A figure here
+is its authors' unless said otherwise.
+
+**Classical handwriting readers return the wrong thing.** Kraken and
+eScriptorium, PyLaia, the TrOCR fine-tunes for Russian, Sber's
+ReadingPipeline (school notebooks, pupils' hands, untouched since 2023), the
+National Archives of Finland's `cyrillic-large-handwritten` (2026),
+PaddleOCR's Cyrillic models, EasyOCR and Tesseract turn a line — at best a
+page cut into lines — into plain text. No formula, no LaTeX, no heading or
+table: nothing the agreement, `mathcheck`, the composer or the PDF reads. The
+best Russian figure is 4.06% of characters wrong, on lines from the archives
+the model was trained beside; an unseen hand runs two to four times worse as a
+rule — an estimate, since none was measured on another's notes — an error in
+a quarter to half of the words. Tesseract's FAQ calls it a reader of print,
+EasyOCR lists handwriting as "coming next", docTR has no handwriting model,
+and PP-OCRv5 claims handwriting in Chinese, English and Japanese only.
+
+**Formula readers take one cropped expression, from a closed alphabet.** The
+CROHME line — BTTR, CoMER, CAN, ICAL, TAMER, PosFormer — reads 60–62% of
+clean isolated expressions exactly right, about 69% of HME100K's photographs
+of students' paper. CoMER's dictionary holds 110 tokens and no `Z`,
+`\equiv`, `\mathbb`, `\Rightarrow` or `\subset`: ℤ/mℤ, the reading
+flash-lite lost its arm over, cannot be written at all. UniMERNet has the
+whole of LaTeX and handwritten figures — an edit distance of 0.072–0.078 on
+6,332 crops — and no exact match. A page needs a formula detector first, and
+none of the open ones — Pix2Text's, MinerU's, PP-DocLayout — names
+handwriting in its training data. At 60–70% on clean crops, a page of a
+hundred formulas loses thirty to forty before the detector misses any.
+Mathpix, the commercial reader of handwritten mathematics, reads handwriting
+in Latin alphabets and Hindi: its Cyrillic is print only.
+
+**Open page models read a page whole, and nobody has measured them on
+ours.** Qwen3-VL and Qwen3.5/3.6, Chandra 2 (Datalab, 5.3B, its weights free
+below $2M of funding or revenue), PaddleOCR-VL (0.9B), dots.ocr and their kin
+return Markdown with LaTeX from a whole page, as Gemini does. The one
+independent handwriting benchmark with a Gemini in it, WildHandBench
+(2026-08; 500 documents, Chinese and English), scores overall and on
+formulas:
+
+| | overall | formulas |
+|---|---|---|
+| Gemini 3.1 Pro, the best | 71.85 | 79.42 |
+| Gemini 3.5 Flash | 68.25 | 78.22 |
+| Qwen3-VL, the best open | 62.19 | 69.06 |
+| PaddleOCR-VL-1.6 | 54.21 | 51.75 |
+| dots.ocr | 43.73 | 53.17 |
+| humans | 77.09 | 86.56 |
+
+On Russian documents — MTS's MWS Vision Bench, business and technical papers,
+some of them handwritten — open Qwen3.6-27B reads at 0.863 on the public
+split, against 0.833 for Gemini 3.6 Flash and 0.773 for 3.5 Flash. Nothing
+published measures Russian cursive with formulas, for any of them.
+OmniHandwritingOCR (2026-08) names what such models do to a hand: "correcting
+writer mistakes, inserting plausible intermediate steps, dropping visually
+present but hard-to-read symbols" — the failure this bot is built against.
+
+**Where they would run, and what it costs.** "Railway does not offer GPU
+instances", says its documentation. A GPU rented by the second elsewhere —
+RunPod, Modal — comes, by estimate, to $0.003–0.06 a page, with a cold start
+of one to two minutes on every album; one kept warm, to $350–600 a month.
+Per-token APIs serve the same open models for far less: Qwen3-VL-30B-A3B, at
+$0.15 and $0.60 a million tokens, reads a page three times for about $0.004
+at record 46's token counts. Mistral OCR is $1–4 a thousand pages, Chandra 2
+at Datalab $4–10.
+
+**Paid OCR services.** Google Document AI with its Math OCR add-on, about
+$0.0075 a page, and Azure Read v4.0 with its formula add-on list Russian
+handwriting and return formulas as LaTeX — apart from the text, Azure's "at
+the end of each page". Cloud Vision's Cyrillic handwriting is
+"experimental", Textract reads handwriting in English only, ABBYY
+hand-printed fields. Yandex Vision's `handwritten` model reads Russian cursive
+natively, for about the price of one Gemini call; whether its
+`math-markdown` model reads a hand is not documented.
+
+**What a replacement would break.** A specialist is decoded greedily, or
+nearly, so its three runs would come back alike and the one uncertainty
+signal that has held would read as certainty — why `seed` is not a setting.
+Only a general model such as Qwen takes `prompts-v6.md` and its JSON as they
+are and samples at a temperature of 1.0. A specialist answers in its own
+format: code can count the numbers in it (`vision.run_numbers`), but nothing
+supplies the doubtful spots or `[неразборчиво]`.
+
+**The volume it would save on.** 675 recognition calls from 2026-09-20 to
+10-01 — some 225 pages at three runs, most of them the CEO's test albums —
+$3.40 as `ai_calls` priced them. A saving is a few dollars a month at this
+volume; it counts with a group reading every week, and after the doubling.
+
+**What it settled.** Nothing open on GitHub replaces the reading without a
+loss: the handwriting readers return plain text, and the formula readers
+cannot write what the pages hold. Task 44's "another provider" has three
+candidates — Qwen through a per-token API with v6 unchanged, Chandra 2 and
+Mistral OCR through their own — each to read an album already read, judged by
+the CEO against the photographs, for under $1 in calls. Every independent
+handwriting benchmark puts Gemini first, so a failure is the likelier outcome.
+
+Sources, read on 2026-10-02: WildHandBench, arxiv.org/abs/2608.22959;
+OmniHandwritingOCR, arxiv.org/abs/2608.18586; MWS Vision Bench,
+github.com/mts-ai/MWS-Vision-Bench; Railway,
+docs.railway.com/guides/ai-api-hosted-inference; Mathpix,
+mathpix.com/language-support; huggingface.co/Kansallisarkisto/cyrillic-large-handwritten;
+CoMER's dictionary, github.com/Green-Wood/CoMER; UniMERNet,
+arxiv.org/abs/2404.15254; Chandra 2, huggingface.co/datalab-to/chandra-ocr-2;
+the prices at mistral.ai, datalab.to/pricing and deepinfra.com.
