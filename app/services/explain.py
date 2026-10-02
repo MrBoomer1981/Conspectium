@@ -122,16 +122,17 @@ _TIERS = (
 
 
 # A forum, a social network or a video is not a source, whatever else stands
-# under the explanation: record 59 printed reddit.com beside ucdavis.edu. Its
-# page is dropped, and an explanation left with none is dropped with it, by
-# the rule that already holds (`explain_unsourced`). Registered domains, the
-# form the Gemini API names a site in — see _TIERS.
+# under the explanation: record 59 printed reddit.com beside ucdavis.edu, and
+# record 62 the mathematical forum dxdy.ru and askfilo.com's homework answers.
+# Its page is dropped, and an explanation left with none is dropped with it,
+# by the rule that already holds (`explain_unsourced`). Registered domains,
+# the form the Gemini API names a site in — see _TIERS.
 _NOT_SOURCES = re.compile(
     r"(^|\.)(reddit\.com|quora\.com|mail\.ru|pikabu\.ru|vk\.com|vk\.ru|ok\.ru|"
     r"facebook\.com|instagram\.com|x\.com|twitter\.com|t\.me|tiktok\.com|"
     r"youtube\.com|youtu\.be|rutube\.ru|dzen\.ru|stackexchange\.com|"
     r"stackoverflow\.com|mathoverflow\.net|answers\.com|brainly\.(com|ru)|"
-    r"znanija\.com)$"
+    r"znanija\.com|dxdy\.ru|askfilo\.com)$"
 )
 
 
@@ -139,6 +140,28 @@ def not_a_source(site: str) -> bool:
     """A forum, a social network or a video, by the site's name. Asked when a
     search returns its pages, and again when a stored record is drawn."""
     return bool(_NOT_SOURCES.search(site.strip().lower().removeprefix("www.")))
+
+
+# An explanation that judges the record — calls a line of it a slip of the
+# pen, a typo, the author's mistake. The prompt says «Не исправляй автора»,
+# and record 62 printed «В конспекте допущена опечатка» over a union both of
+# its readings agree on: what the bot cannot tell is whether the author wrote
+# it so or the reading saw it so, and a reader cannot tell either. Such an
+# explanation is dropped (`explain_judged`), in a stored record too.
+_JUDGES_RE = re.compile(
+    r"опечатк|описк|ошибочно\s+(?:записан|написан|указан)|"
+    r"ошибк\w*\s+(?:в\s+)?(?:автор|конспект|записи)|"
+    r"(?:в|у)\s+(?:конспект|записи|записях|автор)\w*[\s,]+(?:[\w-]+[\s,]+){0,3}?ошибк|"
+    r"автор\w*[\s,]+(?:[\w-]+[\s,]+){0,3}?(?:ошиб|перепута)",
+    re.IGNORECASE,
+)
+
+
+def judges_the_record(title: str, text: str) -> bool:
+    """Whether an explanation calls something in the record an error of its
+    author's. Asked when the stage writes it, and when a stored record is
+    drawn."""
+    return bool(_JUDGES_RE.search(f"{title} {text}"))
 
 
 def _tier(site: str) -> int:
@@ -168,6 +191,8 @@ class Explaining:
     refused: str | None = None
     # Explanations whose search found nothing, and so were not printed.
     unsourced: int = 0
+    # Explanations that judged the record, and so were not searched for.
+    judged: int = 0
     # A summary thrown away for stating a number the record does not carry.
     summary_refused: bool = False
     stats: list[CallStats] = field(default_factory=list)
@@ -376,6 +401,10 @@ async def explain(markdown: str) -> Explaining:
 
     items, summary = parsed
     items = items[:_MAX_EXPLANATIONS]
+    # Before the searches, so a dropped explanation costs none.
+    fair = [item for item in items if not judges_the_record(item["title"], item["text"])]
+    judged = len(items) - len(fair)
+    items = fair
     searched = await asyncio.gather(*(_search(item) for item in items))
     explanations: list[Explanation] = []
     unsourced = 0
@@ -397,10 +426,11 @@ async def explain(markdown: str) -> Explaining:
             summary = None
 
     logger.info(
-        "explain: %d explanations kept, %d without a source dropped, summary %s, "
-        "model %s",
+        "explain: %d explanations kept, %d without a source dropped, "
+        "%d judging the record dropped, summary %s, model %s",
         len(explanations),
         unsourced,
+        judged,
         "refused" if summary_refused else ("kept" if summary else "absent"),
         settings.EXPLAIN_MODEL,
     )
@@ -408,6 +438,7 @@ async def explain(markdown: str) -> Explaining:
         explanations=explanations,
         summary=summary,
         unsourced=unsourced,
+        judged=judged,
         summary_refused=summary_refused,
         stats=all_stats,
     )

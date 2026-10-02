@@ -61,8 +61,17 @@ from reportlab.platypus import (  # noqa: E402
     Table,
     TableStyle,
 )
+from reportlab.platypus import paragraph as _rl_paragraph  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+# reportlab sets a paragraph's first line a font size below its top, whatever
+# the line holds, so a tall formula there — a column vector, a fraction over
+# a fraction — rose into the line above: record 62's third example over its
+# second. Placed by its own ascent instead, the first line makes room for what
+# it holds, as autoLeading already makes the lines after it do; an ordinary
+# line of text moves by a fraction of a point.
+_rl_paragraph.paraFontSizeHeightOffset = 0
 
 # Rendered at this DPI, then scaled to points. High enough that a formula
 # stays sharp when the PDF is zoomed on a phone.
@@ -232,8 +241,9 @@ _BULLET_RE = re.compile(r"^\s*[-*•]\s+(.*)$")
 # "1) абелева группа", "2. если ...": numbered the way the author numbered it,
 # set with the number hanging like a bullet.
 _NUMBERED_RE = re.compile(r"^\s*(\d{1,2}[.)])\s+(\S.*)$")
-# The seam _assemble writes between two pages of an album.
-_RULE_RE = re.compile(r"^(?:-{3,}|\*{3,}|_{3,})$")
+# The seam _assemble writes between two pages of an album, and the wavy line
+# an author draws across a page, which record 62 printed as "~~~".
+_RULE_RE = re.compile(r"^(?:-{3,}|\*{3,}|_{3,}|~{3,})$")
 # A markdown table row, and the "|---|:--|" line that marks the row above it
 # as a header rather than data.
 _ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
@@ -1193,6 +1203,26 @@ _SYNONYM_RE = re.compile(
     r"\\(" + "|".join(sorted(_SYNONYMS, key=len, reverse=True)) + rf"){_COMMAND_END}"
 )
 
+# A brace with words under or over it: "\underbrace{δ + Δ}_{\text{выберем …}}".
+# The synonym above keeps the line and leaves the words an index beside it —
+# record 62 printed them small and to the right; set over or under the formula
+# they read as the author wrote them. Two levels of braces inside either
+# group; deeper, the synonym's line is what remains.
+_GROUP = r"\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
+_BRACE_WORDS_RE = re.compile(
+    r"\\(under|over)brace" + _COMMAND_END + r"\s*" + _GROUP
+    + r"\s*([_^])\s*(?:" + _GROUP + r"|(\\[A-Za-z]+|[^\s{}\\]))"
+)
+
+
+def _brace_words(found: re.Match) -> str:
+    side, body, mark = found.group(1), found.group(2), found.group(3)
+    words = found.group(4) if found.group(4) is not None else found.group(5)
+    if (side, mark) not in (("under", "_"), ("over", "^")):
+        return found.group(0)
+    line = "underline" if side == "under" else "overline"
+    return f"\\{side}set{{{words}}}{{\\{line}{{{body}}}}}"
+
 
 # The environments mathtext refuses outright. It has no \begin at all — but it
 # does have \substack, which stacks rows at full size, and \left...\right,
@@ -1237,6 +1267,32 @@ _COLUMN_SEPARATOR_RE = re.compile(r"(?<!\\)&")
 # there on the page.
 _ALIGNMENT_ONLY = {"aligned", "align", "alignedat", "gathered", "gather", "split"}
 
+# A display formula that is one aligned chain and nothing else — "|x − a| < ε",
+# then "−ε < x − a < ε", a row a step. Stacked by \substack its rows touch, as
+# record 62's three did; drawn a row at a time on the one ground, with this
+# much air between them, they read as the lines they are on the page.
+_ALIGNED_RE = re.compile(
+    r"\s*\\begin\{(" + "|".join(sorted(_ALIGNMENT_ONLY)) + r")\*?\}"
+    r"(?:\{[^{}]*\})?(.*?)\\end\{\1\*?\}\s*",
+    re.DOTALL,
+)
+_ALIGNED_ROW_GAP_PT = 6.0
+
+
+def aligned_rows(latex: str) -> list[str] | None:
+    """The rows of a display formula that is one environment of the aligned
+    family and nothing else, each a formula of its own; None otherwise — and
+    for one holding another environment, whose rows its \\\\ would cut."""
+    found = _ALIGNED_RE.fullmatch(latex)
+    if found is None or "\\begin" in found.group(2):
+        return None
+    rows = [
+        _COLUMN_SEPARATOR_RE.sub("", re.sub(r"^\s*\[[^\]]*\]", "", row)).strip()
+        for row in re.split(r"\\\\", found.group(2))
+    ]
+    rows = [row for row in rows if row]
+    return rows if len(rows) > 1 else None
+
 
 def _environment(found: re.Match) -> str:
     r"""One \begin...\end turned into a stack of rows, with its delimiters."""
@@ -1265,6 +1321,7 @@ def for_mathtext(latex: str) -> str:
     latex = _TEXT_GROUP_RE.sub(_lift_styles, latex)
     latex = _TEXT_STYLE_RE.sub(_styled_words, latex)
     latex = _UNSUPPORTED_RE.sub("", latex)
+    latex = _BRACE_WORDS_RE.sub(_brace_words, latex)
     latex = _SYNONYM_RE.sub(lambda found: "\\" + _SYNONYMS[found.group(1)], latex)
     latex = _cyrillic_as_text(latex)
     latex = _QUOTE_RE.sub(lambda found: found.group(1) or r'\text{"}', latex)
@@ -2742,6 +2799,17 @@ def _flowables(
         arrays = ruled_arrays(block.text)
         if arrays is not None:
             return [_ruled_row(arrays, formulas, styles)]
+        rows = aligned_rows(block.text)
+        if rows is not None:
+            drawn = [formulas.display(row, _DISPLAY_PT) for row in rows]
+            if None not in drawn:
+                stacked: list = []
+                for image in drawn:
+                    image.hAlign = "CENTER"
+                    if stacked:
+                        stacked.append(Spacer(1, _ALIGNED_ROW_GAP_PT))
+                    stacked.append(image)
+                return stacked
         image = formulas.display(block.text, _DISPLAY_PT)
         if image is None:
             return [Paragraph(_markup(f"${block.text}$"), styles["math"])]

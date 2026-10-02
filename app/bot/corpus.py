@@ -141,12 +141,15 @@ def _explanations(note: Note) -> list[pdf.Explanation]:
     Each keeps the sources it was stored with but a forum's, which is no
     source (explain.not_a_source) — so a record stored before that rule is
     drawn by it too, and one whose every source was a forum is not printed,
-    as it would not be made today. A stored shape this version cannot read
-    is skipped rather than allowed to sink the document.
+    as it would not be made today; nor is one that judges the record
+    (explain.judges_the_record). A stored shape this version cannot read is
+    skipped rather than allowed to sink the document.
     """
     boxes: list[pdf.Explanation] = []
     for item in note.explanations or []:
         if not isinstance(item, dict) or not str(item.get("text", "")).strip():
+            continue
+        if explain.judges_the_record(str(item.get("title", "")), str(item.get("text", ""))):
             continue
         stored = [
             (str(s.get("title", "")) or str(s.get("uri", "")), str(s.get("uri", "")))

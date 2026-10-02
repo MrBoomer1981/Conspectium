@@ -479,17 +479,23 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   answer is "(3)" on the page — and each explanation then gets a search call
   of its own (`prompts-explain-source-v2.md`), in parallel. → "What the model
   did with a search tool"
-- **Two guards, both in code**: an explanation is printed only with the
+- **Three guards, all in code**: an explanation is printed only with the
   sources its own search returned, read from the grounding metadata, never
   from what the model writes — one with none is dropped
-  (`explain_unsourced`); and the summary may not state a number the record does
-  not carry (`summary_refused`).
+  (`explain_unsourced`); the summary may not state a number the record does
+  not carry (`summary_refused`); and an explanation that judges the record —
+  «опечатка», «описка», the author's mistake — is dropped before it is
+  searched for (`explain_judged`), in a stored record too. The prompt says
+  «Не исправляй автора», and record 62 wrote «В конспекте допущена
+  опечатка» over a union both readings of its page agree on: the bot cannot
+  tell what the author wrote from what was read, and neither can the reader.
 - **Sources are ranked, and a forum is none** (`explain._TIERS`): science
   first, then encyclopedias, study sites, the rest; three a box, one link a
   site; the site read from the grounding chunk's `web.domain` or `web.title`,
   never from the link, which is Google's redirect (2026-09-25). A forum, a
   social network or a video is dropped (`explain.not_a_source`, 2026-10-01:
-  record 59 printed reddit.com), and an explanation left with no source goes
+  record 59 printed reddit.com, record 62 dxdy.ru), and an explanation left
+  with no source goes
   with it, as `explain_unsourced` — in a stored record too, when its document
   is drawn (`corpus._explanations`).
 - **Stored apart, printed as the bot's**: `notes.explanations` (with the
@@ -629,7 +635,10 @@ why each is what it is. What a change must not break:
   depth, a quarter-point stroke to darken Computer Modern, shrunk to the
   column; on the kraft ground when displayed (`pdf._grounded`). A zero-width
   space after an inline formula is the only place reportlab breaks a line
-  after an image.
+  after an image. A tall one makes room in its line, a paragraph's first line
+  included: reportlab set that line a font size below the paragraph's top
+  whatever it held, and record 62's column vector rose over the line above
+  (`paraFontSizeHeightOffset`, off since 2026-10-02).
 - **Groups are built by hand and flat** — a heading with what it heads, a
   finding with its line, a table whole. reportlab's `keepWithNext` nests one
   `KeepTogether` in another and the inner reports an effectively infinite
@@ -661,8 +670,8 @@ why each is what it is. What a change must not break:
   chat listing — `pdf.plain` writes it in characters: "2¹⁰⁰¹", never
   "$2^{1001}$".
 - **Markup never prints as its source**: `$$` blocks, `$$…$$` inside a line,
-  emphasis across a formula, `~~…~~` struck through; a finding's quoted LaTeX
-  through `pdf.as_formula`.
+  emphasis across a formula, `~~…~~` struck through, a line of `~~~` a
+  separator as `---` is; a finding's quoted LaTeX through `pdf.as_formula`.
 
 → "The document as the group got it"
 
@@ -674,10 +683,15 @@ it drops what does nothing to the layout (`\limits`, `\displaystyle`, the
 into `\left…\substack{…}\right…` — losing column alignment, which is why a
 matrix is asked for as a markdown table — and handles `\xrightarrow`,
 `\pmod` (a run of digits one modulus), bold words inside `\text`, quotes,
-Russian words outside `\text`, `\cline`. A command ends where its letters end,
-`(?![A-Za-z])`. `\ce{…}` stays unsupported. `test_pdf.py` proves each rewrite
-both rewrites and draws, and a refusal is a warning in the log with
-mathtext's own diagnosis, once per formula per document. → "mathtext, one
+Russian words outside `\text`, `\cline`. A brace with words under or over it
+becomes `\underset` or `\overset` over its line — the brace lost, its words
+where the author wrote them — and an aligned chain alone in a display formula
+is drawn a row at a time (`pdf.aligned_rows`), since `\substack` sets its rows
+touching. A command ends where its letters end, `(?![A-Za-z])`. `\ce{…}` stays
+unsupported. `test_pdf.py` proves each rewrite made before 2026-09-29 both
+rewrites and draws — those after it were checked by drawing the record that
+showed them, under the decision to add no tests — and a refusal is a warning
+in the log with mathtext's own diagnosis, once per formula per document. → "mathtext, one
 record at a time"
 
 **An array ruled inside is drawn as a table** (`pdf.ruled_arrays`) — a long

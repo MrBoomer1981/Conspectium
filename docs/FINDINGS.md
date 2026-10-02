@@ -1160,3 +1160,43 @@ mathpix.com/language-support; huggingface.co/Kansallisarkisto/cyrillic-large-han
 CoMER's dictionary, github.com/Green-Wood/CoMER; UniMERNet,
 arxiv.org/abs/2404.15254; Chandra 2, huggingface.co/datalab-to/chandra-ocr-2;
 the prices at mistral.ai, datalab.to/pricing and deepinfra.com.
+
+## Record 62, record 59's album read again
+
+**Composed this time** (2026-10-02, after task 55's guard): its headings
+numbered, nothing under the title, five explanations. What the CEO's look
+found besides — "the bot took in extra, and the symbols crept a little" —
+set beside record 59, the same five pages read the day before:
+
+- **A vector over the line above.** «3) $\vec{v}_k = \begin{pmatrix} … \end{pmatrix}$»
+  rose over the example before it. reportlab places a paragraph's first line
+  a font size below its top — `rl_config.paraFontSizeHeightOffset = 1` — so a
+  tall image there stands up by the difference, and `autoLeading="max"`
+  spaces only the lines after the first. Reproduced with the three examples
+  alone and with a vector in an ordinary paragraph; turned off, the first
+  line sits by its own ascent, and an ordinary line moves by a fraction of a
+  point.
+- **The words under a brace** set as a subscript to the right:
+  `\underbrace` was a synonym for `\underline`, which left
+  `_{\text{выберем в качестве нового рад.}}` an index beside it.
+- **Three inequalities touching**: one `\begin{aligned}`, stacked by
+  `\substack`, which sets rows with no air between them.
+- **«~~~» printed as text**: the author's wavy line across the page; the
+  separator pattern knew `---`, `***` and `___`.
+- **The tail.** Record 62 ends on «~~~» and «A = ((0, 2) ∖ {[неразборчиво]}
+  …»; record 59 ended on the inequalities. Two readings of one page disagree
+  on whether to carry what its bottom holds, and the CEO's look calls it
+  extra; what it is on the page is not known yet.
+- **«В конспекте допущена опечатка»**: the explanation of U(p) said the
+  author wrote a union for an intersection. Both readings, 59's and 62's,
+  have the union — the author's or a misreading twice, which the bot cannot
+  tell and the reader cannot either — and the prompt's «Не исправляй
+  автора» did not hold. Dropped by code now (`explain_judged`), stored
+  records included.
+- **dxdy.ru**, the mathematical forum, the only source of the explanation of
+  «]»; askfilo.com, homework answers, under another. Both are dropped now,
+  and the first explanation with them — a right one, the price of the rule.
+  scribd.com, documents anyone uploads, stays: it is not a forum.
+
+All but the tail fixed the same day and checked by drawing record 62 again;
+the suite was not extended, by the decision of 2026-09-29.
