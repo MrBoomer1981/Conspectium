@@ -363,6 +363,7 @@ since 2026-10-01.
 | 2026-10-02 | the CEO, with Claude Code | Phase E, the app: the bot delivers the records, a Telegram Mini App collects what a group studies with — the stores later. Its first version is the library and the exam preparation, neither calling a model (57, 58, 59), after 56 and 47; spaced repetition, «Проверь себя» in the app, sharing and the stores once it is used. `CLAUDE.md` → "What NOT to do" and the backlog move the Mini App, spaced repetition and sharing from forbidden to planned; the stores, payments and any export stay out | the CEO's own |
 | 2026-10-02 | the CEO, with Claude Code | Task 55 reopened by record 62, record 59's album read again: a tall formula running into the line above, "~~~" printed as text, the words under a brace set as an index, a tail the page's bottom carried in, an explanation calling the author's union «опечатка», dxdy.ru among the sources | the CEO's own |
 | 2026-10-02 | the CEO, with Claude Code | Phase E is now a record from any material and the subject whole — a board (60), a recording (61), a film (62), the subject's base with its earlier lectures (63) — before the app, which becomes phase F after 63. A recording's record is the bot's notes, marked on its first page; the board comes first. The records' quality stays first: 55's remainder and 56 before all of it. `CLAUDE.md` → "What NOT to do" and the backlog no longer forbid video and transcription | the CEO's own |
+| 2026-10-02 | the CEO, with Claude Code | Task 55: record 62's faults fixed but the tail; `note_processed` gains `explain_judged` ("Contracts"); `CLAUDE.md` → "Stage three" has three guards — an explanation that judges the record is dropped — and "The document" says how a tall formula, a brace's words, an aligned chain and "~~~" are set | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3039,29 +3040,33 @@ drawings:
 - **The sources**: forums, social networks and videos are dropped
   (`explain._NOT_SOURCES`).
 
-## Left before the checkbox
+## Done, 2026-10-02
 
 Record 59's album, read again on 2026-10-02, became record 62: composed,
 its headings numbered, nothing under the title. What the CEO's look found
-besides:
+besides, fixed the same day and checked by drawing record 62 again
+(`FINDINGS.md` → "Record 62, record 59's album read again"):
 
-- **A tall formula inside a line runs into the line above** — the vector
-  of its third example over the second. A line makes room for what it
-  holds.
-- **"~~~" printed as text** — a wavy line across the page, which the
-  record keeps as the separator it is, as it keeps "---".
-- **The words under a brace** — `\underbrace{…}_{\text{…}}` printed them
-  as a small index to the right; they belong under the formula.
-- **The tail at the end** — «A = ((0, 2) ∖ {[неразборчиво]} …», which
-  record 59, the same album read the day before, did not have: extra, in
-  the CEO's look. What the bottom of the last page holds decides what a
-  rule may cut.
-- **An explanation that corrects the author** — «В конспекте допущена
-  опечатка», of a union both readings agree on. The bot does not judge the
-  record: such an explanation is dropped, in a stored record too.
-- **A forum still among the sources** — dxdy.ru, with askfilo.com, homework
-  answers of znanija.com's kind, beside it.
-- **Then the CEO's look at the album read once more.**
+- **A tall formula rose over the line above** — reportlab set a
+  paragraph's first line a font size below its top; it now sits by its own
+  ascent.
+- **"~~~"** is a separator, as "---" is.
+- **The words under a brace** are set under it (`\underset`), not as an
+  index beside it.
+- **An aligned chain** alone in a display formula is drawn a row at a
+  time; its rows touched.
+- **An explanation that judges the record** — «опечатка», «описка», the
+  author's mistake — is dropped before its search (`explain_judged`), in a
+  stored record too.
+- **dxdy.ru and askfilo.com** are no source.
+
+## Left before the checkbox
+
+- **The tail at the end**: «A = ((0, 2) ∖ {[неразборчиво]} …», which record
+  59, the same album read the day before, did not carry — extra, in the
+  CEO's look. What the bottom of the last page holds decides what a rule may
+  cut.
+- **The CEO's look at the album read once more**, after the deploy.
 
 ## Acceptance criterion
 
@@ -3623,6 +3628,7 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `pages_skipped` | — | number skipped | — |
 | `drawings` | the `[схема: …]` lines recognition wrote | over every page read | — |
 | `figures` | drawings cut out and placed (task 54) | over the record | — |
+| `explain_judged` | explanations dropped for judging the record (task 55) | over the record | — |
 
 **`verdict` for an album** is computed only from successfully processed
 pages: if at least one gives `needs_review`, the result is
