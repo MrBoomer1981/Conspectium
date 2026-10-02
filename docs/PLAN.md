@@ -249,12 +249,26 @@ comes back to it:
       document and puts the bot into a group's chat with one button; the bot
       counts the starts it brings
 
-**Phase E — the app: where a group studies from its records.** Set by the
-CEO on 2026-10-02, after 56 and 47, the CEO's: a Telegram Mini App now, the
+**Phase E — a record from any material, and the subject whole.** Set by
+the CEO on 2026-10-02, after 56 and 47, the CEO's: a lecture's board, its
+recording and its film become records as its notebook does, and a subject
+becomes its lectures in the order they were given, the earlier ones
+included. "Where this is going, decided 2026-10-02" says why.
+
+- [ ] 60. A board photographed: a frame check and a reading of its own,
+      measured on real boards — the CEO's
+- [ ] 61. A lecture recorded: the bot's notes from what was said, marked as
+      the bot's on their first page — the CEO's
+- [ ] 62. A lecture filmed: its sound by 61's path, the board's stills by
+      60's — the CEO's
+- [ ] 63. The subject's base: every lecture at the date it was given, the
+      earlier ones added, the teacher's materials with them — the CEO's
+
+**Phase F — the app: where a group studies from its records.** Set by the
+CEO on 2026-10-02, after phase E, the CEO's: a Telegram Mini App now, the
 stores later. Its first version is the library and the exam preparation,
 and neither calls a model; spaced repetition, sharing and the stores come
-once that version is used. "Where this is going, decided 2026-10-02" says
-why.
+once that version is used.
 
 - [ ] 57. The app's frame: a Telegram Mini App served by the bot's own
       service, opened from the bot, signed in by Telegram, showing a person
@@ -347,43 +361,53 @@ since 2026-10-01.
 | 2026-10-01 | the CEO, with Claude Code | Task 54 measured on record 59's album (record 60) and put to sleep: its cut-outs of a light hand came out faint under the grid, one frame took in the text beside it, and the CEO read the document as worse. Production back on `prompts-v6.md` the same hour; the code stays, asleep without frames. The CEO's track: 55, 56, then 47 and 52 | the CEO's own |
 | 2026-10-02 | the CEO, with Claude Code | Task 44's "another provider" surveyed, not yet measured: the handwriting and formula readers on GitHub return what the pipeline cannot use — plain text, no formulas, no ℤ or ≡ — and open page models, the only kind that reads a page whole, are unmeasured on Russian cursive and behind Gemini on every independent handwriting benchmark. Three candidates named for an arm on an album already read; `FINDINGS.md` → "Cheaper readers, surveyed 2026-10-02". Nothing scheduled; 44 stays paused | the CEO's own |
 | 2026-10-02 | the CEO, with Claude Code | Phase E, the app: the bot delivers the records, a Telegram Mini App collects what a group studies with — the stores later. Its first version is the library and the exam preparation, neither calling a model (57, 58, 59), after 56 and 47; spaced repetition, «Проверь себя» in the app, sharing and the stores once it is used. `CLAUDE.md` → "What NOT to do" and the backlog move the Mini App, spaced repetition and sharing from forbidden to planned; the stores, payments and any export stay out | the CEO's own |
+| 2026-10-02 | the CEO, with Claude Code | Task 55 reopened by record 62, record 59's album read again: a tall formula running into the line above, "~~~" printed as text, the words under a brace set as an index, a tail the page's bottom carried in, an explanation calling the author's union «опечатка», dxdy.ru among the sources | the CEO's own |
+| 2026-10-02 | the CEO, with Claude Code | Phase E is now a record from any material and the subject whole — a board (60), a recording (61), a film (62), the subject's base with its earlier lectures (63) — before the app, which becomes phase F after 63. A recording's record is the bot's notes, marked on its first page; the board comes first. The records' quality stays first: 55's remainder and 56 before all of it. `CLAUDE.md` → "What NOT to do" and the backlog no longer forbid video and transcription | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
-**The bot delivers, the app is where a group studies.** The records keep
-coming to Telegram as they do; an app collects what a group needs to learn
-from them — the CEO's concept of 2026-10-02. It is phase E, and the record
-is still what all of it is made of.
+**A record from whatever the lecture left, and an app to study from the
+records.** The CEO's concept of 2026-10-02: the bot keeps delivering
+records to Telegram, makes them from a board, a recording or a film as
+well as from a notebook, keeps a subject whole, and an app collects what a
+group needs to learn from it all. The record is still what all of it is
+made of, and the records' quality comes first: "all the emphasis is still
+on improving the records" — 55's remainder and 56 before any of it.
 
 The CEO's decisions of that day:
 
-- **A Telegram Mini App now, the stores later.** It opens from the bot,
-  signs a person in with Telegram — no registration, no password — and
-  needs no store's review. An app in the stores comes once the Mini App is
-  used, on the same API: nothing in it may assume it is called from inside
-  Telegram except the sign-in.
-- **The first version is the library and the exam preparation** (58, 59):
-  a chat's records by subject, searched and read on a phone, and a
-  subject's definitions and theorems in one place. Both are built from what
-  the pipeline already writes, so neither calls a model — no cost a use, and
-  nothing in them the author did not write.
-- **After it, and only once it is used:** spaced repetition — the exam
-  preparation's material as cards, scheduled by FSRS — «Проверь себя» in the
-  app rather than in the PDF, sharing, and the stores. `CLAUDE.md` → "What
-  NOT to do" moves the Mini App, spaced repetition and sharing from
-  forbidden to planned; the stores, payments and any export stay out.
-- **After 56 and 47.** The app shows what groups send, and a group that
-  cannot add the bot by itself (47) has nothing in it to show; 56 is the
-  document the app will open.
+- **Any material, before the app** (phase E). A board photographed (60)
+  first — the nearest to the photo path; then a lecture recorded (61), then
+  filmed (62), which is its sound and its board's stills.
+- **From a recording the bot condenses rather than transcribes**, so that
+  record is the bot's notes and says so on its first page; what was said
+  is kept beside it as text, the notes checked against it, and its
+  formulas come from what was said or from the board's photos sent with
+  it. The recording, like a photo, is never kept.
+- **The subject whole, before the app** (63): its lectures at the dates
+  they were given, the earlier ones added in bulk, the teacher's materials
+  (48) with them. The library and the exam page are views of it, and built
+  on tags alone they would be built twice.
+- **The app** (phase F): a Telegram Mini App now, the stores later on the
+  same API — nothing in it may assume it is called from inside Telegram
+  except the sign-in. Its first version is the library and the exam
+  preparation (58, 59), both built from what the pipeline already writes,
+  so neither calls a model: no cost a use, and nothing in them the author
+  did not write. After it, and only once it is used: spaced repetition on
+  the exam preparation's material, scheduled by FSRS; «Проверь себя» in
+  the app rather than the PDF; sharing; the stores. `CLAUDE.md` → "What NOT
+  to do" moves the Mini App, spaced repetition, sharing, video and
+  transcription from forbidden to planned; payments and any export stay out.
 - **Measured from the first day.** `/notes`, `/search` and four more ways
-  into the corpus were built, never used and deleted. Every screen of the
-  app writes its event with the group's id, and the next tool comes only
-  when the last one's events show it used. The question stays the
-  project's — whether a group uses this weekly — asked now of the app too:
-  how many of a group's members open it in a week.
-- **Whose:** the app is the interface, the CEO's; its queries and any schema
-  it needs are the CPO's area, open to the CEO since 2026-10-01, a migration
-  named to the CPO before it is pushed.
+  into the corpus were built, never used and deleted. Every new way in
+  writes its event with the group's id, and the next tool comes only when
+  the last one's events show it used. The question stays the project's —
+  whether a group uses this weekly.
+- **Whose:** all of it the CEO's; the model calls, the schema and the
+  limits it needs are the CPO's area, open to the CEO since 2026-10-01,
+  each migration named to the CPO before it is pushed.
+
+The CEO's track: 55, 56, 47, 60, 61, 62, 63, 57, 58, 59; 52 when 41 is in.
 
 ## Where this is going, decided 2026-09-30
 
@@ -3017,7 +3041,27 @@ drawings:
 
 ## Left before the checkbox
 
-- **The CEO's look at record 59's album read again** after the deploy.
+Record 59's album, read again on 2026-10-02, became record 62: composed,
+its headings numbered, nothing under the title. What the CEO's look found
+besides:
+
+- **A tall formula inside a line runs into the line above** — the vector
+  of its third example over the second. A line makes room for what it
+  holds.
+- **"~~~" printed as text** — a wavy line across the page, which the
+  record keeps as the separator it is, as it keeps "---".
+- **The words under a brace** — `\underbrace{…}_{\text{…}}` printed them
+  as a small index to the right; they belong under the formula.
+- **The tail at the end** — «A = ((0, 2) ∖ {[неразборчиво]} …», which
+  record 59, the same album read the day before, did not have: extra, in
+  the CEO's look. What the bottom of the last page holds decides what a
+  rule may cut.
+- **An explanation that corrects the author** — «В конспекте допущена
+  опечатка», of a union both readings agree on. The bot does not judge the
+  record: such an explanation is dropped, in a stored record too.
+- **A forum still among the sources** — dxdy.ru, with askfilo.com, homework
+  answers of znanija.com's kind, beside it.
+- **Then the CEO's look at the album read once more.**
 
 ## Acceptance criterion
 
@@ -3084,10 +3128,195 @@ proof has no page on the web to cite.
 
 ---
 
+# Task 60. A board photographed
+
+**Owner: the CEO.** After 47. The prompt and the frame check are the CPO's
+area, open to the CEO; measured on real boards before production.
+
+## Why
+
+A lecture is written on the board as much as in a notebook, and a student
+who did not write photographs the board. The bot is built for a notebook
+page: `photoguard` measures a page's paper and its lines of handwriting,
+and the recognition prompt reads «страница студенческого конспекта». A
+board — chalk or marker, at an angle, across the room, with glare — is
+another picture, and the frame check would most likely refuse it.
+
+## Do
+
+1. **Evidence first**: the board photographs of one or two real lectures,
+   sent as the bot is today — what `photoguard` measures on them and why it
+   refuses, and how recognition reads them — written in `FINDINGS.md`.
+2. **Which is a board**: told apart by the frame check's own measurements
+   if they separate a board from a page cleanly, by the sender otherwise —
+   decided on the evidence.
+3. **A board's own frame check**, never a bypass: a board shot that cannot
+   be read — too far, glare across the writing, blurred — is still refused
+   before the model, with thresholds set on the evidence.
+4. **A board's own reading**: the same rules as a page — what is written,
+   nothing added, `[неразборчиво]` where it cannot be read — with what a
+   board adds: columns, something wiped half off, the lecturer's hand. A
+   new prompt file, measured on the boards before production.
+5. An album may hold board and notebook pages together; it is one record.
+6. `CLAUDE.md` → the pipeline and `photoguard`'s rules.
+
+## Acceptance criterion
+
+- One real lecture's board photographs become a record the CEO checks
+  against the photographs.
+- A board shot that cannot be read is refused before the model.
+- A notebook album already read reads as before.
+- The suite is green.
+
+## Don't do
+
+- Don't loosen the notebook's frame check to let a board through.
+- No retelling of a board that cannot be read.
+
+---
+
+# Task 61. A lecture recorded
+
+**Owner: the CEO.** After 60. The model calls, their prompts and guards,
+and the limits are the CPO's area, open to the CEO.
+
+## Why
+
+Not every lecture is written down, and many are recorded on a phone. A
+recording holds what the notebook drops — the lecturer's explanations, the
+examples said aloud, why a step is taken. On 2026-10-02 the CEO decided
+the bot makes a record of it, and that the record is the bot's notes,
+marked as such: from speech the bot condenses rather than transcribes, and
+"marked is the whole licence to add".
+
+## Do
+
+1. **What comes in**: an audio file or a voice message with its "#word" in
+   the caption — in a group only with it, like a page. A bot can download
+   20 MB from Telegram: a voice message of an hour or more fits, a phone
+   recorder's file of a lecture usually does not. A file too large is
+   answered with how to send it, never dropped in silence; a route for
+   large files is 62's.
+2. **Limits before the call** (rule 6): a recording's cost is known from
+   its length — Gemini counts 32 tokens a second, 1 920 a minute, about
+   173 000 for a lecture of ninety minutes — and it is checked against the
+   quota and the day's cap before anything is sent.
+3. **Two calls, as for a page**: what was said, written down literally,
+   `[неразборчиво]` where it cannot be heard; then the notes, written over
+   that text and never over the sound — headings, definitions, formulas.
+   The text of what was said is kept beside the record; the recording
+   never is (rule 3).
+4. **Checked by code against what was said**: the notes state no number
+   the text does not hold — the guard the summary has.
+5. **Marked as the bot's**: the document says on its first page that the
+   bot made these notes from a recording, in a box of the bot's under a
+   label in `texts.py`.
+6. **Formulas**: from what was said; when photographs of the board or a
+   notebook come with the recording, the formulas are theirs and the
+   recording explains them — the second step of this task.
+7. Whether a recording is heard once or three times — three texts give the
+   agreement, at three times the price — is measured here. Its cost an
+   hour is written in `FINDINGS.md`.
+8. `CLAUDE.md` → rule 3, the pipeline, "The document"; `PLAN.md` →
+   "Contracts".
+
+## Acceptance criterion
+
+- A recorded lecture of the CEO's course comes back as a document marked
+  as the bot's, every number of it in what was said; the CEO checks it
+  against the recording.
+- A file too large gets an answer that says how to send it.
+- What an hour costs is written down.
+- The suite is green.
+
+## Don't do
+
+- Don't present the bot's notes as the author's.
+- Don't keep the recording.
+
+---
+
+# Task 62. A lecture filmed
+
+**Owner: the CEO.** After 61.
+
+## Why
+
+A film of a lecture holds its board and its speech at once. Sent whole to
+the model it costs the most, and the board is legible only on sharp
+stills.
+
+## Do
+
+1. **A film is taken apart by code**: its sound goes by 61's path, and
+   stills of the board — one each time the board changes — by 60's. The
+   record is the board read, with the notes from what was said marked as
+   in 61.
+2. **Large files**: a film of a lecture rarely fits the 20 MB a bot can
+   download. The route is decided here — a link to the file, or Telegram's
+   own Bot API server, which raises the limit to 2 GB but is a second
+   service.
+3. `ffmpeg`, to cut sound and stills, is the explicit need for the
+   dependency.
+
+## Acceptance criterion
+
+- A filmed lecture becomes one record: the board read, the speech
+  condensed and marked; what it costs is written down.
+- The suite is green.
+
+## Don't do
+
+- Don't send the whole film to the model when its parts will do.
+- Don't keep the film.
+
+---
+
+# Task 63. The subject's base: every lecture in its place
+
+**Owner: the CEO.** After 62, before the app. Its schema and migration are
+the CPO's area, open to the CEO, the migration named to the CPO before it
+is pushed.
+
+## Why
+
+A subject today is a word on each record, `Note.tag`, and a record's date
+is the day it was sent. A course is more: its lectures in the order they
+were given, the ones given before the group found the bot, what the
+teacher handed out. The library and the exam page (58, 59) are views of
+it; built on tags alone, they would be built twice.
+
+## Do
+
+1. **A chat's subject as a row of its own** — its "#word" and its chat —
+   which records belong to; today's tags become such rows.
+2. **A lecture's date** — the day it was given, not sent: read from the
+   margin, where `texts.byline` already finds dates, or given by the
+   sender. The course is ordered by it.
+3. **Earlier lectures added in bulk**: albums and files of old notes with
+   their "#word", the date in the caption where the page has none, each
+   record set at its date.
+4. **The teacher's materials** (48) belong to the subject; 52's course
+   document reads the subject in the order the lectures were given.
+5. `CLAUDE.md` → "The corpus"; `PLAN.md` → "Contracts".
+
+## Acceptance criterion
+
+- A subject's lectures, the earlier ones included, are listed in the order
+  they were given, and a "#word" finds them as it does today.
+- The suite is green.
+
+## Don't do
+
+- No new way into the corpus from the chat beyond the "#word".
+- No export.
+
+---
+
 # Task 57. The app's frame: a Mini App the bot opens
 
-**Owner: the CEO.** After 56 and 47. Its queries are the CPO's area, open
-to the CEO since 2026-10-01.
+**Owner: the CEO.** After 63. Its queries are the CPO's area, open to the
+CEO since 2026-10-01.
 
 ## Why
 
@@ -3699,9 +3928,8 @@ under the three-character floor an explanation's anchor already had.
 
 # Backlog. Don't implement or suggest
 
-- An app in the stores — after the Mini App is used (phase E)
+- An app in the stores — after the Mini App is used (phase F)
 - A targeted re-ask to the model about found discrepancies
-- Video, lecture transcription
 - Payments, subscriptions
 - Export to Anki, and any export of the corpus as data. A subject's course as
   one document to study from, sent on command, is task 52 — the one
