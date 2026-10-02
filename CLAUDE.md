@@ -27,8 +27,9 @@ Four decisions the rest follows:
 
 - **The document is the product.** The corpus is what documents accumulate
   into — a consequence, not the goal. Given "make the document better" or
-  "build another way into the corpus", choose the document. → "Moved from
-  CLAUDE.md, 2026-10-01"
+  "build another way into the corpus", choose the document. The app of
+  phase E (2026-10-02) is where a group studies from its documents, built
+  after them and out of what they hold. → "Moved from CLAUDE.md, 2026-10-01"
 - **Its quality is not traded for its price** (2026-09-29). A saving leaves
   the document as it is — a model that reads as well for less, a call paid for
   and thrown away. A candidate that might touch the reading is measured on an
@@ -56,7 +57,7 @@ code.
 
 - **The CEO** — the interface and the product for students: what the bot
   says and does in a chat, the document the group gets, how a "#word" finds
-  things.
+  things, and the app (2026-10-02).
 - **The CPO** — the database and the model: schema, migrations and queries;
   recognition, prompts, the model stages and their measurements; cost and
   limits; the infrastructure.
@@ -114,8 +115,11 @@ In a session:
   a group adds the bot by itself, spend is counted per group, a subject's
   records come back as one document on command, the document has a look of
   its own, materials uploaded under a subject are found by "#word" —
-  `docs/PLAN.md` → "Where this is going, decided 2026-09-30". What is under
-  way is "State" there.
+  `docs/PLAN.md` → "Where this is going, decided 2026-09-30". **E, the
+  app**, set on 2026-10-02: a Telegram Mini App where a group studies from
+  its records, the library and the exam preparation first, after 56 and 47
+  — "Where this is going, decided 2026-10-02". What is under way is "State"
+  there.
 - **What production runs**, as last read off the startup log and the Railway
   variables, 2026-09-23 to 09-29 — the log is the authority, and
   `docs/PLAN.md` → "What production says" the record of each reading:
@@ -1045,11 +1049,11 @@ settled.
 
 Shared by both owners. Deliberately postponed — don't suggest or implement:
 
-- A Mini App or any interface other than the bot
-- Flashcards and spaced repetition. Dropped for a long time, not scheduled:
-  they were the reason to come back daily in a product whose corpus was the
-  goal, and the goal is the document now. Nothing in the schema forbids them
-  later; nothing plans for them either
+- An app in the stores, or any interface but the bot and its Mini App. The
+  Mini App is phase E (2026-10-02); the stores come once it is used
+- Spaced repetition before the app's first version is used. It is the app's
+  next tool, built on the exam preparation's material — in the app, never
+  in the bot or the document (2026-10-02)
 - Video and lecture transcription
 - Payments, subscriptions, pricing tiers
 - Custom registration and passwords — identity already comes from Telegram
@@ -1065,5 +1069,6 @@ Shared by both owners. Deliberately postponed — don't suggest or implement:
 - Visual design and styling of **bot responses** — the chat stays plain text.
   This is not the document: the PDF is what the group receives, so its design
   and readability are the product itself — "The document"
-- Social features, sharing, friends
+- Sharing before the app's first version is used; social features and
+  friends at all
 - Caching, queues, microservices, Docker, CI

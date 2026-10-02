@@ -249,6 +249,22 @@ comes back to it:
       document and puts the bot into a group's chat with one button; the bot
       counts the starts it brings
 
+**Phase E — the app: where a group studies from its records.** Set by the
+CEO on 2026-10-02, after 56 and 47, the CEO's: a Telegram Mini App now, the
+stores later. Its first version is the library and the exam preparation,
+and neither calls a model; spaced repetition, sharing and the stores come
+once that version is used. "Where this is going, decided 2026-10-02" says
+why.
+
+- [ ] 57. The app's frame: a Telegram Mini App served by the bot's own
+      service, opened from the bot, signed in by Telegram, showing a person
+      what the bot would show them and nothing more — the CEO's
+- [ ] 58. The library: a chat's records by subject and topic, searched, and
+      a record read on a phone with its formulas and the bot's boxes — the
+      CEO's
+- [ ] 59. Exam preparation: a subject's definitions and theorems in one
+      place, by topic, each opening its record at its place — the CEO's
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -330,6 +346,44 @@ since 2026-10-01.
 | 2026-10-01 | the CEO, with Claude Code | Task 56, the bot as a teacher — «Идея», «Зачем условие», «Пример»; a fact keeps its source, the bot's reasoning is printed without one under its own label and checked by code wherever there is something to check; «Проверь себя» its second step. After 55. The CEO's track is now 54, 55, 56, then 47 and 52 | the CEO's own |
 | 2026-10-01 | the CEO, with Claude Code | Task 54 measured on record 59's album (record 60) and put to sleep: its cut-outs of a light hand came out faint under the grid, one frame took in the text beside it, and the CEO read the document as worse. Production back on `prompts-v6.md` the same hour; the code stays, asleep without frames. The CEO's track: 55, 56, then 47 and 52 | the CEO's own |
 | 2026-10-02 | the CEO, with Claude Code | Task 44's "another provider" surveyed, not yet measured: the handwriting and formula readers on GitHub return what the pipeline cannot use — plain text, no formulas, no ℤ or ≡ — and open page models, the only kind that reads a page whole, are unmeasured on Russian cursive and behind Gemini on every independent handwriting benchmark. Three candidates named for an arm on an album already read; `FINDINGS.md` → "Cheaper readers, surveyed 2026-10-02". Nothing scheduled; 44 stays paused | the CEO's own |
+| 2026-10-02 | the CEO, with Claude Code | Phase E, the app: the bot delivers the records, a Telegram Mini App collects what a group studies with — the stores later. Its first version is the library and the exam preparation, neither calling a model (57, 58, 59), after 56 and 47; spaced repetition, «Проверь себя» in the app, sharing and the stores once it is used. `CLAUDE.md` → "What NOT to do" and the backlog move the Mini App, spaced repetition and sharing from forbidden to planned; the stores, payments and any export stay out | the CEO's own |
+
+## Where this is going, decided 2026-10-02
+
+**The bot delivers, the app is where a group studies.** The records keep
+coming to Telegram as they do; an app collects what a group needs to learn
+from them — the CEO's concept of 2026-10-02. It is phase E, and the record
+is still what all of it is made of.
+
+The CEO's decisions of that day:
+
+- **A Telegram Mini App now, the stores later.** It opens from the bot,
+  signs a person in with Telegram — no registration, no password — and
+  needs no store's review. An app in the stores comes once the Mini App is
+  used, on the same API: nothing in it may assume it is called from inside
+  Telegram except the sign-in.
+- **The first version is the library and the exam preparation** (58, 59):
+  a chat's records by subject, searched and read on a phone, and a
+  subject's definitions and theorems in one place. Both are built from what
+  the pipeline already writes, so neither calls a model — no cost a use, and
+  nothing in them the author did not write.
+- **After it, and only once it is used:** spaced repetition — the exam
+  preparation's material as cards, scheduled by FSRS — «Проверь себя» in the
+  app rather than in the PDF, sharing, and the stores. `CLAUDE.md` → "What
+  NOT to do" moves the Mini App, spaced repetition and sharing from
+  forbidden to planned; the stores, payments and any export stay out.
+- **After 56 and 47.** The app shows what groups send, and a group that
+  cannot add the bot by itself (47) has nothing in it to show; 56 is the
+  document the app will open.
+- **Measured from the first day.** `/notes`, `/search` and four more ways
+  into the corpus were built, never used and deleted. Every screen of the
+  app writes its event with the group's id, and the next tool comes only
+  when the last one's events show it used. The question stays the
+  project's — whether a group uses this weekly — asked now of the app too:
+  how many of a group's members open it in a week.
+- **Whose:** the app is the interface, the CEO's; its queries and any schema
+  it needs are the CPO's area, open to the CEO since 2026-10-01, a migration
+  named to the CPO before it is pushed.
 
 ## Where this is going, decided 2026-09-30
 
@@ -3030,6 +3084,161 @@ proof has no page on the web to cite.
 
 ---
 
+# Task 57. The app's frame: a Mini App the bot opens
+
+**Owner: the CEO.** After 56 and 47. Its queries are the CPO's area, open
+to the CEO since 2026-10-01.
+
+## Why
+
+The concept of 2026-10-02 puts a group's studying in an app beside the bot.
+Before a library or an exam page can be in it, the app has to exist: open
+from the bot, know who is looking without a password, and show that person
+what the bot would show them and nothing more. Everything after it is a
+screen in this frame.
+
+## Do
+
+1. **Served by the bot's own service.** FastAPI serves the app's files and
+   a JSON API under a path of its own, on the Railway domain the webhook
+   already has, HTTPS included: no second service. The app's address is
+   registered in BotFather — the bot's Mini App and its menu button — by
+   whoever holds the bot.
+2. **Signed in by Telegram.** Every API request carries the Mini App's
+   `initData`; the server checks its signature with the bot's token and its
+   age, and takes the person's Telegram id from it. An id the page sends is
+   not an identity. No account, password or session of our own.
+3. **The bot's ownership, unchanged** (`corpus._owned`): a person sees
+   their own records that belong to no group, and the records of every
+   group chat they are a member of — asked of Telegram (`getChatMember`)
+   when the app opens, never inferred from who brought pages.
+4. **Opened from the bot**: the menu button in a private chat; a button
+   under a record delivered in a private chat; in a group, where Telegram
+   allows no Mini App button, a link to the app (`t.me/<bot>/<app>`) — the
+   username from `bot.me()`, the labels in `texts.py`. The chat stays plain
+   text otherwise.
+5. **The first screen**: the person's chats, each with its subjects and how
+   many records — what the library (58) opens into. The look is
+   `BRAND.md`'s; where the guide does not decide, Telegram's light or dark
+   theme.
+6. **Events from the first day**: `app_opened`, with where it was opened
+   from and the group's id when there is one.
+7. **No build step to start with**: HTML, CSS and JavaScript modules served
+   as they are. The first version's screens are lists, a search field and a
+   reader; a framework is a dependency to argue for when a screen needs it,
+   and whether the stores' app wraps this one or is written anew is decided
+   with the stores.
+8. `CLAUDE.md` → "Stack", "Structure", the startup log; `PLAN.md` →
+   "Contracts", the app's events.
+
+## Acceptance criterion
+
+- The menu button opens the app on a phone, and it shows the person's
+  chats and their subjects.
+- A member of a group sees it; a person who is not sees nothing of it, the
+  group's id in hand or not.
+- A request with forged or stale `initData` is refused.
+- `events` holds `app_opened` with where it came from.
+- The suite is green.
+
+## Don't do
+
+- No account, password or registration of our own.
+- No second service, no Docker, no frontend build before a screen needs one.
+- Nothing the bot would not show that person.
+
+---
+
+# Task 58. The library
+
+**Owner: the CEO.** After 57.
+
+## Why
+
+A group's records reach the chat one PDF at a time and sink under the
+messages after them; a "#word" brings one back to whoever knows the word.
+The library is where a student finds the lecture they missed a month ago:
+every record of their chats, by subject, searched, read on a phone.
+
+## Do
+
+1. **A chat's records by subject** (`Note.tag`), newest first, each with its
+   date, title and pages; records with no subject under a heading of their
+   own; a subject's topics (`note_topics`) as filters.
+2. **Search** over subjects, topics and the records' text — words, not a
+   model.
+3. **A record read on a phone**: its blocks as `pdf.blocks()` parses them,
+   set as HTML in `BRAND.md`'s look, formulas by KaTeX — real LaTeX rather
+   than mathtext's subset; the bot's boxes where the PDF has them — the
+   findings, the explanations with their sources, «Суть»; the PDF one tap
+   away. Drawn from what is stored, like the PDF.
+4. **Events**: `app_record_opened`, and `app_search` with whether it found
+   anything — never the words.
+5. `CLAUDE.md` → "The document": a record's second presentation, one
+   contract with `pdf.blocks()`; "The corpus": a second way in beside the
+   "#word".
+
+## Acceptance criterion
+
+- A group's member finds a record by its subject, by a topic and by a word
+  in it, and reads it on a phone with its formulas and boxes.
+- A formula the PDF draws, the app draws.
+- A chat the person is not in never shows, in a list or a search.
+- The suite is green.
+
+## Don't do
+
+- No editing a record in the app.
+- No export, download-all or archive — `CLAUDE.md` → "What NOT to do".
+- Nothing about how a page was read, the document's rule.
+
+---
+
+# Task 59. Exam preparation
+
+**Owner: the CEO.** After 58. If theorems are marked by the composing
+stage, that rule is a prompt change — the CPO's area, open to the CEO —
+measured on an album already read.
+
+## Why
+
+Before an exam a student wants the course's definitions and theorems, not
+twenty lectures. The pipeline already marks a definition (`### Определение`,
+the amber line) and a main formula (framed and numbered); a theorem it does
+not mark yet.
+
+## Do
+
+1. **A subject's page**: every definition and theorem in its records,
+   grouped by topic, each with its record's date and opening the record at
+   its place in the library.
+2. **From the markup, not from a model**: definitions from
+   `### Определение`; theorems, lemmas and corollaries from a heading the
+   composing stage writes for them as it does for a definition
+   (`### Теорема`), or from code over the headings that already name one —
+   chosen at the task's start on the records stored; the main formulas as
+   the document numbers them. No model call: nothing the author did not
+   write, and no cost a use.
+3. **Events**: `app_exam_opened`, with the subject.
+4. `CLAUDE.md` → the contract between the prompts and `pdf.py`, if the
+   composing stage gains a theorem's heading.
+
+## Acceptance criterion
+
+- Record 59's subject: every definition and theorem its records hold, each
+  opening its place.
+- Nothing on the page that the records do not say.
+- The suite is green.
+
+## Don't do
+
+- No summary, rewording or question written by a model — a later tool,
+  marked as the bot's when it comes.
+- No spaced repetition yet: it is built on this page's material once the
+  page is used.
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -3490,8 +3699,7 @@ under the three-character floor an explanation's anchor already had.
 
 # Backlog. Don't implement or suggest
 
-- A Mini App or any interface other than the bot
-- Flashcards, spaced repetition
+- An app in the stores — after the Mini App is used (phase E)
 - A targeted re-ask to the model about found discrepancies
 - Video, lecture transcription
 - Payments, subscriptions
