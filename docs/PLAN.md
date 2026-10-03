@@ -232,7 +232,7 @@ specification is under "# Task N", after the task descriptions of week 2;
 - [x] 56. The bot as a teacher: «Идея», «Зачем условие», «Пример», each a
       box of its own, the bot's reasoning printed without a source under its
       own label and checked by code — the CEO's
-- [ ] 47. The bot added to a group chat in one tap, and seeing its pages
+- [x] 47. The bot added to a group chat in one tap, and seeing its pages
       there without being made an admin — the CEO's
 - [ ] 52. A subject's records as one document to study from — the course,
       opened by an overview the model writes over it, sent only when
@@ -332,8 +332,8 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-40, 42-43, 45-46, 51, 55-56
-CEO — current: none; next: 47
+Done: 1-40, 42-43, 45-47, 51, 55-56
+CEO — current: none; next: 60
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -378,6 +378,7 @@ since 2026-10-01.
 | 2026-10-03 | the CEO, with Claude Code | Task 64 measured (records 65 and 66, two pages under v6 and v9) and put to sleep: the model named no lecture start, nothing on these pages telling a lecture from a section. Production goes back to `prompts-v6.md`; the page photographed twice joins task 63 as the way to one lecture a record. The CEO's track: 56 next | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Record 66 lost its composition to the numbers guard, once: asked again six times in the container, it was accepted six times. A refused composition is now asked for once more, and `note_processed` gains `compose_retried` ("Contracts"); `CLAUDE.md` → "Stage two" and "Concurrency ceilings" say so | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Task 56 done: the explaining stage writes the teacher's boxes — «Идея» before every proof, «Зачем условие» at every condition, «Пример» at every new notion — without a source, under labels of their own, checked by code (`prompts-explain-v2.md`, production the same day). Measured in three runs on record 64 and accepted by the CEO. «Проверь себя» is the app's, not the PDF's. `BRAND.md` v1.3; `note_processed` gains `elements` and `elements_dropped`. The CEO's track: 47 next | the CEO's own |
+| 2026-10-03 | the CEO, with Claude Code | Task 47 done: privacy mode turned off in BotFather by the CEO; `/start` and `/help` carry the button «Добавить в чат группы»; the `/start add` a client sends into the chat is not answered and is counted as `group_invited` ("Contracts"). `CLAUDE.md` → "A group chat". The CEO's track: 60 next | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3824,6 +3825,7 @@ table alone. Three events are the bot's own membership:
 |---|---|
 | `group_joined` | `{"sees_photos": bool}` — false when privacy mode is on and the bot was added as an ordinary member, which is when the welcome asks to be made an admin |
 | `group_promoted` | `{}` |
+| `group_invited` | `{"via": "<payload>"}` — the `/start@<bot> add` a person's client sends into a chat after adding the bot through the button; not answered (task 47) |
 | `group_left` | `{}` |
 
 ## Testing boundaries
