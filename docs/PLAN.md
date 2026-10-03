@@ -364,6 +364,7 @@ since 2026-10-01.
 | 2026-10-02 | the CEO, with Claude Code | Task 55 reopened by record 62, record 59's album read again: a tall formula running into the line above, "~~~" printed as text, the words under a brace set as an index, a tail the page's bottom carried in, an explanation calling the author's union «опечатка», dxdy.ru among the sources | the CEO's own |
 | 2026-10-02 | the CEO, with Claude Code | Phase E is now a record from any material and the subject whole — a board (60), a recording (61), a film (62), the subject's base with its earlier lectures (63) — before the app, which becomes phase F after 63. A recording's record is the bot's notes, marked on its first page; the board comes first. The records' quality stays first: 55's remainder and 56 before all of it. `CLAUDE.md` → "What NOT to do" and the backlog no longer forbid video and transcription | the CEO's own |
 | 2026-10-02 | the CEO, with Claude Code | Task 55: record 62's faults fixed but the tail; `note_processed` gains `explain_judged` ("Contracts"); `CLAUDE.md` → "Stage three" has three guards — an explanation that judges the record is dropped — and "The document" says how a tall formula, a brace's words, an aligned chain and "~~~" are set | the CEO's own |
+| 2026-10-03 | the CEO, with Claude Code | Record 62's tail is the next lecture begun at the bottom of its last page — the CEO, from the photograph. It leaves task 55 for the backlog's item on the tail of the previous lecture, which becomes "where a lecture begins and ends"; 55 waits only for the CEO's look at record 62 drawn again | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3062,11 +3063,13 @@ besides, fixed the same day and checked by drawing record 62 again
 
 ## Left before the checkbox
 
-- **The tail at the end**: «A = ((0, 2) ∖ {[неразборчиво]} …», which record
-  59, the same album read the day before, did not carry — extra, in the
-  CEO's look. What the bottom of the last page holds decides what a rule may
-  cut.
-- **The CEO's look at the album read once more**, after the deploy.
+- **The CEO's look at record 62 drawn again**, after the deploy.
+
+The tail at its end, «A = ((0, 2) ∖ {[неразборчиво]} …», is the next
+lecture begun at the bottom of the last page — the CEO, from the
+photograph. Record 59 left it out and record 62 carried it in, and nothing
+on the page but the author's wavy line says where one lecture ends: it
+joins the backlog's item on where a lecture begins and ends, not this task.
 
 ## Acceptance criterion
 
@@ -3954,10 +3957,15 @@ under the three-character floor an explanation's anchor already had.
   across runs is a second algorithm, `consensus` is a module we only call,
   and `graphcheck` already settles the matrix case better than a vote,
   because the graph beside it decides rather than the count
-- Leaving the tail of the previous lecture out of a record. The first page
-  of an album often opens with the end of the lecture before — record 46
-  began with an associativity check from the week before "Практика" — and
-  every reading carries it in: nothing tells where a lecture begins
+- Where a lecture begins and ends. The first page of an album often opens
+  with the end of the lecture before — record 46 began with an
+  associativity check from the week before "Практика" — and the last may
+  close on the next one begun: record 62 ended on «A = ((0, 2) ∖ …» after
+  the author's wavy line, which record 59, the same pages, left out. Every
+  reading carries the first in and some the second; nothing on a page says
+  where a lecture begins but a line, a date or a title, and one album is
+  too little to make a rule of them. The subject's base (63), lectures at
+  their dates, is where the two halves could meet
 - Detecting a page photographed rotated. Nothing corrects one today:
   `images.compress` honours EXIF and a physically turned page carries none.
   Suspected of costing time on the model, never reproduced
