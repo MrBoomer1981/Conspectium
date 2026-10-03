@@ -229,7 +229,7 @@ specification is under "# Task N", after the task descriptions of week 2;
       a section, and put to sleep — the code waiting under prompts-v6.md.
       The page photographed twice, at the end of one album and the start of
       the next, goes to 63
-- [ ] 56. The bot as a teacher: «Идея», «Зачем условие», «Пример», each a
+- [x] 56. The bot as a teacher: «Идея», «Зачем условие», «Пример», each a
       box of its own, the bot's reasoning printed without a source under its
       own label and checked by code — the CEO's
 - [ ] 47. The bot added to a group chat in one tap, and seeing its pages
@@ -332,8 +332,8 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-40, 42-43, 45-46, 51, 55
-CEO — current: none; next: 56
+Done: 1-40, 42-43, 45-46, 51, 55-56
+CEO — current: none; next: 47
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -377,6 +377,7 @@ since 2026-10-01.
 | 2026-10-03 | the CEO, with Claude Code | Task 64, one lecture one record, taken before 56: recognition names where a lecture begins (`prompts-v9.md`, `lecture_starts`), and the code cuts the lecture before and the one after off an album's edges where every run agrees. Measured on records 46's and 59's albums; the backlog's item on where a lecture begins and ends becomes this task | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Task 64 measured (records 65 and 66, two pages under v6 and v9) and put to sleep: the model named no lecture start, nothing on these pages telling a lecture from a section. Production goes back to `prompts-v6.md`; the page photographed twice joins task 63 as the way to one lecture a record. The CEO's track: 56 next | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Record 66 lost its composition to the numbers guard, once: asked again six times in the container, it was accepted six times. A refused composition is now asked for once more, and `note_processed` gains `compose_retried` ("Contracts"); `CLAUDE.md` → "Stage two" and "Concurrency ceilings" say so | the CEO's own |
+| 2026-10-03 | the CEO, with Claude Code | Task 56 done: the explaining stage writes the teacher's boxes — «Идея» before every proof, «Зачем условие» at every condition, «Пример» at every new notion — without a source, under labels of their own, checked by code (`prompts-explain-v2.md`, production the same day). Measured in three runs on record 64 and accepted by the CEO. «Проверь себя» is the app's, not the PDF's. `BRAND.md` v1.3; `note_processed` gains `elements` and `elements_dropped`. The CEO's track: 47 next | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3734,6 +3735,7 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `figures` | drawings cut out and placed (task 54) | over the record | — |
 | `explain_judged` | explanations dropped for judging the record (task 55) | over the record | — |
 | `compose_retried` | the guards refused the first composition and a second was asked for | the same, over the record | — |
+| `elements`, `elements_dropped` | the teacher's boxes kept, and those a check of code threw away (task 56) | over the record | — |
 | `lecture_head_cut`, `lecture_tail_cut` | — | lines cut off the first page and off the last (task 64) | — |
 
 **`verdict` for an album** is computed only from successfully processed
