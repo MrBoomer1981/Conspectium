@@ -218,7 +218,7 @@ specification is under "# Task N", after the task descriptions of week 2;
       it in the document — the CEO's. Built, measured on record 59's album
       the same evening (record 60), read as worse and put to sleep:
       production back on `prompts-v6.md`, the code waiting without frames
-- [ ] 55. What record 59 showed besides its drawings: a record with no
+- [x] 55. What record 59 showed besides its drawings: a record with no
       headings, the margin line «фор · 21:27 (0, 1)», a forum among an
       explanation's sources — the CEO's
 - [ ] 56. The bot as a teacher: «Идея», «Зачем условие», «Пример», each a
@@ -324,8 +324,8 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-40, 42-43, 45-46, 51
-CEO — current: 55; next: 56
+Done: 1-40, 42-43, 45-46, 51, 55
+CEO — current: none; next: 56
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01
 ```
@@ -365,6 +365,7 @@ since 2026-10-01.
 | 2026-10-02 | the CEO, with Claude Code | Phase E is now a record from any material and the subject whole — a board (60), a recording (61), a film (62), the subject's base with its earlier lectures (63) — before the app, which becomes phase F after 63. A recording's record is the bot's notes, marked on its first page; the board comes first. The records' quality stays first: 55's remainder and 56 before all of it. `CLAUDE.md` → "What NOT to do" and the backlog no longer forbid video and transcription | the CEO's own |
 | 2026-10-02 | the CEO, with Claude Code | Task 55: record 62's faults fixed but the tail; `note_processed` gains `explain_judged` ("Contracts"); `CLAUDE.md` → "Stage three" has three guards — an explanation that judges the record is dropped — and "The document" says how a tall formula, a brace's words, an aligned chain and "~~~" are set | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Record 62's tail is the next lecture begun at the bottom of its last page — the CEO, from the photograph. It leaves task 55 for the backlog's item on the tail of the previous lecture, which becomes "where a lecture begins and ends"; 55 waits only for the CEO's look at record 62 drawn again | the CEO's own |
+| 2026-10-03 | the CEO, with Claude Code | Task 55 accepted on record 62 drawn again — "in order, and better" — with the lecture that is not its own noted once more; the CEO's track: 56 next | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3061,9 +3062,10 @@ besides, fixed the same day and checked by drawing record 62 again
   stored record too.
 - **dxdy.ru and askfilo.com** are no source.
 
-## Left before the checkbox
+## Accepted, 2026-10-03
 
-- **The CEO's look at record 62 drawn again**, after the deploy.
+The CEO looked at record 62 drawn again after the deploy: in order, and
+better — but for the lecture it touched that is not its own, again.
 
 The tail at its end, «A = ((0, 2) ∖ {[неразборчиво]} …», is the next
 lecture begun at the bottom of the last page — the CEO, from the
