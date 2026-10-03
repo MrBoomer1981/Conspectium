@@ -221,6 +221,10 @@ specification is under "# Task N", after the task descriptions of week 2;
 - [x] 55. What record 59 showed besides its drawings: a record with no
       headings, the margin line «фор · 21:27 (0, 1)», a forum among an
       explanation's sources — the CEO's
+- [ ] 64. One lecture, one record: recognition names where a lecture begins
+      on a page, and the code cuts the lecture before and the one after off
+      the album's edges, where every run agrees — the CEO's. Taken before
+      56 on 2026-10-03
 - [ ] 56. The bot as a teacher: «Идея», «Зачем условие», «Пример», each a
       box of its own, the bot's reasoning printed without a source under its
       own label and checked by code — the CEO's
@@ -325,7 +329,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-46, 51, 55
-CEO — current: none; next: 56
+CEO — current: 64; next: 56
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01
 ```
@@ -366,6 +370,7 @@ since 2026-10-01.
 | 2026-10-02 | the CEO, with Claude Code | Task 55: record 62's faults fixed but the tail; `note_processed` gains `explain_judged` ("Contracts"); `CLAUDE.md` → "Stage three" has three guards — an explanation that judges the record is dropped — and "The document" says how a tall formula, a brace's words, an aligned chain and "~~~" are set | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Record 62's tail is the next lecture begun at the bottom of its last page — the CEO, from the photograph. It leaves task 55 for the backlog's item on the tail of the previous lecture, which becomes "where a lecture begins and ends"; 55 waits only for the CEO's look at record 62 drawn again | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Task 55 accepted on record 62 drawn again — "in order, and better" — with the lecture that is not its own noted once more; the CEO's track: 56 next | the CEO's own |
+| 2026-10-03 | the CEO, with Claude Code | Task 64, one lecture one record, taken before 56: recognition names where a lecture begins (`prompts-v9.md`, `lecture_starts`), and the code cuts the lecture before and the one after off an album's edges where every run agrees. Measured on records 46's and 59's albums; the backlog's item on where a lecture begins and ends becomes this task | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3081,6 +3086,70 @@ joins the backlog's item on where a lecture begins and ends, not this task.
 
 ---
 
+# Task 64. One lecture, one record
+
+**Owner: the CEO.** Taken before 56 on 2026-10-03. The prompt is the CPO's
+area, open to the CEO; measured on two albums already read.
+
+## Why
+
+A notebook runs on, and an album of a lecture rarely begins and ends where
+the lecture does: record 46 opened with the end of the lecture before, and
+record 62 closed on the next one begun — "we touched the wrong lecture
+again", the CEO, 2026-10-03. Every reading carries the first in and some
+the second. Nothing in the code can tell where a lecture begins; the model
+sees the page — the date, «Лекция N», the line the author drew — and can
+say so.
+
+## Do
+
+1. **Recognition names where a lecture begins** — `prompts-v9.md`, v6 with
+   a rule and a key: `lecture_starts`, the first line of every lecture that
+   begins on the page, written as the page's `markdown` writes it. Outside
+   `markdown`, so neither agreement moves; under v6 the list is empty and
+   nothing is cut.
+2. **`parse_response` trusts none of it**: a list of strings or nothing.
+3. **Only what every run agrees on**: a start the chosen run names is kept
+   when every other run read names it too (`lectures.agreed`, in
+   `transcribe_consensus`, where the runs are compared); a page read by one
+   run has nothing to agree with and is not cut.
+4. **Cut at the album's edges only** (`albums._assemble`): on its first page
+   what stands above the first start, the lecture before; on its last page
+   the last start and everything after it, the lecture after — in an album
+   of two pages or more, the first and the last the album's own. Never a
+   whole page, never a single photograph, which says nothing of which
+   lecture is meant, and nothing in the middle of an album. What is cut is
+   not kept; the findings of a cut page are found again on what stays, and
+   a title read off the part cut away is taken from what stays.
+5. `note_processed` gains `lecture_head_cut` and `lecture_tail_cut`, the
+   lines cut — "Contracts". The startup log says whether the prompt marks
+   lectures. `CLAUDE.md` → the pipeline, "Structure".
+
+## How it is tried
+
+The deploy changes nothing while production reads `prompts-v6.md`.
+`PROMPT_FILE=prompts-v9.md` on Railway turns it on, and two albums sent
+again are the measurement: record 46's, which opens on the lecture before,
+and record 59's, which closes on the lecture after. One variable takes it
+back.
+
+## Acceptance criterion
+
+- Record 46's album without the lecture before, record 59's without the
+  lecture after; the rest read no worse — 46's six known places, the
+  numbers page by page.
+- A lecture that begins at the top of its first page loses nothing.
+- The suite is green.
+
+## Don't do
+
+- Don't cut where the runs disagree: a line of the lecture lost is worse
+  than a line of another kept.
+- Don't move what is cut into another record yet — that waits for the
+  subject's base (63).
+
+---
+
 # Task 56. The bot as a teacher: the idea, why a condition, an example
 
 **Owner: the CEO.** Decided on 2026-10-01; after 55.
@@ -3966,8 +4035,9 @@ under the three-character floor an explanation's anchor already had.
   the author's wavy line, which record 59, the same pages, left out. Every
   reading carries the first in and some the second; nothing on a page says
   where a lecture begins but a line, a date or a title, and one album is
-  too little to make a rule of them. The subject's base (63), lectures at
-  their dates, is where the two halves could meet
+  too little to make a rule of them — task 64 asks the model, which sees the
+  page. The subject's base (63), lectures at their dates, is where the two
+  halves could meet
 - Detecting a page photographed rotated. Nothing corrects one today:
   `images.compress` honours EXIF and a physically turned page carries none.
   Suspected of costing time on the model, never reproduced
