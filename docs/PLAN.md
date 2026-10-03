@@ -376,6 +376,7 @@ since 2026-10-01.
 | 2026-10-03 | the CEO, with Claude Code | Task 55 accepted on record 62 drawn again — "in order, and better" — with the lecture that is not its own noted once more; the CEO's track: 56 next | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Task 64, one lecture one record, taken before 56: recognition names where a lecture begins (`prompts-v9.md`, `lecture_starts`), and the code cuts the lecture before and the one after off an album's edges where every run agrees. Measured on records 46's and 59's albums; the backlog's item on where a lecture begins and ends becomes this task | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Task 64 measured (records 65 and 66, two pages under v6 and v9) and put to sleep: the model named no lecture start, nothing on these pages telling a lecture from a section. Production goes back to `prompts-v6.md`; the page photographed twice joins task 63 as the way to one lecture a record. The CEO's track: 56 next | the CEO's own |
+| 2026-10-03 | the CEO, with Claude Code | Record 66 lost its composition to the numbers guard, once: asked again six times in the container, it was accepted six times. A refused composition is now asked for once more, and `note_processed` gains `compose_retried` ("Contracts"); `CLAUDE.md` → "Stage two" and "Concurrency ceilings" say so | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3732,6 +3733,7 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `drawings` | the `[схема: …]` lines recognition wrote | over every page read | — |
 | `figures` | drawings cut out and placed (task 54) | over the record | — |
 | `explain_judged` | explanations dropped for judging the record (task 55) | over the record | — |
+| `compose_retried` | the guards refused the first composition and a second was asked for | the same, over the record | — |
 | `lecture_head_cut`, `lecture_tail_cut` | — | lines cut off the first page and off the last (task 64) | — |
 
 **`verdict` for an album** is computed only from successfully processed
