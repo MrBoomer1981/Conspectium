@@ -1200,3 +1200,35 @@ set beside record 59, the same five pages read the day before:
 
 All but the tail fixed the same day and checked by drawing record 62 again;
 the suite was not extended, by the decision of 2026-09-29.
+
+## One lecture, one record
+
+**The problem, twice.** Record 46 opened with the end of the lecture before;
+record 62 closed on the next one begun, after the author's wavy line. A
+notebook runs on, and an album of a lecture rarely begins and ends where the
+lecture does.
+
+**The arm (task 64, 2026-10-03).** `prompts-v9.md` — v6 with one rule and
+one key, 294 words — asks for the first line of every lecture that begins on
+a page: a new date, «Лекция N», a lecture's title under a line; a section
+inside a lecture is not a start. The code cuts only what every run names,
+only at an album's edges. The CEO sent two pages twice: record 65 under v6,
+record 66 under v9 — the end of a proof, «Последовательности в метрическом
+пр-ве», and the next lecture's first line. Under v9 the chosen run named no
+start on either page, and nothing was cut.
+
+**Why.** Nothing on those pages tells a lecture from a section. There is no
+date and no «Лекция N»; the next part's title is written as every section's
+is, and the next lecture's first line has no title at all. The CEO knows
+where the lecture ends from having sat through it. A rule that read a new
+heading as a new lecture would cut sections out of lectures — record 62's
+«Последовательности» stood as its section 02 — which is worse than a line of
+another lecture kept.
+
+**What is left.** The page photographed twice: the last page of one album
+is often the first of the next, and its text then stands in two records of
+one subject. Code can find that repeat without asking a model — once a
+subject's records are kept in the order the lectures were given (task 63).
+Record 66 also lost its composition to the numbers guard, «0 lost, 3
+gained» — a separate fault, not v9's.
+

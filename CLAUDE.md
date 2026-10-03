@@ -555,6 +555,10 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   title is taken from what stays when the first page lost its head.
   `note_processed` counts the lines, `lecture_head_cut` and
   `lecture_tail_cut`.
+- **Asleep since its measurement** (2026-10-03): under v9 the model named no
+  start on two pages where the CEO knew one lecture ended — nothing on them
+  told a lecture from a section. The way left is the page photographed
+  twice, which task 63 takes up. → "One lecture, one record"
 
 ### The matrix against the graph
 
@@ -922,7 +926,7 @@ CLAUDE.md, README.md  in the root, where Claude Code and GitHub read them
 extraction only, v6 (production) v5 with the author's frames written as
 `\boxed{…}`, v7 without the list of numbers, tried and rolled back, v8 v6
 with each drawing's frame, measured and asleep (task 54), v9 v6 with where a
-lecture begins, waiting for its measurement (task 64); composing
+lecture begins, measured and asleep (task 64); composing
 `prompts-compose-v1.md` to `v3`, v3 framing a section's main formula;
 explaining `prompts-explain-v1.md`, with `prompts-explain-source-v2.md` for the
 searches. `vision.load_prompt` reads a prompt from `prompts/` by file name at

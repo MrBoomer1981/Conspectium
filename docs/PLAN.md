@@ -224,7 +224,11 @@ specification is under "# Task N", after the task descriptions of week 2;
 - [ ] 64. One lecture, one record: recognition names where a lecture begins
       on a page, and the code cuts the lecture before and the one after off
       the album's edges, where every run agrees — the CEO's. Taken before
-      56 on 2026-10-03
+      56 on 2026-10-03, built and measured the same day (record 66): the
+      model named no start, for nothing on these pages tells a lecture from
+      a section, and put to sleep — the code waiting under prompts-v6.md.
+      The page photographed twice, at the end of one album and the start of
+      the next, goes to 63
 - [ ] 56. The bot as a teacher: «Идея», «Зачем условие», «Пример», each a
       box of its own, the bot's reasoning printed without a source under its
       own label and checked by code — the CEO's
@@ -329,9 +333,9 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-46, 51, 55
-CEO — current: 64; next: 56
+CEO — current: none; next: 56
 CPO — current: none; next: 41
-Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01
+Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
 
 ## Plan changes
@@ -371,6 +375,7 @@ since 2026-10-01.
 | 2026-10-03 | the CEO, with Claude Code | Record 62's tail is the next lecture begun at the bottom of its last page — the CEO, from the photograph. It leaves task 55 for the backlog's item on the tail of the previous lecture, which becomes "where a lecture begins and ends"; 55 waits only for the CEO's look at record 62 drawn again | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Task 55 accepted on record 62 drawn again — "in order, and better" — with the lecture that is not its own noted once more; the CEO's track: 56 next | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Task 64, one lecture one record, taken before 56: recognition names where a lecture begins (`prompts-v9.md`, `lecture_starts`), and the code cuts the lecture before and the one after off an album's edges where every run agrees. Measured on records 46's and 59's albums; the backlog's item on where a lecture begins and ends becomes this task | the CEO's own |
+| 2026-10-03 | the CEO, with Claude Code | Task 64 measured (records 65 and 66, two pages under v6 and v9) and put to sleep: the model named no lecture start, nothing on these pages telling a lecture from a section. Production goes back to `prompts-v6.md`; the page photographed twice joins task 63 as the way to one lecture a record. The CEO's track: 56 next | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3148,6 +3153,24 @@ back.
 - Don't move what is cut into another record yet — that waits for the
   subject's base (63).
 
+## Measured, 2026-10-03: asleep
+
+Two pages sent twice — record 65 under v6, record 66 under v9 — the end of
+a proof, «Последовательности в метрическом пр-ве», and the next lecture's
+first line after the author's wavy line. Under v9 the chosen run named no
+start on either page, and nothing was cut. Nothing on these pages tells a
+lecture from a section: no date, no «Лекция N»; the title of the next part
+is written as every section is, and the next lecture's first line has no
+title at all. The CEO knows where the lecture ends from having been there.
+A rule that took a new heading for a new lecture would cut sections out of
+lectures, which is worse than a line of another kept. The code stays,
+asleep without starts; v9 is not production's.
+
+What could tell it, outside the page: **the page photographed twice** — the
+last page of one album is often the first of the next, and code can find a
+record's first page repeating the end of the subject's record before it.
+That needs a subject's records in order: task 63.
+
 ---
 
 # Task 56. The bot as a teacher: the idea, why a condition, an example
@@ -3375,9 +3398,14 @@ it; built on tags alone, they would be built twice.
 3. **Earlier lectures added in bulk**: albums and files of old notes with
    their "#word", the date in the caption where the page has none, each
    record set at its date.
-4. **The teacher's materials** (48) belong to the subject; 52's course
+4. **One lecture, one record, by the page photographed twice** (task 64's
+   finding): where a record's first page repeats the end of the subject's
+   record before it — the same notebook page sent with both albums — the
+   repeat is cut by code, no model asked; and the end of the record before,
+   which was the next lecture begun, is cut from it.
+5. **The teacher's materials** (48) belong to the subject; 52's course
    document reads the subject in the order the lectures were given.
-5. `CLAUDE.md` → "The corpus"; `PLAN.md` → "Contracts".
+6. `CLAUDE.md` → "The corpus"; `PLAN.md` → "Contracts".
 
 ## Acceptance criterion
 
