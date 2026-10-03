@@ -1232,3 +1232,23 @@ subject's records are kept in the order the lectures were given (task 63).
 Record 66 also lost its composition to the numbers guard, «0 lost, 3
 gained» — a separate fault, not v9's.
 
+## Record 66's composition
+
+**Refused once, accepted six times.** Record 66 — two pages, read under
+`prompts-v9.md` — went out with no heading: `compose: refused (numbers)`,
+"0 lost 3 gained". Unlike record 59's, the guard was not at fault. Run again
+in the production container on the stored text, the composition was
+accepted once, then five times more at once — no number lost or gained in
+any of the six. Over every composition in production since the stage went
+on, 2026-09-23, four were refused: record 59's and 60's to the list markers
+the guard counted, since fixed; one call that failed; and record 66's — one
+sample in about thirty.
+
+**Asked for once more.** A refusal costs the record its headings, and a
+second sample costs one call — $0.003 on record 66's two pages, about $0.015
+on five — on about one record in thirty. So the stage asks again when the
+guards refuse, and the guards judge the second as they judged the first;
+`note_processed` says when it happened (`compose_retried`). What the first
+sample gained is not known: the log counts numbers, never names them. The
+seven diagnostic calls cost $0.019, written to `ai_calls` against the CEO.
+

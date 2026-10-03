@@ -104,6 +104,10 @@ class Composition:
     demoted: int = 0
     # Main-formula marks past two in a section, taken back the same way.
     unmarked: int = 0
+    # Whether the guards refused the first composition and a second was asked
+    # for — what note_processed reports, so how often it saves a record is a
+    # query.
+    retried: bool = False
     stats: list[CallStats] = field(default_factory=list)
 
 
@@ -305,18 +309,15 @@ async def _one_call(markdown: str) -> tuple[str | None, CallStats, bool]:
     ), False
 
 
-async def compose(markdown: str) -> Composition:
-    """Format a trusted transcription. Never touches the database."""
-    if not settings.COMPOSE_ENABLED:
-        return Composition(markdown)
-
-    all_stats: list[CallStats] = []
-    composed: str | None = None
+async def _sample(markdown: str, all_stats: list[CallStats]) -> str | None:
+    """One composition asked for, a call that failed asked again on
+    _ATTEMPTS' terms; None when no call came back. Every attempt's stats go
+    into `all_stats`."""
     for attempt in range(_ATTEMPTS):
         composed, stats, retryable = await _one_call(markdown)
         all_stats.append(stats)  # rule 4: a call that failed was still a call
         if composed is not None:
-            break
+            return composed
         last = attempt == _ATTEMPTS - 1
         # stats.error and not the exception, for the reason vision.transcribe
         # gives: str(TimeoutError()) is "", and the line used to end in a colon.
@@ -328,12 +329,14 @@ async def compose(markdown: str) -> Composition:
             stats.error,
         )
         if last or not retryable:
-            break
+            return None
         await asyncio.sleep(_RETRY_PAUSE_S)
+    return None
 
-    if composed is None:
-        return Composition(markdown, refused="call failed", stats=all_stats)
 
+def _checked(markdown: str, composed: str) -> Composition:
+    """One composition through the repairs and the guards: the composed
+    document when they accept it, the source and the reason when not."""
     # Before the guards, so that what they checked is what gets stored.
     composed, demoted = _demote_invented_headings(composed)
     composed, unmarked = _cap_marks(markdown, composed)
@@ -355,11 +358,36 @@ async def compose(markdown: str) -> Composition:
         unmarked,
         settings.COMPOSE_MODEL,
     )
-    if refused:
-        return Composition(
-            markdown, refused=refused, drift=drift, demoted=demoted,
-            unmarked=unmarked, stats=all_stats,
-        )
     return Composition(
-        composed, drift=drift, demoted=demoted, unmarked=unmarked, stats=all_stats
+        markdown if refused else composed,
+        refused=refused,
+        drift=drift,
+        demoted=demoted,
+        unmarked=unmarked,
     )
+
+
+async def compose(markdown: str) -> Composition:
+    """Format a trusted transcription. Never touches the database."""
+    if not settings.COMPOSE_ENABLED:
+        return Composition(markdown)
+
+    all_stats: list[CallStats] = []
+    composed = await _sample(markdown, all_stats)
+    if composed is None:
+        return Composition(markdown, refused="call failed", stats=all_stats)
+
+    result = _checked(markdown, composed)
+    if result.refused:
+        # A refusal is one sample's. Record 66's composition was refused in
+        # production for three numbers it gained, and asked for six times
+        # again in the container it was accepted six times; a record that
+        # loses its composition loses its headings. So a refused one is asked
+        # for once more — one call more, on about one record in thirty — and
+        # the guards judge the second as they judged the first.
+        again = await _sample(markdown, all_stats)
+        if again is not None:
+            result = _checked(markdown, again)
+        result.retried = True
+    result.stats = all_stats
+    return result

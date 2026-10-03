@@ -455,6 +455,12 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   closes a bracket — "(0; 1)" is a value. Record 59 lost its composition to
   "Примеры: 1) …" made into a list. The log line says how many numbers went
   and came, never which. → "The composition record 59 lost"
+- **A refused composition is asked for once more** (`compose_retried`,
+  2026-10-03): the composer is sampled, and a refusal is one sample's.
+  Record 66's, refused in production for three numbers it gained, was
+  accepted six times of six when asked again — one call more on about one
+  record in thirty, and the guards judge the second as they judged the
+  first. → "Record 66's composition"
 - **A heading that is not one is repaired, not refused**
   (`_demote_invented_headings`, before `_refusal`, counted as
   `compose_demoted`): the marker comes off, every word stays. → "Headings the
@@ -800,8 +806,9 @@ number never leaves another quietly cutting the work short:
   page and the album ceilings derive from it; composition is over the whole
   record and its wait grows with the album. Three pages compose in about
   43 s on `gemini-3.8-flash`, hence 240 s.
-- **Composition does not retry a timeout** — at most two calls, the second for
-  a 429, a 503 or a dropped connection. `vision._should_retry` counts a timeout
+- **Composition does not retry a timeout** — at most two calls a composition,
+  the second for a 429, a 503 or a dropped connection; and a second
+  composition only when the guards refuse the first. `vision._should_retry` counts a timeout
   worth another call, which is right for a page; at a ceiling of minutes a call
   that reached it was working, and waiting again doubles the window in which a
   deploy cancels it. Every attempt is written to `ai_calls`.
