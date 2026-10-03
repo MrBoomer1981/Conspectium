@@ -39,7 +39,7 @@ class _Message:
         self.replies: list[str] = []
         self.documents: list[tuple[str, bytes, str | None]] = []
 
-    async def answer(self, text: str) -> None:
+    async def answer(self, text: str, reply_markup=None) -> None:
         self.replies.append(text)
 
     async def answer_document(self, document, caption: str | None = None) -> None:

@@ -13,6 +13,7 @@ from aiogram.filters import (
     LEAVE_TRANSITION,
     PROMOTED_TRANSITION,
     ChatMemberUpdatedFilter,
+    CommandObject,
     CommandStart,
 )
 from aiogram.types import ChatMemberUpdated, Message
@@ -51,9 +52,25 @@ _PAGES_KEPT = timedelta(days=7)
 
 @router.message(CommandStart())
 async def cmd_start(
-    message: Message, session: AsyncSession, user: User, group: Group | None = None
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    command: CommandObject,
+    group: Group | None = None,
 ) -> None:
-    await message.answer(texts.GROUP_HELP if group is not None else texts.START)
+    if group is not None:
+        if command.args:
+            # Added through the button, the person's client sends
+            # "/start@<bot> add" into the chat on its own, right after the
+            # welcome: answering it would say the welcome twice. It is counted
+            # instead — how often the button brings the bot into a chat.
+            await log_event(
+                session, user.id, "group_invited", {"via": command.args}, group_id=group.id
+            )
+            return
+        await message.answer(texts.GROUP_HELP)
+        return
+    await message.answer(texts.START, reply_markup=await corpus.add_to_group(message))
 
 
 # ── The bot's own place in a group chat ──────────────────────────────────────

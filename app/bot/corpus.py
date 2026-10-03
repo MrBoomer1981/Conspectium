@@ -27,7 +27,12 @@ from datetime import date, datetime, timedelta, timezone
 
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import BufferedInputFile, Message
+from aiogram.types import (
+    BufferedInputFile,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -276,7 +281,32 @@ async def cmd_help(
     message: Message, session: AsyncSession, user: User, group: Group | None = None
 ) -> None:
     await log_event(session, user.id, "help_viewed", group_id=_group_id(group))
-    await message.answer(texts.GROUP_HELP if group is not None else texts.HELP)
+    if group is not None:
+        await message.answer(texts.GROUP_HELP)
+        return
+    await message.answer(texts.HELP, reply_markup=await add_to_group(message))
+
+
+async def add_to_group(message: Message) -> InlineKeyboardMarkup | None:
+    """The one button the bot shows (task 47): it opens Telegram's own chat
+    picker, and the chat picked gets the bot. Not styling — the only way
+    Telegram offers to open its picker; the chat stays plain text. No
+    `&admin=…` in the link: Telegram would then list only the chats where the
+    person can appoint admins, the very limit the button is there to remove.
+    None when the bot's name is not to be had, rather than a link to nowhere."""
+    username = await _bot_username(message)
+    if not username:
+        return None
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=texts.ADD_TO_GROUP,
+                    url=f"https://t.me/{username}?startgroup=add",
+                )
+            ]
+        ]
+    )
 
 
 # ── Delivering a record as a file ────────────────────────────────────────────

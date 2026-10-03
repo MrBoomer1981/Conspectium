@@ -652,14 +652,25 @@ than silence. → "Numbers the agreement could not see"
   no answer in a group; a missed search is still logged.
 - **Whether the bot sees a group's photos is decided in BotFather**: with
   privacy mode on it sees only commands and replies to itself unless it is an
-  admin. The startup log says which (`Groups:`), the welcome
-  (`handlers.on_joined`) names the fix, `on_promoted` says when it worked.
+  admin. Privacy mode is off since 2026-10-03 (task 47, the CEO), so the bot
+  sees a chat as an ordinary member and the welcome asks for nothing;
+  `middlewares.heard` still drops what is not addressed to it. The startup
+  log says which (`Groups:`), the welcome (`handlers.on_joined`) names the
+  fix should privacy mode come back, `on_promoted` says when it worked.
+- **A group adds the bot in one tap** (task 47): `/start` and `/help` in a
+  private chat carry one button, «Добавить в чат группы», opening
+  `t.me/<bot>?startgroup=add` — Telegram's own chat picker, the username from
+  `bot.me()`. Never `&admin=…`, which would list only the chats where the
+  person can appoint admins. The `/start@<bot> add` the person's client then
+  sends into the chat is not answered — the welcome has been said — and is
+  counted as `group_invited`.
   Membership arrives as `my_chat_member` updates, subscribed to through
   `dp.resolve_used_update_types()` and given a session; a join is registered
   before a promotion.
 - **Events name their group** (`events.group_id`): weekly use by a group is the
-  question. `group_joined` carries whether the bot sees the photos;
-  `group_promoted` and `group_left` nothing else. Limits are still the
+  question. `group_joined` carries whether the bot sees the photos,
+  `group_invited` the button's payload; `group_promoted` and `group_left`
+  nothing else. Limits are still the
   photographer's quota and the global cap — per group is task 41.
 
 ---
