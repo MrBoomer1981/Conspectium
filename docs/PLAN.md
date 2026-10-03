@@ -3642,6 +3642,7 @@ A wrong type doesn't fail the parse — a fallback value is used instead.
 | `uncertain[].why` | string | `""` |
 | `uncertain[].alternatives` | list of strings | `[]` |
 | `drawings` | list of `[top, left, bottom, right]`, integers 0–1000 (v8 on) | `[]`; an element that is not four numbers with top above bottom and left before right becomes `None` in its place, so the ones after it keep their order |
+| `lecture_starts` | list of strings, a line of `markdown` each (v9 on) | `[]`; anything not a string, or an empty one, is dropped |
 
 `uncertain`'s element has exactly one required key — `text`. An element
 without it is dropped silently, the whole response isn't discarded.
@@ -3703,6 +3704,7 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `drawings` | the `[схема: …]` lines recognition wrote | over every page read | — |
 | `figures` | drawings cut out and placed (task 54) | over the record | — |
 | `explain_judged` | explanations dropped for judging the record (task 55) | over the record | — |
+| `lecture_head_cut`, `lecture_tail_cut` | — | lines cut off the first page and off the last (task 64) | — |
 
 **`verdict` for an album** is computed only from successfully processed
 pages: if at least one gives `needs_review`, the result is
