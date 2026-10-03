@@ -353,7 +353,10 @@ async def _read_photo(
         title=result.best.title,
         subject=result.best.subject,
         markdown=markdown,
-        explanations=[asdict(item) for item in explaining.explanations],
+        # The teacher's boxes stand in the same list, each naming its kind;
+        # an explanation names none, as every one stored before them.
+        explanations=[asdict(item) for item in explaining.explanations]
+        + [asdict(item) for item in explaining.elements],
         summary=explaining.summary,
         source_type="photo",
         page_count=1,
@@ -396,6 +399,8 @@ async def _read_photo(
             "explain_refused": explaining.refused,
             "explain_unsourced": explaining.unsourced,
             "explain_judged": explaining.judged,
+            "elements": len(explaining.elements),
+            "elements_dropped": explaining.elements_dropped,
             "summary": explaining.summary is not None,
             "summary_refused": explaining.summary_refused,
             "drawings": figures.count(result.best.markdown),
@@ -786,7 +791,10 @@ async def _process_album(
         title=rec.title,
         subject=rec.subject,
         markdown=markdown,
-        explanations=[asdict(item) for item in explaining.explanations],
+        # The teacher's boxes stand in the same list, each naming its kind;
+        # an explanation names none, as every one stored before them.
+        explanations=[asdict(item) for item in explaining.explanations]
+        + [asdict(item) for item in explaining.elements],
         summary=explaining.summary,
         source_type="photo",
         page_count=rec.page_count,
@@ -832,6 +840,8 @@ async def _process_album(
             "explain_refused": explaining.refused,
             "explain_unsourced": explaining.unsourced,
             "explain_judged": explaining.judged,
+            "elements": len(explaining.elements),
+            "elements_dropped": explaining.elements_dropped,
             "summary": explaining.summary is not None,
             "summary_refused": explaining.summary_refused,
             "drawings": rec.drawings,

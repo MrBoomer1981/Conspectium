@@ -127,7 +127,8 @@ In a session:
   recognition on `gemini-3.8-flash`, three runs, `prompts-v6.md`,
   thinking at the model's default; composition on, `gemini-3.8-flash`,
   `prompts-compose-v3.md`, thinking `low`; the explaining stage on,
-  `gemini-3.8-flash`, its searches at `low`; a call's ceiling 90 s. **The
+  `gemini-3.8-flash`, its searches at `low`, `prompts-explain-v2.md` with the
+  teacher's boxes since 2026-10-03; a call's ceiling 90 s. **The
   code's defaults are not these** — `gemini-3.5-flash-lite`, `prompts-v3.md`,
   both stages off, 30 s — so a deploy that lost its variables reads worse, and
   its startup log says so.
@@ -512,6 +513,23 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   (`pages=0`); each search is billed per query (`GROUNDING_USD_PER_QUERY`),
   inside the cap. Off, refused or failed, the record goes out as without it;
   `.docx` skips it.
+- **What a teacher adds, besides** (task 56, 2026-10-03, `prompts-explain-v2.md`):
+  «Идея» before every proof — its plan; «Зачем условие» at every definition
+  and theorem with a condition — what it is for and what breaks without it,
+  where no explanation stands already; «Пример» at every new notion — one
+  unlike the lecture's own. Written by the same first call, in `elements` of
+  its JSON, so they cost no call of their own. They are reasoning about the
+  lecture rather than facts from books, so no search can source them: each is
+  printed without a source, under a label that says whose it is
+  (`texts.ELEMENT_LABELS`), and checked by code wherever there is something to
+  check. An idea or a condition may state no number the record does not
+  carry; an example's working is checked equality by equality, with
+  `mathcheck`'s reading of a number and its tolerance (`explain._working_fails`
+  — mathcheck itself compares chains of two "=" only); one that judges the
+  record goes, as an explanation would. Dropped ones are counted
+  (`elements_dropped`). Stored in `notes.explanations` beside the explanations,
+  each naming its `kind`; an idea is set before the line it is anchored to, the
+  others under it. At most twelve. → "The teacher's boxes"
 
 ### Drawings cut out of the page
 
@@ -935,7 +953,8 @@ extraction only, v6 (production) v5 with the author's frames written as
 with each drawing's frame, measured and asleep (task 54), v9 v6 with where a
 lecture begins, measured and asleep (task 64); composing
 `prompts-compose-v1.md` to `v3`, v3 framing a section's main formula;
-explaining `prompts-explain-v1.md`, with `prompts-explain-source-v2.md` for the
+explaining `prompts-explain-v1.md` and `v2` (production since 2026-10-03), v2
+adding the teacher's boxes, with `prompts-explain-source-v2.md` for the
 searches. `vision.load_prompt` reads a prompt from `prompts/` by file name at
 **import**: the file has to ship with the deploy or the process dies at
 startup, and editing it changes the prompt without touching Python.

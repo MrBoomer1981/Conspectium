@@ -342,6 +342,9 @@ class Explanation:
     lines: list[str]
     sources: list[tuple[str, str]]  # (title, uri)
     sources_label: str = "Источники"
+    # Set before what it is anchored to rather than under it: the idea of a
+    # proof is read before the proof (task 56).
+    before: bool = False
 
 
 @dataclass
@@ -3319,11 +3322,16 @@ def render(
                 item for item in unexplained
                 if _anchored(item.anchor, members, unit_numbers)
             ]
+            lead: list = []
             for item in explained:
+                unexplained.remove(item)
+                if item.before:
+                    lead += [_explanation(item, formulas, styles), Spacer(1, 6)]
+                    continue
                 # After the findings: first what is wrong with the line, then
                 # what the bot has to add to it.
-                unexplained.remove(item)
                 group += [Spacer(1, 6), _explanation(item, formulas, styles)]
+            group = lead + group
             attached = attached + explained
 
             if held:

@@ -177,11 +177,12 @@ async def lifespan(app: FastAPI):
     # Stage three writes into the group's document, so the deploy says out
     # loud whether it is on, on which model, and with which prompt.
     logger.info(
-        "Explain: %s, %s, %s, %d words, sources thinking %s",
+        "Explain: %s, %s, %s, %d words, teacher's boxes %s, sources thinking %s",
         "on" if settings.EXPLAIN_ENABLED else "off",
         settings.EXPLAIN_MODEL,
         settings.EXPLAIN_PROMPT_FILE,
         explain.EXPLAIN_PROMPT_WORDS,
+        "asked for" if explain.PROMPT_ASKS_ELEMENTS else "not asked for",
         settings.SOURCE_THINKING_LEVEL,
     )
     logger.info(

@@ -49,6 +49,13 @@ GRAPH_FINDING_LABEL = "Сверка с графом"
 # whose words these are: a reader who missed the lecture cannot tell an added
 # sentence from a remembered one unless the page tells them.
 EXPLANATION_LABEL = "Пояснение бота"
+# The teacher's boxes (task 56), each under a label that says what it is and
+# whose: reasoning of the bot's, printed without a source.
+ELEMENT_LABELS = {
+    "idea": "Идея · от бота",
+    "condition": "Зачем условие · от бота",
+    "example": "Пример · от бота",
+}
 # The record summed up, first in the document as the guide's "Суть": its name,
 # then whose words these are.
 SUMMARY_LABEL = "Суть · составлено ботом по тексту записи"

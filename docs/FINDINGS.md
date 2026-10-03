@@ -1252,3 +1252,48 @@ guards refuse, and the guards judge the second as they judged the first;
 sample gained is not known: the log counts numbers, never names them. The
 seven diagnostic calls cost $0.019, written to `ai_calls` against the CEO.
 
+## The teacher's boxes
+
+**What was asked for** (the CEO, 2026-10-01): "I don't want to just retell
+lectures mindlessly." The CEO's reference notebook has sixteen remarks in
+fourteen pages of a kind the bot did not write — the plan of a proof, what a
+condition is for, an example the lecture did not give. Task 56 adds them as
+boxes of the bot's, written by the explaining stage's first call.
+
+**Three runs on record 64** — record 59's album read on 2026-10-03 — the
+explaining stage alone run again in the production container on the stored
+text, each document drawn beside v1's:
+
+| run | the prompt's rule | boxes | kept | what the CEO's look found |
+|---|---|---|---|---|
+| first | "where it truly helps, at most one a section" | 2, an idea and an example | 2 | too few, no condition at all |
+| dense | "before every proof, at every condition, at every new notion; one a section at least" | 5 | 5 | two repeats: a condition saying what the explanation above it said, an example like the lecture's own |
+| third | the same, with "no condition where an explanation stands" and "an example unlike the lecture's" | 5 | 5 | no repeats — "I like it" |
+
+The third run's boxes: what boundedness does in Bolzano–Weierstrass; the
+compact set {0} ∪ {1/k}; why ℝⁿ must be finite-dimensional, the closed unit
+ball of an infinite-dimensional space being closed, bounded and not compact;
+the plan of the proof before it; a sequence in ℝ² converging by the
+definition. Each passed its checks.
+
+**The checks.** mathcheck compares a chain of two "=" or more and leaves a
+single one alone, so «$2 + 2 = 5$» in an example went through it; an
+example's working is now compared equality by equality, formula by formula,
+with mathcheck's own reading of a number and its tolerance — seventeen
+cases, right and wrong, each as expected. A judging guard widened to «в
+записи пропущено» was tried and taken back: the prompt asks for the steps a
+lecture skipped to be explained, and that is how such an explanation begins.
+
+**Left as it is.** An explanation under «U(p) = ⋃…» said that one takes "not
+the union but the intersection" — teaching how it is done and blaming
+nobody, but contradicting the record, whose readings all have the union: ∩
+misread as ∪, or the author's. No guard catches that shape; the CEO took the
+document with it.
+
+**What it costs.** The writing call came to about $0.017 against $0.012 on
+average under v1: the boxes ride the call the explanations are written in,
+less than a cent a record; the searches are as before. The three trial runs
+counted $0.73 with the search-query fee, which is not billed under 5,000
+queries a month — their tokens, a few cents — written to `ai_calls` against
+the CEO.
+

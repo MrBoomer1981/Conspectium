@@ -151,6 +151,23 @@ def _explanations(note: Note) -> list[pdf.Explanation]:
             continue
         if explain.judges_the_record(str(item.get("title", "")), str(item.get("text", ""))):
             continue
+        kind = item.get("kind")
+        if kind in explain.ELEMENT_KINDS:
+            # A teacher's box: the bot's reasoning, with no source to show.
+            boxes.append(
+                pdf.Explanation(
+                    anchor=str(item.get("anchor", "")),
+                    label=texts.ELEMENT_LABELS[kind],
+                    lines=[
+                        texts.explanation_line(
+                            str(item.get("title", "")), str(item.get("text", ""))
+                        )
+                    ],
+                    sources=[],
+                    before=kind == "idea",
+                )
+            )
+            continue
         stored = [
             (str(s.get("title", "")) or str(s.get("uri", "")), str(s.get("uri", "")))
             for s in item.get("sources") or []
