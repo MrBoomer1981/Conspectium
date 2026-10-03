@@ -833,6 +833,8 @@ async def _process_album(
             "summary": explaining.summary is not None,
             "summary_refused": explaining.summary_refused,
             "drawings": rec.drawings,
+            "lecture_head_cut": rec.lecture_head_cut,
+            "lecture_tail_cut": rec.lecture_tail_cut,
             "figures": len(placed),
             "latency_ms": int((time.monotonic() - started) * 1000),
             "cost_usd": vision.total_cost(

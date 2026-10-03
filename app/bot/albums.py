@@ -15,11 +15,11 @@ import logging
 import math
 import re
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 
 from app.bot import texts
 from app.core.config import settings
-from app.services import figures, mathcheck, photoguard, vision
+from app.services import figures, lectures, mathcheck, photoguard, vision
 from app.services.vision import CallStats, Transcription
 
 logger = logging.getLogger(__name__)
@@ -237,6 +237,8 @@ class PageResult:
     photo_contrast: float | None = None
     # The page's drawings, cut out of its image before the image is let go.
     cutouts: list[figures.Cutout] = field(default_factory=list)
+    # Where a lecture begins on the page, as every run read it (task 64).
+    lecture_starts: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -402,6 +404,7 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
         photo_paper_fraction=frame.paper_fraction,
         photo_contrast=frame.contrast,
         cutouts=cutouts,
+        lecture_starts=result.lecture_starts,
     )
 
 
@@ -434,6 +437,10 @@ class AssembledRecord:
     # pages only described — the two numbers note_processed reports.
     cutouts: list[figures.Cutout] = field(default_factory=list)
     drawings: int = 0
+    # Lines cut off the first page — the lecture before — and off the last —
+    # the lecture after (task 64); what note_processed reports.
+    lecture_head_cut: int = 0
+    lecture_tail_cut: int = 0
 
 
 @dataclass
@@ -513,6 +520,7 @@ def _assemble(
     lost in one evening over a single page each, and in a group chat a lost
     album is a course without its lecture.
     """
+    pages_ok, head_cut, tail_cut = _one_lecture(pages_ok, len(pages_ok) + len(skips))
     # A record with a hole always needs a reader's eye, whatever the pages
     # that were read scored.
     needs_review = bool(skips) or any(
@@ -563,6 +571,76 @@ def _assemble(
         ],
         cutouts=[cutout for p in pages_ok for cutout in p.cutouts],
         drawings=sum(figures.count(p.transcription.markdown) for p in pages_ok),
+        lecture_head_cut=head_cut,
+        lecture_tail_cut=tail_cut,
+    )
+
+
+def _one_lecture(
+    pages_ok: list[PageResult], pages: int
+) -> tuple[list[PageResult], int, int]:
+    """The pages with the lecture before cut off the album's first page and
+    the lecture after off its last, and how many lines each cut took.
+
+    Only with two pages read or more, and only on the album's own first and
+    last page: a single page — a photograph, or the one page an album kept —
+    says nothing of which of its lectures is meant, and a lecture beginning
+    in the middle of an album is the album's to keep.
+    Only where every run named the start (lectures.agreed), and never a whole
+    page (lectures.without_after). What is cut is not kept. A cut page's
+    findings are found again on what stays, and when the first page loses its
+    head, the title it was given may be the lecture before's: the record
+    takes its title from what stays — its first heading, or the next page's.
+    """
+    if pages < 2 or len(pages_ok) < 2:
+        return pages_ok, 0, 0
+    pages_ok = list(pages_ok)
+    head_cut = tail_cut = 0
+
+    first = pages_ok[0]
+    if first.page == 1 and first.lecture_starts:
+        kept, head_cut = lectures.without_before(
+            first.transcription.markdown, first.lecture_starts
+        )
+        if head_cut:
+            heading = next(
+                (
+                    line.lstrip("#").strip()
+                    for line in kept.split("\n")
+                    if line.startswith("#") and line.lstrip("#").strip()
+                ),
+                None,
+            )
+            title = heading[:60] if heading else (
+                pages_ok[1].transcription.title
+                if len(pages_ok) > 1
+                else first.transcription.title
+            )
+            pages_ok[0] = _trimmed(first, kept, title)
+
+    last = pages_ok[-1]
+    if last.page == pages and last.lecture_starts:
+        kept, tail_cut = lectures.without_after(
+            last.transcription.markdown, last.lecture_starts
+        )
+        if tail_cut:
+            pages_ok[-1] = _trimmed(last, kept, last.transcription.title)
+
+    if head_cut or tail_cut:
+        logger.info(
+            "album: one lecture — %d lines cut before it, %d after", head_cut, tail_cut
+        )
+    return pages_ok, head_cut, tail_cut
+
+
+def _trimmed(page: PageResult, markdown: str, title: str) -> PageResult:
+    """A page with part of its text cut away, and its findings found again
+    on what stays — a finding about a line that is gone would anchor nowhere
+    and stand at the record's end."""
+    return replace(
+        page,
+        transcription=replace(page.transcription, markdown=markdown, title=title),
+        report=mathcheck.Report(issues=vision.findings(markdown)),
     )
 
 

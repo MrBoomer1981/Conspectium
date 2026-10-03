@@ -531,6 +531,31 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   of the sheet gone; the edges faded. A greyscale PNG, the colour the
   document's. → "Drawings cut out of the page"
 
+### One lecture, one record
+
+- **An album rarely begins and ends where its lecture does** (task 64,
+  2026-10-03): a notebook runs on, so record 46 opened with the end of the
+  lecture before and record 62 closed on the next one begun. Nothing in the
+  text says where a lecture begins; the page does — a date, «Лекция N», the
+  author's line. From `prompts-v9.md` on, recognition names the first line of
+  every lecture that begins on a page in `lecture_starts`, outside
+  `markdown`, so neither agreement moves.
+- **A start counts only when every run read names it** (`lectures.agreed`,
+  in `transcribe_consensus`, where the runs are compared); a page one run
+  came back for is never cut. A line of the lecture lost is worse than a
+  line of another kept.
+- **Cut at the album's edges only** (`albums._one_lecture`): above the first
+  start on its first page, the lecture before; from the last start on its
+  last page, the lecture after, with the line the author drew before it.
+  Only with two pages read or more, on the album's own first and last page;
+  never a single page — a photograph, or the one page an album kept — which
+  says nothing of which lecture is meant, never the middle of an album,
+  never a whole page. What is cut is not kept;
+  a cut page's findings are found again on what stays, and the record's
+  title is taken from what stays when the first page lost its head.
+  `note_processed` counts the lines, `lecture_head_cut` and
+  `lecture_tail_cut`.
+
 ### The matrix against the graph
 
 `graphcheck.check` decides a cell by the edges, not by a vote: the adjacency is
@@ -874,6 +899,7 @@ app/
     explain.py        stage three: hard places explained with sources, a summary
     pdf.py            a record as a PDF
     figures.py        drawings cut out of the page, placed back after composing
+    lectures.py       where a lecture begins on a page; one lecture a record
     images.py         compression
     limits.py         spend limits
     docx.py           .docx → markdown, no model call
@@ -892,10 +918,11 @@ evidence/             local only, never in git: records, reference notes, Railwa
 CLAUDE.md, README.md  in the root, where Claude Code and GitHub read them
 ```
 
-**The prompts**: recognition `prompts-v3.md` to `prompts-v8.md` — v5
+**The prompts**: recognition `prompts-v3.md` to `prompts-v9.md` — v5
 extraction only, v6 (production) v5 with the author's frames written as
 `\boxed{…}`, v7 without the list of numbers, tried and rolled back, v8 v6
-with each drawing's frame, waiting for its measurement (task 54); composing
+with each drawing's frame, measured and asleep (task 54), v9 v6 with where a
+lecture begins, waiting for its measurement (task 64); composing
 `prompts-compose-v1.md` to `v3`, v3 framing a section's main formula;
 explaining `prompts-explain-v1.md`, with `prompts-explain-source-v2.md` for the
 searches. `vision.load_prompt` reads a prompt from `prompts/` by file name at
@@ -992,7 +1019,8 @@ LOG_LEVEL=INFO
   kills the process at startup, deliberately.
 - **The startup log is the instrument's label**: `Recognition: <model>, N
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
-  numbers and whether drawings are cut out, the image compression, both
+  numbers, whether drawings are cut out and lectures marked, the image
+  compression, both
   stages, the call knobs, the five timeouts, and whether the bot sees a
   group's photos. What a **record** does not say is which prompt made it —
   `docs/PLAN.md` → "Where the quality work stands", gap 3.

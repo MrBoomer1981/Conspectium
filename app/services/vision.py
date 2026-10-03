@@ -27,7 +27,7 @@ from google.genai import types
 from app.core.config import price_per_mtok, settings
 from app.db.models import AiCall
 from app.db.session import async_session_maker
-from app.services import consensus, graphcheck, mathcheck, pdf
+from app.services import consensus, graphcheck, lectures, mathcheck, pdf
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +60,9 @@ PROMPT_LISTS_NUMBERS = '"numeric_tokens"' in TRANSCRIBE_PROMPT
 # the drawing can be cut out of the page rather than only described. Read
 # from the prompt for the reason above, and printed at startup with it.
 PROMPT_FRAMES_DRAWINGS = '"drawings"' in TRANSCRIBE_PROMPT
+# Whether the prompt asks where a lecture begins on the page (v9 on), so the
+# lecture before and the one after can be cut off an album's edges (task 64).
+PROMPT_MARKS_LECTURES = '"lecture_starts"' in TRANSCRIBE_PROMPT
 
 # One client per process, not one per call.
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -113,6 +116,9 @@ class Transcription:
     # None where the model gave something that is not a frame, so a bad one
     # never shifts the ones after it. Empty under a prompt that asks for none.
     drawings: list[tuple[int, int, int, int] | None] = field(default_factory=list)
+    # The first line of every lecture that begins on the page, as `markdown`
+    # writes it. Empty under a prompt that asks for none.
+    lecture_starts: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -156,6 +162,10 @@ class TranscriptionResult:
     numeric_agreement: float | None  # 0..1
     numeric_divergences: list  # consensus.Divergence objects
     verdict: str  # "clean" | "needs_review" | "rejected"
+    # The lecture starts every run read names, as the chosen run writes them —
+    # decided here, where the runs are compared. Empty for a page one run came
+    # back for: one reading agrees with nothing.
+    lecture_starts: list[str] = field(default_factory=list)
 
 
 # ── Parsing ──────────────────────────────────────────────────────────────────
@@ -305,6 +315,7 @@ def parse_response(raw: str) -> Transcription | None:
         numeric_tokens=_str_list(data.get("numeric_tokens")),
         unreadable_count=_int_or_zero(data.get("unreadable_count")),
         drawings=_frames(data.get("drawings")),
+        lecture_starts=[s for s in _str_list(data.get("lecture_starts")) if s.strip()],
     )
 
 
@@ -997,7 +1008,8 @@ async def transcribe_consensus(
     # record all see the same signal and none of them stores the noise.
     reported = consensus.compare(markdowns).divergences
     numeric_divergences = meaningful_divergences(reported)
-    chosen = ok_runs[consensus.pick_representative(markdowns)]
+    chosen_index = consensus.pick_representative(markdowns)
+    chosen = ok_runs[chosen_index]
     # Filtered in the same place and for the same reason as the divergences,
     # so the reply, the document and the stored record all see one signal.
     # A copy rather than an assignment: the runs belong to the comparison that
@@ -1030,7 +1042,14 @@ async def transcribe_consensus(
         numeric_agreement=numeric_agreement([run_numbers(t) for t in ok_runs]),
         numeric_divergences=numeric_divergences,
         verdict=verdict,
+        lecture_starts=lectures.agreed([t.lecture_starts for t in ok_runs], chosen_index),
     )
+    if chosen.lecture_starts:
+        logger.info(
+            "consensus: lecture starts %d named, %d agreed",
+            len(chosen.lecture_starts),
+            len(result.lecture_starts),
+        )
     logger.info(
         "consensus: %d/%d runs ok, text_agreement=%.3f, "
         "numeric_agreement=%.3f, verdict=%s%s, "
