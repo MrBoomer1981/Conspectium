@@ -263,14 +263,17 @@ recording and its film become records as its notebook does, and a subject
 becomes its lectures in the order they were given, the earlier ones
 included. "Where this is going, decided 2026-10-02" says why.
 
+- [ ] 63. The subject's base: every lecture at the date it was given, the
+      earlier ones added, the teacher's materials with them, and one
+      lecture from several notebooks, what one lacks set in from another —
+      the CEO's. Taken first on 2026-10-04: it needs no material the CEO
+      does not have, and the board's photographs are still to be taken
 - [ ] 60. A board photographed: a frame check and a reading of its own,
       measured on real boards — the CEO's
 - [ ] 61. A lecture recorded: the bot's notes from what was said, marked as
       the bot's on their first page — the CEO's
 - [ ] 62. A lecture filmed: its sound by 61's path, the board's stills by
       60's — the CEO's
-- [ ] 63. The subject's base: every lecture at the date it was given, the
-      earlier ones added, the teacher's materials with them — the CEO's
 
 **Phase F — the app: where a group studies from its records.** Set by the
 CEO on 2026-10-02, after phase E, the CEO's: a Telegram Mini App now, the
@@ -333,7 +336,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56
-CEO — current: none; next: 60
+CEO — current: 63; next: 60
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -379,6 +382,8 @@ since 2026-10-01.
 | 2026-10-03 | the CEO, with Claude Code | Record 66 lost its composition to the numbers guard, once: asked again six times in the container, it was accepted six times. A refused composition is now asked for once more, and `note_processed` gains `compose_retried` ("Contracts"); `CLAUDE.md` → "Stage two" and "Concurrency ceilings" say so | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Task 56 done: the explaining stage writes the teacher's boxes — «Идея» before every proof, «Зачем условие» at every condition, «Пример» at every new notion — without a source, under labels of their own, checked by code (`prompts-explain-v2.md`, production the same day). Measured in three runs on record 64 and accepted by the CEO. «Проверь себя» is the app's, not the PDF's. `BRAND.md` v1.3; `note_processed` gains `elements` and `elements_dropped`. The CEO's track: 47 next | the CEO's own |
 | 2026-10-03 | the CEO, with Claude Code | Task 47 done: privacy mode turned off in BotFather by the CEO; `/start` and `/help` carry the button «Добавить в чат группы»; the `/start add` a client sends into the chat is not answered and is counted as `group_invited` ("Contracts"). `CLAUDE.md` → "A group chat". The CEO's track: 60 next | the CEO's own |
+| 2026-10-04 | the CEO, with Claude Code | Task 63 taken before 60: it needs no material the CEO does not have, while the board's photographs are still to be taken; the CEO's track is 63, 60, 61, 62, then the app | the CEO's own |
+| 2026-10-04 | the CEO, with Claude Code | Task 63 widened by the CEO: a lecture is a row of its own, and a second notebook of it — a classmate's — joins it, what the base lacks set in at its place under «Из другого конспекта», the group getting the lecture's updated document. Decided by code, no model asked: the same lecture at half of one text found in the other, a passage only where the base has no line of its own — measured on the records in production before it was built, no passage on eighteen pairs of one album read again. The board, the recording and the film will be a lecture's materials as they come | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -423,7 +428,8 @@ The CEO's decisions of that day:
   limits it needs are the CPO's area, open to the CEO since 2026-10-01,
   each migration named to the CPO before it is pushed.
 
-The CEO's track: 55, 56, 47, 60, 61, 62, 63, 57, 58, 59; 52 when 41 is in.
+The CEO's track: 55, 56, 47, 63, 60, 61, 62, 57, 58, 59; 52 when 41 is in —
+63 taken before 60 on 2026-10-04.
 
 ## Where this is going, decided 2026-09-30
 
@@ -3379,7 +3385,8 @@ stills.
 
 # Task 63. The subject's base: every lecture in its place
 
-**Owner: the CEO.** After 62, before the app. Its schema and migration are
+**Owner: the CEO.** Taken before 60 on 2026-10-04 — it needs no material
+the CEO does not have — and before the app. Its schema and migration are
 the CPO's area, open to the CEO, the migration named to the CPO before it
 is pushed.
 
@@ -3391,35 +3398,109 @@ were given, the ones given before the group found the bot, what the
 teacher handed out. The library and the exam page (58, 59) are views of
 it; built on tags alone, they would be built twice.
 
+And a lecture is more than one notebook. The CEO, 2026-10-04: "каждый
+досланный материал по лекции (если одну и ту же прислали 2 и более
+человека) объединялся и при необходимости дополнял блок по этой теме" —
+what a second notebook has and the first lacks goes into the lecture, at
+its place.
+
 ## Do
 
 1. **A chat's subject as a row of its own** — its "#word" and its chat —
    which records belong to; today's tags become such rows.
-2. **A lecture's date** — the day it was given, not sent: read from the
-   margin, where `texts.byline` already finds dates, or given by the
-   sender. The course is ordered by it.
-3. **Earlier lectures added in bulk**: albums and files of old notes with
+2. **A lecture as a row of its own**: one class on one day, in its
+   subject, every material of it pointing at it — the notebooks now; the
+   board (60), the recording (61), the film (62) and the teacher's files
+   (48) as they come.
+3. **A lecture's date** — the day it was given, not sent: from the
+   caption ("#матан 12.09"), else from the margin when it names one date
+   and only one, else the day the pages were sent. The course is ordered
+   by it, and the head of the document carries it.
+4. **One lecture from several notebooks**, decided by code, no model asked:
+   - **The same lecture**: the same subject, a day within a week, and at
+     least half of one text found in the other. Measured on 2026-10-04 on
+     the 66 records in production: the same pages read again agree at
+     0.70–1.00, different lectures of one course at 0.40 at most. Unsure,
+     it is a lecture of its own — two documents are better than one mixed.
+   - **The base is the fullest notebook**: the most text read, a place it
+     could not read counting against it.
+   - **What another notebook adds goes in where the base has nothing in
+     its stead**, aligned word by word: a line the base wrote its own way
+     is a variant and is not set in — the bot never chooses between two
+     readings and says nothing about them, the base stays. Nor is what the
+     base already has elsewhere, a drawing's description, a heading with
+     nothing under it, or what the other notebook carries past a line
+     across the page at its first or last edge — the lecture before or the
+     next one begun. Each passage stands at its place under the label «Из
+     другого конспекта», the CEO's words of 2026-10-04, as its author wrote
+     it.
+   - **The group gets the lecture's updated document**, the CEO's decision
+     of 2026-10-04, and a line saying it is a lecture already there.
+   - **A notebook that only adds is not explained**: no explaining call
+     for a record that will not be the base.
+5. **Earlier lectures added in bulk**: albums and files of old notes with
    their "#word", the date in the caption where the page has none, each
    record set at its date.
-4. **One lecture, one record, by the page photographed twice** (task 64's
+6. **One lecture, one record, by the page photographed twice** (task 64's
    finding): where a record's first page repeats the end of the subject's
    record before it — the same notebook page sent with both albums — the
    repeat is cut by code, no model asked; and the end of the record before,
-   which was the next lecture begun, is cut from it.
-5. **The teacher's materials** (48) belong to the subject; 52's course
+   which was the next lecture begun, is cut from it. Cut only where the
+   code is sure — the album before was sent before the next lecture was
+   given, or the author's line stands between the two on that page; a line
+   of another lecture kept is better than a line of this one lost.
+7. **The teacher's materials** (48) belong to the subject; 52's course
    document reads the subject in the order the lectures were given.
-6. `CLAUDE.md` → "The corpus"; `PLAN.md` → "Contracts".
+8. `CLAUDE.md` → "The corpus", "The document"; `BRAND.md` → the passage
+   from another notebook; `PLAN.md` → "Contracts".
+
+## Measured before it was built, 2026-10-04
+
+On the records in production, which hold the same albums read many times:
+records 59, 60 and 62–66 are one album on the Bolzano–Weierstrass theorem,
+read whole or in part seven times; 46–49 one practice, 50–53 one lecture;
+the group's two records, 54 and 61, one page sent twice three days apart.
+
+- **Which text is one lecture**: the share of one text's five-letter runs
+  found in the other, the larger of the two ways, a drawing's description
+  left out — 0.70 to 1.00 on eighteen pairs of one album read again, 0.02 to
+  0.40 on fifteen pairs of different lectures. 0.5 separates them; two
+  notebooks of one lecture were not there to measure. Records 45 and 46,
+  taken for two lectures, came out at 0.83: one practice of 25.09, its
+  album sent twice.
+- **What another notebook adds, by paragraph, failed both ways**: a reading
+  breaks a page into paragraphs its own way, so a paragraph of one stood
+  against two of the other, and a line read two ways looked missing from
+  both. Aligned word by word, a passage set in only where the base has no
+  line of its own: what still went in on the eighteen pairs was a line of
+  record 64 read another way — «покажем радиус [неразборчиво] носителя
+  шарик» against 62's «покажем рецепт как найти шарик», a variant the base
+  hid inside a long paragraph, so a base's own line is judged by the line —
+  and 62's «A = ((0, 2) ∖ …» after the author's wavy line at its end, the
+  next lecture's first line, which 59 rightly lacks. With both rules, no
+  passage on the eighteen pairs.
+- **What it gives back**: five chunks cut from one reading at random places,
+  sixty times over ten pairs, came back whole from the other reading 33
+  times and in part 13. What does not come back is what the base still has
+  elsewhere in other words, or what a variant beside the cut hides.
 
 ## Acceptance criterion
 
 - A subject's lectures, the earlier ones included, are listed in the order
   they were given, and a "#word" finds them as it does today.
+- One album sent again joins its lecture and adds nothing the lecture's
+  document does not have; a page of another lecture does not join it.
+- Two notebooks of one lecture, the CEO's and a classmate's, become one
+  document: the CEO checks against both that what one lacks stands at its
+  place from the other, and nothing twice.
 - The suite is green.
 
 ## Don't do
 
 - No new way into the corpus from the chat beyond the "#word".
 - No export.
+- Don't let a model merge notebooks: the text of a lecture is what its
+  authors wrote.
 
 ---
 
