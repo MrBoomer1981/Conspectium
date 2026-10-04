@@ -407,6 +407,7 @@ since 2026-10-01.
 | 2026-10-04 | the CEO, with Claude Code | Task 66 specified, not scheduled: in a group with topics, every record goes to one topic, «Конспекты», which the bot makes where there is none. The first big group, J3115, added the bot the same day and is divided into topics | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 67 specified as a mechanism to think through: the bot asks a group its university, year and programme, so a subject's records can serve the next cohorts. Its last step is sharing, which "What NOT to do" holds until the app is used — the rule changes first | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 68 specified, not scheduled: an album sent with its pages out of order is assembled in the order the pages themselves say — the numbers in their margins, a sentence across a seam, numbering that runs on — decided by code, and in the order sent when the evidence is not one-sided; the bot does it by itself, asking nobody (the CEO: «бот решает»); measured on albums already read before it is built | the CEO's own |
+| 2026-10-04 | the CEO, with Claude Code | The repository tidied: `CLAUDE.md` → "Structure" lists `prompts-explain-source-v1.md`, kept though unused, and says why — every prompt stays in `prompts/` once used, since a record does not say which made it. Nothing tracked was removed | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 

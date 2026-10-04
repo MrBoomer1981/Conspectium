@@ -1032,7 +1032,9 @@ lecture begins, measured and asleep (task 64); composing
 `prompts-compose-v1.md` to `v3`, v3 framing a section's main formula;
 explaining `prompts-explain-v1.md` and `v2` (production since 2026-10-03), v2
 adding the teacher's boxes, with `prompts-explain-source-v2.md` for the
-searches. `vision.load_prompt` reads a prompt from `prompts/` by file name at
+searches — `v1` before it, kept as the records made with it were. Every
+prompt stays in `prompts/` once used: a record does not say which made it.
+`vision.load_prompt` reads a prompt from `prompts/` by file name at
 **import**: the file has to ship with the deploy or the process dies at
 startup, and editing it changes the prompt without touching Python.
 
