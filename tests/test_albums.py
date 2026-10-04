@@ -882,7 +882,7 @@ def test_the_album_ceiling_covers_every_wave_of_runs():
 def test_the_wave_count_comes_from_the_settings_it_depends_on():
     assert albums._WAVES == albums._waves(
         albums.settings.MAX_ALBUM_PAGES,
-        albums.settings.VISION_RUNS,
+        albums.settings.VISION_RUNS + vision.MORE_RUNS,
         vision.API_SLOTS,
     )
 

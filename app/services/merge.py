@@ -1,5 +1,7 @@
 """One lecture from several notebooks (task 63): whether two records are
-one lecture, which of them is the base, and what the others add to it.
+one lecture, which of them is the base, and what the others add to it — and,
+between the runs that read one page, what one read and another did not
+(vision.transcribe_consensus, task 65).
 
 The CEO, 2026-10-04: a lecture two people sent is one document, and what
 one notebook lacks the other's sets in at its place, under «Из другого
@@ -203,7 +205,9 @@ def _stream(
     return words, owner, lines
 
 
-def _passages(base: str, other: str) -> list[tuple[int, int, int]]:
+def _passages(
+    base: str, other: str, edges: bool = True
+) -> list[tuple[int, int, int]]:
     """What `other` has and `base` lacks, as (the base paragraph it goes
     after, -1 for the top; the first and the last paragraph of `other` it is
     made of).
@@ -283,6 +287,8 @@ def _passages(base: str, other: str) -> list[tuple[int, int, int]]:
                 passages[-1] = (at, first, index)
                 continue
         passages.append((after[index], index, index))
+    if not edges:
+        return passages
     return [
         passage
         for passage in passages
@@ -316,6 +322,29 @@ def _past_a_line(chunks: list[_Chunk], first: int, last: int) -> bool:
         if k < len(chunks) and chunks[k].kind == "rule":
             return True
     return False
+
+
+def lacking(base: str, other: str) -> list[str]:
+    """What `other` has that `base` does not, where `base` has nothing in its
+    stead — as merged() finds it, the edges of the page included: between two
+    readings of one page, a block past a line is still on the page."""
+    chunks = _chunks(other)
+    return [
+        other[chunks[first].start : chunks[last].end].strip()
+        for _, first, last in _passages(base, other, edges=False)
+    ]
+
+
+def found_in(text: str, block: str) -> float:
+    """How much of `block` is found in `text`, by its runs of letters."""
+    runs_block = _runs(block)
+    if not runs_block:
+        return 0.0
+    return len(runs_block & _runs(text)) / len(runs_block)
+
+
+def word_count(text: str) -> int:
+    return len(_words(text))
 
 
 @dataclass

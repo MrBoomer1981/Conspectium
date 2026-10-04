@@ -381,10 +381,11 @@ def test_the_call_timeout_moves_all_three_ceilings_together():
         return json.loads(result.stdout.strip())
 
     # 30 / 93 / 120 are the three numbers this commit replaced with arithmetic;
-    # the margin was chosen to land back on them. 362 is the one that moves —
-    # upward, which is the direction the album ceiling is allowed to move.
-    assert ceilings("30") == [30, 93, 120, 362]
-    assert ceilings("90") == [90, 273, 354, 1064]
+    # the margin was chosen to land back on them. The album's is the one that
+    # moves — upward, which is the direction it is allowed to move: 362 until a
+    # page could ask for two runs more to read itself whole (task 65).
+    assert ceilings("30") == [30, 93, 120, 604]
+    assert ceilings("90") == [90, 273, 354, 1774]
 
 
 # ── the two knobs on the model call ──────────────────────────────────────────

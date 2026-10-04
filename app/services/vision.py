@@ -27,7 +27,7 @@ from google.genai import types
 from app.core.config import price_per_mtok, settings
 from app.db.models import AiCall
 from app.db.session import async_session_maker
-from app.services import consensus, graphcheck, lectures, mathcheck, pdf
+from app.services import consensus, graphcheck, lectures, mathcheck, merge, pdf
 
 logger = logging.getLogger(__name__)
 
@@ -90,8 +90,25 @@ RUN_WORST_CASE_S = (
 # semaphore slot. 1.3 is the ratio the hand-written 120 s held to 93 s, so the
 # default reproduces the old number exactly; albums.py applies the same margin.
 TIMEOUT_MARGIN = 1.3
-# transcribe_consensus(): guards a run that hangs past its own retries.
+# transcribe_consensus(): guards a run that hangs past its own retries — each
+# wave of runs, and a page that reads further waits for two.
 _CONSENSUS_TIMEOUT_S = int(RUN_WORST_CASE_S * TIMEOUT_MARGIN)
+
+# ── Reading the page whole (task 65) ─────────────────────────────────────────
+# Three runs vote, and two that stopped short of the page's end agree with
+# each other: record 67, one photograph, kept the two runs that read half the
+# page and lost the proof the third had read — the same photograph sent again
+# was read whole by all three. A block one run read and the chosen did not is
+# settled by more runs, never by the one: a block of a page is on it when two
+# runs read it — invention does not write the same block twice.
+#
+# A block worth asking about: a line or two of the page. Fewer words are a word
+# read differently, which the runs' agreement already speaks for.
+_FURTHER_WORDS = 12
+# How many more runs settle it; album ceilings count them (albums._WAVES).
+MORE_RUNS = 2
+# A run carries a block when this much of the block is in its text.
+_CARRIES = 0.6
 
 
 @dataclass
@@ -166,6 +183,11 @@ class TranscriptionResult:
     # decided here, where the runs are compared. Empty for a page one run came
     # back for: one reading agrees with nothing.
     lecture_starts: list[str] = field(default_factory=list)
+    # Runs asked for beyond VISION_RUNS because one run read a block the chosen
+    # one did not, and whether a second run read it too — the reading is then
+    # the runs' that carry it (task 65).
+    runs_added: int = 0
+    read_further: bool = False
 
 
 # ── Parsing ──────────────────────────────────────────────────────────────────
@@ -915,21 +937,18 @@ def _verdict(text_agreement: float, numbers_vouched: bool) -> str:
     return "needs_review" if numbers_vouched else "rejected"
 
 
-async def transcribe_consensus(
-    image_bytes: bytes,
-) -> tuple[TranscriptionResult | None, list[CallStats]]:
-    """settings.VISION_RUNS independent transcribe() calls in parallel, then
-    compared by code. Never touches the database: the returned list carries the
-    stats of every run that finished. Fewer than two successful runs → first
-    element None (the list is then empty only if the 120 s ceiling fired before
-    any run returned).
+async def _runs(
+    image_bytes: bytes, count: int
+) -> tuple[list[Transcription], list[CallStats]]:
+    """`count` independent transcribe() calls in parallel: the readable runs,
+    and the stats of every run that finished.
 
     _CONSENSUS_TIMEOUT_S guards a run that hangs past its own retries. It is
     asyncio.wait, not wait_for: cancelling the whole gather would throw away the
     CallStats of runs that already finished, and those calls were still billed."""
     tasks = [
         asyncio.create_task(transcribe(image_bytes, settings.VISION_MODEL))
-        for _ in range(settings.VISION_RUNS)
+        for _ in range(count)
     ]
     try:
         done, pending = await asyncio.wait(tasks, timeout=_CONSENSUS_TIMEOUT_S)
@@ -937,7 +956,7 @@ async def transcribe_consensus(
             logger.warning(
                 "consensus: %d/%d runs unfinished in %ds",
                 len(pending),
-                settings.VISION_RUNS,
+                count,
                 _CONSENSUS_TIMEOUT_S,
             )
     finally:
@@ -975,7 +994,76 @@ async def transcribe_consensus(
         all_stats.extend(stats)
         if transcription is not None:
             ok_runs.append(transcription)
+    return ok_runs, all_stats
 
+
+def _further(runs: list[Transcription], chosen: int) -> list[str]:
+    """What the other runs read that the chosen one did not, where the chosen
+    has nothing in its stead — it stopped short, not read the line its own
+    way. A block two runs report is asked about once."""
+    blocks: list[str] = []
+    for index, run in enumerate(runs):
+        if index == chosen:
+            continue
+        for block in merge.lacking(runs[chosen].markdown, run.markdown):
+            if merge.word_count(block) < _FURTHER_WORDS:
+                continue
+            if any(merge.found_in(known, block) >= _CARRIES for known in blocks):
+                continue
+            blocks.append(block)
+    return blocks
+
+
+async def _read_whole(
+    image_bytes: bytes, runs: list[Transcription]
+) -> tuple[list[Transcription], int, bool, list[CallStats]]:
+    """The runs to compare, with how many were added and whether the page was
+    read further for them (task 65).
+
+    When a run read a block the chosen one did not, MORE_RUNS more are asked
+    for. A block two runs or more read is on the page, and the comparison is
+    then of the runs that carry it — the ones that stopped short are readings
+    of half a page. A block one run alone read stays out, and so does
+    everything the more runs were asked for: the first comparison stands."""
+    chosen = consensus.pick_representative([run.markdown for run in runs])
+    blocks = _further(runs, chosen)
+    if not blocks:
+        return runs, 0, False, []
+    more, stats = await _runs(image_bytes, MORE_RUNS)
+    every = runs + more
+
+    def carries(run: Transcription, block: str) -> bool:
+        return merge.found_in(run.markdown, block) >= _CARRIES
+
+    confirmed = [b for b in blocks if sum(carries(run, b) for run in every) >= 2]
+    # How much each run read: the runs are not stored, and record 67's could
+    # only be told apart afterwards by the size of their answers.
+    logger.info(
+        "reading further: %d block(s) the chosen run did not read, %d read by "
+        "two runs of %d; words read by each run %s",
+        len(blocks),
+        len(confirmed),
+        len(every),
+        [merge.word_count(run.markdown) for run in every],
+    )
+    if not confirmed:
+        return runs, MORE_RUNS, False, stats
+    whole = [run for run in every if all(carries(run, b) for b in confirmed)]
+    if len(whole) < 2:
+        whole = [run for run in every if carries(run, confirmed[0])]
+    return whole, MORE_RUNS, True, stats
+
+
+async def transcribe_consensus(
+    image_bytes: bytes,
+) -> tuple[TranscriptionResult | None, list[CallStats]]:
+    """settings.VISION_RUNS independent transcribe() calls in parallel, then
+    compared by code — and MORE_RUNS more when one run read a block the
+    chosen one did not (_read_whole). Never touches the database: the
+    returned list carries the stats of every run that finished. No readable
+    run → first element None (the list is then empty only if the ceiling
+    fired before any run returned)."""
+    ok_runs, all_stats = await _runs(image_bytes, settings.VISION_RUNS)
     if not ok_runs:
         return None, all_stats
 
@@ -1001,6 +1089,11 @@ async def transcribe_consensus(
             ),
             all_stats,
         )
+
+    ok_runs, runs_added, read_further, more_stats = await _read_whole(
+        image_bytes, ok_runs
+    )
+    all_stats.extend(more_stats)
 
     markdowns = [t.markdown for t in ok_runs]
     text_agreement = consensus.compare_text(markdowns).similarity
@@ -1043,6 +1136,8 @@ async def transcribe_consensus(
         numeric_divergences=numeric_divergences,
         verdict=verdict,
         lecture_starts=lectures.agreed([t.lecture_starts for t in ok_runs], chosen_index),
+        runs_added=runs_added,
+        read_further=read_further,
     )
     if chosen.lecture_starts:
         logger.info(
@@ -1051,11 +1146,12 @@ async def transcribe_consensus(
             len(result.lecture_starts),
         )
     logger.info(
-        "consensus: %d/%d runs ok, text_agreement=%.3f, "
+        "consensus: %d/%d runs %s, text_agreement=%.3f, "
         "numeric_agreement=%.3f, verdict=%s%s, "
-        "divergences %d of %d kept, uncertain %d of %d kept",
+        "divergences %d of %d kept, uncertain %d of %d kept, words by run %s",
         len(ok_runs),
-        settings.VISION_RUNS,
+        settings.VISION_RUNS + runs_added,
+        "compared, the page read further" if read_further else "ok",
         result.text_agreement,
         result.numeric_agreement,
         result.verdict,
@@ -1066,6 +1162,7 @@ async def transcribe_consensus(
         len(reported),
         len(best.uncertain),
         len(chosen.uncertain),
+        [merge.word_count(markdown) for markdown in markdowns],
     )
     return result, all_stats
 

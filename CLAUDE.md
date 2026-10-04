@@ -272,6 +272,19 @@ arm.
 - **Agreement between independent runs.** Three runs of one short prompt,
   compared by code: trust where they agree, flag where they diverge. It is the
   only uncertainty signal that has proved reliable.
+- **Two runs that stopped short do not outvote one that read the page whole**
+  (task 65, 2026-10-04): record 67, one photograph, kept the half two runs
+  read and lost the proof the third had read; the same photograph sent again
+  was read whole by all three. When a run read a block of a dozen words or
+  more that the chosen run did not, where the chosen has nothing in its stead
+  (`merge.lacking`), two more runs are asked for (`vision.MORE_RUNS`), and a
+  block two runs read is on the page: the comparison is then of the runs that
+  carry it (`vision._read_whole`). A block one run alone read stays out —
+  invention does not write the same block twice. The more runs are part of
+  the page's reading, like a retry: limits were checked before the page, and
+  every call is in `ai_calls`. `note_processed` counts `runs_added` and
+  `read_further`, and the consensus log line the words each run read. →
+  "Record 67, half a page"
 - **Two agreement numbers answer two questions.** `text_agreement` compares
   the markdown, so it moves when a prompt changes how a page is *laid out*
   rather than how it was *read*; it cannot be compared across prompts that
@@ -873,8 +886,8 @@ number never leaves another quietly cutting the work short:
 | `_SOURCE_TIMEOUT_S` | `services/explain.py` | 90 s — one search; up to eight at once, each on a slot |
 | compose's slot | `services/compose.py` | one of the `API_SLOTS`, held for the whole call; after `process_batch`, outside `_ALBUM_TIMEOUT_S` |
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)`, every attempt timing out — 93 s at the default |
-| `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s |
-| `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × `VISION_RUNS` ÷ `API_SLOTS`⌉ — 362 s; raising it is allowed, lowering it is not |
+| `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s, a wave of runs; a page that reads further waits for two |
+| `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × (`VISION_RUNS` + `MORE_RUNS`) ÷ `API_SLOTS`⌉ — 604 s, 362 until a page could read further (task 65); raising it is allowed, lowering it is not |
 | `_QUIET_SECONDS` | `bot/albums.py` | 3 s of silence since the last `announce` closes an album, once every announced page is in |
 | `_COLLECT_MAX_S` | `bot/albums.py` | 60 s from the first page, so a stream that never goes quiet cannot hold a session for ever |
 | `max_overflow` | `db/session.py` | 15 — every page of an album holds a session through the debounce, the winner for the whole album |
@@ -893,7 +906,7 @@ number never leaves another quietly cutting the work short:
   that reached it was working, and waiting again doubles the window in which a
   deploy cancels it. Every attempt is written to `ai_calls`.
 - **Raising `VISION_CALL_TIMEOUT_S` is not linear**: at 90 s the album ceiling
-  is 1064 s. It fires only when calls hang; what it buys is exposure, since any
+  is 1774 s. It fires only when calls hang; what it buys is exposure, since any
   deploy cancels the background task an album runs in.
 - **The group ceilings use `asyncio.wait`, never `wait_for`**, and cancel the
   stragglers in a `finally`: cancelling the group would discard the

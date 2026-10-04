@@ -44,10 +44,11 @@ _POLL_SECONDS = 0.3
 _COLLECT_MAX_S = 60
 
 # Ten pages at three runs each under Semaphore(10) is three waves of one run's
-# worst case. Computed rather than written down: vision's call timeout is a
-# setting now, and a ceiling that did not follow it would cut a slow album
-# short. Normative, not an estimate — the margin is not to be lowered
-# (PLAN.md task 10).
+# worst case — five since a page may ask for two runs more to read itself
+# whole (vision.MORE_RUNS, task 65). Computed rather than written down:
+# vision's call timeout is a setting now, and a ceiling that did not follow it
+# would cut a slow album short. Normative, not an estimate — the margin is not
+# to be lowered (PLAN.md task 10).
 def _waves(pages: int, runs: int, slots: int) -> int:
     """How many times the semaphore fills before every call has been made. A
     function, not an expression, because the rounding only matters when the
@@ -57,7 +58,7 @@ def _waves(pages: int, runs: int, slots: int) -> int:
 
 
 _WAVES = _waves(
-    settings.MAX_ALBUM_PAGES, settings.VISION_RUNS, vision.API_SLOTS
+    settings.MAX_ALBUM_PAGES, settings.VISION_RUNS + vision.MORE_RUNS, vision.API_SLOTS
 )
 _ALBUM_TIMEOUT_S = int(_WAVES * vision.RUN_WORST_CASE_S * vision.TIMEOUT_MARGIN)
 
@@ -251,6 +252,10 @@ class PageResult:
     cutouts: list[figures.Cutout] = field(default_factory=list)
     # Where a lecture begins on the page, as every run read it (task 64).
     lecture_starts: list[str] = field(default_factory=list)
+    # Runs the page asked for to read itself whole, and whether it was read
+    # further for them (task 65).
+    runs_added: int = 0
+    read_further: bool = False
 
     @property
     def ok(self) -> bool:
@@ -417,6 +422,8 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
         photo_contrast=frame.contrast,
         cutouts=cutouts,
         lecture_starts=result.lecture_starts,
+        runs_added=result.runs_added,
+        read_further=result.read_further,
     )
 
 
@@ -453,6 +460,10 @@ class AssembledRecord:
     # the lecture after (task 64); what note_processed reports.
     lecture_head_cut: int = 0
     lecture_tail_cut: int = 0
+    # Runs the pages asked for to read themselves whole, and how many pages
+    # were read further for them (task 65); what note_processed reports.
+    runs_added: int = 0
+    read_further: int = 0
 
 
 @dataclass
@@ -585,6 +596,8 @@ def _assemble(
         drawings=sum(figures.count(p.transcription.markdown) for p in pages_ok),
         lecture_head_cut=head_cut,
         lecture_tail_cut=tail_cut,
+        runs_added=sum(p.runs_added for p in pages_ok),
+        read_further=sum(1 for p in pages_ok if p.read_further),
     )
 
 

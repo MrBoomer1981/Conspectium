@@ -1359,3 +1359,38 @@ beside the cut hides.
 
 **What is left to measure.** A pair of notebooks by two people — the CEO's
 and a classmate's — for the threshold of one lecture and for what is set in.
+
+## Record 67, half a page
+
+**What the CEO saw** (2026-10-04): one photograph sent twice to the test
+group, and the second document "much better and fuller". It was the reading,
+not the bot's boxes. Record 67 holds the top of the page — items в) and г),
+`|x_n − 1| = |1/√n|`, «неверно!» — in 352 characters; record 68, the same
+photograph, the whole of it in 708, the proof that `lim x_n = 1` with its
+boxed `1/ε² < n` included. With the proof read, 68 got an «Идея» over it.
+
+**What the runs left.** The runs are not stored; their calls are. Record 67's
+three answers were 331, 348 and 518 tokens long, record 68's 549, 571 and
+636; 67's numbers agreed at 0.885, 68's at 0.970. The likeliest reading of
+it: two runs stopped short of the page's end, the third read further, and the
+choice by agreement kept one of the two that agreed with each other. Its
+`text_agreement` was 1.00, which does not contradict it: that number compares
+words with the formulas taken out, and the block the third run read is
+formulas. Over every page read since 2026-09-23, 138, one run was 30% longer
+than the other two twice — 09-23 and this one — and 30% shorter five times,
+where the two longer outvoted it as they should.
+
+**What changed** (task 65). A block of twelve words or more one run read and
+the chosen did not, where the chosen has nothing in its stead, brings two
+more runs; a block two runs read is on the page, and the runs that carry it
+are the ones compared. Played with record 67's and 68's texts standing for
+the runs: two short and one whole, the two more whole — the page whole, five
+calls; the two more short too — the half stays, five calls; three whole, or
+two whole and one short — three calls, nothing asked. Records 59–66 and
+44–56, the same albums read again, standing for the runs of a page: two
+triples of nine would have asked — a line one reading had at the page's
+foot.
+
+**What it does not catch.** Three runs that all stop at the same place leave
+nothing to compare. The consensus log line now prints the words each run
+read, so the next such page says which it was.
