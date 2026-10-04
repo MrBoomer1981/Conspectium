@@ -384,6 +384,7 @@ since 2026-10-01.
 | 2026-10-03 | the CEO, with Claude Code | Task 47 done: privacy mode turned off in BotFather by the CEO; `/start` and `/help` carry the button «Добавить в чат группы»; the `/start add` a client sends into the chat is not answered and is counted as `group_invited` ("Contracts"). `CLAUDE.md` → "A group chat". The CEO's track: 60 next | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 63 taken before 60: it needs no material the CEO does not have, while the board's photographs are still to be taken; the CEO's track is 63, 60, 61, 62, then the app | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 63 widened by the CEO: a lecture is a row of its own, and a second notebook of it — a classmate's — joins it, what the base lacks set in at its place under «Из другого конспекта», the group getting the lecture's updated document. Decided by code, no model asked: the same lecture at half of one text found in the other, a passage only where the base has no line of its own — measured on the records in production before it was built, no passage on eighteen pairs of one album read again. The board, the recording and the film will be a lecture's materials as they come | the CEO's own |
+| 2026-10-04 | the CEO, with Claude Code | Task 63's first part built: subjects and lectures as rows (migration `014_subjects_lectures`, named to the CPO before the push), a lecture's day from the caption, the margin or the day sent, and one lecture from several notebooks set in by code. `note_processed` and `note_tagged` gain `lecture_id` and `lecture_joined`, `note_processed` `explain_skipped` ("Contracts"). `CLAUDE.md` → "The corpus" gains "A subject, its lectures, and one lecture from several notebooks", "The document" the passage from another notebook; `BRAND.md` v1.4. Left: the page photographed twice, the earlier lectures in bulk, and a classmate's notebook to measure on | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3819,6 +3820,8 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `compose_retried` | the guards refused the first composition and a second was asked for | the same, over the record | — |
 | `elements`, `elements_dropped` | the teacher's boxes kept, and those a check of code threw away (task 56) | over the record | — |
 | `lecture_head_cut`, `lecture_tail_cut` | — | lines cut off the first page and off the last (task 64) | — |
+| `lecture_id`, `lecture_joined` | the lecture the record was filed into, and whether it had a notebook already — `None`, `false` with no subject (task 63) | the same | the same |
+| `explain_skipped` | stage three not asked: the record joined a lecture whose base is fuller (task 63) | the same | `false` |
 
 **`verdict` for an album** is computed only from successfully processed
 pages: if at least one gives `needs_review`, the result is
@@ -3857,8 +3860,10 @@ The two halves of the one gesture the bot has, and the pair that says whether
 it is being used at all — which is the question the five deleted commands
 could not answer until someone thought to ask the event table.
 
-`note_tagged`: `{"note_id": int, "tag": str}` — the subject the user answered
-with, stored without its "#".
+`note_tagged`: `{"note_id": int, "tag": str, "lecture_id": int,
+"lecture_joined": bool}` — the subject the user answered with, stored without
+its "#", and the lecture the record was filed into: `lecture_joined` when it
+had a notebook already (task 63).
 
 `topic_searched`: `{"tag": str, "found": int}`. The tag is stored for the same
 reason the search query used to be: what a person looks for is the most direct
