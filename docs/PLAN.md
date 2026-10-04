@@ -304,6 +304,9 @@ CEO's, not yet scheduled:
 - [ ] 67. Records kept for the next cohorts: the bot asks a group its
       university, year and programme, so a subject's lectures can serve the
       students after it — the CEO's, a mechanism to think through first
+- [ ] 68. Pages in their order: an album sent out of order is assembled in
+      the order its pages say — their numbers, a sentence across a seam —
+      and in the order sent when they do not say — the CEO's, measured first
 
 ### Why the design comes before the explaining stage
 
@@ -403,6 +406,7 @@ since 2026-10-01.
 | 2026-10-04 | the CEO, with Claude Code | Task 65, from record 67 — one photograph sent twice, its first reading half the page: two runs that stopped short no longer outvote one that read further. A block one run read and the chosen did not brings two more runs; a block two runs read is on the page, and the runs carrying it are compared. `CLAUDE.md` → "What works" gains the rule, "Concurrency ceilings" the album's at 604 s (1774 s at production's 90 s call), raised by two runs a page; `note_processed` gains `runs_added` and `read_further` ("Contracts"). Recognition is the CPO's area | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 66 specified, not scheduled: in a group with topics, every record goes to one topic, «Конспекты», which the bot makes where there is none. The first big group, J3115, added the bot the same day and is divided into topics | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 67 specified as a mechanism to think through: the bot asks a group its university, year and programme, so a subject's records can serve the next cohorts. Its last step is sharing, which "What NOT to do" holds until the app is used — the rule changes first | the CEO's own |
+| 2026-10-04 | the CEO, with Claude Code | Task 68 specified, not scheduled: an album sent with its pages out of order is assembled in the order the pages themselves say — the numbers in their margins, a sentence across a seam, numbering that runs on — decided by code, and in the order sent when the evidence is not one-sided; the bot does it by itself, asking nobody (the CEO: «бот решает»); measured on albums already read before it is built | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3820,6 +3824,62 @@ they were to the group — when the bot knows whose course they are. The CEO,
 
 - No sharing before "What NOT to do" changes.
 - No question in a group chat before the CEO decides how it is asked.
+
+---
+
+# Task 68. Pages in their order
+
+**Owner: the CEO.** Specified on 2026-10-04, not yet scheduled; to be
+measured before it is built. What the chat is told is the CEO's; the order a
+record is assembled in is the album pipeline's, the CPO's, open to the CEO.
+
+## Why
+
+The CEO, 2026-10-04: an album sent with its pages out of order. The record
+is assembled in the order the photos came (`message_id`), so a proof can
+stand before its theorem, and a sentence cut by a page's edge continues
+three pages on. Telegram gives an album's order as the sender picked the
+photos and nothing more: a photo sent as a photo loses the time it was
+taken.
+
+## To think through, then do
+
+1. **What tells the order, by code** — the model is not asked to order
+   pages:
+   - the page's number in its margin, as recognition reads it into
+     `margin_notes` (`texts.byline` already picks page numbers out of them);
+   - a sentence cut at one page's foot and finished at the top of another
+     (`albums._continues` recognises such a seam already);
+   - numbering that runs across pages — «1)», «2)», a theorem's or a
+     section's number, the author's own numbers of formulas;
+   - where a lecture begins — a date, «Лекция N» — on what should be the
+     first page.
+2. **Reordered only when the evidence is one-sided**: page numbers that make
+   one sequence, or seams that chain the pages one way. Contradicting
+   evidence, or none, and the sender's order stands: a wrong reordering is
+   worse than the order the photos came in.
+3. **Where**: after recognition, when each page's text is known, and before
+   assembly (`albums._assemble`) — so seams, the lecture's edges (task 64)
+   and the page photographed twice (task 63) all see the pages in order.
+4. **The bot puts the pages in order by itself**, asking nobody — the
+   CEO, 2026-10-04: «самим», «бот решает». Whether a line under the document says so —
+   «страницы 3 и 2 стояли не по порядку — поставил по номерам на полях» —
+   or nothing does is the CEO's to settle when it is built.
+5. **Measured first**: albums already read, their pages put out of order on
+   purpose, and the share each signal orders back right — and how often a
+   real album's pages carry their numbers at all.
+
+## Acceptance criterion
+
+- An album of the CEO's sent out of order on purpose comes back in order
+  where its pages say so, and in the order sent where they do not.
+- An album sent in order never comes back reordered.
+- The suite is green.
+
+## Don't do
+
+- Don't let a model decide the order.
+- Don't reorder on one weak sign.
 
 ---
 
