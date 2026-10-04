@@ -295,6 +295,16 @@ once that version is used.
 - [ ] 59. Exam preparation: a subject's definitions and theorems in one
       place, by topic, each opening its record at its place — the CEO's
 
+Specified on 2026-10-04, the day the first big group added the bot — the
+CEO's, not yet scheduled:
+
+- [ ] 66. A group's records in a topic of their own: in a group divided into
+      topics, every record goes to one, «Конспекты», which the bot makes
+      where there is none — the CEO's
+- [ ] 67. Records kept for the next cohorts: the bot asks a group its
+      university, year and programme, so a subject's lectures can serve the
+      students after it — the CEO's, a mechanism to think through first
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -343,7 +353,7 @@ Update strictly following this template, adding or removing nothing:
 Done: 1-40, 42-43, 45-47, 51, 55-56
 CEO — current: 65; next: 63's rest, then 60
 CPO — current: none; next: 41
-Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
+Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
 
 ## Plan changes
@@ -391,6 +401,8 @@ since 2026-10-01.
 | 2026-10-04 | the CEO, with Claude Code | Task 63 widened by the CEO: a lecture is a row of its own, and a second notebook of it — a classmate's — joins it, what the base lacks set in at its place under «Из другого конспекта», the group getting the lecture's updated document. Decided by code, no model asked: the same lecture at half of one text found in the other, a passage only where the base has no line of its own — measured on the records in production before it was built, no passage on eighteen pairs of one album read again. The board, the recording and the film will be a lecture's materials as they come | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 63's first part built: subjects and lectures as rows (migration `014_subjects_lectures`, named to the CPO before the push), a lecture's day from the caption, the margin or the day sent, and one lecture from several notebooks set in by code. `note_processed` and `note_tagged` gain `lecture_id` and `lecture_joined`, `note_processed` `explain_skipped` ("Contracts"). `CLAUDE.md` → "The corpus" gains "A subject, its lectures, and one lecture from several notebooks", "The document" the passage from another notebook; `BRAND.md` v1.4. Left: the page photographed twice, the earlier lectures in bulk, and a classmate's notebook to measure on | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 65, from record 67 — one photograph sent twice, its first reading half the page: two runs that stopped short no longer outvote one that read further. A block one run read and the chosen did not brings two more runs; a block two runs read is on the page, and the runs carrying it are compared. `CLAUDE.md` → "What works" gains the rule, "Concurrency ceilings" the album's at 604 s (1774 s at production's 90 s call), raised by two runs a page; `note_processed` gains `runs_added` and `read_further` ("Contracts"). Recognition is the CPO's area | the CEO's own |
+| 2026-10-04 | the CEO, with Claude Code | Task 66 specified, not scheduled: in a group with topics, every record goes to one topic, «Конспекты», which the bot makes where there is none. The first big group, J3115, added the bot the same day and is divided into topics | the CEO's own |
+| 2026-10-04 | the CEO, with Claude Code | Task 67 specified as a mechanism to think through: the bot asks a group its university, year and programme, so a subject's records can serve the next cohorts. Its last step is sharing, which "What NOT to do" holds until the app is used — the rule changes first | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3713,6 +3725,101 @@ not mark yet.
   marked as the bot's when it comes.
 - No spaced repetition yet: it is built on this page's material once the
   page is used.
+
+---
+
+# Task 66. A group's records in a topic of their own
+
+**Owner: the CEO.** Specified on 2026-10-04, not yet scheduled. What the bot
+does in a chat is the CEO's; the column it needs is the CPO's schema, open to
+the CEO, its migration named to the CPO before the push.
+
+## Why
+
+The first big group, J3115, added the bot on 2026-10-04, and it is divided
+into topics — Telegram's forum, several chats in one group. A record goes
+today wherever its pages were posted, so a course's records would scatter
+across its topics among everything else said there. The CEO: one topic,
+«Конспекты», holds every record of the group.
+
+## Do
+
+1. **The topic**: in a group with topics (`is_forum`), the bot keeps the one
+   it posts records to (`groups.records_topic_id`) and makes «Конспекты»
+   itself (`createForumTopic`). That needs the right to manage topics, so in
+   such a group the bot is an admin with it, and says so once when it is
+   not, as the welcome does for privacy mode. The Bot API cannot list a
+   chat's topics: a «Конспекты» made before the bot came is found from its
+   creation notice if the bot saw it, or named by an admin from inside it —
+   decided when built.
+2. **Every record of the group goes there**, whichever topic its pages came
+   from; where the pages were posted, the bot answers one line pointing at
+   the record.
+3. **A "#word" search**: whether the document found goes to «Конспекты» or
+   to the topic the search was typed in — the CEO's to decide when built.
+4. **The topic deleted or closed by the chat**: the bot makes it again, or
+   answers where the pages came from — decided when built.
+5. A group without topics works as today.
+6. `CLAUDE.md` → "A group chat"; `PLAN.md` → "Contracts".
+
+## Acceptance criterion
+
+- In a group with topics, a page sent with its "#word" in any topic comes
+  back as a record in «Конспекты», with one line where it was posted.
+- A group without topics works as before.
+- The suite is green.
+
+## Don't do
+
+- Nothing in «Конспекты» but the records and what the bot says of them.
+- No topic beyond that one.
+
+---
+
+# Task 67. Records kept for the next cohorts
+
+**Owner: the CEO.** Specified on 2026-10-04 as a mechanism to think through
+before anything is built: what the bot asks, when and whom, what it keeps,
+and how a later cohort reaches the records. The schema is the CPO's, open to
+the CEO.
+
+## Why
+
+A course is taught every year, and next year's students of the same
+programme study the same subjects. A group's records are worth to them what
+they were to the group — when the bot knows whose course they are. The CEO,
+2026-10-04: the bot asks — «ВУЗ, курс, направление».
+
+## To think through
+
+1. **Whom and when the bot asks.** A group is never asked today
+   (`CLAUDE.md` → "A group chat"): a course chat is mostly memes. The person
+   who added the bot, in a private chat right after it joined — Telegram
+   says who did — or once in the group, with buttons.
+2. **What it keeps**: the university, the programme, the year of study and
+   the year it was asked in — so the third year of 2026 is the cohort that
+   began in 2024, which next year's third year is not.
+3. **Words typed differently**: «МГУ» and «МГУ им. Ломоносова», «ПМИ» and
+   «Прикладная математика и информатика» — a list to choose from, or free
+   text matched later.
+4. **How a later cohort reaches the records**: the same programme at the
+   same university, the subjects it shares — in the app (phase F), with the
+   earlier group's consent. That is sharing, which "What NOT to do" holds
+   until the app's first version is used: the rule changes, with its date,
+   before this is built.
+5. **A record of an earlier cohort in a document**: marked as such — the
+   lecture of 2025, not this year's.
+
+## Acceptance criterion
+
+- The mechanism agreed with the CEO and written here: the questions, when
+  and to whom, the columns, how a later cohort finds the records, and the
+  consent.
+
+## Don't do
+
+- No sharing before "What NOT to do" changes.
+- No question in a group chat before the CEO decides how it is asked.
 
 ---
 
