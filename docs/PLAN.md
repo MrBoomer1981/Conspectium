@@ -263,11 +263,16 @@ recording and its film become records as its notebook does, and a subject
 becomes its lectures in the order they were given, the earlier ones
 included. "Where this is going, decided 2026-10-02" says why.
 
+- [ ] 65. A page read whole: two runs that stopped short of the page's end
+      no longer outvote one that read it — the CEO's. Taken on 2026-10-04
+      from record 67, between 63's parts
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
       the CEO's. Taken first on 2026-10-04: it needs no material the CEO
-      does not have, and the board's photographs are still to be taken
+      does not have, and the board's photographs are still to be taken.
+      Its first part shipped the same day; the rest waits for a
+      classmate's notebook to measure on
 - [ ] 60. A board photographed: a frame check and a reading of its own,
       measured on real boards — the CEO's
 - [ ] 61. A lecture recorded: the bot's notes from what was said, marked as
@@ -336,7 +341,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56
-CEO — current: 63; next: 60
+CEO — current: 65; next: 63's rest, then 60
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -385,6 +390,7 @@ since 2026-10-01.
 | 2026-10-04 | the CEO, with Claude Code | Task 63 taken before 60: it needs no material the CEO does not have, while the board's photographs are still to be taken; the CEO's track is 63, 60, 61, 62, then the app | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 63 widened by the CEO: a lecture is a row of its own, and a second notebook of it — a classmate's — joins it, what the base lacks set in at its place under «Из другого конспекта», the group getting the lecture's updated document. Decided by code, no model asked: the same lecture at half of one text found in the other, a passage only where the base has no line of its own — measured on the records in production before it was built, no passage on eighteen pairs of one album read again. The board, the recording and the film will be a lecture's materials as they come | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 63's first part built: subjects and lectures as rows (migration `014_subjects_lectures`, named to the CPO before the push), a lecture's day from the caption, the margin or the day sent, and one lecture from several notebooks set in by code. `note_processed` and `note_tagged` gain `lecture_id` and `lecture_joined`, `note_processed` `explain_skipped` ("Contracts"). `CLAUDE.md` → "The corpus" gains "A subject, its lectures, and one lecture from several notebooks", "The document" the passage from another notebook; `BRAND.md` v1.4. Left: the page photographed twice, the earlier lectures in bulk, and a classmate's notebook to measure on | the CEO's own |
+| 2026-10-04 | the CEO, with Claude Code | Task 65, from record 67 — one photograph sent twice, its first reading half the page: two runs that stopped short no longer outvote one that read further. A block one run read and the chosen did not brings two more runs; a block two runs read is on the page, and the runs carrying it are compared. `CLAUDE.md` → "What works" gains the rule, "Concurrency ceilings" the album's at 604 s (1774 s at production's 90 s call), raised by two runs a page; `note_processed` gains `runs_added` and `read_further` ("Contracts"). Recognition is the CPO's area | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -429,8 +435,8 @@ The CEO's decisions of that day:
   limits it needs are the CPO's area, open to the CEO since 2026-10-01,
   each migration named to the CPO before it is pushed.
 
-The CEO's track: 55, 56, 47, 63, 60, 61, 62, 57, 58, 59; 52 when 41 is in —
-63 taken before 60 on 2026-10-04.
+The CEO's track: 55, 56, 47, 63, 65, 60, 61, 62, 57, 58, 59; 52 when 41 is
+in — 63 taken before 60 on 2026-10-04, and 65 the same day from record 67.
 
 ## Where this is going, decided 2026-09-30
 
@@ -3384,6 +3390,56 @@ stills.
 
 ---
 
+# Task 65. A page read whole
+
+**Owner: the CEO.** Taken on 2026-10-04, from record 67. Recognition is the
+CPO's area, open to the CEO since 2026-10-01.
+
+## Why
+
+The CEO sent one photograph twice, and the second document was "much better
+and fuller". It was the reading: record 67 holds the top half of the page,
+record 68 the whole of it, the proof under the line included. Three runs
+vote by agreement, and two that stop short at one place agree with each
+other perfectly: the third, which read further, is outvoted. Over the 138
+pages read since 2026-09-23 that happened twice; the five times one run
+stopped short alone, the other two outvoted it, as they should.
+`FINDINGS.md` → "Record 67, half a page".
+
+## Do
+
+1. **A block the chosen run did not read**: what another run has and the
+   chosen lacks, where the chosen has nothing in its stead — a dozen words
+   or more, merge.py's alignment, the page's edges included.
+2. **Two more runs settle it**: a block two runs read is on the page, and
+   the runs that carry it are the ones compared — the agreement, the
+   numbers, the chosen reading. A block one run alone read stays out, and
+   the first comparison stands: invention does not write the same block
+   twice.
+3. The more runs are the page's reading, like a retry: the limits were
+   checked before the page; every call is in `ai_calls`. The album ceiling
+   counts them.
+4. `note_processed` counts `runs_added` and `read_further`; the consensus
+   log line prints the words each run read.
+5. `CLAUDE.md` → "What works", "Concurrency ceilings".
+
+## Acceptance criterion
+
+- Records 67's and 68's texts standing for the runs: two short and one
+  whole, with the two more whole, give the page whole; with the two more
+  short, the half stays; three whole ask for nothing.
+- A page the CEO sends again comes back whole, or its log line says the
+  three runs stopped at one place — which this does not catch.
+- The suite is green.
+
+## Don't do
+
+- Don't take a block only one run read.
+- Don't ask for more runs on every page: only where the runs disagree on
+  how much of it there is.
+
+---
+
 # Task 63. The subject's base: every lecture in its place
 
 **Owner: the CEO.** Taken before 60 on 2026-10-04 — it needs no material
@@ -3822,6 +3878,7 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `lecture_head_cut`, `lecture_tail_cut` | — | lines cut off the first page and off the last (task 64) | — |
 | `lecture_id`, `lecture_joined` | the lecture the record was filed into, and whether it had a notebook already — `None`, `false` with no subject (task 63) | the same | the same |
 | `explain_skipped` | stage three not asked: the record joined a lecture whose base is fuller (task 63) | the same | `false` |
+| `runs_added`, `read_further` | runs asked for beyond the three because one read a block the chosen did not, and whether a second run read it and the page was read further (task 65) | summed over the pages; `read_further` the pages read further | — |
 
 **`verdict` for an album** is computed only from successfully processed
 pages: if at least one gives `needs_review`, the result is
