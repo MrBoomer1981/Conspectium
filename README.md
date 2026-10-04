@@ -27,7 +27,7 @@ Telegram-бот для учебной группы. Студент фотогр�
 |---|---|---|
 | Что бот говорит и делает в чате: тексты, команды, кнопки, подключение к группе, что бот слышит в группе | CEO | `app/bot/texts.py`, ответы в `app/bot/handlers.py` и `app/bot/corpus.py`, `middlewares.heard` |
 | Документ группы: вёрстка PDF, шрифты, фирменный вид, отчёт по предмету | CEO | `docs/BRAND.md`, `app/services/pdf.py`, `app/assets/fonts/` |
-| Предметы и поиск по «#слову» как опыт пользователя | CEO | `app/bot/corpus.py`, `app/bot/tags.py` |
+| Предметы, лекции и поиск по «#слову» как опыт пользователя; одна лекция из конспектов нескольких человек | CEO | `app/bot/corpus.py`, `app/bot/tags.py`, `app/bot/subjects.py`, `app/services/merge.py` |
 | База данных: схема, миграции, запросы, транзакции, масштаб | CPO | `app/db/`, `app/core/events.py`, сессии в `app/bot/middlewares.py` |
 | Модель: распознавание, промпты, выбор и настройки, оформление и пояснения, замеры | CPO | `app/services/vision.py`, `compose.py`, `explain.py`, `prompts/`, `docs/FINDINGS.md` |
 | Конвейер фото и проверки кодом: кадр, сжатие, сверка прогонов, вычисления, матрицы, альбомы, `.docx` | CPO | `photoguard.py`, `images.py`, `consensus.py`, `mathcheck.py`, `graphcheck.py`, `docx.py`, `app/bot/albums.py`, шаги конвейера в `handlers.py` |

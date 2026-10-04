@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -80,6 +81,59 @@ class GroupPage(Base):
     height: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class Subject(Base):
+    """A chat's subject: its "#word" made a row (task 63), which the chat's
+    lectures belong to. Owned like a record — by its group, or in a private
+    chat by its user — and one word is one subject in a chat, so two updates
+    that file under a new word at once make one row, not two."""
+
+    __tablename__ = "subjects"
+    __table_args__ = (
+        Index(
+            "ix_subjects_group_word", "group_id", "word", unique=True,
+            postgresql_where=text("group_id IS NOT NULL"),
+            sqlite_where=text("group_id IS NOT NULL"),
+        ),
+        Index(
+            "ix_subjects_user_word", "user_id", "word", unique=True,
+            postgresql_where=text("group_id IS NULL"),
+            sqlite_where=text("group_id IS NULL"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id"))
+    # NULL for a group's subject: the group owns it, whoever filed first.
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    word: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class Lecture(Base):
+    """One class of a subject on one day (task 63). Every material of it
+    points here — a notebook now; a board, a recording, the teacher's files
+    as they come — and its document is the fullest notebook with what the
+    others add (merge.py).
+
+    `given_on` is the day it was given, not sent, and `date_source` says how
+    that is known: "caption" — the sender wrote it; "page" — the margin named
+    it; "sent" — neither did, and the day the pages came stands for it. A
+    better source that comes with a later notebook replaces a worse one."""
+
+    __tablename__ = "lectures"
+    __table_args__ = (Index("ix_lectures_subject_given", "subject_id", "given_on"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    subject_id: Mapped[int] = mapped_column(ForeignKey("subjects.id"))
+    given_on: Mapped[date] = mapped_column(Date)
+    date_source: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )
 
 
@@ -173,6 +227,10 @@ class Note(Base):
     # search. A record made in a group always has one — the tag is what makes
     # the bot take a photo there at all.
     tag: Mapped[str | None] = mapped_column(String, index=True)
+    # The subject and the lecture the record was filed into (task 63), set
+    # together with `tag` and only by subjects.file; NULL while it has none.
+    subject_id: Mapped[int | None] = mapped_column(ForeignKey("subjects.id"), index=True)
+    lecture_id: Mapped[int | None] = mapped_column(ForeignKey("lectures.id"), index=True)
     photo_sharpness: Mapped[float | None] = mapped_column(Float)
     photo_line_height: Mapped[float | None] = mapped_column(Float)
     photo_paper_fraction: Mapped[float | None] = mapped_column(Float)

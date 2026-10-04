@@ -1297,3 +1297,65 @@ counted $0.73 with the search-query fee, which is not billed under 5,000
 queries a month — their tokens, a few cents — written to `ai_calls` against
 the CEO.
 
+
+## One lecture from several notebooks
+
+**What was asked for** (the CEO, 2026-10-04): a lecture two people sent is
+one document, and what one notebook lacks the other's sets in at its place.
+Task 63 does it by code over the records' text. Before anything was built it
+was measured on the 66 records in production, which hold the same albums read
+many times: records 59, 60 and 62–66 are one album on the Bolzano–Weierstrass
+theorem, read whole or in part seven times; 46–49 one practice, 50–53 one
+lecture; 44, 55 and 56 one page of olympiad problems; the group's 54 and 61
+one page sent twice three days apart.
+
+**Which text is one lecture.** The share of one text's five-letter runs
+found in the other, the larger of the two ways, with drawings' descriptions
+left out: 0.70 to 1.00 on eighteen pairs of one album read again, 0.02 to
+0.40 on fifteen pairs of different lectures — the highest, 0.40, a page on
+the limit of a sequence against the lecture that defines it in a metric
+space. 0.5 separates them. Records 45 and 46, listed at first among
+different lectures, came out at 0.83: one practice of 25.09, its album sent
+twice. Two notebooks of one lecture by two people were not there to measure,
+and they will agree less than one notebook with itself.
+
+**What another notebook adds, three tries.**
+
+- *By paragraph, a passage where the base had nothing close*: thirteen false
+  passages on the eighteen pairs at the loosest threshold — one line read two
+  ways, «A = (0, 2) ∪ {5} …» against «A = ((0, 2) ∖ …», looked missing from
+  both.
+- *By paragraph, set in only between two neighbours the base has side by
+  side*: no false passage, and five chunks cut from one reading came back from
+  the other only 10 to 20 times in 60. A reading breaks a page into paragraphs
+  its own way: record 64's one paragraph stood against two of 62's, the
+  neighbour was lost, and the cut stayed cut.
+- *Word by word*: the two texts aligned by the runs of three words or more
+  they share in order. A gap in the other notebook is set in only where the
+  base, in the same gap, has no line of its own — half a line's words or more
+  — and not when the base already carries it elsewhere, in a table or in
+  another order (record 46 has «4x³/x = 4x²» inside its long division, 47 on
+  lines of their own). A drawing's description, with up to seven words of
+  labels beside it, is the reading's words and never a passage; nor is a
+  heading without what it heads.
+
+**Two failures the word-by-word rule still had, found on the documents.**
+Record 64 read «покажем радиус [неразборчиво] носителя шарик» where 62 read
+«покажем рецепт как найти шарик»: one line, but in a long paragraph of 64's
+it was under half the paragraph's words, and 62's line went in as missing.
+A base's own line is judged by the line since. And 62 carries
+«A = ((0, 2) ∖ …» after the author's wavy line at its end — the next
+lecture's first line, record 62's tail of 2026-10-02 — which 59 rightly
+lacks: what a notebook carries past a line drawn across the page at its
+first or last edge is not set in. A page seam is such a line too, so a last
+page the base lacks is lost with it; the base then stays as it was, which is
+better than a lecture that is not its own.
+
+**With both rules**, no passage on the eighteen pairs; and five chunks cut
+from one reading at random places, sixty times over ten pairs, came back
+whole from the other reading 33 times and in part 13. What does not come
+back is what the base still has elsewhere in other words, or what a variant
+beside the cut hides.
+
+**What is left to measure.** A pair of notebooks by two people — the CEO's
+and a classmate's — for the threshold of one lecture and for what is set in.

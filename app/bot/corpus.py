@@ -36,10 +36,10 @@ from aiogram.types import (
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import middlewares, tags, texts
+from app.bot import middlewares, subjects, tags, texts
 from app.core.events import log_event
-from app.db.models import Group, Note, NoteFigure, NoteTopic, User
-from app.services import explain, graphcheck, pdf, vision
+from app.db.models import Group, Lecture, Note, NoteFigure, NoteTopic, User
+from app.services import explain, graphcheck, merge, pdf, vision
 
 logger = logging.getLogger(__name__)
 
@@ -343,12 +343,13 @@ async def _bot_username(message: Message) -> str:
         return ""
 
 
-def _page(note: Note, bot_username: str) -> pdf.Page:
+def _page(note: Note, bot_username: str, given_on: date | None = None) -> pdf.Page:
     """What every page of the record carries besides it: its subject and day
-    at the head, the invitation and the bot's name at the foot."""
+    at the head — the day its lecture was given, when it is filed into one —
+    the invitation and the bot's name at the foot."""
     return pdf.Page(
         subject=texts.pdf_subject(note.tag),
-        date=texts.pdf_date(note.created_at),
+        date=texts.pdf_date(given_on or note.created_at),
         page_word=texts.PDF_PAGE_WORD,
         invite=texts.PDF_INVITE,
         bot_username=bot_username,
@@ -365,23 +366,65 @@ async def figures_of(session: AsyncSession, note_id: int) -> dict[int, bytes]:
     return {number: png for number, png in rows}
 
 
+# What _anchored compares a remark's anchor by: without spaces, dollars and
+# the stars of bold.
+_SQUASH_RE = re.compile(r"[\s$*]+")
+
+
+def _squash(text: str) -> str:
+    return _SQUASH_RE.sub("", text).lower()
+
+
+async def _lecture(session: AsyncSession, note: Note) -> tuple[Lecture | None, list[Note]]:
+    """The lecture a record is filed into, and its notebooks — the record
+    alone when it has no lecture."""
+    if note.lecture_id is None:
+        return None, [note]
+    lecture = await session.get(Lecture, note.lecture_id)
+    notes = await subjects.materials(session, note.lecture_id)
+    return lecture, notes or [note]
+
+
 async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -> bool:
-    """Send one record as a PDF. Returns False if it could not be built, so the
-    caller can fall back to plain text — a record is never worth losing over
-    its presentation."""
-    page = _page(note, await _bot_username(message))
-    drawings = await figures_of(session, note.id)
+    """Send one record as a PDF — or, when the record is one notebook of a
+    lecture that has several, the lecture's document: the fullest notebook,
+    with what the others add set in at its place (task 63). Returns False if
+    it could not be built, so the caller can fall back to plain text — a
+    record is never worth losing over its presentation."""
+    lecture, notes = await _lecture(session, note)
+    base = subjects.base_of(notes)
+    others = [other for other in notes if other.id != base.id]
+    markdown = base.markdown
+    remarks = _remarks(base)
+    if others:
+        merged = merge.merged(
+            base.markdown, [other.markdown for other in others], texts.INSERT_LABEL
+        )
+        markdown = merged.markdown
+        # A finding of another notebook goes with the passage it is about,
+        # and with nothing the passage left out.
+        for other, passages in zip(others, merged.passages):
+            set_in = _squash(" ".join(passages))
+            remarks += [
+                remark
+                for remark in _remarks(other)
+                if len(_squash(remark.anchor)) >= 3 and _squash(remark.anchor) in set_in
+            ]
+    page = _page(
+        base, await _bot_username(message), lecture.given_on if lecture else None
+    )
+    drawings = await figures_of(session, base.id)
     try:
         # Drawing formulas is CPU-bound; the webhook must not stall on it.
         data = await asyncio.to_thread(
             pdf.render,
-            note.title,
-            note.markdown,
-            callouts=_callouts(note),
-            byline=texts.byline(note.margin_notes),
-            remarks=_remarks(note),
-            explanations=_explanations(note),
-            summary=_summary(note),
+            base.title,
+            markdown,
+            callouts=_callouts(base),
+            byline=texts.byline(base.margin_notes),
+            remarks=remarks,
+            explanations=_explanations(base),
+            summary=_summary(base),
             page=page,
             figures=drawings,
         )
@@ -389,9 +432,12 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
         logger.exception("could not build a PDF for note %s", note.id)
         return False
 
+    caption = texts.record_caption(base.id, base.page_count)
+    if others:
+        caption = texts.lecture_caption(caption, len(notes))
     await message.answer_document(
-        BufferedInputFile(data, filename=pdf_filename(note.id, note.title)),
-        caption=texts.record_caption(note.id, note.page_count),
+        BufferedInputFile(data, filename=pdf_filename(base.id, base.title)),
+        caption=caption,
     )
     return True
 
@@ -525,11 +571,25 @@ async def on_tag(
     if group is None:
         newest = await _newest(session, user)
         if newest is not None and newest.tag is None:
-            newest.tag = tag
+            filing = await subjects.file(session, newest, tag)
             await log_event(
-                session, user.id, "note_tagged", {"note_id": newest.id, "tag": tag}
+                session,
+                user.id,
+                "note_tagged",
+                {
+                    "note_id": newest.id,
+                    "tag": tag,
+                    "lecture_id": filing.lecture.id,
+                    "lecture_joined": filing.joined,
+                },
             )
-            await message.answer(texts.tagged(tag))
+            if filing.joined:
+                # A notebook of a lecture already here: the lecture's
+                # document, with what this one adds, and a line saying so.
+                await send_record(message, session, newest)
+                await message.answer(await joined_line(session, newest, filing))
+                return
+            await message.answer(texts.tagged(tag, filing.lecture.given_on))
             return
 
     found = await _matching(session, user, group, tag)
@@ -549,6 +609,8 @@ async def on_tag(
                 texts.nothing_tagged(tag, await known_tags(session, user))
             )
         return
+    # Several notebooks of one lecture are one answer: its document.
+    found = _one_per_lecture(found)
     if len(found) == 1:
         # One match is the answer itself, not a line about the answer.
         await send_record(message, session, found[0])
@@ -556,11 +618,25 @@ async def on_tag(
     await message.answer(texts.several_tagged(tag, await _listing(session, found)))
 
 
+def _one_per_lecture(notes: list[Note]) -> list[Note]:
+    seen: set[int] = set()
+    kept: list[Note] = []
+    for note in notes:
+        if note.lecture_id is not None:
+            if note.lecture_id in seen:
+                continue
+            seen.add(note.lecture_id)
+        kept.append(note)
+    return kept
+
+
 async def _listing(
     session: AsyncSession, notes: list[Note]
 ) -> list[tuple[str, list[str]]]:
     """Each record with its own topics, so the list can be acted on: the next
-    message is expected to be one of them."""
+    message is expected to be one of them. A record filed into a lecture
+    carries the lecture's day, and the list reads in the order the lectures
+    were given (task 63)."""
     rows = (
         await session.execute(
             select(NoteTopic.note_id, NoteTopic.topic)
@@ -571,8 +647,44 @@ async def _listing(
     by_note: dict[int, list[str]] = {}
     for note_id, topic in rows:
         by_note.setdefault(note_id, []).append(topic)
+    lecture_ids = [n.lecture_id for n in notes if n.lecture_id is not None]
+    days: dict[int, date] = {}
+    if lecture_ids:
+        days = dict(
+            (
+                await session.execute(
+                    select(Lecture.id, Lecture.given_on).where(Lecture.id.in_(lecture_ids))
+                )
+            ).all()
+        )
+
+    def day(note: Note) -> date | None:
+        return days.get(note.lecture_id) if note.lecture_id is not None else None
+
+    ordered = sorted(notes, key=lambda n: (day(n) or _utc_date(n.created_at), n.id))
     # The title as characters: a chat message cannot draw "$2^{1001}$".
-    return [(pdf.plain(n.title), by_note.get(n.id, [])) for n in notes]
+    return [
+        (texts.listed(pdf.plain(n.title), day(n)), by_note.get(n.id, []))
+        for n in ordered
+    ]
+
+
+async def joined_line(session: AsyncSession, note: Note, filing: subjects.Filing) -> str:
+    """What is said under a lecture's document when a notebook joined it:
+    what this notebook added to it, or that it became its base."""
+    notes = await subjects.materials(session, filing.lecture.id)
+    base = subjects.base_of(notes)
+    others = [other for other in notes if other.id != base.id]
+    merged = merge.merged(
+        base.markdown, [other.markdown for other in others], texts.INSERT_LABEL
+    )
+    if base.id == note.id:
+        from_others = sum(len(passages) for passages in merged.passages)
+        return texts.lecture_led(note.tag, filing.lecture.given_on, from_others)
+    own = next(
+        (len(p) for other, p in zip(others, merged.passages) if other.id == note.id), 0
+    )
+    return texts.lecture_added(note.tag, filing.lecture.given_on, own)
 
 
 async def ask_for_tag(
@@ -581,6 +693,7 @@ async def ask_for_tag(
     user: User,
     note: Note,
     group: Group | None = None,
+    filing: subjects.Filing | None = None,
 ) -> None:
     """Store the record's topics and ask which subject it belongs to — unless
     the photo came with it, and then say where it was filed.
@@ -592,7 +705,11 @@ async def ask_for_tag(
     """
     topics = await save_topics(session, note)
     if note.tag is not None:
-        await message.answer(texts.filed(note.tag, topics))
+        if filing is not None and filing.joined:
+            await message.answer(await joined_line(session, note, filing))
+            return
+        given_on = filing.lecture.given_on if filing is not None else None
+        await message.answer(texts.filed(note.tag, topics, given_on))
         return
     await message.answer(
         texts.ask_tag(topics, await known_tags(session, user, group))

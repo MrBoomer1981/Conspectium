@@ -64,6 +64,9 @@ ELEMENT_LABELS = {
 # The record summed up, first in the document as the guide's "Суть": its name,
 # then whose words these are.
 SUMMARY_LABEL = "Суть · составлено ботом по тексту записи"
+# Over a passage another notebook of the same lecture adds to its document
+# (task 63) — the CEO's words, 2026-10-04.
+INSERT_LABEL = "Из другого конспекта"
 SOURCES_LABEL = "Источники"
 
 
@@ -221,19 +224,59 @@ def ask_tag(topics: list[str], known: list[str]) -> str:
     return "\n".join(lines)
 
 
-def tagged(tag: str) -> str:
-    return f"Сохранил под #{tag}. Чтобы найти — пришли #{tag} или название темы."
+def _lecture_day(given_on: date) -> str:
+    return given_on.strftime("%d.%m")
 
 
-def filed(tag: str, topics: list[str]) -> str:
+def _filed_under(tag: str, given_on: date | None) -> str:
+    """"Сохранил под #матан — лекция от 03.10": the day the record stands at
+    in its subject (task 63), so a lecture sent late without its date is seen
+    standing at the wrong one."""
+    if given_on is None:
+        return f"Сохранил под #{tag}."
+    return f"Сохранил под #{tag} — лекция от {_lecture_day(given_on)}."
+
+
+def tagged(tag: str, given_on: date | None = None) -> str:
+    return f"{_filed_under(tag, given_on)} Чтобы найти — пришли #{tag} или название темы."
+
+
+def filed(tag: str, topics: list[str], given_on: date | None = None) -> str:
     """Said instead of the question when the photo came with its subject. The
     topics are still shown, and for the same reason as under the question:
     they are what the record will be found by, and in a group they are how
     the others learn what to type."""
-    lines = [f"Сохранил под #{tag}. Найти: #{tag} или тема записи."]
+    lines = [f"{_filed_under(tag, given_on)} Найти: #{tag} или тема записи."]
     if topics:
         lines += ["", "Темы этой записи: " + " ".join("#" + t for t in topics)]
     return "\n".join(lines)
+
+
+def _passages(n: int) -> str:
+    return f"{n} {_plural(n, 'вставка', 'вставки', 'вставок')}"
+
+
+def lecture_added(tag: str, given_on: date, added: int) -> str:
+    """Under the lecture's document when a notebook joined a lecture already
+    there and is not its base (task 63)."""
+    head = f"Это лекция от {_lecture_day(given_on)} — она уже есть в #{tag}."
+    if added:
+        return f"{head} Дополнил её этим конспектом: {_passages(added)} в документе."
+    return f"{head} Нового в этом конспекте не нашлось — документ прежний."
+
+
+def lecture_led(tag: str, given_on: date, from_others: int) -> str:
+    """Under the lecture's document when the notebook that joined is fuller
+    than the one it had, and is its base now."""
+    head = f"Это лекция от {_lecture_day(given_on)} — она уже есть в #{tag}."
+    tail = f", из прежнего — {_passages(from_others)}" if from_others else ""
+    return f"{head} Этот конспект полнее — теперь документ собран по нему{tail}."
+
+
+def listed(title: str, given_on: date | None) -> str:
+    """A record in a list of several, with its lecture's day when it is
+    filed into one."""
+    return f"{_lecture_day(given_on)} · {title}" if given_on else title
 
 
 def nothing_tagged(tag: str, known: list[str]) -> str:
@@ -427,6 +470,12 @@ def record_caption(note_id: int, page_count: int) -> str:
     return f"#{note_id} · {pages}"
 
 
+def lecture_caption(caption: str, notebooks: int) -> str:
+    """The line under a lecture's document: its base's, and how many
+    notebooks it was drawn from (task 63)."""
+    return f"{caption} · {notebooks} {_plural(notebooks, 'конспект', 'конспекта', 'конспектов')}"
+
+
 # What may stand under a record's title: whose lecture, which day, which page —
 # all that rule 8 of the prompt asks for. What the margin held on real pages
 # was mostly not that: the notebook's own print ("DATE", "BRAUBERG®"), a
@@ -474,12 +523,13 @@ PDF_PAGE_WORD = "стр."
 PDF_INVITE = "Сделай такой конспект своей группе"
 
 
-def pdf_date(created_at: datetime) -> str:
-    """The record's day, in the head of every page. Facts only: the grey line
-    under the title that carried the date used to end in "нужна проверка" on
-    a record the runs had disagreed about — a doubt about the reading that
-    told nobody what to check."""
-    return created_at.strftime("%d.%m.%Y")
+def pdf_date(day: date | datetime) -> str:
+    """The record's day, in the head of every page: the day its lecture was
+    given when it is filed into one (task 63), else the day it was made.
+    Facts only: the grey line under the title that carried the date used to
+    end in "нужна проверка" on a record the runs had disagreed about — a
+    doubt about the reading that told nobody what to check."""
+    return day.strftime("%d.%m.%Y")
 
 
 def pdf_subject(tag: str | None) -> str:

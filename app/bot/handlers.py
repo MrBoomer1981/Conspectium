@@ -20,7 +20,7 @@ from aiogram.types import ChatMemberUpdated, Message
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, middlewares, tags, texts
+from app.bot import albums, corpus, middlewares, subjects, tags, texts
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, GroupPage, Note, NoteFigure, User
@@ -183,6 +183,7 @@ async def handle_photo(
                 width=page.width,
                 height=page.height,
                 tag=tag,
+                caption=message.caption,
                 file_id=page.file_id,
             ),
         )
@@ -206,7 +207,8 @@ async def handle_photo(
         images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
     )
     await _read_photo(
-        message, session, user, group, tag, original, compressed, page, source_key
+        message, session, user, group, tag, original, compressed, page, source_key,
+        caption=message.caption,
     )
 
 
@@ -220,10 +222,12 @@ async def _read_photo(
     compressed: bytes,
     page: middlewares.PageFile,
     source_key: str | None,
+    caption: str | None = None,
 ) -> None:
     """Steps 4-17 for one page: a page sent with its subject, or a page
     somebody else sent that a reply called the bot on. The answers go under
-    `message`, and `user` is who pays for the reading."""
+    `message`, and `user` is who pays for the reading; `caption` may carry
+    the lecture's day."""
     group_id = group.id if group is not None else None
     await log_event(
         session,
@@ -349,13 +353,23 @@ async def _read_photo(
     # text stored are one text.
     markdown, placed = figures.place(composition.markdown, cutouts)
 
+    # The lecture this page is a notebook of, if its subject has it already
+    # (task 63): a notebook that will only add to another is not explained —
+    # its lecture's document carries the base's explanations.
+    joining = None
+    if tag is not None:
+        joining = await subjects.joining(
+            session, group_id, user.id, tag, markdown, result.best.margin_notes, caption
+        )
+    explain_skipped = joining is not None and not joining.leads
+
     # Step 12b: stage three, what the bot adds of its own — hard places
     # explained, each with the sources the search gave, and the record summed
     # up. Over the composed text and never the photograph, stored apart from
     # the author's text and printed as the bot's. Rule 6 again: a third call
     # is still a call, and the kill switch and the cost cap decide first.
     explaining = explain.Explaining()
-    if await limits.check_limits(session, user, pages=0) is None:
+    if not explain_skipped and await limits.check_limits(session, user, pages=0) is None:
         explaining = await explain.explain(markdown)
         await vision.log_ai_calls(user.id, explaining.stats)
 
@@ -392,6 +406,13 @@ async def _read_photo(
         photo_contrast=photo_verdict.contrast,
     )
     session.add(note)
+    filing = (
+        await subjects.file(
+            session, note, tag, caption, joining.lecture if joining else None
+        )
+        if tag is not None
+        else None
+    )
 
     # Step 14: debit the daily page quota, now that the record is saved.
     await limits.consume(session, user, pages=1)
@@ -422,6 +443,7 @@ async def _read_photo(
             "summary_refused": explaining.summary_refused,
             "drawings": figures.count(result.best.markdown),
             "figures": len(placed),
+            **_filing_payload(filing, explain_skipped),
             "latency_ms": int((time.monotonic() - started) * 1000),
             "cost_usd": vision.total_cost(stats + composition.stats + explaining.stats),
         },
@@ -441,7 +463,7 @@ async def _read_photo(
 
     # Step 17: which subject does this belong to. Last, so the question is
     # what the user is looking at when they reply.
-    await corpus.ask_for_tag(message, session, user, note, group)
+    await corpus.ask_for_tag(message, session, user, note, group, filing)
 
 
 @router.message(F.document)
@@ -517,6 +539,11 @@ async def handle_document(
         photo_contrast=None,
     )
     session.add(note)
+    filing = (
+        await subjects.file(session, note, tag, message.caption)
+        if tag is not None
+        else None
+    )
 
     await log_event(
         session,
@@ -526,6 +553,7 @@ async def handle_document(
             "verdict": "clean",
             "page_count": 1,
             "source_type": "docx",
+            **_filing_payload(filing, False),
             "latency_ms": extract_ms,
             "cost_usd": None,  # no model call
         },
@@ -534,7 +562,7 @@ async def handle_document(
 
     await session.flush()  # note.id, for the file name and the caption
     await corpus.send_record(message, session, note)
-    await corpus.ask_for_tag(message, session, user, note, group)
+    await corpus.ask_for_tag(message, session, user, note, group, filing)
 
 
 async def _keep_figures(
@@ -691,6 +719,7 @@ async def _process_album(
     if group is not None and tag is None:
         return
     group_id = group.id if group is not None else None
+    caption = albums.caption_of(pages)
 
     if len(pages) > settings.MAX_ALBUM_PAGES:
         # A shape-of-request check, so it comes before the spend check: an
@@ -794,9 +823,18 @@ async def _process_album(
     # the record — after composing, which never saw them.
     markdown, placed = figures.place(composition.markdown, rec.cutouts)
 
+    # The lecture this album is a notebook of, as for a photo (task 63).
+    joining = None
+    if tag is not None:
+        joining = await subjects.joining(
+            session, group_id, user.id, tag, markdown, rec.margin_notes, caption,
+            len(rec.missing_pages),
+        )
+    explain_skipped = joining is not None and not joining.leads
+
     # Stage three once over the whole record too, for the same reason.
     explaining = explain.Explaining()
-    if await limits.check_limits(session, user, pages=0) is None:
+    if not explain_skipped and await limits.check_limits(session, user, pages=0) is None:
         explaining = await explain.explain(markdown)
         await vision.log_ai_calls(user.id, explaining.stats)
 
@@ -831,6 +869,13 @@ async def _process_album(
         photo_contrast=rec.photo_contrast,
     )
     session.add(note)
+    filing = (
+        await subjects.file(
+            session, note, tag, caption, joining.lecture if joining else None
+        )
+        if tag is not None
+        else None
+    )
 
     await limits.consume(session, user, pages=rec.page_count)
 
@@ -865,6 +910,7 @@ async def _process_album(
             "lecture_head_cut": rec.lecture_head_cut,
             "lecture_tail_cut": rec.lecture_tail_cut,
             "figures": len(placed),
+            **_filing_payload(filing, explain_skipped),
             "latency_ms": int((time.monotonic() - started) * 1000),
             "cost_usd": vision.total_cost(
                 outcome.stats + composition.stats + explaining.stats
@@ -885,7 +931,18 @@ async def _process_album(
             texts.album_partial([(p.page, p.skip_reason) for p in outcome.skips])
         )
 
-    await corpus.ask_for_tag(message, session, user, note, group)
+    await corpus.ask_for_tag(message, session, user, note, group, filing)
+
+
+def _filing_payload(filing: subjects.Filing | None, explain_skipped: bool) -> dict:
+    """What `note_processed` says of where the record was filed (task 63):
+    its lecture, whether that lecture had a notebook already, and whether
+    explaining was skipped because this one only adds to it."""
+    return {
+        "lecture_id": filing.lecture.id if filing is not None else None,
+        "lecture_joined": filing.joined if filing is not None else False,
+        "explain_skipped": explain_skipped,
+    }
 
 
 @router.message(F.text, middlewares.is_summon)

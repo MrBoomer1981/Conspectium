@@ -80,6 +80,9 @@ class PageInput:
     # The "#word" in this page's caption. Telegram puts an album's caption on
     # one page only, so most pages carry None; see tag_of.
     tag: str | None = None
+    # The caption itself, for the lecture's date written in it — "#матан
+    # 12.09" (task 63); see caption_of.
+    caption: str | None = None
     file_id: str | None = None
 
 
@@ -90,6 +93,15 @@ def tag_of(pages: list[PageInput]) -> str | None:
     for page in sorted(pages, key=lambda p: p.message_id):
         if page.tag:
             return page.tag
+    return None
+
+
+def caption_of(pages: list[PageInput]) -> str | None:
+    """The caption an album was sent with — the first in page order, the one
+    tag_of reads its subject from."""
+    for page in sorted(pages, key=lambda p: p.message_id):
+        if page.caption:
+            return page.caption
     return None
 
 

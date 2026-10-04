@@ -183,7 +183,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `013_note_figures`, the head. The next is `014_`.
+  `014_subjects_lectures`, the head. The next is `015_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -620,6 +620,48 @@ than silence. → "Numbers the agreement could not see"
   `/pdf` were built, tested, deployed, never used once, and deleted. `/stats`
   stays beside `/start` and `/help`.
 
+### A subject, its lectures, and one lecture from several notebooks
+
+- **A subject is a row, and so is a lecture** (task 63, 2026-10-04):
+  `subjects` — a chat's "#word", owned as a record is — and `lectures` — one
+  class of it on the day it was given. Every material of the class points at
+  its lecture; a board, a recording or the teacher's files will as they come.
+  `subjects.file` files a record — `Note.tag`, `subject_id`, `lecture_id`
+  together, and nothing else writes them; the search still reads the tag.
+  A word new to a chat that two albums bring at once makes one subject: the
+  loser fetches the winner's row, as for a user.
+- **A lecture's day is the day it was given** (`subjects.day_of`): the
+  caption's ("#матан 12.09"), else the margin's when it names one day and only
+  one — a page ending one lecture and beginning the next names two — else the
+  day the pages came; a later notebook that knows it better moves it. The head
+  of the document carries it, and a "#word" lists lectures in its order.
+- **Two notebooks of one lecture are one lecture, decided by code**
+  (`merge.same_lecture`): the same subject, a day within a week — never two
+  different days both written down — and half of one text found in the
+  other. One album read again agreed at 0.70–1.00, different lectures of a
+  course at 0.40 at most. Unsure, a lecture of its own: two documents are
+  better than one mixed. → "One lecture from several notebooks"
+- **The base is the fullest notebook** (`subjects.base_of`), and what another
+  adds goes in **only where the base has nothing in its stead**
+  (`merge.merged`): aligned word by word — never by paragraph, which two
+  readings break differently — a line the base read its own way is a variant,
+  judged by the line, and the base stays: the bot never chooses between two
+  readings and says nothing about them. Nor goes in what the base already has
+  elsewhere, a drawing's description, a heading alone, or what the other
+  notebook carries past a line across the page at its edge — the next lecture
+  begun as often as this one's last page. A model never merges notebooks: the
+  text of a lecture is what its authors wrote.
+- **The group gets the lecture's document** — the base with every passage
+  set in under «Из другого конспекта» — and a line saying the lecture was
+  there (`texts.lecture_added`, `lecture_led`), the CEO's decisions of
+  2026-10-04. A notebook that joins a lecture whose base is fuller is not
+  explained (`subjects.joining`, before stage three): the document carries
+  the base's explanations. `note_processed` and `note_tagged` say where a
+  record went (`lecture_id`, `lecture_joined`, `explain_skipped`).
+- **Not yet built**: the page photographed twice at the edges of two albums,
+  and the earlier lectures added in bulk beyond what a caption's date already
+  allows — `docs/PLAN.md` → task 63.
+
 ### A group chat
 
 - **A record made in a group belongs to the chat** (`notes.group_id`); its
@@ -801,6 +843,15 @@ separate call over the trusted text, stored apart, printed as the bot's —
 never the call that reads the photo, where "the main points" of a bad shot is
 the fluent retelling itself.
 
+**A passage from another notebook is the lecture's text, marked as set in**
+(task 63): `merge.merged` writes it between `pdf.inserted`'s lines into the
+text it hands to render, never into a stored record. Drawn at the column's
+full width, so its formulas and tables are the base's, with a kraft line in
+the margin beside it and its label over it in the grey ink; unnumbered — the
+numbers are the base's, and an explanation points at them. A finding of the
+other notebook stands under its passage; its explanations and summary are
+not the document's.
+
 **A sentence that ran over a page edge is joined by code**
 (`albums._continues`) only when both sides are ordinary prose, the first half
 unfinished and the second in lower case: joining two things that were not one
@@ -931,7 +982,8 @@ app/
     texts.py          every user-facing message, and the command list
     middlewares.py    session, user and group; group chatter dropped; what a page is
     albums.py         the album buffer and its assembly
-    corpus.py         tags, search, a record as a file, scoped to its chat
+    corpus.py         tags, search, a record or its lecture as a file, scoped to its chat
+    subjects.py       a chat's subjects and lectures: where a record is filed, its day
     tags.py           what a #tag is, and a record's topics
   services/
     vision.py         recognition: the prompt, three runs, parsing, the agreements
@@ -940,6 +992,7 @@ app/
     pdf.py            a record as a PDF
     figures.py        drawings cut out of the page, placed back after composing
     lectures.py       where a lecture begins on a page; one lecture a record
+    merge.py          one lecture from several notebooks: which is one, what each adds
     images.py         compression
     limits.py         spend limits
     docx.py           .docx → markdown, no model call

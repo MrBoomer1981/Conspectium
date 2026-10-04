@@ -206,6 +206,13 @@ _ADDED_TONE = _INK
 # The line beside a definition, the author's own text: the guide's amber.
 _DEFINITION_BAR = _AMBER
 _BAR_PT = 3.0
+# A passage another notebook of the lecture adds (task 63) is the lecture's
+# text, not a box beside it: it keeps the column's width, so its formulas and
+# tables are drawn as the base's are, and a kraft line in the margin beside
+# it, its label over it in the grey ink, says it was set in.
+_INSERT_BAR = _KRAFT
+_INSERT_LABEL = _MUTED
+_INSERT_BAR_GAP = 10.0
 
 # ── Drawings ─────────────────────────────────────────────────────────────────
 # Three of them still fit across the reference's narrower column at full size.
@@ -244,6 +251,11 @@ _NUMBERED_RE = re.compile(r"^\s*(\d{1,2}[.)])\s+(\S.*)$")
 # The seam _assemble writes between two pages of an album, and the wavy line
 # an author draws across a page, which record 62 printed as "~~~".
 _RULE_RE = re.compile(r"^(?:-{3,}|\*{3,}|_{3,}|~{3,})$")
+# A passage another notebook of the same lecture adds (task 63): a line
+# "⟦+ label⟧" opens it and "⟦+⟧" closes it. Never in a stored record —
+# merge.merged writes them into the text it hands to render, and nowhere else.
+_INSERT_CLOSE = "⟦+⟧"
+_INSERT_OPEN_RE = re.compile(r"^⟦\+\s*(.+?)⟧$")
 # A markdown table row, and the "|---|:--|" line that marks the row above it
 # as a header rather than data.
 _ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
@@ -380,7 +392,7 @@ class Page:
 @dataclass
 class Block:
     # heading | bullet | text | math | note | framed | gap | rule | table |
-    # graph | picture
+    # graph | picture | inserted | inserted_end
     kind: str
     text: str = ""
     level: int = 0
@@ -730,6 +742,17 @@ def blocks(markdown: str) -> list[Block]:
             index += 1
             continue
 
+        # Where a passage from another notebook begins and ends (task 63).
+        if stripped == _INSERT_CLOSE:
+            out.append(Block("inserted_end"))
+            index += 1
+            continue
+        opened = _INSERT_OPEN_RE.match(stripped)
+        if opened:
+            out.append(Block("inserted", opened.group(1)))
+            index += 1
+            continue
+
         display = _display_lines(lines, index)
         if display is not None:
             formulas, index = display
@@ -944,6 +967,12 @@ def as_formula(fragment: str) -> str:
     if not _CYRILLIC_RE.search(text) and _LATEX_HINT_RE.search(text):
         return f"${text}$"
     return _BARE_COMMAND_RE.sub(lambda found: f"${found.group()}$", fragment)
+
+
+def inserted(label: str, markdown: str) -> str:
+    """A passage from another notebook of the lecture, marked for render to
+    set it apart under `label` (task 63)."""
+    return f"⟦+ {label}⟧\n{markdown.strip()}\n{_INSERT_CLOSE}"
 
 
 # ── Rendering ────────────────────────────────────────────────────────────────
@@ -2163,6 +2192,45 @@ class _Label(Flowable):
         self.canv.restoreState()
 
 
+class _Inserted(Flowable):
+    """One flowable of a passage from another notebook, with the line in the
+    margin beside it (task 63). The flowable keeps the column's full width,
+    and one split across two pages takes its line to both."""
+
+    def __init__(self, child):
+        super().__init__()
+        self.child = child
+
+    def wrap(self, available_width, available_height):
+        width, height = self.child.wrap(available_width, available_height)
+        self._column = available_width
+        self._width = width
+        # The space the child asks for above and below it is drawn inside,
+        # so the line runs on through it.
+        self._above = self.child.getSpaceBefore()
+        self._below = self.child.getSpaceAfter()
+        self.height = height + self._above + self._below
+        return available_width, self.height
+
+    def split(self, available_width, available_height):
+        parts = self.child.split(available_width, available_height)
+        return [_Inserted(part) for part in parts]
+
+    def draw(self):
+        align = str(getattr(self.child, "hAlign", "LEFT")).upper()
+        x = 0.0
+        if align in ("CENTER", "CENTRE"):
+            x = (self._column - self._width) / 2
+        elif align == "RIGHT":
+            x = self._column - self._width
+        self.child.drawOn(self.canv, x, self._below)
+        self.canv.saveState()
+        self.canv.setStrokeColor(colors.HexColor(_INSERT_BAR))
+        self.canv.setLineWidth(_BAR_PT)
+        self.canv.line(-_INSERT_BAR_GAP, 0, -_INSERT_BAR_GAP, self.height)
+        self.canv.restoreState()
+
+
 def _box(
     label: str,
     lines: list[str],
@@ -2770,10 +2838,12 @@ def _flowables(
         rank = _rank(block.level, top_level)
         style = styles[f"heading{rank}"]
         markup = _line_markup(block.text, formulas, style.fontSize)
-        if rank == 1:
+        number = next(sections) if rank == 1 else None
+        if number is not None:
             # The guide numbers a lecture's sections through the whole
-            # record, "01", "02", in the monospace and the dark amber.
-            number = next(sections)
+            # record, "01", "02", in the monospace and the dark amber —
+            # the base's sections only: a passage from another notebook
+            # draws its heading unnumbered (task 63).
             markup = (
                 f'<font face="{_MONO_BOLD_FONT}" color="{_DARK_AMBER}" '
                 f'size="{style.fontSize * 0.82:.1f}">{number:02d}</font>'
@@ -3273,8 +3343,11 @@ def render(
         # The number each numbered block will carry, known before the loop so
         # an explanation anchored on "(3)" finds the unit that holds it.
         numbered: dict[int, int] = {}
+        inside = False
         for block in parsed:
-            if _is_numbered(block):
+            if block.kind in ("inserted", "inserted_end"):
+                inside = block.kind == "inserted"
+            elif _is_numbered(block) and not inside:
                 numbered[id(block)] = len(numbered) + 1
         previous: str | None = None
         paragraph_break = False
@@ -3293,15 +3366,41 @@ def render(
         # whole record, and so are its sections.
         numbers = itertools.count(1)
         sections = itertools.count(1)
+        # Inside a passage from another notebook (task 63) nothing is
+        # numbered: the numbers are the base's, an explanation points at
+        # them, and a passage set in before one would move them all.
+        inserting = False
+        unnumbered = itertools.repeat(None)
+
+        def mark(flowable):
+            return _Inserted(flowable) if inserting else flowable
+
         index = 0
         while index < len(parsed):
             if parsed[index].kind == "gap":
                 paragraph_break = True
                 index += 1
                 continue
+            if parsed[index].kind in ("inserted", "inserted_end"):
+                story.extend(held)
+                held = []
+                inserting = parsed[index].kind == "inserted"
+                if inserting:
+                    # The label is held like a heading: never the last line
+                    # of a page with its passage on the next.
+                    story.append(Spacer(1, _SET_APART_GAP))
+                    held = [_Inserted(_Label(parsed[index].text, _INSERT_LABEL))]
+                    previous = None
+                else:
+                    previous = "box"
+                paragraph_break = False
+                index += 1
+                continue
 
             members, index, flowables, kind = _unit(
-                parsed, index, formulas, styles, top_level, numbers, sections
+                parsed, index, formulas, styles, top_level,
+                unnumbered if inserting else numbers,
+                unnumbered if inserting else sections,
             )
             space = _space_before(previous, kind, paragraph_break)
             paragraph_break = False
@@ -3331,14 +3430,14 @@ def render(
                 # After the findings: first what is wrong with the line, then
                 # what the bot has to add to it.
                 group += [Spacer(1, 6), _explanation(item, formulas, styles)]
-            group = lead + group
+            group = [mark(flowable) for flowable in lead + group]
             attached = attached + explained
 
             if held:
-                group = held + ([Spacer(1, space)] if space else []) + group
+                group = held + ([mark(Spacer(1, space))] if space else []) + group
                 held = []
             elif space:
-                story.append(Spacer(1, space))
+                story.append(mark(Spacer(1, space)))
 
             previous = "box" if attached else kind
             if kind == "heading":
