@@ -266,10 +266,15 @@ included. "Where this is going, decided 2026-10-02" says why.
 - [ ] 65. A page read whole: two runs that stopped short of the page's end
       no longer outvote one that read it — the CEO's. Taken on 2026-10-04
       from record 67, between 63's parts
-- [ ] 69. What record 74 showed: formulas spaced apart and set in a serif,
+- [x] 69. What record 74 showed: formulas spaced apart and set in a serif,
       trees drawn as tangles, «[зачёркнуто]» printed, a page of one word,
       and the author's shorthand spelled out by the composer — the CEO's.
-      Taken on 2026-10-06 from record 74, the records' quality first
+      Taken on 2026-10-06 from record 74, closed on the CEO's word the same
+      day
+- [ ] 70. A record rated: «Хорошо» and «Плохо» under every document, and
+      the reader's own words on where the error is — the CEO's. Taken on
+      2026-10-06, so the records' quality is read off the groups rather than
+      found one record at a time
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -357,8 +362,8 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-40, 42-43, 45-47, 51, 55-56
-CEO — current: 69, 65; next: 63's rest, then 60
+Done: 1-40, 42-43, 45-47, 51, 55-56, 69
+CEO — current: 70; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -414,6 +419,8 @@ since 2026-10-01.
 | 2026-10-04 | the CEO, with Claude Code | The repository tidied: `CLAUDE.md` → "Structure" lists `prompts-explain-source-v1.md`, kept though unused, and says why — every prompt stays in `prompts/` once used, since a record does not say which made it. Nothing tracked was removed | the CEO's own |
 | 2026-10-06 | the CEO, with Claude Code | Task 69, from record 74: formulas spaced apart and in a serif, trees drawn as tangles, «[зачёркнуто]» printed, a page of one word — the document's, fixed in `pdf.py`, stored records included. And the CEO's decision of the day: the author's shorthand is spelled out by the composer (`prompts-compose-v4.md`, rule 10), where its «слова оставляй как есть» held every word — the lecture's own abbreviations, formulas and numbers left as written. Production switches to v4 after it is measured on record 74's album sent again. The composing prompt is the CPO's area | the CEO's own |
 | 2026-10-06 | the CEO, with Claude Code | The lecture as structured material — set out by topic, with sections such as «Объяснение», «Ключевые понятия», «Почему?», «Примеры и применение» — specified as the CEO's idea and archived to the backlog the same day: the CEO judged that it does not move the project's result. Nothing scheduled moves | the CEO's own |
+| 2026-10-06 | the CEO, with Claude Code | Task 69 closed on the CEO's word, the day it shipped: v4's measurement on record 74's album and the photographs' comparison left undone. 65 waits for data | the CEO's own |
+| 2026-10-06 | the CEO, with Claude Code | Task 70 taken: «Хорошо» and «Плохо» under every document, «Плохо» asking where the error is, the reply stored and sent to the CEO (`FEEDBACK_CHAT_ID`) — so faults are read off the groups. A table `feedback` (migration `015_feedback`, the CPO's area — named to the CPO before it is pushed); callback queries get a session; in a group a reply to the bot's own message is heard. Events `note_rated` and `note_feedback` in "Contracts" | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3944,6 +3951,16 @@ Record 74 went out on 2026-10-05 with:
 7. `CLAUDE.md` → "Stage two" and "The document"; `BRAND.md` v1.5;
    `FINDINGS.md` → "Record 74, a lecture on trees".
 
+## Closed, 2026-10-06
+
+On the CEO's word, the day it shipped: the document's faults fixed and
+deployed (`58dfca6`), stored records drawn by them too; `prompts-compose-v4.md`
+shipped, its switch on production's `COMPOSE_PROMPT_FILE` the CEO's, and the
+startup log says which composer runs. What was not done: the shorthand under
+v4 is not measured on record 74's album, and the lines cut short and the
+extra edge were not compared with the photographs — task 70's reviews are
+where such faults are to be found from now on.
+
 ## Acceptance criterion
 
 - Record 74 drawn again, as a "#word" brings it back after the deploy: «ρ⁻(v)»
@@ -3965,6 +3982,73 @@ Record 74 went out on 2026-10-05 with:
 - Mind task 63 while v3 and v4 both stand in the corpus: two notebooks of
   one lecture are matched by the words they share (`merge.same_lecture`),
   and one composed under v4 shares fewer with one composed under v3.
+
+---
+
+# Task 70. A record rated, and where its error is
+
+**Owner: the CEO.** Taken on 2026-10-06. What the chat says is the CEO's;
+the table is a migration, `015_feedback`, in the CPO's area, open to the
+CEO and named to the CPO before it is pushed.
+
+## Why
+
+The CEO, 2026-10-06: two buttons under the document, «хорошо» or «плохо»,
+and a place to write — «чтобы могли быстрее собирать качество работы», and
+«чтобы мы могли реально видеть, где ошибка в конспекте». Every fault fixed
+so far was found by the CEO reading a record against its photographs, one
+record at a time (55, 69); the groups read every record and say nothing,
+and the event table cannot tell a record that was read from one that was
+wrong.
+
+## Do
+
+1. **Two buttons under every document the bot sends** — «Хорошо» and
+   «Плохо», on the PDF itself, or on the last message of the plain text it
+   falls back to; a record a "#word" brings back carries them too. Words,
+   no emoji: the chat stays plain text. A button names the record the
+   document is drawn from (`rate:good:<id>`, `rate:bad:<id>`).
+2. **A press is stored**: a row of `feedback` — the record, who, the group,
+   the rating, the reader's words, the chat and the bot's question — one a
+   person a record: a second press changes the rating. `note_rated`
+   ("Contracts"). «Хорошо» is thanked in the button's own notice and adds
+   nothing to the chat.
+3. **«Плохо» asks where**: the bot answers in the chat «что не так в
+   конспекте №N?» — in a group naming the reader, with Telegram's reply
+   field opened for them alone (`ForceReply`, selective) — and asks for the
+   page, the line or the formula and what it should be.
+4. **The answer is a reply to that question**, found by its message in the
+   `feedback` rows, nothing kept in the process: its text — or a photo's
+   caption, a screenshot of the error — goes into the row, and the bot
+   thanks for it. `note_feedback` ("Contracts").
+5. **Straight to the CEO**: `FEEDBACK_CHAT_ID`, unset by default — every
+   «Плохо» and every answer is sent there at once: which record, which
+   chat, who, and the document itself copied, then the reader's message
+   copied. A failure to send there is logged and never reaches the reader.
+6. **What lets it through**: callback queries get a session like messages
+   (`DbSessionMiddleware`, the group read off the message the button is
+   on); in a group `middlewares.heard` lets through a text that replies to
+   the bot's own message, and a reply that answers no question of the
+   bot's gets no answer. The feedback router stands before the corpus's: a
+   reply to the bot's question is feedback whatever it says.
+7. `CLAUDE.md` → the middleware, "A group chat", the routers, "Environment
+   variables", the revision ids; a section on feedback.
+
+## Acceptance criterion
+
+- In a private chat and in a group: a record's «Хорошо» and «Плохо» are
+  stored, one a person, changed by a second press; «Плохо» asks, and the
+  reply is stored with the row and sent to `FEEDBACK_CHAT_ID` with the
+  document.
+- A restart between the question and the reply loses nothing.
+- The suite is green.
+
+## Don't do
+
+- No form, no web page, no score shown to the group: two buttons and a
+  reply.
+- Don't keep the question in the process: the row is the state.
+- Don't ask «что не так» after «Хорошо».
 
 ---
 
@@ -4209,6 +4293,20 @@ pages was already made in the chat and was sent again, nothing spent.
 `album_unknown`: the bot never saw that album whole, or saw it more than seven
 days ago, and asked for it again with its subject. `no_tag`: the reply named
 the bot without a subject and got a hint.
+
+## Events `note_rated` and `note_feedback`
+
+Task 70. `note_rated` is written on every press of «Хорошо» or «Плохо»
+under a document; `note_feedback` when a reply to the bot's question «что
+не так» comes in. The reader's words are in `feedback.text`, never in an
+event.
+
+    note_rated     {"note_id": 74, "rating": "bad", "changed": false}
+    note_feedback  {"note_id": 74, "chars": 58, "photo": false}
+
+`changed`: the person had rated the record before and pressed the other
+button. `chars`: the length of what they wrote, a caption included;
+`photo`: the reply carried a photo, a screenshot of the error.
 
 ## The group an event happened in
 
