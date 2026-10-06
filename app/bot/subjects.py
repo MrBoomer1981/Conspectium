@@ -63,10 +63,19 @@ class Filing:
     materials: int
 
 
-def _day(found: re.Match, sent: date) -> date | None:
-    """A day as the caption or the margin wrote it. Without its year, the
-    latest such day not after the day the pages came: in January a lecture of
-    "12.12" was last December's."""
+def _day(found: re.Match, sent: date, page: bool = False) -> date | None:
+    """A day as the caption or the margin wrote it.
+
+    The caption is the sender's: a year it names is the year, and without one
+    the latest such day not after the day the pages came — in January a
+    lecture of "12.12" was last December's.
+
+    A margin's day is a reading of the page, and a lecture cannot have been
+    given after its notebook was photographed: a day the margin names after
+    the pages came — a day's grace for the timezone — dates nothing. Taken
+    for last year's, «10 ноября» on a notebook sent on 6 October 2026 headed
+    record 79's document 10.11.2025 (task 71). Last year's notebook is dated
+    by its caption."""
     numeric_day, numeric_month, numeric_year, worded_day, month_name, worded_year = (
         found.groups()
     )
@@ -79,10 +88,14 @@ def _day(found: re.Match, sent: date) -> date | None:
     try:
         if year:
             value = int(year)
-            return date(value + 2000 if value < 100 else value, month, day)
-        given = date(sent.year, month, day)
+            given = date(value + 2000 if value < 100 else value, month, day)
+        else:
+            given = date(sent.year, month, day)
         if given > sent + timedelta(days=1):
-            given = date(sent.year - 1, month, day)
+            if page:
+                return None
+            if not year:
+                given = date(sent.year - 1, month, day)
         return given
     except ValueError:
         return None  # "31.02", or a number that only looks like a day
@@ -103,7 +116,7 @@ def day_of(caption: str | None, margin_notes: list, sent: date) -> Day:
     for note in margin_notes or []:
         for part in _MARGIN_SEPARATOR_RE.split(str(note).strip()):
             found = _DAY_ALONE_RE.match(part)
-            given = _day(found, sent) if found else None
+            given = _day(found, sent, page=True) if found else None
             if given is not None:
                 days.add(given)
     if len(days) == 1:

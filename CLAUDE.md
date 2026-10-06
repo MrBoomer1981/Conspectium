@@ -183,7 +183,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `015_feedback`, the head. The next is `016_`.
+  `016_lecture_days`, the head. The next is `017_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -660,7 +660,12 @@ than silence. → "Numbers the agreement could not see"
   caption's ("#матан 12.09"), else the margin's when it names one day and only
   one — a page ending one lecture and beginning the next names two — else the
   day the pages came; a later notebook that knows it better moves it. The head
-  of the document carries it, and a "#word" lists lectures in its order.
+  of the document carries it, and a "#word" lists lectures in its order. A
+  margin's day after the day the pages came — a day's grace for the timezone
+  — dates nothing: a lecture cannot have been given after its notebook was
+  photographed, and taken for last year's, record 79's «10 ноября» headed its
+  document 10.11.2025 (task 71). Last year's notebook is dated by its
+  caption, which keeps its year. → "Record 79, dated a year back"
 - **Two notebooks of one lecture are one lecture, decided by code**
   (`merge.same_lecture`): the same subject, a day within a week — never two
   different days both written down — and half of one text found in the

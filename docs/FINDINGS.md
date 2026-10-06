@@ -1457,3 +1457,30 @@ measured.
 **Left as it is**: the explanation of «центральная вершина» opens «В
 конспекте запись оборвана» — it speaks of the record, and it is the one
 place the definition stands whole.
+
+## Record 79, dated a year back
+
+**The CEO's look**, 2026-10-06: «бот маркирует все 2025 годом». Record 79,
+«Теорема о полноте ℝⁿ», sent on 6 October 2026, its margin read as «10
+ноября · 19»: the document headed 10.11.2025 on every page, the byline
+under its title «10 ноября · 19». `subjects.day_of` took a margin's day
+without a year as the latest such day not after the pages came — the rule
+for a caption, where in January "12.12" is last December's — and a day in
+November, a month after the pages came, became last year's. Its topic — a
+space's completeness, Cauchy's criterion, infinitely small sequences —
+follows records 67 and 68's limit of a sequence, sent on 4 October: a
+lecture of this semester, its margin a misreading or a day the author noted
+for something else. The page is not kept, so which is not known.
+
+A lecture cannot have been given after its notebook was photographed, so a
+margin's day after the pages came dates nothing now, and the lecture takes
+the day it was sent. A year the margin writes is kept; the caption keeps its
+own rule, the sender having typed it. The lectures filed by the old rule are
+read again from their margins by `016_lecture_days` — the chain from
+`001_users_events` run on an embedded PostgreSQL with a lecture of each
+kind: record 79's to the day sent, a past margin day, a margin's own year
+and a caption's last-year day kept, a lecture of two notebooks whose second
+had moved it a year back returned to the first's day.
+
+Not settled: whether the model ever writes a year the page does not — the
+CEO's «все» may hold records this one does not show.
