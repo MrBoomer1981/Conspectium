@@ -42,7 +42,9 @@ class _Message:
     async def answer(self, text: str, reply_markup=None) -> None:
         self.replies.append(text)
 
-    async def answer_document(self, document, caption: str | None = None) -> None:
+    async def answer_document(
+        self, document, caption: str | None = None, reply_markup=None
+    ) -> None:
         self.documents.append((document.filename, document.data, caption))
 
 

@@ -206,7 +206,7 @@ class _AlbumMessage:
     async def answer(self, text: str) -> None:
         self.replies.append(text)
 
-    async def answer_document(self, document, caption=None) -> None:
+    async def answer_document(self, document, caption=None, reply_markup=None) -> None:
         self.documents.append(document)
 
 

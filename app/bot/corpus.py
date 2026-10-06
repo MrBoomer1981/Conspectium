@@ -36,7 +36,7 @@ from aiogram.types import (
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import middlewares, subjects, tags, texts
+from app.bot import feedback, middlewares, subjects, tags, texts
 from app.core.events import log_event
 from app.db.models import Group, Lecture, Note, NoteFigure, NoteTopic, User
 from app.services import explain, graphcheck, merge, pdf, vision
@@ -438,18 +438,24 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
     await message.answer_document(
         BufferedInputFile(data, filename=pdf_filename(base.id, base.title)),
         caption=caption,
+        # «Хорошо» and «Плохо» on the document itself (task 70).
+        reply_markup=feedback.keyboard(base.id),
     )
     return True
 
 
 async def send_record(message: Message, session: AsyncSession, note: Note) -> None:
     """A saved record delivered to the user: the PDF when it can be built, the
-    plain text when it cannot."""
+    plain text when it cannot — its buttons under the last part of it."""
     if await send_record_pdf(message, session, note):
         return
     await message.answer(texts.PDF_FAILED)
-    for chunk in texts.split_message(f"{note.title}\n\n{note.markdown}"):
-        await message.answer(chunk)
+    chunks = texts.split_message(f"{note.title}\n\n{note.markdown}")
+    for index, chunk in enumerate(chunks):
+        if index == len(chunks) - 1:
+            await message.answer(chunk, reply_markup=feedback.keyboard(note.id))
+        else:
+            await message.answer(chunk)
 
 
 # ── Tags: the way a record is filed and the way it comes back ────────────────

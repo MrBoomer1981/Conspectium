@@ -453,6 +453,45 @@ def group_welcome(sees_photos: bool) -> str:
     return text if sees_photos else f"{text}\n\n{GROUP_CANNOT_SEE}"
 
 
+# ── What a reader says of a record — app/bot/feedback.py ─────────────────────
+# Two buttons under every document, and after «Плохо» a question whose reply
+# is the reader's account of the error (task 70). Words, no emoji: the chat
+# stays plain text. The question is asked of one person, by name in a group.
+
+RATE_GOOD = "Хорошо"
+RATE_BAD = "Плохо"
+RATED_GOOD = "Спасибо!"
+RATED_BAD = "Спасибо! Напиши, что не так, — ответом на моё сообщение."
+# What the reply field shows before anything is typed; Telegram allows 64.
+FEEDBACK_PLACEHOLDER = "Где ошибка и как должно быть"
+FEEDBACK_THANKS = "Спасибо, записал."
+
+
+def feedback_question(title: str) -> str:
+    """After «Плохо»: where the error is."""
+    return (
+        f"Что не так в конспекте «{title}»? Ответь на это сообщение: "
+        "страница, строка или формула — и как должно быть. Можно скриншот."
+    )
+
+
+def feedback_where(group_title: str | None) -> str:
+    return f"чат «{group_title}»" if group_title else "личный чат"
+
+
+def feedback_report(
+    note_id: int, title: str, rating: str, where: str, who: str
+) -> str:
+    """To FEEDBACK_CHAT_ID, over the document copied after it."""
+    verdict = "плохо" if rating == "bad" else "хорошо"
+    return f"Отзыв «{verdict}»: конспект #{note_id} «{title}», {where}, {who}."
+
+
+def feedback_answer_report(note_id: int, title: str, where: str, who: str) -> str:
+    """To FEEDBACK_CHAT_ID, over the reader's message copied after it."""
+    return f"Что не так — конспект #{note_id} «{title}», {where}, {who}:"
+
+
 # ── The record as a file — app/bot/corpus.py send_record_pdf ─────────────────
 
 PDF_FAILED = "Не смог собрать PDF — вот текст записи."

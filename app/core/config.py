@@ -140,6 +140,10 @@ class Settings(BaseSettings):
     MIN_MARKDOWN_LEN: int = 40
     MAX_ALBUM_PAGES: int = 10
     LOG_LEVEL: str = "INFO"
+    # The chat every «Плохо» under a document and every reader's account of
+    # an error is sent to at once, with the document (task 70) — the CEO's
+    # own chat with the bot. Unset, the feedback is only stored.
+    FEEDBACK_CHAT_ID: int | None = None
 
     @field_validator("DATABASE_URL")
     @classmethod
@@ -183,6 +187,14 @@ class Settings(BaseSettings):
                 "with DAILY_COST_LIMIT_USD not enforced."
             )
         return self
+
+    @field_validator("FEEDBACK_CHAT_ID", mode="before")
+    @classmethod
+    def _empty_is_unset(cls, v: object) -> object:
+        # A variable left empty on Railway means "nobody", not a number that
+        # failed to parse: feedback is stored either way, and the bot must
+        # not refuse to start over where its copies go.
+        return None if isinstance(v, str) and not v.strip() else v
 
     @field_validator("VISION_RUNS")
     @classmethod

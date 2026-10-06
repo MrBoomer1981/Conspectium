@@ -283,3 +283,39 @@ class NoteFigure(Base):
     )
     number: Mapped[int] = mapped_column(Integer)
     png: Mapped[bytes] = mapped_column(LargeBinary)
+
+
+class Feedback(Base):
+    """What a reader said of a record (task 70): «Хорошо» or «Плохо» under its
+    document, and after «Плохо», in their own words, where the error is.
+
+    One row a person a record — a second press changes the rating rather
+    than counting twice. The bot's question «что не так» is a message in the
+    chat, and `prompt_message_id` is how the reply to it finds this row:
+    nothing about the question is kept in the process, so a restart between
+    the question and the answer loses nothing.
+    """
+
+    __tablename__ = "feedback"
+    __table_args__ = (
+        Index("ix_feedback_note_user", "note_id", "user_id", unique=True),
+        Index("ix_feedback_prompt", "chat_id", "prompt_message_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    note_id: Mapped[int] = mapped_column(ForeignKey("notes.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    # The group chat it was said in, NULL in a private chat.
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id"), index=True)
+    rating: Mapped[str] = mapped_column(String)  # "good" | "bad"
+    # The reader's words, every reply to the question one after another.
+    text: Mapped[str | None] = mapped_column(Text)
+    # Telegram's chat id, where the question was asked and is answered.
+    chat_id: Mapped[int] = mapped_column(BigInteger)
+    prompt_message_id: Mapped[int | None] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

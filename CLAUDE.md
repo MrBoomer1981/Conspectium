@@ -183,7 +183,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `014_subjects_lectures`, the head. The next is `015_`.
+  `015_feedback`, the head. The next is `016_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -333,9 +333,10 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
 
 1. **One session per update, opened by the middleware.** It lives in
    `data["session"]`, commits after the handler and rolls back on any
-   exception; `notes`, `users` and `events` go through it. It serves messages
-   and the bot's own membership updates, and puts the group chat, if any, in
-   `data["group"]`. Three deliberate exceptions:
+   exception; `notes`, `users` and `events` go through it. It serves messages,
+   the bot's own membership updates and the presses of its buttons, and puts
+   the group chat, if any, in `data["group"]` — for a press, the chat of the
+   message the button is on. Three deliberate exceptions:
    - a **new** user is committed *before* the handler: `log_ai_calls` inserts
      `ai_calls.user_id` from a session of its own and would fail the foreign
      key;
@@ -445,11 +446,12 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   so an untagged album in a group is never fetched. → "The album that came
   back as four records"
 - **Router order in `main.py` is load-bearing.** `handlers.router` ends with a
-  filterless catch-all, so `corpus.router` goes first, capture second, and a
-  third router is placed relative to that catch-all. `on_tag` matches text,
+  filterless catch-all, so `corpus.router` goes before it, capture after, and
+  a third router is placed relative to that catch-all. `on_tag` matches text,
   not a `Command`. A "#word" in reply to a page in a group is refused there
   (`middlewares.is_summon`) and reaches `handlers.handle_summon`, before the
-  catch-all.
+  catch-all. `feedback.router` goes first of all: a reply to the bot's
+  question «что не так» is feedback whatever it says, a "#word" included.
 
 ### Stage two: composing
 
@@ -712,10 +714,13 @@ than silence. → "Numbers the agreement could not see"
   runs before a session, and in a group lets through a command, a message
   that is one "#word" and nothing else (`tags.is_bare` — "#дз на завтра" is
   for the classmates), a photo or image file with a tagged caption, a reply
-  that calls or names the bot, every album page (judged whole in
-  `_process_album`), and the migration notice. The rest is dropped with no
-  session, no user row, no event. What gets through and is not the bot's gets
-  no answer in a group; a missed search is still logged.
+  that calls or names the bot, a reply to the bot's own message
+  (`middlewares.replies_to_bot` — how its question «что не так» is
+  answered), every album page (judged whole in `_process_album`), and the
+  migration notice. The rest is dropped with no session, no user row, no
+  event. What gets through and is not the bot's gets no answer in a group —
+  an untagged photo replying to the bot is still refused by `handle_photo` —
+  and a missed search is still logged.
 - **Whether the bot sees a group's photos is decided in BotFather**: with
   privacy mode on it sees only commands and replies to itself unless it is an
   admin. Privacy mode is off since 2026-10-03 (task 47, the CEO), so the bot
@@ -738,6 +743,28 @@ than silence. → "Numbers the agreement could not see"
   `group_invited` the button's payload; `group_promoted` and `group_left`
   nothing else. Limits are still the
   photographer's quota and the global cap — per group is task 41.
+
+### What a reader says of a record
+
+- **«Хорошо» and «Плохо» under every document** (task 70, the CEO,
+  2026-10-06): on the PDF itself, or on the last message of the plain text it
+  falls back to, a record a "#word" brings back included; each button names
+  the record the document is drawn from (`feedback.keyboard`). Every fault
+  fixed before was found by the CEO reading a record against its
+  photographs; the groups read every record and said nothing.
+- **One row a person a record** (`feedback`): a second press changes the
+  rating. «Хорошо» is thanked in the button's own notice; «Плохо» asks in
+  the chat where the error is — in a group naming the reader, so Telegram's
+  reply field opens for them alone (`ForceReply`, selective).
+- **The answer is a reply to the question, found by its message**
+  (`feedback.prompt_message_id`), from the reader it was asked of: no state in
+  the process, so a restart between the two loses nothing. A caption counts;
+  a screenshot is copied on as it is.
+- **`FEEDBACK_CHAT_ID`**: every «Плохо» and every answer is sent there at
+  once — which record, which chat, who — with the document copied, or the
+  reader's message. A chat that cannot be written to is a warning in the
+  log, never the reader's problem. Events `note_rated` and `note_feedback`;
+  the reader's words stay in `feedback.text`, never in an event.
 
 ---
 
@@ -1023,6 +1050,7 @@ app/
     corpus.py         tags, search, a record or its lecture as a file, scoped to its chat
     subjects.py       a chat's subjects and lectures: where a record is filed, its day
     tags.py           what a #tag is, and a record's topics
+    feedback.py       «Хорошо», «Плохо» and where the error is, under every document
   services/
     vision.py         recognition: the prompt, three runs, parsing, the agreements
     compose.py        stage two: the trusted transcription, formatted
@@ -1106,6 +1134,7 @@ ALLOW_UNPRICED_MODEL=false
 MIN_MARKDOWN_LEN=40
 MAX_ALBUM_PAGES=10
 LOG_LEVEL=INFO
+FEEDBACK_CHAT_ID=        unset: feedback is stored only
 ```
 
 - **A model setting is coupled to its price.** A model absent from
@@ -1156,9 +1185,9 @@ LOG_LEVEL=INFO
 - **The startup log is the instrument's label**: `Recognition: <model>, N
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
   numbers, whether drawings are cut out and lectures marked, the image
-  compression, both
-  stages, the call knobs, the five timeouts, and whether the bot sees a
-  group's photos. What a **record** does not say is which prompt made it —
+  compression, both stages, the call knobs, the five timeouts, where a
+  reader's «Плохо» is sent, and whether the bot sees a group's photos. What
+  a **record** does not say is which prompt made it —
   `docs/PLAN.md` → "Where the quality work stands", gap 3.
 
 ---

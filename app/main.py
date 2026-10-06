@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, texts
+from app.bot import albums, corpus, feedback, texts
 from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
@@ -31,8 +31,13 @@ dp = Dispatcher()
 dp.message.outer_middleware(DbSessionMiddleware())
 # The bot's own membership: added to a group, made an admin, removed.
 dp.my_chat_member.outer_middleware(DbSessionMiddleware())
+# «Хорошо» and «Плохо» under a document (task 70): a press writes a row.
+dp.callback_query.outer_middleware(DbSessionMiddleware())
 # Order matters: handlers.router ends with a filterless catch-all that
-# matches every message, so a router included after it gets nothing.
+# matches every message, so a router included after it gets nothing. The
+# feedback router comes first of all: a reply to the bot's question «что не
+# так» is feedback whatever it says, a "#word" included.
+dp.include_router(feedback.router)
 dp.include_router(corpus.router)
 dp.include_router(router)
 
@@ -209,6 +214,14 @@ async def lifespan(app: FastAPI):
             name,
             model,
         )
+
+    # Where a reader's «Плохо» goes besides the database (task 70).
+    logger.info(
+        "Feedback: %s",
+        f"sent to chat {settings.FEEDBACK_CHAT_ID}"
+        if settings.FEEDBACK_CHAT_ID is not None
+        else "stored only, FEEDBACK_CHAT_ID unset",
+    )
 
     # Whether the bot can see a group's photos is decided in BotFather, not
     # here: with privacy mode on it sees them only where it is an admin. Said

@@ -122,6 +122,8 @@ def test_telegram_is_asked_for_membership_updates():
     assert set(app.main.dp.resolve_used_update_types()) == {
         "message",
         "my_chat_member",
+        # «Хорошо» and «Плохо» under a document (task 70).
+        "callback_query",
     }
 
 

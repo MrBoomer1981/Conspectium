@@ -63,6 +63,19 @@ def is_summon(message: Message) -> bool:
     )
 
 
+def replies_to_bot(message: Message, bot_username: str | None) -> bool:
+    """A reply to one of the bot's own messages — how a reader answers its
+    question «что не так» under a document (task 70)."""
+    asked = message.reply_to_message
+    author = asked.from_user if asked is not None else None
+    return bool(
+        bot_username
+        and author is not None
+        and author.is_bot
+        and (author.username or "").lower() == bot_username.lower()
+    )
+
+
 def heard(message: Message, bot_username: str | None = None) -> bool:
     """Whether a message is any of the bot's business.
 
@@ -73,14 +86,19 @@ def heard(message: Message, bot_username: str | None = None) -> bool:
     logged and nothing is answered. What gets through is what the bot acts on
     in a group — a command, a "#word" on its own, a photo or an image file
     whose caption carries a "#word", a reply to a page that calls the bot on
-    it or names it — and every page of an album, because an album's caption
-    rides on one page only and the album is judged whole, in
-    handlers._process_album. So does the notice that the chat's id changed:
-    it is what moves the group.
+    it or names it, a reply to the bot's own message — and every page of an
+    album, because an album's caption rides on one page only and the album
+    is judged whole, in handlers._process_album. So does the notice that the
+    chat's id changed: it is what moves the group. A reply to the bot that
+    answers no question of its own reaches the catch-all, which says nothing
+    in a group, and an untagged photo among them is still refused by
+    handle_photo.
     """
     if message.chat.type not in GROUP_CHATS:
         return True
     if message.migrate_to_chat_id or message.migrate_from_chat_id:
+        return True
+    if replies_to_bot(message, bot_username):
         return True
     if message.text is not None:
         if message.text.startswith("/") or tags.is_bare(message.text):
@@ -116,8 +134,8 @@ class DbSessionMiddleware(BaseMiddleware):
         event: Any,
         data: dict[str, Any],
     ) -> Any:
-        # Registered for messages and for the bot's own membership changes;
-        # only a message can be chatter.
+        # Registered for messages, the bot's own membership changes and the
+        # presses of its buttons; only a message can be chatter.
         if isinstance(event, Message) and not heard(
             event, await _bot_username(event, data)
         ):
@@ -164,6 +182,9 @@ class DbSessionMiddleware(BaseMiddleware):
         """The group chat an update came from, registered on first sight; None
         in a private chat."""
         chat = getattr(event, "chat", None)
+        if chat is None:
+            # A press of a button: its chat is the chat of the message it is on.
+            chat = getattr(getattr(event, "message", None), "chat", None)
         if chat is None or chat.type not in GROUP_CHATS:
             return None
 
