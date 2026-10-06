@@ -224,6 +224,14 @@ _GRAPH_WIDTH_PT = 135.0
 _GRAPH_SCALE_PT = _GRAPH_WIDTH_PT / 3.2
 _GRAPH_INCHES_PER_UNIT = 0.75
 _GRAPH_NODE = 0.17
+# A tree that branches is drawn as a tree (_tree_positions), in the same units:
+# a leaf's slot, the step between two levels, and how deep the picture may go
+# before its levels are drawn closer — record 74's binary form of a tree hangs
+# a chain of six levels, which at the full step took a third of the column.
+_TREE_SLOT = 0.62
+_TREE_LEVEL = 0.75
+_TREE_LEVEL_MIN = 0.5
+_TREE_DEPTH = 3.0
 # More than three drawings in a row and none of them is readable.
 _FIGURES_PER_ROW = 3
 # Padding either side of a drawing inside its cell of the row.
@@ -292,6 +300,11 @@ _INLINE_DRAWING_RE = re.compile(
     r"\[\s*(?:схема|рисунок\s+\d+|граф[^\[\]:]{0,40}|graph[^\[\]:]{0,40})\s*:[^\[\]]*\]",
     re.IGNORECASE,
 )
+# What recognition writes where the author crossed something out — record 74
+# printed "[зачёркнуто] и [зачёркнуто]" in the middle of a line of a proof.
+# What the author struck out is not the lecture, and the mark is about the
+# page rather than the work: the document leaves out both (_unstruck).
+_STRUCK_RE = re.compile(r"[ \t]*\[\s*зач[её]ркнут[^\[\]\n]*\]", re.IGNORECASE)
 _FRAME_OPEN_RE = re.compile(r"^\[\s*(?:в\s+)?рамк\w*\s*:?\s*(.*)$", re.IGNORECASE)
 _FRAMED_ARRAY_RE = re.compile(r"\\begin\{array\}\{\|[^{}]*\|\}")
 _BOXED = "\\boxed{"
@@ -689,6 +702,19 @@ def parse_graph(spec: str) -> tuple[list[str], list[tuple[str, str]], bool] | No
     if any(len(vertex) > _MAX_VERTEX_CHARS for vertex in vertices):
         return None
     return vertices, edges, directed
+
+
+def _unstruck(markdown: str) -> str:
+    """The record without the marks of what the author crossed out, for the
+    document only. A line that held nothing else goes with its mark: left
+    blank, it would open a paragraph the page does not have."""
+    out: list[str] = []
+    for line in markdown.splitlines():
+        cleaned = _STRUCK_RE.sub("", line)
+        if line.strip() and not cleaned.strip():
+            continue
+        out.append(cleaned)
+    return "\n".join(out)
 
 
 def _lift_drawings(markdown: str) -> str:
@@ -1187,18 +1213,40 @@ _WORD_GROUP_RE = re.compile(
 _CYRILLIC_WORDS_RE = re.compile(r"[А-Яа-яЁё]+(?:[ .,:;!?-]+[А-Яа-яЁё]+)*\.?")
 
 
-def _cyrillic_as_text(latex: str) -> str:
-    def wrap(part: str) -> str:
-        return _CYRILLIC_WORDS_RE.sub(lambda found: rf"\text{{{found.group()}}}", part)
-
+def _outside_words(latex: str, rewrite) -> str:
+    """`rewrite` applied to a formula everywhere but inside the groups that
+    set words, which keep exactly what they hold."""
     pieces: list[str] = []
     position = 0
     for group in _WORD_GROUP_RE.finditer(latex):
-        pieces.append(wrap(latex[position : group.start()]))
+        pieces.append(rewrite(latex[position : group.start()]))
         pieces.append(group.group())
         position = group.end()
-    pieces.append(wrap(latex[position:]))
+    pieces.append(rewrite(latex[position:]))
     return "".join(pieces)
+
+
+def _cyrillic_as_text(latex: str) -> str:
+    return _outside_words(
+        latex,
+        lambda part: _CYRILLIC_WORDS_RE.sub(lambda found: rf"\text{{{found.group()}}}", part),
+    )
+
+
+# An operator alone in an index, unbraced: "\rho^-(v)", "(i^*, j^*)". mathtext
+# reads the "-" or the "*" as an operation between the letter and what follows
+# and spaces it on both sides — record 74 printed the in-degree as "ρ ⁻ (v)"
+# and the edge it swapped out as "(i *, j *)". Braced, it is the index it was
+# written as. Digits right after a sign go in with it: "x^-1" is x to the
+# minus first, never x⁻ followed by a 1.
+_SCRIPT_OPERATOR_RE = re.compile(
+    rf"([_^])\s*([-+]\d*|\*|\\(?:ast|star|pm|mp){_COMMAND_END})"
+)
+# A range the way Pascal writes it, "array [1..p]": mathtext spaces a full
+# stop as punctuation, and record 74's two dots came apart, "[1. . p]". In
+# \text they are two dots and nothing else. Three dots are an ellipsis and
+# are left to it.
+_RANGE_RE = re.compile(r"(?<=[\w)\]}])\s*\.\.(?!\.)\s*(?=[\w(\\{-])")
 
 
 # A double quote is not a character mathtext reads in a formula; inside
@@ -1355,7 +1403,9 @@ def for_mathtext(latex: str) -> str:
     latex = _UNSUPPORTED_RE.sub("", latex)
     latex = _BRACE_WORDS_RE.sub(_brace_words, latex)
     latex = _SYNONYM_RE.sub(lambda found: "\\" + _SYNONYMS[found.group(1)], latex)
+    latex = _SCRIPT_OPERATOR_RE.sub(r"\1{\2}", latex)
     latex = _cyrillic_as_text(latex)
+    latex = _outside_words(latex, lambda part: _RANGE_RE.sub(r"\\text{..}", part))
     latex = _QUOTE_RE.sub(lambda found: found.group(1) or r'\text{"}', latex)
     return _THIN_SPACE_RE.sub(" ", latex)
 
@@ -1530,8 +1580,11 @@ def _graph_png(
     scale every graph shares and shrunk only when that would not fit.
     """
     count = len(vertices)
+    tree = _tree_positions(vertices, edges, directed)
     if count == 1:
         positions = {vertices[0]: (0.0, 0.0)}
+    elif tree is not None:
+        positions = tree
     else:
         # Vertices on a circle. A lecture-note graph has a handful of them, and
         # a layout that is the same every time beats a prettier one that moves
@@ -1641,6 +1694,90 @@ def _placement(vertices: list[str]) -> list[str]:
     return vertices
 
 
+def _tree_positions(
+    vertices: list[str], edges: list[tuple[str, str]], directed: bool
+) -> dict[str, tuple[float, float]] | None:
+    """Where a tree's vertices go — its root on top, every vertex centred over
+    its children, the children in the order they were read — or None when the
+    graph is not a tree that branches.
+
+    On the circle, record 74's binary tree of seven vertices was six chords
+    crossing one another, and a reader saw a graph nobody drew. A tree that
+    does not branch is a path, which the circle draws as the open polygon it
+    always did; a cycle, a loop or an edge read twice keeps the circle too. A
+    forest is drawn tree beside tree. A tree's root is the one vertex no arc
+    enters, or the one no arc leaves, and otherwise its vertex read first —
+    the model reads a page from the top, where the root is drawn.
+    """
+    neighbours: dict[str, list[str]] = {vertex: [] for vertex in vertices}
+    pairs: set[frozenset[str]] = set()
+    for tail, head in edges:
+        pair = frozenset((tail, head))
+        if tail == head or pair in pairs:
+            return None
+        pairs.add(pair)
+        neighbours[tail].append(head)
+        neighbours[head].append(tail)
+    if max(len(around) for around in neighbours.values()) < 3:
+        return None
+    entered = {head for _, head in edges}
+    left = {tail for tail, _ in edges}
+
+    seen: set[str] = set()
+    depth_of: dict[str, int] = {}
+    x_of: dict[str, float] = {}
+    slot = 0.0
+
+    def place(vertex: str, parent: str | None, depth: int) -> bool:
+        """Lays the subtree out, leaves left to right; False on a cycle."""
+        nonlocal slot
+        seen.add(vertex)
+        depth_of[vertex] = depth
+        children = [child for child in neighbours[vertex] if child != parent]
+        for child in children:
+            if child in seen or not place(child, vertex, depth + 1):
+                return False
+        if children:
+            x_of[vertex] = (x_of[children[0]] + x_of[children[-1]]) / 2
+        else:
+            x_of[vertex] = slot
+            slot += 1
+        return True
+
+    for first in vertices:
+        if first in seen:
+            continue
+        component, frontier = {first}, [first]
+        while frontier:
+            for other in neighbours[frontier.pop()]:
+                if other not in component:
+                    component.add(other)
+                    frontier.append(other)
+        root = first
+        if directed:
+            ordered = [vertex for vertex in vertices if vertex in component]
+            for roots in (
+                [vertex for vertex in ordered if vertex not in entered],
+                [vertex for vertex in ordered if vertex not in left],
+            ):
+                if len(roots) == 1:
+                    root = roots[0]
+                    break
+        if x_of:
+            slot += 0.5
+        if not place(root, None, 0):
+            return None
+
+    deepest = max(depth_of.values())
+    level = _TREE_LEVEL
+    if deepest * level > _TREE_DEPTH:
+        level = max(_TREE_LEVEL_MIN, _TREE_DEPTH / deepest)
+    return {
+        vertex: (x_of[vertex] * _TREE_SLOT, -depth_of[vertex] * level)
+        for vertex in vertices
+    }
+
+
 def _text(value: str) -> str:
     """Plain text as reportlab markup: escaped, a <br> the composing stage
     wrote as a line break, and every run of characters Onest does not have
@@ -1677,6 +1814,92 @@ def _run(chars: list[str], known: bool) -> str:
 # noise, on six of twelve records.
 _EMPHASIS_RE = re.compile(r"\*\*|~~")
 _EMPHASIS_TAGS = {"**": "b", "~~": "strike"}
+
+
+# Words written inside a formula — "$\forall \text{ узел достижим из корня}$",
+# "$\exists!\ \text{узел}\ \rho^-(v_0) = 0$" in record 74 — were drawn by
+# mathtext in Computer Modern, a serif the guide does not have, in the middle
+# of a line set in Onest. Russian words standing between the parts of a
+# formula set in a line, inside none of them, are set as the text they are,
+# and the maths on either side stays a formula. Narrowly: words in braces — an
+# index, a fraction, a brace's words — and anything in an environment or
+# between \left and \right are the formula's own and stay in it.
+_LIFTED_WORDS_RE = re.compile(r"\\(?:text|mbox|textrm|mathrm)\{([^{}]*)\}")
+_NOT_FLAT_RE = re.compile(r"\\begin|\\left|\\\\|&")
+_EDGE_SPACE = r"(?:\s|\\[ ,;:!]|\\q?quad(?![A-Za-z])|~)"
+_EDGE_SPACES_RE = re.compile(rf"^{_EDGE_SPACE}+|{_EDGE_SPACE}+$")
+_SPACE_BEFORE_RE = re.compile(rf"{_EDGE_SPACE}$")
+_SPACE_AFTER_RE = re.compile(rf"^{_EDGE_SPACE}")
+
+
+def _braces_open(latex: str, end: int) -> int:
+    """How many braces stand open at `end`; an escaped one is a character."""
+    depth = 0
+    escaped = False
+    for char in latex[:end]:
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+    return depth
+
+
+def _words_as_text(runs: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """The runs of a line with the Russian words of its formulas set as text.
+    A space stands between a word and the maths beside it where the formula
+    had one, so "\\mathrm{НОД}(a, b)" stays one word with its brackets."""
+    out: list[tuple[str, str]] = []
+    for kind, value in runs:
+        if kind != "math" or not _CYRILLIC_RE.search(value) or _NOT_FLAT_RE.search(value):
+            out.append((kind, value))
+            continue
+        latex = _cyrillic_as_text(value)
+        # (kind, value, space before, space after)
+        pieces: list[tuple[str, str, bool, bool]] = []
+        position = 0
+        for found in _LIFTED_WORDS_RE.finditer(latex):
+            before = latex[position : found.start()]
+            raw = found.group(1)
+            words = raw.strip()
+            if (
+                not _CYRILLIC_RE.search(words)
+                or "\\" in words
+                or _braces_open(latex, found.start())
+                or before.rstrip().endswith(("^", "_"))
+            ):
+                continue
+            maths = _EDGE_SPACES_RE.sub("", before)
+            if maths:
+                pieces.append(("math", maths, False, False))
+            spaced_before = not words.startswith(tuple(",.;:!?)»")) and (
+                raw[:1].isspace() or bool(_SPACE_BEFORE_RE.search(before))
+            )
+            spaced_after = raw[-1:].isspace() or bool(
+                _SPACE_AFTER_RE.match(latex[found.end() :])
+            )
+            if pieces and pieces[-1][0] == "text":
+                pieces[-1] = ("text", f"{pieces[-1][1]} {words}", pieces[-1][2], spaced_after)
+            else:
+                pieces.append(("text", words, spaced_before, spaced_after))
+            position = found.end()
+        if not any(piece[0] == "text" for piece in pieces):
+            out.append((kind, value))
+            continue
+        rest = _EDGE_SPACES_RE.sub("", latex[position:])
+        if rest:
+            pieces.append(("math", rest, False, False))
+        for index, (piece_kind, piece, spaced_before, spaced_after) in enumerate(pieces):
+            if piece_kind == "text":
+                if index > 0 and spaced_before:
+                    piece = " " + piece
+                if index < len(pieces) - 1 and spaced_after:
+                    piece += " "
+            out.append((piece_kind, piece))
+    return out
 
 
 def _inline(
@@ -1834,7 +2057,7 @@ class _Formulas:
 
 def _line_markup(text: str, formulas: _Formulas, size_pt: float) -> str:
     """One line of a record as reportlab markup, formulas drawn in place."""
-    return _inline(split_inline(text), formulas, size_pt)
+    return _inline(_words_as_text(split_inline(text)), formulas, size_pt)
 
 
 def _styles() -> dict[str, ParagraphStyle]:
@@ -1848,6 +2071,9 @@ def _styles() -> dict[str, ParagraphStyle]:
         # A line holding a tall formula — a fraction, a sum with its limits —
         # grows to fit it instead of printing over the line above.
         autoLeading="max",
+        # The last line of a paragraph never goes over a page alone: record
+        # 74 ended on a page that held one word, «старого.».
+        allowWidows=0,
     )
     muted = ParagraphStyle(
         "muted", parent=base, fontSize=_SMALL_PT, leading=_SMALL_PT * 1.45,
@@ -2377,7 +2603,10 @@ def _essence(
     dark block — the guide's. The bot wrote it, and its label says so."""
     inside: list = [_EssenceLabel(item.label), Spacer(1, 3)]
     inside += [
-        Paragraph(_inline(split_inline(line), formulas, _BODY_PT, _PAPER), styles["essence"])
+        Paragraph(
+            _inline(_words_as_text(split_inline(line)), formulas, _BODY_PT, _PAPER),
+            styles["essence"],
+        )
         for line in item.lines
     ]
     table = Table([[inside]], colWidths=[_TEXT_WIDTH_PT], hAlign="LEFT")
@@ -2405,7 +2634,9 @@ _NUMBER_ANCHOR_RE = re.compile(r"\(?\s*(\d{1,3})\s*\)?")
 
 
 def _squash(text: str) -> str:
-    return _SQUASH_RE.sub("", text).lower()
+    # Without the struck-out marks too: the document drops them from its
+    # lines, and an anchor quoted before it did still has to find its line.
+    return _SQUASH_RE.sub("", _STRUCK_RE.sub("", text)).lower()
 
 
 def _reading(member: Block) -> str:
@@ -3295,7 +3526,7 @@ def render(
     wanted = title.strip().casefold()
     parsed = [
         block
-        for block in blocks(_lift_drawings(markdown))
+        for block in blocks(_lift_drawings(_unstruck(markdown)))
         if not (block.kind == "heading" and block.text.strip().casefold() == wanted)
     ]
     for block in parsed:
@@ -3310,7 +3541,9 @@ def render(
             # With its formulas drawn: "$2^{1001}$" stood in record 45's title.
             # Not through _line_markup, which sets the lines of the record.
             Paragraph(
-                _inline(split_inline(title), formulas, styles["title"].fontSize),
+                _inline(
+                    _words_as_text(split_inline(title)), formulas, styles["title"].fontSize
+                ),
                 styles["title"],
             ),
         ]

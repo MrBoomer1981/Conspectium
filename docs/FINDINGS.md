@@ -1394,3 +1394,66 @@ foot.
 **What it does not catch.** Three runs that all stop at the same place leave
 nothing to compare. The consensus log line now prints the words each run
 read, so the next such page says which it was.
+
+## Record 74, a lecture on trees
+
+**The CEO's look**, 2026-10-06: «ошибки в формулах, странные сокращения,
+какие то графики». Seven pages of discrete mathematics, read on 2026-10-05
+under `prompts-v6.md`, composed by `prompts-compose-v3.md`, explained by
+`prompts-explain-v2.md`. Production's database was not read for it: the
+record's markdown was rebuilt from its PDF and drawn by the code before and
+after the fix (`evidence/records/74-реконструкция-*.pdf`), and the old
+drawing matched what the group got. What it showed, by where it came from:
+
+**The drawing**, fixed in `pdf.py`:
+
+- **«ρ ⁻ (v)» and «(i *, j *)».** mathtext spaces a binary operator on both
+  sides unless it opens a group or follows a relation, and `\rho^-` and
+  `i^*` hand it the operator unbraced. At 14 pt `\rho^-(v_0)` was 46.1 pt
+  wide and `\rho^{-}(v_0)` 42.2; `i^*` 18.2 against `i^{*}` 14.4. Braced,
+  they set close — and `x^-1` reads as x⁻¹, which is what a sign before
+  digits in an unbraced index always meant.
+- **«[1. . p]».** A full stop is punctuation to mathtext, spaced after
+  unless it stands between two digits. In `\text{..}` the two dots are two
+  dots; three are an ellipsis and are left alone.
+- **Words in Computer Modern.** «∃! узел», «∀ узел достижим из корня»:
+  `_cyrillic_as_text` had made them upright and spaced, but in the
+  formulas' face, a serif in a line of Onest. Words standing between the
+  parts of a formula in a line, at no depth of braces, are set as text now;
+  in an index, a fraction, an environment or `\left…\right` they stay.
+- **Trees as tangles.** Every graph went round a circle, a layout chosen
+  for being the same every time, and a binary tree of seven vertices came
+  out as six chords crossing one another; the ordered tree and its binary
+  form two pages on, the same. A tree that branches is drawn layered now,
+  its root the vertex no arc enters, or the one no arc leaves, or the one
+  read first. The ordered tree stays on the circle: its edges as read make
+  a cycle, a–b–d — an edge too many, the reading's or the author's.
+- **«[зачёркнуто] и [зачёркнуто]»** in a line of the proof, not printed
+  now. The model has written the mark where nothing was crossed out before
+  (record 48, at `medium`).
+- **A page of one word.** reportlab lets a paragraph's last line go over a
+  page alone (`allowWidows=1`), and the proof's last paragraph did: page
+  seven held «старого.». A paragraph pushed across a page a line at a time
+  carried one line at one offset under the old style, two under the new.
+
+The suite was not extended, by the decision of 2026-09-29; the rewrites were
+put through mathtext on two dozen formulas of the kinds the records hold,
+each drawn.
+
+**The reading**, not settled: «гамильтонов цик-», «Центральная вершина
+(вершина ec(v) =» and «макс расст. от нее ec(v)» end where their thought
+does not, and «G - OD» stands in Latin. Whether the author stopped there,
+only the photographs say.
+
+**The shorthand.** «мн-во», «св-вами», «сод-ся», «непересек.», «кр.
+остов», «доб», «соед.», «Сл. шаг ] …» — «]» for «пусть» — are the
+author's, and they reached the document on purpose: recognition writes the
+page as it stands, and the composer was told to leave every word. A student
+who missed the lecture decodes the notebook. The CEO decided on 2026-10-06
+that the composer spells them out (`prompts-compose-v4.md`, rule 10), the
+lecture's own abbreviations, formulas and numbers left as written. Not yet
+measured.
+
+**Left as it is**: the explanation of «центральная вершина» opens «В
+конспекте запись оборвана» — it speaks of the record, and it is the one
+place the definition stands whole.

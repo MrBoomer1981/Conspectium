@@ -485,6 +485,17 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   and is never touched.
 - **Word drift is measured, not refused on**: rule 6 asks for
   `### Определение` over a definition.
+- **The author's shorthand is spelled out** (rule 10 of
+  `prompts-compose-v4.md`, the CEO's decision of 2026-10-06): an ordinary
+  word written short is written whole, in the form its phrase needs — «мн-ом»
+  is «множеством» — «]» is «Пусть», and a ∀ or ∃ standing for a word in a
+  sentence is the word. The abbreviations a lecture introduces itself (ОД,
+  БД), «т.е.» and «т.к.», formulas and numbers stay as written, and so does
+  whatever the composer is not sure of. A student who missed the lecture
+  should not have to decode the notebook. The only rewording the stage is
+  allowed, measured as drift like the rest; production composes with v3
+  until v4 is measured on record 74's album. → "Record 74, a lecture on
+  trees"
 - Its ceiling and retries are in "Concurrency ceilings".
 
 ### Stage three: what the bot adds
@@ -749,7 +760,10 @@ why each is what it is. What a change must not break:
   Modern** — never white, never a sixth colour or a fourth face. In the
   guide's monospace a formula's dotted zero read as θ. What Onest lacks —
   `∀ ∈ ⇒ ► ℝ`, Greek, the zero-width space — `pdf._text` sets in DejaVu;
-  reportlab has no fallback and prints an empty box.
+  reportlab has no fallback and prints an empty box. Russian words between
+  the parts of a formula in a line are set in Onest, as the text they are
+  (`pdf._words_as_text`) — record 74's «∀ узел достижим из корня» stood in
+  Computer Modern; words in braces or in an environment stay the formula's.
 - **A formula is a picture made to sit like text**: lowered by its measured
   depth, a quarter-point stroke to darken Computer Modern, shrunk to the
   column; on the kraft ground when displayed (`pdf._grounded`). A zero-width
@@ -763,7 +777,8 @@ why each is what it is. What a change must not break:
   `KeepTogether` in another and the inner reports an effectively infinite
   height; a unit that keeps itself whole, a long division, is opened into its
   group (`pdf._opened`). The space between two units is `_space_before`'s,
-  which knows what both of them are.
+  which knows what both of them are. The last line of a paragraph never goes
+  over a page alone (`allowWidows=0`): record 74 ended on a page of one word.
 - **Every box has one anatomy** — a bar, a label in spaced capitals
   (`pdf._Label`), lines at the text's size — **and its tone is its meaning**:
   dark amber what is certainly wrong, kraft what only may be, ink the bot's
@@ -791,8 +806,11 @@ why each is what it is. What a change must not break:
 - **Markup never prints as its source**: `$$` blocks, `$$…$$` inside a line,
   emphasis across a formula, `~~…~~` struck through, a line of `~~~` a
   separator as `---` is; a finding's quoted LaTeX through `pdf.as_formula`.
+  «[зачёркнуто]», what recognition writes where the author crossed something
+  out, is not printed, nor a line that held only it (`pdf._unstruck`): what
+  the author struck out is not the lecture.
 
-→ "The document as the group got it"
+→ "The document as the group got it", "Record 74, a lecture on trees"
 
 **mathtext is not LaTeX, and a formula it refuses prints as its own source.**
 `pdf.for_mathtext` rewrites what the model writes into what mathtext draws:
@@ -802,7 +820,10 @@ it drops what does nothing to the layout (`\limits`, `\displaystyle`, the
 into `\left…\substack{…}\right…` — losing column alignment, which is why a
 matrix is asked for as a markdown table — and handles `\xrightarrow`,
 `\pmod` (a run of digits one modulus), bold words inside `\text`, quotes,
-Russian words outside `\text`, `\cline`. A brace with words under or over it
+Russian words outside `\text`, `\cline`, an operator alone in an index —
+unbraced, mathtext spaces it as an operation, and record 74 printed
+«ρ ⁻ (v)» and «(i *, j *)» — and a range «1..p», whose dots it spaced as
+punctuation. A brace with words under or over it
 becomes `\underset` or `\overset` over its line — the brace lost, its words
 where the author wrote them — and an aligned chain alone in a display formula
 is drawn a row at a time (`pdf.aligned_rows`), since `\substack` sets its rows
@@ -811,7 +832,7 @@ unsupported. `test_pdf.py` proves each rewrite made before 2026-09-29 both
 rewrites and draws — those after it were checked by drawing the record that
 showed them, under the decision to add no tests — and a refusal is a warning
 in the log with mathtext's own diagnosis, once per formula per document. → "mathtext, one
-record at a time"
+record at a time", "Record 74, a lecture on trees"
 
 **An array ruled inside is drawn as a table** (`pdf.ruled_arrays`) — a long
 division "уголком", cells as formulas in their column's alignment, rules under
@@ -827,12 +848,16 @@ recognition prompt asks for a graph as `[граф: 1-2, 2->3]` and a matrix as a
 markdown table, `[схема: …]` with its frame for the rest, and `pdf.blocks()`
 draws them — a cut-out, `[рисунок N: …]`, as the author's drawing in the
 document's ink on its paper, at about its size on the page, with no caption;
-a `[схема: …]` with no cut-out as the line it always was. A drawing written
-inside a line of text is lifted onto its own (`pdf._lift_drawings`), for the
-document only. That syntax — like the composing stage's "### Определение" —
-is one contract in two files: changed on one side, the record prints the
-spec. Nothing yet compares the runs' edge lists — `docs/PLAN.md` → Known
-risks.
+a `[схема: …]` with no cut-out as the line it always was. A graph goes round
+a circle, the same every time; **a tree that branches is drawn as a tree**
+(`pdf._tree_positions`) — its root on top, children under their parent in
+the order read — since on the circle record 74's binary tree was six
+crossing chords. A path, a cycle, a loop and an edge read twice keep the
+circle. A drawing written inside a line of text is lifted onto its own
+(`pdf._lift_drawings`), for the document only. That syntax — like the
+composing stage's "### Определение" — is one contract in two files: changed
+on one side, the record prints the spec. Nothing yet compares the runs' edge
+lists — `docs/PLAN.md` → Known risks. → "Record 74, a lecture on trees"
 
 **The document says nothing about how a page was read** (2026-09-25): no
 reading that could have been another, no numbers the runs read differently, no
@@ -1029,7 +1054,9 @@ extraction only, v6 (production) v5 with the author's frames written as
 `\boxed{…}`, v7 without the list of numbers, tried and rolled back, v8 v6
 with each drawing's frame, measured and asleep (task 54), v9 v6 with where a
 lecture begins, measured and asleep (task 64); composing
-`prompts-compose-v1.md` to `v3`, v3 framing a section's main formula;
+`prompts-compose-v1.md` to `v4`, v3 (production) framing a section's main
+formula, v4 v3 with the author's shorthand spelled out, to be measured
+(task 69);
 explaining `prompts-explain-v1.md` and `v2` (production since 2026-10-03), v2
 adding the teacher's boxes, with `prompts-explain-source-v2.md` for the
 searches — `v1` before it, kept as the records made with it were. Every
