@@ -54,6 +54,11 @@ class Group(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     tg_chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     title: Mapped[str | None] = mapped_column(String)
+    # The Monday of the week the group's last weekly summary went out in
+    # (task 72), NULL before the first. The summary is of the week before it,
+    # and it goes out with the first record of a week: this column is how the
+    # record that comes first says so, one record of two at once.
+    rating_week: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -182,6 +187,11 @@ class Note(Base):
     # when it is not — a record made in a group chat belongs to the chat, and
     # the person who brought it finds it there like everyone else.
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # Whose message carried the pages, when that is not `user_id`: a reply's
+    # "#word" under a classmate's photographs. The record counts for them in
+    # the group's week (task 72), and its cost is still the replier's. NULL:
+    # the record's user sent the pages too.
+    sender_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id"), index=True)
     # What the record was made of in its group chat: "album:<media group>" or
     # "msg:<message id>". A second call on the same pages finds this and gets

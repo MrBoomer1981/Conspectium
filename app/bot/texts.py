@@ -376,6 +376,80 @@ def stats(
     return "\n".join(lines)
 
 
+# ── A group's week (task 72) ─────────────────────────────────────────────────
+# Who sent the group's records and who rated them: two numbers a person,
+# ordered by records. A person is (name, records, отзывы).
+
+
+def _records(n: int) -> str:
+    return f"{n} {_plural(n, 'конспект', 'конспекта', 'конспектов')}"
+
+
+def _ratings(n: int) -> str:
+    return f"{n} {_plural(n, 'отзыв', 'отзыва', 'отзывов')}"
+
+
+def _people(people: list[tuple[str, int, int]], more: int) -> list[str]:
+    lines = [
+        f"{place}. {name} — "
+        + ", ".join(
+            part
+            for count, part in ((records, _records(records)), (ratings, _ratings(ratings)))
+            if count
+        )
+        for place, (name, records, ratings) in enumerate(people, 1)
+    ]
+    if more:
+        lines.append(f"и ещё {more} {_plural(more, 'человек', 'человека', 'человек')}")
+    return lines
+
+
+def group_week(
+    title: str | None,
+    records: int,
+    ratings: int,
+    people: list[tuple[str, int, int]],
+    more: int,
+    all_records: int,
+    all_ratings: int,
+) -> str:
+    """/stats in a group: the week so far, and what the group has come to."""
+    lines = [f"{title or 'Группа'} · эта неделя"]
+    if people:
+        lines += [f"{_records(records)}, {_ratings(ratings)}", ""] + _people(people, more)
+    else:
+        lines.append("На этой неделе ещё ни конспектов, ни отзывов.")
+    lines += ["", f"За всё время: {_records(all_records)}, {_ratings(all_ratings)}"]
+    return "\n".join(lines)
+
+
+def _span(first: date, last: date) -> str:
+    """28 сентября — 4 октября; 5–11 октября within one month."""
+    if first.month == last.month:
+        return f"{first.day}–{last.day} {_MONTHS[last.month - 1]}"
+    return (
+        f"{first.day} {_MONTHS[first.month - 1]} — {last.day} {_MONTHS[last.month - 1]}"
+    )
+
+
+def week_summary(
+    first: date,
+    last: date,
+    records: int,
+    ratings: int,
+    people: list[tuple[str, int, int]],
+    more: int,
+) -> str:
+    """The week just ended, posted unasked with the group's first record of
+    the next. Its last line says what an отзыв is: the chat sees the count
+    before it has looked under a document."""
+    return "\n".join(
+        [f"Итоги недели, {_span(first, last)}", f"{_records(records)}, {_ratings(ratings)}", ""]
+        + _people(people, more)
+        + ["", "Отзыв — «Хорошо» или «Плохо» под конспектом."]
+    )
+
+
 # ── The command list ─────────────────────────────────────────────────────────
 # One source for three consumers: Telegram's command menu (main.py), /help,
 # and the test that refuses to let a command ship without a description.

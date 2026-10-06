@@ -36,7 +36,7 @@ from aiogram.types import (
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import feedback, middlewares, subjects, tags, texts
+from app.bot import feedback, middlewares, rating, subjects, tags, texts
 from app.core.events import log_event
 from app.db.models import Group, Lecture, Note, NoteFigure, NoteTopic, User
 from app.services import explain, graphcheck, merge, pdf, vision
@@ -240,6 +240,17 @@ def _streak(days: set[date], today: date) -> int:
 async def cmd_stats(
     message: Message, session: AsyncSession, user: User, group: Group | None = None
 ) -> None:
+    if group is not None:
+        # In a group, the group's week: who sent its records and who rated
+        # them (task 72).
+        week = await rating.stats(session, group)
+        if week is None:
+            await message.answer(texts.STATS_EMPTY)
+            return
+        await log_event(session, user.id, "stats_viewed", group_id=group.id)
+        await message.answer(week)
+        return
+
     totals = (
         await session.execute(
             select(
@@ -707,7 +718,8 @@ async def ask_for_tag(
     The last thing every capture path does, so the question is what the user
     is looking at when they reply — and so a "#word" arriving next means the
     answer rather than a search. A record made in a group always came with its
-    subject; the question is a private chat's.
+    subject; the question is a private chat's, and in a group only the week
+    before may follow this (rating.after_record).
     """
     topics = await save_topics(session, note)
     if note.tag is not None:

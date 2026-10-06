@@ -945,17 +945,29 @@ async def test_the_subjects_offered_in_a_group_are_the_groups(session):
 
 
 async def test_stats_in_a_group_count_the_groups_records(session):
+    # In a group /stats is the group's week, by person (task 72).
     photographer = await _user(session, tg_id=1)
+    photographer.username = "anna_k"
     classmate = await _user(session, tg_id=2)
+    classmate.first_name = "Иван"
     group = await _group(session)
     await _note(session, photographer, group_id=group.id, page_count=3)
+    await _note(session, photographer, group_id=group.id, page_count=1)
     await _note(session, classmate, group_id=group.id, page_count=2)
     await _note(session, classmate, page_count=7)  # private
 
     message = _Message()
     await corpus.cmd_stats(message, session, classmate, group)
 
-    assert message.replies[0].startswith("2 записи, 5 страниц")
+    assert message.replies[0] == (
+        "Матан, 2 курс · эта неделя\n"
+        "3 конспекта, 0 отзывов\n"
+        "\n"
+        "1. anna_k — 2 конспекта\n"
+        "2. Иван — 1 конспект\n"
+        "\n"
+        "За всё время: 3 конспекта, 0 отзывов"
+    )
     assert (await _events(session, "stats_viewed"))[0].group_id == group.id
 
 

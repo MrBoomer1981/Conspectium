@@ -20,7 +20,7 @@ from aiogram.types import ChatMemberUpdated, Message
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, middlewares, subjects, tags, texts
+from app.bot import albums, corpus, middlewares, rating, subjects, tags, texts
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, GroupPage, Note, NoteFigure, User
@@ -223,11 +223,13 @@ async def _read_photo(
     page: middlewares.PageFile,
     source_key: str | None,
     caption: str | None = None,
+    sender: User | None = None,
 ) -> None:
     """Steps 4-17 for one page: a page sent with its subject, or a page
     somebody else sent that a reply called the bot on. The answers go under
     `message`, and `user` is who pays for the reading; `caption` may carry
-    the lecture's day."""
+    the lecture's day; `sender` is whoever sent the page, when it is not
+    `user`."""
     group_id = group.id if group is not None else None
     await log_event(
         session,
@@ -378,6 +380,7 @@ async def _read_photo(
     # plain dicts — JSONB won't take them as they are.
     note = Note(
         user_id=user.id,
+        sender_id=sender.id if sender is not None else None,
         group_id=group_id,
         source_key=source_key,
         tag=tag,
@@ -466,6 +469,8 @@ async def _read_photo(
     # Step 17: which subject does this belong to. Last, so the question is
     # what the user is looking at when they reply.
     await corpus.ask_for_tag(message, session, user, note, group, filing)
+    # In a group, where nothing is asked, the week before may follow.
+    await rating.after_record(message, session, user, group)
 
 
 @router.message(F.document)
@@ -565,6 +570,7 @@ async def handle_document(
     await session.flush()  # note.id, for the file name and the caption
     await corpus.send_record(message, session, note)
     await corpus.ask_for_tag(message, session, user, note, group, filing)
+    await rating.after_record(message, session, user, group)
 
 
 async def _keep_figures(
@@ -704,6 +710,7 @@ async def _process_album(
     bot: Bot | None = None,
     tag: str | None = None,
     source_key: str | None = None,
+    sender: User | None = None,
 ) -> None:
     """Assemble a buffered album into one Note. The single-photo pipeline never
     runs for album pages — this is the batch equivalent, and the per-page work
@@ -711,8 +718,9 @@ async def _process_album(
     which never touches the database.
 
     `tag` is the subject a reply called the bot with, for an album that came
-    without one (handle_summon); `source_key` is what a group's record is made
-    of. Pages still held as Telegram's references are downloaded with `bot`."""
+    without one (handle_summon), and `sender` whoever sent that album;
+    `source_key` is what a group's record is made of. Pages still held as
+    Telegram's references are downloaded with `bot`."""
     # In a group an album is the bot's only when one of its pages carries a
     # "#word" in its caption, or a reply called the bot on it; without one it
     # is people sharing photos, and the bot says nothing — before the size
@@ -842,6 +850,7 @@ async def _process_album(
 
     note = Note(
         user_id=user.id,
+        sender_id=sender.id if sender is not None else None,
         group_id=group_id,
         source_key=source_key,
         tag=tag,
@@ -936,6 +945,7 @@ async def _process_album(
         )
 
     await corpus.ask_for_tag(message, session, user, note, group, filing)
+    await rating.after_record(message, session, user, group)
 
 
 def _filing_payload(filing: subjects.Filing | None, explain_skipped: bool) -> dict:
@@ -1004,13 +1014,15 @@ async def handle_summon(
             )
             await message.answer(texts.SUMMON_ALBUM_UNKNOWN)
             return
+        sender = await _sender(session, target, user)
         await log_event(
             session, user.id, "note_summoned",
             {"outcome": "read", "pages": len(pages)},
             group_id=group.id,
         )
         await _process_album(
-            message, session, user, pages, group, bot=bot, tag=tag, source_key=key
+            message, session, user, pages, group,
+            bot=bot, tag=tag, source_key=key, sender=sender,
         )
         return
 
@@ -1020,6 +1032,7 @@ async def handle_summon(
     ) > _MAX_IMAGE_BYTES:
         await message.answer(texts.IMAGE_TOO_BIG)
         return
+    sender = await _sender(session, target, user)
     await log_event(
         session, user.id, "note_summoned", {"outcome": "read", "pages": 1},
         group_id=group.id,
@@ -1028,7 +1041,26 @@ async def handle_summon(
     compressed = await asyncio.to_thread(
         images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
     )
-    await _read_photo(message, session, user, group, tag, original, compressed, page, key)
+    await _read_photo(
+        message, session, user, group, tag, original, compressed, page, key,
+        sender=sender,
+    )
+
+
+async def _sender(session: AsyncSession, target: Message, user: User) -> User | None:
+    """Who sent the pages a reply called the bot on, when that is somebody
+    else: the record counts for them in the group's week (task 72), and the
+    one who replied still pays. A bot, an anonymous admin or a channel —
+    the last two post on behalf of a chat — counts for whoever replied."""
+    author = target.from_user
+    if (
+        author is None
+        or author.is_bot
+        or target.sender_chat is not None
+        or author.id == user.tg_id
+    ):
+        return None
+    return await middlewares.registered(session, author)
 
 
 # Registered last on purpose: aiogram matches handlers in registration order,

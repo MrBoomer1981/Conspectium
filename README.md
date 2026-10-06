@@ -25,7 +25,7 @@ Telegram-бот для учебной группы. Студент фотогр�
 
 | Область | Владелец | Где в коде |
 |---|---|---|
-| Что бот говорит и делает в чате: тексты, команды, кнопки, подключение к группе, что бот слышит в группе | CEO | `app/bot/texts.py`, ответы в `app/bot/handlers.py` и `app/bot/corpus.py`, `middlewares.heard` |
+| Что бот говорит и делает в чате: тексты, команды, кнопки, подключение к группе, что бот слышит в группе, отзывы о конспекте, неделя группы | CEO | `app/bot/texts.py`, ответы в `app/bot/handlers.py` и `app/bot/corpus.py`, `middlewares.heard`, `app/bot/feedback.py`, `app/bot/rating.py` |
 | Документ группы: вёрстка PDF, шрифты, фирменный вид, отчёт по предмету | CEO | `docs/BRAND.md`, `app/services/pdf.py`, `app/assets/fonts/` |
 | Предметы, лекции и поиск по «#слову» как опыт пользователя; одна лекция из конспектов нескольких человек | CEO | `app/bot/corpus.py`, `app/bot/tags.py`, `app/bot/subjects.py`, `app/services/merge.py` |
 | База данных: схема, миграции, запросы, транзакции, масштаб | CPO | `app/db/`, `app/core/events.py`, сессии в `app/bot/middlewares.py` |

@@ -203,6 +203,13 @@ async def lifespan(app: FastAPI):
         vision._CONSENSUS_TIMEOUT_S,
         albums._ALBUM_TIMEOUT_S,
     )
+    # The variables on Railway stand above the code's defaults, so the limits
+    # a deploy runs under are only known from what it says here.
+    logger.info(
+        "Limits: %d pages a person a day, $%g a day for the whole bot",
+        settings.DAILY_PAGES_PER_USER,
+        settings.DAILY_COST_LIMIT_USD,
+    )
     # Allowed by ALLOW_UNPRICED_MODEL; said out loud on every deploy so it
     # cannot become the state nobody remembers choosing. Both models, from the
     # same list the validator refuses on — this used to name VISION_MODEL

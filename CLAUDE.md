@@ -183,7 +183,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `016_lecture_days`, the head. The next is `017_`.
+  `017_rating`, the head. The next is `018_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -771,6 +771,35 @@ than silence. → "Numbers the agreement could not see"
   log, never the reader's problem. Events `note_rated` and `note_feedback`;
   the reader's words stay in `feedback.text`, never in an event.
 
+### A group's week
+
+- **Who sent a group's records and who rated them** (task 72, the CEO,
+  2026-10-06): `/stats` in a group is the group's week so far, and the week
+  before is posted in the chat, unasked, after the group's first record of a
+  new week — its dates, two totals, ten people at most, two numbers each,
+  ordered by records (`rating.py`). A group that sees who brings its records
+  and who reads them closely enough to say has a reason to do both, and
+  `/stats` had been called once: what a group is not shown it does not see.
+  A private chat's `/stats` is as it was.
+- **A record counts for whoever sent its pages** (`notes.sender_id`): a
+  reply's "#word" under a classmate's photographs is paid for by the replier
+  and counted for the photographer, registered on the spot if the bot never
+  saw them (`middlewares.registered`); a bot, an anonymous admin or a channel
+  counts for the replier. `NULL` is the record's user. An отзыв is a
+  `feedback` row, one a person a record. A week runs from Monday 00:00 UTC.
+- **A person is their username**, the CEO's choice, without the @ that would
+  notify them every time the week is shown; their first name when they have
+  none. The middleware keeps both current, as it keeps a group's title.
+- **The week is claimed on the group's row** (`groups.rating_week`) by one
+  conditional update: of two records at once one posts, the other waits on
+  the row and finds the week taken. A quiet week is claimed and says
+  nothing. Nothing of it costs the record: the claim and the count run in
+  savepoints after the record is delivered, and what fails is a warning in
+  the log. `rating_posted` counts the summaries.
+- **No limit depends on it**: an отзыв worth pages would be worth faking,
+  and the отзывы are how a record's errors are found. A group's own day is
+  task 41's.
+
 ---
 
 ## The document
@@ -1056,6 +1085,7 @@ app/
     subjects.py       a chat's subjects and lectures: where a record is filed, its day
     tags.py           what a #tag is, and a record's topics
     feedback.py       «Хорошо», «Плохо» and where the error is, under every document
+    rating.py         a group's week: who sent its records and who rated them
   services/
     vision.py         recognition: the prompt, three runs, parsing, the agreements
     compose.py        stage two: the trusted transcription, formatted
@@ -1115,7 +1145,7 @@ stands"):
 
 ```
 AI_ENABLED=true          kill switch for all model calls
-DAILY_PAGES_PER_USER=30
+DAILY_PAGES_PER_USER=12  a person's pages a day, the CEO's since 2026-10-06
 DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3            at least 2
 VISION_MODEL=gemini-3.5-flash-lite
@@ -1190,8 +1220,9 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
 - **The startup log is the instrument's label**: `Recognition: <model>, N
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
   numbers, whether drawings are cut out and lectures marked, the image
-  compression, both stages, the call knobs, the five timeouts, where a
-  reader's «Плохо» is sent, and whether the bot sees a group's photos. What
+  compression, both stages, the call knobs, the five timeouts, the day's
+  limits, where a reader's «Плохо» is sent, and whether the bot sees a
+  group's photos. What
   a **record** does not say is which prompt made it —
   `docs/PLAN.md` → "Where the quality work stands", gap 3.
 

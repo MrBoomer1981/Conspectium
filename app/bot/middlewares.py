@@ -154,28 +154,7 @@ class DbSessionMiddleware(BaseMiddleware):
 
     @staticmethod
     async def _get_or_create_user(session: AsyncSession, event: Any) -> User:
-        tg_user = event.from_user
-        lookup = select(User).where(User.tg_id == tg_user.id)
-        user = (await session.execute(lookup)).scalar_one_or_none()
-        if user is not None:
-            return user
-
-        user = User(
-            tg_id=tg_user.id,
-            username=tg_user.username,
-            first_name=tg_user.first_name,
-        )
-        registered = await _insert_or_fetch(session, user, lookup)
-        if registered is not user:
-            return registered  # another page of the same album got here first
-        await log_event(session, user.id, "user_registered")
-        # Commit the new user now, before the handler runs. log_ai_calls opens
-        # its own session mid-handler and inserts ai_calls.user_id: without this
-        # commit that row would reference a user this other session can't see
-        # yet, and the FK insert would fail. A user who messaged the bot is
-        # registered regardless of how their first update turns out.
-        await session.commit()
-        return user
+        return await registered(session, event.from_user)
 
     @staticmethod
     async def _get_or_create_group(session: AsyncSession, event: Any) -> Group | None:
@@ -211,6 +190,37 @@ class DbSessionMiddleware(BaseMiddleware):
         if chat.title and group.title != chat.title:
             group.title = chat.title
         return group
+
+
+async def registered(session: AsyncSession, tg_user: Any) -> User:
+    """The user row of a Telegram account, made on first sight: whoever sent
+    an update, and the sender of pages a reply called the bot on (task 72),
+    who may never have written to the bot at all."""
+    lookup = select(User).where(User.tg_id == tg_user.id)
+    user = (await session.execute(lookup)).scalar_one_or_none()
+    if user is not None:
+        # A group's week names its people (task 72), so the name Telegram
+        # gives now is kept, as a group's title is.
+        if (user.username, user.first_name) != (tg_user.username, tg_user.first_name):
+            user.username, user.first_name = tg_user.username, tg_user.first_name
+        return user
+
+    user = User(
+        tg_id=tg_user.id,
+        username=tg_user.username,
+        first_name=tg_user.first_name,
+    )
+    found = await _insert_or_fetch(session, user, lookup)
+    if found is not user:
+        return found  # another page of the same album got here first
+    await log_event(session, user.id, "user_registered")
+    # Commit the new user now, before the handler goes on. log_ai_calls opens
+    # its own session mid-handler and inserts ai_calls.user_id: without this
+    # commit that row would reference a user this other session can't see
+    # yet, and the FK insert would fail. A person is registered regardless of
+    # how the update that brought them turns out.
+    await session.commit()
+    return user
 
 
 async def _insert_or_fetch(session: AsyncSession, row: _Row, lookup: Select) -> _Row:

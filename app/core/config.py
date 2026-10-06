@@ -72,7 +72,8 @@ class Settings(BaseSettings):
     WEBHOOK_SECRET: str
 
     AI_ENABLED: bool = True
-    DAILY_PAGES_PER_USER: int = 30
+    # A person's pages a day: 12 since 2026-10-06, the CEO's (task 72).
+    DAILY_PAGES_PER_USER: int = 12
     DAILY_COST_LIMIT_USD: float = 5
     VISION_RUNS: int = 3
     VISION_MODEL: str = "gemini-3.5-flash-lite"
