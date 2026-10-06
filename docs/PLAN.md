@@ -278,6 +278,9 @@ included. "Where this is going, decided 2026-10-02" says why.
 - [ ] 71. A lecture dated by a day it could not have been given on: a
       margin's day after the pages came no longer makes it last year's —
       the CEO's. Taken on 2026-10-06 from record 79, headed 10.11.2025
+- [ ] 72. A group's week: who sent its records and who rated them, in
+      `/stats` and summed up in the chat once a week — the CEO's. Taken on
+      2026-10-06, so a group sees what it brings and what it says of it
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -366,7 +369,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69
-CEO — current: 71, 70; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 72, 71, 70; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -425,6 +428,9 @@ since 2026-10-01.
 | 2026-10-06 | the CEO, with Claude Code | Task 69 closed on the CEO's word, the day it shipped: v4's measurement on record 74's album and the photographs' comparison left undone. 65 waits for data | the CEO's own |
 | 2026-10-06 | the CEO, with Claude Code | Task 70 taken: «Хорошо» and «Плохо» under every document, «Плохо» asking where the error is, the reply stored and sent to the CEO (`FEEDBACK_CHAT_ID`) — so faults are read off the groups. A table `feedback` (migration `015_feedback`, the CPO's area — named to the CPO before it is pushed); callback queries get a session; in a group a reply to the bot's own message is heard. Events `note_rated` and `note_feedback` in "Contracts" | the CEO's own |
 | 2026-10-06 | the CEO, with Claude Code | Task 71 taken, from record 79: a margin's day after the pages came made the lecture last year's — «10 ноября» on a notebook sent on 6 October headed its document 10.11.2025. Such a day dates nothing now, the lecture taking the day it was sent; the lectures already filed are read again by a data migration, `016_lecture_days`, the CPO's area, named to the CPO before it is pushed. `CLAUDE.md` → "A subject, its lectures…" changes with it | the CEO's own |
+| 2026-10-06 | the CEO, with Claude Code | Task 72 taken: a group's week — who sent its records and who rated them, two numbers a person, ordered by records — in `/stats` in a group, and summed up in the chat with the first record of the week after. A record a reply called the bot on counts for whoever sent the photographs (`notes.sender_id`), its cost still the replier's; the week's summary is claimed on the group's row (`groups.rating_week`) — both in `017_rating`, the CPO's area, named to the CPO before it is pushed. The limits do not depend on it. `CLAUDE.md` → "What NOT to do": social features stay out but for this one, inside its group. Event `rating_posted` in "Contracts" | the CEO's own |
+| 2026-10-06 | the CEO, with Claude Code | Task 41, the CPO's, gains an item: `/stats` in a group says what is left of the group's day, in pages, under task 72's week | the CEO's own, by the rule of 2026-10-01 |
+| 2026-10-06 | the CEO, with Claude Code | A person's day is 12 pages, not 30: `DAILY_PAGES_PER_USER`'s default here and in "Environment variables" — the variable on Railway stands above it and is the CEO's to set — and the startup log says the day's limits. Cost and limits are the CPO's area; built with task 72, item 7 | the CEO's own, by the rule of 2026-10-01 |
 
 ## Where this is going, decided 2026-10-02
 
@@ -985,7 +991,7 @@ GEMINI_API_KEY=                  required
 WEBHOOK_URL=                     required
 WEBHOOK_SECRET=                  required
 AI_ENABLED=true
-DAILY_PAGES_PER_USER=30
+DAILY_PAGES_PER_USER=12
 DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3
 VISION_MODEL=gemini-3.5-flash-lite
@@ -2560,6 +2566,12 @@ only once that record is saved.
 3. `CLAUDE.md`: "Scale debt" — the two rows this closes, and the new set
    beside the album buffer in the row a second replica breaks — "Environment
    variables", and the limits sentence of "A group chat".
+4. **What is left of the group's day, in `/stats`** — added by the CEO on
+   2026-10-06, with task 72: under the group's week, how many pages the
+   group can still send today. In pages, never dollars: a screen a student
+   reads shows no cost (task 14). Whether the cap is set in pages or its
+   dollars are turned into pages is this task's to decide; the line in
+   `texts.py` is the CEO's.
 
 ## Acceptance criterion
 
@@ -2570,6 +2582,7 @@ only once that record is saved.
 - Two replies "#матан" to one untagged album a second apart: one record, one
   set of `ai_calls` rows, one PDF in the chat.
 - The `ai_calls` rows of a group's record carry its `group_id`.
+- `/stats` in a group says how many pages are left of its day.
 - The suite is green.
 
 ## Don't do
@@ -4103,6 +4116,121 @@ notebooks are one lecture only within a week of each other.
 
 ---
 
+# Task 72. A group's week: who sent its records, who rated them
+
+**Owner: the CEO.** Taken on 2026-10-06. What the chat says is the CEO's;
+two columns, in a migration `017_rating`, are the CPO's area, open to the
+CEO and named to the CPO before it is pushed.
+
+## Why
+
+The CEO, 2026-10-06: «рейтинг, кто сколько конспектов отправил и сколько
+было дано обратной связи для группы». Task 70 put «Хорошо» and «Плохо»
+under every document so that the groups say where a record is wrong; a
+group that sees who brought its records, and who read them closely enough
+to say, has a reason to do both. The project's question is whether a group
+uses the bot weekly, and the week is what is counted. `/stats` had been
+called once by 2026-09-23: what a group is not shown it does not see, so the
+week is also summed up in the chat, unasked. Whether either moves anything
+is read off the tables two weeks on: `stats_viewed` in groups, and a group's
+`feedback` rows a week before the first `rating_posted` and a week after.
+
+## Do
+
+1. **Who sent a record.** `notes.sender_id`: whose message carried the
+   pages, when that is not who called the bot on them — a reply's "#матан"
+   under a classmate's photographs (task 40). The record still costs the
+   one who replied (`user_id`), and counts for the one who photographed.
+   `NULL` is the record's `user_id`, so no other path writes anything new,
+   and the records called on before the column count for whoever replied:
+   who photographed them was not kept. The sender of a single photograph
+   may be somebody the bot has never seen, and is registered as an album's
+   sender already is when its pages arrive — the middleware's registration
+   taken out of its class for it. A bot, an anonymous admin or a channel as
+   the sender counts for whoever replied. The middleware keeps a person's
+   username and name current, as it keeps a group's title: they are now
+   shown to the group.
+2. **What is counted** — for one group, in a week from Monday 00:00 UTC, as
+   every day here is counted:
+   - a person's records: the group's records made that week, by
+     `coalesce(sender_id, user_id)`;
+   - a person's отзывы: their `feedback` rows in the group created that
+     week — one a person a record, so a second press counts nothing;
+   - ordered by records, then by отзывы; ten people at most, then «и ещё
+     N». A person is shown by their username in Telegram, the CEO's choice,
+     without the @ that would notify them every time; by their first name
+     when they have no username.
+3. **`/stats` in a group is the group's week**; in a private chat it stays
+   as it is:
+
+       J3115 · эта неделя
+       14 конспектов, 9 отзывов
+
+       1. anna_k — 6 конспектов, 3 отзыва
+       2. petrov_g — 5 конспектов, 4 отзыва
+       3. Иван — 3 конспекта
+       4. masha_s — 2 отзыва
+
+       За всё время: 41 конспект, 23 отзыва
+
+   A week with nothing in it yet says so above the line for all time; a
+   group with no record and no отзыв gets `STATS_EMPTY`. `stats_viewed` as
+   before.
+4. **The week summed up in the chat, unasked.** The first record a group
+   makes in a new week, on any capture path, is followed — after the record
+   and all that is said of it — by the week before: its dates, its two
+   totals, its people as in `/stats`, and a line saying what an отзыв is,
+   «Хорошо» or «Плохо» under a record. No scheduler: the week is claimed on
+   the group's row, `groups.rating_week`, the Monday of the week the last
+   summary went out in, by one conditional update — of two records at once,
+   one wins. A week before with nothing in it is claimed and says nothing;
+   a week followed by a silent one is never summed up, since a summary is of
+   the week just ended. A record a "#word" brings back is not a new one and
+   brings none. `rating_posted` ("Contracts").
+5. **Nothing of it costs the record.** The summary comes after the record is
+   delivered, in a savepoint: a query that fails or a chat that cannot be
+   written to is a warning in the log, the record and its events stay, and
+   the week stays claimed.
+6. **The limits do not depend on it** (the CEO, 2026-10-06). A group's day
+   is task 41's, and `/stats` shows what is left of it once 41 is built —
+   task 41, item 4.
+7. **A person's day is 12 pages, not 30** — the CEO's decision of the same
+   day. `DAILY_PAGES_PER_USER`'s default; the variable on Railway stands
+   above it — 30 since 2026-09-25 — and is the CEO's to set. The startup
+   log says the day's limits, so what production runs is read off it. In a
+   group the pages are charged to whoever brought them to the bot, so the
+   one who calls it on the classmates' photographs reaches 12 first.
+8. `CLAUDE.md` → "The corpus", a section on a group's week; "Structure"; the
+   revision ids; "Environment variables" and the startup log. "What NOT to
+   do" is narrowed in this task's `plan:` commit.
+
+## Acceptance criterion
+
+- In a group, `/stats` lists the week's people as above; in a private chat
+  it is unchanged.
+- A record called on by a reply counts for whoever sent the photographs, and
+  the reply's author is still charged.
+- A group's first record of a week is followed by the summary of the week
+  before, once — two records at once included; the week's second record
+  brings none.
+- A summary that fails leaves the record and its events in place.
+- The startup log says a person's day is 12 pages.
+- `017_rating` run on a PostgreSQL at `016_lecture_days`.
+- The suite is green.
+
+## Don't do
+
+- No points, no medals, no emoji: two numbers a person, the chat plain text.
+- Never across groups: a group sees its own people, and nothing compares
+  groups.
+- Don't tie a limit to it. An отзыв worth pages would be worth faking, and
+  the отзывы are how a record's errors are found.
+- No scheduler, no background loop: the summary rides on the week's first
+  record.
+- No cost and no tokens on the screen (task 14).
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -4358,6 +4486,23 @@ event.
 `changed`: the person had rated the record before and pressed the other
 button. `chars`: the length of what they wrote, a caption included;
 `photo`: the reply carried a photo, a screenshot of the error.
+
+## A group's week, and event `rating_posted`
+
+Task 72. A week runs from Monday 00:00 UTC to the next. A record counts for
+`coalesce(notes.sender_id, notes.user_id)` in the week of its `created_at`;
+an отзыв is a `feedback` row, counted for its `user_id` in the week it was
+created, however often its buttons are pressed again. `notes.sender_id` is
+set only when the pages' sender is not the record's `user_id` — a reply's
+call on somebody else's photographs. `groups.rating_week` is the Monday of
+the week the group's last summary went out in, `NULL` before the first; the
+summary is of the week before it. `rating_posted` is written when a summary
+is sent, never for a week with nothing in it.
+
+    rating_posted  {"week": "2026-09-28", "records": 14, "feedback": 9, "people": 4}
+
+`week`: the Monday of the week summed up. `people`: everyone with a record
+or an отзыв in it, the names past ten included.
 
 ## The group an event happened in
 

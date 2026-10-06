@@ -1282,5 +1282,7 @@ Shared by both owners. Deliberately postponed — don't suggest or implement:
   This is not the document: the PDF is what the group receives, so its design
   and readability are the product itself — "The document"
 - Sharing before the app's first version is used; social features and
-  friends at all
+  friends at all, save one, the CEO's of 2026-10-06: a group's own week —
+  who sent its records and who rated them — shown in that group alone and
+  never compared across groups (`docs/PLAN.md` → task 72)
 - Caching, queues, microservices, Docker, CI
