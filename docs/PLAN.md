@@ -413,6 +413,7 @@ since 2026-10-01.
 | 2026-10-04 | the CEO, with Claude Code | Task 68 specified, not scheduled: an album sent with its pages out of order is assembled in the order the pages themselves say — the numbers in their margins, a sentence across a seam, numbering that runs on — decided by code, and in the order sent when the evidence is not one-sided; the bot does it by itself, asking nobody (the CEO: «бот решает»); measured on albums already read before it is built | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | The repository tidied: `CLAUDE.md` → "Structure" lists `prompts-explain-source-v1.md`, kept though unused, and says why — every prompt stays in `prompts/` once used, since a record does not say which made it. Nothing tracked was removed | the CEO's own |
 | 2026-10-06 | the CEO, with Claude Code | Task 69, from record 74: formulas spaced apart and in a serif, trees drawn as tangles, «[зачёркнуто]» printed, a page of one word — the document's, fixed in `pdf.py`, stored records included. And the CEO's decision of the day: the author's shorthand is spelled out by the composer (`prompts-compose-v4.md`, rule 10), where its «слова оставляй как есть» held every word — the lecture's own abbreviations, formulas and numbers left as written. Production switches to v4 after it is measured on record 74's album sent again. The composing prompt is the CPO's area | the CEO's own |
+| 2026-10-06 | the CEO, with Claude Code | The lecture as structured material — set out by topic, with sections such as «Объяснение», «Ключевые понятия», «Почему?», «Примеры и применение» — specified as the CEO's idea and archived to the backlog the same day: the CEO judged that it does not move the project's result. Nothing scheduled moves | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4468,6 +4469,18 @@ under the three-character floor an explanation's anchor already had.
   too little to make a rule of them — task 64 asks the model, which sees the
   page. The subject's base (63), lectures at their dates, is where the two
   halves could meet
+- The lecture as structured material, not its digitization — the CEO's
+  idea of 2026-10-06, specified the same day and archived: the CEO judged
+  that it does not move the project's result. The document set out by the
+  lecture's topics, not the lecturer's sequence: a significant topic with
+  sections such as «Объяснение», «Ключевые понятия», «Почему?», «Примеры и
+  применение» — examples, not a template — and its proofs and drawings in
+  place; key concepts the author's words picked by code from the markup, an
+  application printed only with its source, no icons. The design drafted:
+  the author's text cut into units moved whole, a text-only call answering
+  with their arrangement by number and the bot's own texts under its label,
+  code checking that every unit is placed once; stage three becoming that
+  call, the arrangement stored with the record
 - Detecting a page photographed rotated. Nothing corrects one today:
   `images.compress` honours EXIF and a physically turned page carries none.
   Suspected of costing time on the model, never reproduced
