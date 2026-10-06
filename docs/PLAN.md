@@ -266,6 +266,10 @@ included. "Where this is going, decided 2026-10-02" says why.
 - [ ] 65. A page read whole: two runs that stopped short of the page's end
       no longer outvote one that read it — the CEO's. Taken on 2026-10-04
       from record 67, between 63's parts
+- [ ] 69. What record 74 showed: formulas spaced apart and set in a serif,
+      trees drawn as tangles, «[зачёркнуто]» printed, a page of one word,
+      and the author's shorthand spelled out by the composer — the CEO's.
+      Taken on 2026-10-06 from record 74, the records' quality first
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -354,7 +358,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56
-CEO — current: 65; next: 63's rest, then 60
+CEO — current: 69, 65; next: 63's rest, then 60
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -408,6 +412,7 @@ since 2026-10-01.
 | 2026-10-04 | the CEO, with Claude Code | Task 67 specified as a mechanism to think through: the bot asks a group its university, year and programme, so a subject's records can serve the next cohorts. Its last step is sharing, which "What NOT to do" holds until the app is used — the rule changes first | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | Task 68 specified, not scheduled: an album sent with its pages out of order is assembled in the order the pages themselves say — the numbers in their margins, a sentence across a seam, numbering that runs on — decided by code, and in the order sent when the evidence is not one-sided; the bot does it by itself, asking nobody (the CEO: «бот решает»); measured on albums already read before it is built | the CEO's own |
 | 2026-10-04 | the CEO, with Claude Code | The repository tidied: `CLAUDE.md` → "Structure" lists `prompts-explain-source-v1.md`, kept though unused, and says why — every prompt stays in `prompts/` once used, since a record does not say which made it. Nothing tracked was removed | the CEO's own |
+| 2026-10-06 | the CEO, with Claude Code | Task 69, from record 74: formulas spaced apart and in a serif, trees drawn as tangles, «[зачёркнуто]» printed, a page of one word — the document's, fixed in `pdf.py`, stored records included. And the CEO's decision of the day: the author's shorthand is spelled out by the composer (`prompts-compose-v4.md`, rule 10), where its «слова оставляй как есть» held every word — the lecture's own abbreviations, formulas and numbers left as written. Production switches to v4 after it is measured on record 74's album sent again. The composing prompt is the CPO's area | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -3881,6 +3886,84 @@ taken.
 
 - Don't let a model decide the order.
 - Don't reorder on one weak sign.
+
+---
+
+# Task 69. What record 74 showed
+
+**Owner: the CEO.** Taken on 2026-10-06, from record 74, a lecture of
+discrete mathematics on trees: «ошибки в формулах, странные сокращения,
+какие то графики». The composing prompt is the CPO's area, open to the CEO
+since 2026-10-01.
+
+## Why
+
+Record 74 went out on 2026-10-05 with:
+
+- **Formulas spaced apart**: the in-degree as «ρ ⁻ (v)», the edge swapped
+  out of a spanning tree as «(i *, j *)», Pascal's «array [1. . p]»; and the
+  Russian words inside a formula — «∃! узел», «∀ узел достижим из корня» —
+  in Computer Modern, a serif, in a line of Onest.
+- **Trees drawn as tangles**: every `[граф: …]` goes round a circle, and a
+  binary tree of seven vertices came out as six crossing chords; the
+  ordered tree and its binary form after it the same.
+- **«[зачёркнуто] и [зачёркнуто]»** in the middle of a line of a proof.
+- **A page holding one word**, «старого.», the last line of the last
+  paragraph.
+- **The author's shorthand**: «мн-во», «св-вами», «сод-ся», «непересек.»,
+  «кр. остов», «Сл. шаг ] на этом шаге доб …», where «]» is «пусть».
+  Recognition writes the page as it stands and the composer keeps every
+  word, so the document reads like the notebook, and a student who missed
+  the lecture decodes it.
+- **Lines cut short** — «гамильтонов цик-», «Центральная вершина (вершина
+  ec(v) =» — and an edge b–d in the ordered tree that makes it a graph with
+  a cycle: the reading's or the author's, which only the photographs tell.
+
+## Do
+
+1. **Formulas**: an operator alone in an index braced, a range «1..p» set in
+   `\text`, the Russian words between the parts of a formula in a line set
+   as text. `pdf.py`.
+2. **A tree that branches is drawn as a tree** — its root on top, children
+   under their parent in the order read; a path and a graph with a cycle
+   stay on the circle. `pdf.py`.
+3. **«[зачёркнуто]» is not printed**, nor a line that held nothing else.
+4. **The last line of a paragraph never goes over a page alone.**
+5. **The author's shorthand spelled out by the composer** — rule 10 of
+   `prompts-compose-v4.md`, the CEO's decision of 2026-10-06: an ordinary
+   word written short is written whole, in the form the phrase needs; «]»
+   is «Пусть»; a ∀ or ∃ standing for a word in a sentence is the word. Left
+   as written: the abbreviations the lecture itself introduces (ОД, БД,
+   УД), «т.е.» and «т.к.», formulas, numbers, and whatever the composer is
+   not sure of. The guards stand as they are — the numbers, the
+   «[неразборчиво]», the length. Measured on record 74's album sent again;
+   production switches `COMPOSE_PROMPT_FILE` after the CEO's look.
+6. **The lines cut short and the extra edge** compared with the album's
+   photographs: the reading's, or the author's.
+7. `CLAUDE.md` → "Stage two" and "The document"; `BRAND.md` v1.5;
+   `FINDINGS.md` → "Record 74, a lecture on trees".
+
+## Acceptance criterion
+
+- Record 74 drawn again, as a "#word" brings it back after the deploy: «ρ⁻(v)»
+  and «(i*, j*)» set close, «[1..p]» whole, the words of its formulas in the
+  text's face, its binary trees as trees, no «[зачёркнуто]», no page of one
+  word.
+- Record 74's album sent again under v4: the shorthand spelled out and
+  nothing else reworded, its numbers and «[неразборчиво]» those of the
+  reading; the CEO reads it against the photographs.
+- The suite is green.
+
+## Don't do
+
+- Don't spell out what the lecture defines or anything inside a formula,
+  and don't write a number as a word.
+- Don't straighten a graph with a cycle into a tree: a tree with an edge
+  too many is a reading to compare with the photograph, not a picture to
+  correct.
+- Mind task 63 while v3 and v4 both stand in the corpus: two notebooks of
+  one lecture are matched by the words they share (`merge.same_lecture`),
+  and one composed under v4 shares fewer with one composed under v3.
 
 ---
 
