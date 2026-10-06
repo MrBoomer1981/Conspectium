@@ -275,6 +275,9 @@ included. "Where this is going, decided 2026-10-02" says why.
       the reader's own words on where the error is — the CEO's. Taken on
       2026-10-06, so the records' quality is read off the groups rather than
       found one record at a time
+- [ ] 71. A lecture dated by a day it could not have been given on: a
+      margin's day after the pages came no longer makes it last year's —
+      the CEO's. Taken on 2026-10-06 from record 79, headed 10.11.2025
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -363,7 +366,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69
-CEO — current: 70; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 71, 70; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -421,6 +424,7 @@ since 2026-10-01.
 | 2026-10-06 | the CEO, with Claude Code | The lecture as structured material — set out by topic, with sections such as «Объяснение», «Ключевые понятия», «Почему?», «Примеры и применение» — specified as the CEO's idea and archived to the backlog the same day: the CEO judged that it does not move the project's result. Nothing scheduled moves | the CEO's own |
 | 2026-10-06 | the CEO, with Claude Code | Task 69 closed on the CEO's word, the day it shipped: v4's measurement on record 74's album and the photographs' comparison left undone. 65 waits for data | the CEO's own |
 | 2026-10-06 | the CEO, with Claude Code | Task 70 taken: «Хорошо» and «Плохо» under every document, «Плохо» asking where the error is, the reply stored and sent to the CEO (`FEEDBACK_CHAT_ID`) — so faults are read off the groups. A table `feedback` (migration `015_feedback`, the CPO's area — named to the CPO before it is pushed); callback queries get a session; in a group a reply to the bot's own message is heard. Events `note_rated` and `note_feedback` in "Contracts" | the CEO's own |
+| 2026-10-06 | the CEO, with Claude Code | Task 71 taken, from record 79: a margin's day after the pages came made the lecture last year's — «10 ноября» on a notebook sent on 6 October headed its document 10.11.2025. Such a day dates nothing now, the lecture taking the day it was sent; the lectures already filed are read again by a data migration, `016_lecture_days`, the CPO's area, named to the CPO before it is pushed. `CLAUDE.md` → "A subject, its lectures…" changes with it | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4049,6 +4053,53 @@ wrong.
   reply.
 - Don't keep the question in the process: the row is the state.
 - Don't ask «что не так» after «Хорошо».
+
+---
+
+# Task 71. A lecture dated by a day it could not have been given on
+
+**Owner: the CEO.** Taken on 2026-10-06, from record 79. The lectures already
+filed are put right by a data migration, `016_lecture_days` — the CPO's
+area, open to the CEO, named to the CPO before it is pushed.
+
+## Why
+
+The CEO, 2026-10-06: «бот маркирует все 2025 годом». Record 79, sent on 6
+October 2026, came with «10 ноября» in its margin, and its document is
+headed 10.11.2025. `subjects.day_of` reads a margin's day without a year as
+the latest such day not after the day the pages came — in January "12.12"
+is last December's — and a day in November is last year's by that rule. A
+lecture cannot have been given after its notebook was photographed: a
+margin's day after it is a misreading, the notebook's print or a day the
+author noted for something else, and the rule turned it into a date a year
+back. The day stands in the head of every page of the document, and two
+notebooks are one lecture only within a week of each other.
+
+## Do
+
+1. **A margin's day after the day the pages came** — a day's grace for the
+   timezone — is not the lecture's: the lecture is dated by the day it was
+   sent, as with no date at all. A margin's day before it is taken as now,
+   in the year written or the year the pages came. The caption keeps its
+   rule: the sender typed it, and a notebook of last year is dated there —
+   «#матан 10.11.2025».
+2. **The lectures already filed** by the old rule are read again from their
+   notebooks' margins (`016_lecture_days`); one no margin dates any more
+   takes the day its first notebook was sent.
+3. `CLAUDE.md` → "A subject, its lectures, and one lecture from several
+   notebooks"; `FINDINGS.md`.
+
+## Acceptance criterion
+
+- Record 79's document headed by the day it was sent, 06.10.2026.
+- A margin's day before the day sent dates a lecture as before, and so does
+  a caption's.
+- The migration run on a PostgreSQL holding a lecture of each kind.
+- The suite is green.
+
+## Don't do
+
+- Don't guess the year of a day the page cannot have meant.
 
 ---
 
