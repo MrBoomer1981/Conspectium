@@ -934,7 +934,8 @@ it drops what does nothing to the layout (`\limits`, `\displaystyle`, the
 `\big` family), maps LaTeX's second spellings (`pdf._SYNONYMS`: `\le`,
 `\mbox`, `\textrm`, `\tfrac`, `\stackrel`, `\overbrace`…), turns environments
 into `\left…\substack{…}\right…` — losing column alignment, which is why a
-matrix is asked for as a markdown table — and handles `\xrightarrow`,
+matrix is asked for as a markdown table — and handles `\xrightarrow`, its
+condition under the arrow in brackets included (`\underset`, task 77),
 `\pmod` (a run of digits one modulus), bold words inside `\text`, quotes,
 Russian words outside `\text`, `\cline`, an operator alone in an index —
 unbraced, mathtext spaces it as an operation, and record 74 printed
@@ -943,8 +944,15 @@ punctuation. A brace with words under or over it
 becomes `\underset` or `\overset` over its line — the brace lost, its words
 where the author wrote them — and an aligned chain alone in a display formula
 is drawn a row at a time (`pdf.aligned_rows`), since `\substack` sets its rows
-touching. A command ends where its letters end, `(?![A-Za-z])`. `\ce{…}` stays
-unsupported. `test_pdf.py` proves each rewrite made before 2026-09-29 both
+touching. **A term the author struck out is drawn struck** (task 77):
+`\cancel{…}` with a stroke rising across it, `\bcancel` falling, `\xcancel`
+both. mathtext has no strike, so the formula is drawn a second time with the
+term's place left empty, and the stroke goes across what the two pictures
+differ by (`pdf._strike`) — under a power, in a fraction, round a matrix. One
+that cannot be placed sends the formula out as its source, never without its
+stroke: «\cancel{56}^{48}», 56 crossed out and 48 written over it, would read
+as 56 to the 48th. A command ends where its letters end, `(?![A-Za-z])`.
+`\ce{…}` and `\cancelto` stay unsupported. `test_pdf.py` proves each rewrite made before 2026-09-29 both
 rewrites and draws — those after it were checked by drawing the record that
 showed them, under the decision to add no tests — and a refusal is a warning
 in the log with mathtext's own diagnosis, once per formula per document. → "mathtext, one

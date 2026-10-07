@@ -42,7 +42,9 @@ matplotlib.use("Agg")  # no display on a server; must precede pyplot
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib import patheffects  # noqa: E402
 from matplotlib.font_manager import FontProperties  # noqa: E402
+import numpy as np  # noqa: E402
 from PIL import Image as PILImage  # noqa: E402
+from PIL import ImageDraw  # noqa: E402
 from reportlab.lib import colors  # noqa: E402
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT  # noqa: E402
 from reportlab.lib.pagesizes import A4  # noqa: E402
@@ -1147,15 +1149,68 @@ _THIN_SPACE_RE = re.compile(r"\\[,!:;]")
 # One level of nesting, because the label is usually \text{...}. Deeper than
 # that the pattern does not match and the formula falls through to its own
 # source, which is exactly what happens today.
+#
+# A condition under the arrow comes first, in brackets, and goes under it by
+# \underset: \xrightarrow[k \to \infty]{} 0, a limit, went out as its source
+# twice in one record (task 77).
 _BRACED = r"((?:[^{}]|\{[^{}]*\})*)"
 _LABELLED_ARROW_RE = re.compile(
-    rf"\\x(right|left)arrow\{{{_BRACED}\}}"
+    rf"\\x(right|left)arrow(?:\[([^\[\]]*)\])?\{{{_BRACED}\}}"
 )
 
 
 def _labelled_arrow(found: re.Match) -> str:
     direction = "to" if found.group(1) == "right" else "leftarrow"
-    return rf"\overset{{{found.group(2)}}}{{\{direction}}}"
+    arrow = rf"\{direction}"
+    below, above = found.group(2), found.group(3)
+    if below is None or above.strip():
+        arrow = rf"\overset{{{above}}}{{{arrow}}}"
+    if below is not None and below.strip():
+        arrow = rf"\underset{{{below}}}{{{arrow}}}"
+    return arrow
+
+
+# A term the author struck out: what the model writes as \cancel{…}, with
+# \bcancel and \xcancel for a stroke the other way and for both (task 77).
+# mathtext has no strike, so for_mathtext leaves the term as it is and
+# _formula_png draws the stroke across it. The command is never just dropped:
+# «\cancel{56}^{48}», 56 crossed out and 48 written over it, would read as 56
+# to the 48th.
+_STRIKES = {"cancel": ("/",), "bcancel": ("\\",), "xcancel": ("/", "\\")}
+_STRIKE_RE = re.compile(rf"\\({'|'.join(_STRIKES)}){_COMMAND_END}\s*\{{")
+
+
+def _struck(latex: str) -> list[tuple[int, int, str, str]]:
+    """Each struck term — where it starts and ends, how it is struck, what it
+    holds — the outermost only, its braces balanced; one left unclosed stays
+    in the formula, and mathtext refuses it as before."""
+    found: list[tuple[int, int, str, str]] = []
+    position = 0
+    while (start := _STRIKE_RE.search(latex, position)) is not None:
+        depth, end = 1, start.end()
+        while end < len(latex) and depth:
+            if latex[end] == "\\":
+                end += 2  # \{ and \} are a set's braces, not the group's
+                continue
+            depth += {"{": 1, "}": -1}.get(latex[end], 0)
+            end += 1
+        if depth:
+            break
+        found.append((start.start(), end, start.group(1), latex[start.end() : end - 1]))
+        position = end
+    return found
+
+
+def _without_strokes(
+    latex: str, struck: list[tuple[int, int, str, str]], empty: int | None = None
+) -> str:
+    """The formula with its struck terms as they stand, braced so that a power
+    on one stays on it — and the one at `empty` as a place of its size with
+    nothing in it, which is how _strike finds where the term is drawn."""
+    for index, (start, end, _, term) in reversed(list(enumerate(struck))):
+        held = rf"\phantom{{{term}}}" if index == empty else term
+        latex = f"{latex[:start]}{{{held}}}{latex[end:]}"
+    return latex
 
 
 # Congruences. mathtext has no \pmod, and a lecture on remainders is written in
@@ -1412,6 +1467,7 @@ def _environment(found: re.Match) -> str:
 
 def for_mathtext(latex: str) -> str:
     """LaTeX as close to it as matplotlib's mathtext will accept."""
+    latex = _without_strokes(latex, _struck(latex))
     latex, _ = unbox(latex)
     latex = _CLINE_RE.sub("", latex)
     latex = _ENVIRONMENT_RE.sub(_environment, latex)
@@ -1542,8 +1598,20 @@ def _formula_png(
     lifted a subscript off the line and sank a fraction through it.
 
     `color` is the ink's everywhere but on the one dark block, "Суть", where
-    a formula in ink would be ink on ink.
+    a formula in ink would be ink on ink. A term the author struck out is
+    drawn struck (_strike).
     """
+    struck = _struck(latex)
+    data, width, height, depth = _formula_drawn(latex, size_pt, color)
+    if struck:
+        data = _strike(data, latex, struck, size_pt, color)
+    return data, width, height, depth
+
+
+def _formula_drawn(
+    latex: str, size_pt: float, color: str
+) -> tuple[bytes, float, float, float]:
+    """The formula as mathtext draws it — a struck term with no stroke."""
     figure = plt.figure(figsize=(0.01, 0.01))
     try:
         text = figure.text(
@@ -1575,6 +1643,57 @@ def _formula_png(
     width, height = PILImage.open(io.BytesIO(data)).size
     scale = 72.0 / _DPI
     return data, width * scale, height * scale, depth
+
+
+# The stroke across a struck term: about the weight of a fraction's bar, and
+# reaching a point past the term each way, as LaTeX's \cancel reaches past
+# its box.
+_STRIKE_EM = 0.065
+_STRIKE_PAST_PT = 1.0
+
+
+def _strike(
+    data: bytes,
+    latex: str,
+    struck: list[tuple[int, int, str, str]],
+    size_pt: float,
+    color: str,
+) -> bytes:
+    """The formula's picture with a stroke across each struck term (task 77).
+
+    mathtext cannot say where it drew a term, so each is found by drawing the
+    formula again with the term's place left empty: the term is what the two
+    pictures differ by, wherever it stands — under a power, in a fraction,
+    round a matrix. Raises when a term cannot be found, and the formula goes
+    out as its source, as it did before: never without its stroke."""
+    picture = PILImage.open(io.BytesIO(data)).convert("RGBA")
+    ink = np.asarray(picture)[..., 3].astype(np.int16)
+    pen = ImageDraw.Draw(picture)
+    weight = max(2, round(size_pt * _STRIKE_EM * _DPI / 72.0))
+    past = round(_STRIKE_PAST_PT * _DPI / 72.0)
+    for index, (_, _, how, _) in enumerate(struck):
+        without, *_ = _formula_drawn(
+            _without_strokes(latex, struck, empty=index), size_pt, color
+        )
+        other = PILImage.open(io.BytesIO(without)).convert("RGBA")
+        other_ink = np.asarray(other)[..., 3].astype(np.int16)
+        if other_ink.shape != ink.shape:
+            raise ValueError("a struck term moved the rest of the formula")
+        rows, columns = np.nonzero(np.abs(ink - other_ink) > 40)
+        if not len(rows):
+            raise ValueError("a struck term with nothing drawn")
+        left, right = int(columns.min()) - past, int(columns.max()) + past
+        top, bottom = int(rows.min()) - past, int(rows.max()) + past
+        for stroke in _STRIKES[how]:
+            rising = stroke == "/"
+            pen.line(
+                [(left, bottom if rising else top), (right, top if rising else bottom)],
+                fill=color,
+                width=weight,
+            )
+    buffer = io.BytesIO()
+    picture.save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
 def _loop_circle(x: float, y: float, node: float) -> tuple[float, float, float]:

@@ -416,6 +416,23 @@ what dead sophistication looks like: the boundary `(?![A-Za-z])` already makes
 a short match fail where a letter follows, so `\bigl` backtracks out of `big`
 on its own.
 
+**The fourth round was found by the log** (task 77, 2026-10-07): five
+formulas refused since 2026-10-03, in two records. Three on 2026-10-05 were
+the author's crossings-out — `- 105 - \cancel{56}^{48} - 72 = …`, four
+numbers struck in a row, a determinant's working struck whole — and mathtext
+has no `\cancel`. Two on 2026-10-06 were a limit, `\boxed{\frac{1}{2^{k-1}}}
+\xrightarrow[k \to \infty]{} 0`: the rewrite to `\overset` knew a label over
+the arrow, not a condition under it in brackets, which now goes under it by
+`\underset`. Dropping `\cancel` would have drawn all five and made the first
+a power — 56 to the 48th, where the author had corrected 56 to 48 — so the
+stroke is drawn instead. mathtext cannot say where it put a term, so the
+formula is drawn again with the term's place left empty (`\phantom`), and
+the stroke goes across the pixels the two pictures differ by; the layout is
+the same in both, so it lands on the term wherever it stands. All five drew,
+in a line and on the kraft ground. The arrow does not stretch under a long
+condition as LaTeX's does: mathtext has no arrow that stretches, so «→ 0»
+stands over «k → +∞» a little to the left of where LaTeX would set it.
+
 ## Why reading and composing are two calls
 
 Sort the failures of the first model into the ones where it *misread*
