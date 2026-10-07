@@ -82,6 +82,14 @@ _CALL_TIMEOUT_S = settings.VISION_CALL_TIMEOUT_S
 # transcribe(): three attempts, so two pauses; the loop stops at the first
 # success or the first non-retryable failure.
 _RETRY_PAUSES_S = (1, 2)
+# A first attempt that times out is a page the model thinks about longer than
+# the ceiling, not a line that hung: every successful call over 50 s thought
+# 12,000-21,000 tokens for an answer of a few hundred, and the same ceiling
+# again timed out 14 times of 25, the third 7 of 14 (task 76). So the attempt
+# after it has the time of the two it replaces, and is the last: 90 s then
+# 180 s, 271 s at worst — inside the worst case below, which stays the
+# ceiling everything else is derived from.
+_AFTER_TIMEOUT = 2
 # One run's worst case: every attempt timing out, plus the pauses between them.
 RUN_WORST_CASE_S = (
     (len(_RETRY_PAUSES_S) + 1) * _CALL_TIMEOUT_S + sum(_RETRY_PAUSES_S)
@@ -516,6 +524,13 @@ _THINKING_LEVEL = {
 # sizes is how long the model may think.
 MAX_OUTPUT_TOKENS = 32768
 
+# The SDK runs its automatic function calling on every call it is not told
+# otherwise for: a loop for Python tools none of these calls passes, a copy
+# of the config, and a line in the log each time — a fifth of the log was
+# "AFC is enabled" (task 76). Search grounding is Google's own tool, answered
+# inside the one call, and does not go through it.
+NO_AFC = types.AutomaticFunctionCallingConfig(disable=True)
+
 
 def thinking_config(level: str) -> types.ThinkingConfig | None:
     """A thinking-level setting as the SDK takes it; None for "unset", which
@@ -543,12 +558,14 @@ def _generation_config() -> types.GenerateContentConfig:
         max_output_tokens=MAX_OUTPUT_TOKENS,
         media_resolution=_MEDIA_RESOLUTION.get(settings.VISION_MEDIA_RESOLUTION),
         thinking_config=thinking_config(settings.VISION_THINKING_LEVEL),
+        automatic_function_calling=NO_AFC,
     )
 
 
 async def _one_attempt(
     image_bytes: bytes,
     model: str,
+    timeout: float = _CALL_TIMEOUT_S,
 ) -> tuple[Transcription | None, CallStats, bool]:
     """A single Gemini call plus the parsing that follows it. The third element
     says whether a retry is worth it: a transient exception, or a 200 whose
@@ -571,7 +588,7 @@ async def _one_attempt(
                     ],
                     config=_generation_config(),
                 ),
-                timeout=_CALL_TIMEOUT_S,
+                timeout=timeout,
             )
     except Exception as exc:
         # No response → no tokens billed → no cost to record. The failure is
@@ -616,15 +633,21 @@ async def transcribe(
     model: str,
 ) -> tuple[Transcription | None, list[CallStats]]:
     """Up to three attempts with 1 s then 2 s pauses, stopping at the first
-    success or the first non-retryable failure. Never touches the database.
-    Every attempt is recorded in the returned list, which is always non-empty."""
+    success or the first non-retryable failure — and after a first attempt
+    that timed out, one attempt twice as long and no more (_AFTER_TIMEOUT).
+    Never touches the database. Every attempt is recorded in the returned
+    list, which is always non-empty."""
     all_stats: list[CallStats] = []
     last = len(_RETRY_PAUSES_S)
-    for attempt in range(last + 1):
-        result, stats, retryable = await _one_attempt(image_bytes, model)
+    timeout = _CALL_TIMEOUT_S
+    attempt = 0
+    while True:
+        result, stats, retryable = await _one_attempt(image_bytes, model, timeout)
         all_stats.append(stats)
         if result is not None:
             return result, all_stats
+        if attempt == 0 and (stats.error or "").startswith("TimeoutError"):
+            timeout, last = _AFTER_TIMEOUT * _CALL_TIMEOUT_S, min(last, 1)
         # stats.error, not the exception: str(TimeoutError()) is "", and a
         # timeout used to reach the log as a line ending in a bare colon. The
         # column had it right; the log had fallen behind.
@@ -638,7 +661,7 @@ async def transcribe(
         if not retryable or attempt == last:
             return None, all_stats
         await asyncio.sleep(_RETRY_PAUSES_S[attempt])
-    return None, all_stats  # unreachable; keeps the type checker happy
+        attempt += 1
 
 
 def total_cost(stats: list[CallStats]) -> float | None:

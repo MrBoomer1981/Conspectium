@@ -196,8 +196,10 @@ async def lifespan(app: FastAPI):
         settings.VISION_THINKING_LEVEL,
     )
     logger.info(
-        "Timeouts: call %ds, compose %ds, explain %ds, consensus %ds, album %ds",
+        "Timeouts: call %ds, %ds after a timeout, compose %ds, explain %ds, "
+        "consensus %ds, album %ds",
         settings.VISION_CALL_TIMEOUT_S,
+        vision._AFTER_TIMEOUT * settings.VISION_CALL_TIMEOUT_S,
         settings.COMPOSE_CALL_TIMEOUT_S,
         settings.EXPLAIN_CALL_TIMEOUT_S,
         vision._CONSENSUS_TIMEOUT_S,

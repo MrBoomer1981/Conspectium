@@ -554,9 +554,10 @@ async def test_a_timeout_reaches_the_log_by_name(monkeypatch, caplog):
     with caplog.at_level(logging.WARNING, logger="app.services.vision"):
         result, stats = await vision.transcribe(b"x", "test-model")
 
-    assert result is None and len(stats) == 3
+    # A timeout is repeated once, twice as long, and no more (task 76).
+    assert result is None and len(stats) == 2
     messages = [record.getMessage() for record in caplog.records]
-    assert len(messages) == 3
+    assert len(messages) == 2
     assert all("TimeoutError" in message for message in messages)
 
 
@@ -573,8 +574,8 @@ async def test_the_log_says_which_attempt_and_whether_a_retry_is_coming(
         await vision.transcribe(b"x", "test-model")
 
     messages = [record.getMessage() for record in caplog.records]
-    assert "attempt 1/3" in messages[0] and "retrying" in messages[0]
-    assert "attempt 3/3" in messages[2] and "no retry left" in messages[2]
+    assert "attempt 1/2" in messages[0] and "retrying" in messages[0]
+    assert "attempt 2/2" in messages[1] and "no retry left" in messages[1]
 
 
 async def test_a_failure_that_is_not_retried_says_so_on_its_first_attempt(
@@ -694,7 +695,7 @@ async def test_the_model_reaches_the_call_and_every_row_of_the_run(monkeypatch):
 
     _, stats = await vision.transcribe(b"x", "some-other-model")
 
-    assert [call["model"] for call in sent] == ["some-other-model"] * 3
+    assert [call["model"] for call in sent] == ["some-other-model"] * 2
     assert {s.model for s in stats} == {"some-other-model"}
     assert {s.kind for s in stats} == {"transcribe"}
 

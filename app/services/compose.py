@@ -267,6 +267,7 @@ async def _one_call(markdown: str) -> tuple[str | None, CallStats, bool]:
                         thinking_config=vision.thinking_config(
                             settings.COMPOSE_THINKING_LEVEL
                         ),
+                        automatic_function_calling=vision.NO_AFC,
                     ),
                 ),
                 timeout=settings.COMPOSE_CALL_TIMEOUT_S,

@@ -31,6 +31,7 @@ import math
 import os
 import re
 import tempfile
+import threading
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from xml.sax.saxutils import escape
@@ -64,6 +65,24 @@ from reportlab.platypus import (  # noqa: E402
 from reportlab.platypus import paragraph as _rl_paragraph  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+# One document drawn at a time. matplotlib lays every formula out with one
+# parser for the whole process, and pyplot numbers its figures from state it
+# shares: two documents drawn at once in two threads broke each other's
+# formulas — half of them printed as their source with two threads, nearly all
+# with four, and some drawn wrong without a word (task 76). A second document
+# waits the first one's seconds.
+_DRAWING = threading.Lock()
+
+
+def _one_at_a_time(draw):
+    @functools.wraps(draw)
+    def drawn(*args, **kwargs):
+        with _DRAWING:
+            return draw(*args, **kwargs)
+
+    return drawn
+
 
 # reportlab sets a paragraph's first line a font size below its top, whatever
 # the line holds, so a tall formula there — a column vector, a fraction over
@@ -1075,6 +1094,7 @@ def _mono_glyphs() -> frozenset[int]:
     return _glyphs("JetBrainsMono-Regular.ttf")
 
 
+@_one_at_a_time
 def warm_up() -> None:
     """Build matplotlib's font cache and register the fonts ahead of the first
     request. Both are one-off costs of a few seconds; paying them at startup
@@ -3501,6 +3521,7 @@ class _PagedCanvas(rl_canvas.Canvas):
         rl_canvas.Canvas.save(self)
 
 
+@_one_at_a_time
 def render(
     title: str,
     markdown: str,

@@ -11,8 +11,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.bot import texts
 from app.core.config import settings
@@ -51,23 +52,46 @@ async def check_limits(
         if pages > left:
             return texts.group_day_over(left, pages, settings.DAILY_PAGES_PER_GROUP)
 
-    # Lazy daily rollover. A brand-new user has quota_reset_at = None, and
-    # `None < today` raises TypeError, so the None check has to come first.
-    if user.quota_reset_at is None or user.quota_reset_at < today:
-        user.pages_used_today = 0
-        user.quota_reset_at = today
-
-    if user.pages_used_today + pages > settings.DAILY_PAGES_PER_USER:
+    # Today's pages, read and not written: a day that is over counts as none,
+    # and so does a brand-new user's, whose quota_reset_at is None. The
+    # rollover used to be written here; the next event flushed it, and the
+    # row stayed locked for the whole record — minutes — so a second album
+    # from the same person waited for the first, then zeroed its pages
+    # (task 76). consume() writes the day.
+    used = user.pages_used_today if user.quota_reset_at == today else 0
+    if used + pages > settings.DAILY_PAGES_PER_USER:
         return texts.LIMIT_PAGES
 
     return None
 
 
 async def consume(session: AsyncSession, user: User, pages: int) -> None:
-    """Add `pages` to the user's daily counter. Called only after the record
-    has been saved — step 14. No row lock on the user: for a single user the
-    worst case is one page double-counted (PLAN.md -> Known risks)."""
-    user.pages_used_today += pages
+    """Add `pages` to the user's day. Called only after the record has been
+    saved — step 14.
+
+    One statement, its arithmetic the database's, a day that is over starting
+    again from these pages. Two records saved at once both count — the second
+    waits for the first's commit and adds to what it wrote — and the row is
+    locked only from here to the commit, seconds (task 76). Two checked at
+    once can still both pass: soft, as the cost cap is (PLAN.md -> Known
+    risks). The object takes the result as committed state, so nothing is
+    flushed over it."""
+    today = datetime.now(timezone.utc).date()
+    counted = await session.execute(
+        update(User)
+        .where(User.id == user.id)
+        .values(
+            pages_used_today=case(
+                (User.quota_reset_at == today, User.pages_used_today + pages),
+                else_=pages,
+            ),
+            quota_reset_at=today,
+        )
+        .returning(User.pages_used_today)
+        .execution_options(synchronize_session=False)
+    )
+    set_committed_value(user, "pages_used_today", counted.scalar_one())
+    set_committed_value(user, "quota_reset_at", today)
 
 
 async def group_pages_left(

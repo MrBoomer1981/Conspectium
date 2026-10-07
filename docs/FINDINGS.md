@@ -1521,3 +1521,97 @@ rows from top to bottom, or two far apart — never the lines. It is not why
 the page was refused, but «Текст мелкий» could not have fired on it.
 Squared paper's grid read as ink on every row, or a shadow across the
 sheet, would do it; the numbers do not say which.
+
+## What the bot spends its time and memory on
+
+**Read on 2026-10-07**, at the CEO's request to find what takes the bot's
+time and memory: the deploy logs Railway still held (twenty deploys, from
+2026-10-03), its metrics for the week, a read-only query of `ai_calls` run
+inside the bot's container (numbers only), and three audits of the code — the
+photo pipeline, the document, the database. `gemini-3.8-flash` throughout.
+
+**Where an album's minutes went.** Twelve albums in the logs, each timed
+from its batch closing:
+
+| | Pages read by | Explained by | Done |
+|---|---|---|---|
+| 5 albums, one recognition timeout among them | 37–112 s | 24–169 s after composing | 117–233 s |
+| 7 albums, 3 to 9 timeouts each | 269–393 s | 42–159 s after composing | 339–472 s |
+
+Composing took 3–23 s, the document 3–9 s. In the seven, most pages were
+read within 15–65 s, and the album waited for the rest.
+
+**A timeout was a page thought about too long.** `ai_calls`, seven days:
+
+| Kind | Calls | Timed out | Successful: p50 | p95 | max | Thinking p50 / p95 / max |
+|---|---|---|---|---|---|---|
+| transcribe | 348 | 46 | 18.5 s | 64.0 s | 88.8 s | 2,166 / 13,177 / 21,031 |
+| source | 203 | 3 | 9.2 s | 50.4 s | 83.1 s | 2,721 / 6,090 / 8,206 |
+| explain | 32 | 0 | 17.3 s | 44.3 s | 50.7 s | 2,991 / 4,556 / 7,123 |
+| compose | 40 | 0 | 5.5 s | 14.7 s | 18.0 s | — |
+
+Every successful recognition call over 50 s had thought 12,000 to 21,000
+tokens, its answer 400 to 600 — at 170 to 250 tokens a second, a call past
+90 s is one thinking past about 18,000. Not a line that hung: none failed in
+any other way. Timeouts by day: none to 2026-10-03, then 2, 10, 31 and 3,
+on albums sent again and again, one page of them each time — the album sent
+twice on 5 October waited for the same page both times, a page of about 126
+words. Repeated at the same 90 s, a timeout came again 14 times of 25, the
+third attempt 7 of 14: 7 runs lost of 168, those pages compared on two runs
+or one. A call that times out is written to `ai_calls` with no price, so
+whether Google bills what it thought is not known here, and the daily cap
+does not count it either way.
+
+The repeat got the time of the two it replaced — 90 s, then 180 s, and no
+third — so a page that thinks long is read, inside the 273 s a run could
+already take, every ceiling derived from it unchanged. Thinking stays at the
+model's default: turning it down reads worse ("What a record costs"), and
+the cost of a long call read through is about $0.09.
+
+**Two documents drawn at once broke each other's formulas.** 36 formulas
+drawn by `pdf._formula_png` in one thread: none failed; the same in two
+threads at once: 36 of 72 failed, «ParseException: Expected end of text»;
+in four, 136 of 144. matplotlib's mathtext keeps its parser's state on one
+object for the process, and pyplot numbers figures from shared state; the
+audit drew whole documents in two threads and found 49 formulas drawn wrong
+and 611 printed as source over two rounds, against none one after another.
+Nothing in the logs since 2026-10-03 shows it had happened. With a lock
+around `render` and `warm_up`, four documents drawn at once: 0 formulas
+refused, 2.2 s for the four; the same without the lock: 112.
+
+**A person's first record of the day locked their row.** Reproduced on
+PostgreSQL with the code before task 76: a record checks the day (a new
+one, so the rollover is written), logs an event, and goes on reading; the
+same person's second record, checked meanwhile, waited 3.0 s — the whole of
+the first's stand-in reading, minutes in production — and the day ended at
+4 pages where 10 were sent, the first record's 6 zeroed. With the day read
+at the check and written by `consume` in one statement: the second went
+through in 0.00 s, the first's save waited 0.5 s for the second's commit,
+and the day ended at 10.
+
+**Memory rose by an album and stayed.** Railway's graph at four-minute
+grain: 0.28 GB after a deploy, then 0.28 → 0.33 → 0.37 GB over one album's
+processing; 0.49 → 0.56 → 0.61 → 0.64 → 0.70 → 0.73 GB over three albums;
+after two 6-page albums on 5 October, 0.74 GB for 15 hours with nothing
+running. Each deploy reset it. Every hourly peak above 0.75 GB the deploy
+list covers fell in an hour with a deploy, the old container and the new
+one counted together; no hour with albums and no deploy went above it.
+Ruled out by the audits: rendering, flat at 151–160 MB of a process after
+the first of seven renders on macOS; the album buffer, emptied; the frame
+check, 24 ms and 14 MB a page. What was left is image work fanned out over a thread a
+page — compressing, the frame check, the drawings — and glibc, which gives
+each thread an arena and returns little of it. Not reproduced: macOS does
+not allocate that way. Bounded to two threads, with `MALLOC_ARENA_MAX=2`;
+the next albums on Railway's graph will say whether that was it.
+
+**Smaller things found and left.** The SDK's automatic function calling
+logged «AFC is enabled» on every call, 334 lines of the log's 1,619 —
+turned off. A formula is laid out five times as it is drawn (985 parses for
+197 formulas), and a "#word" draws every formula again: a cache made the
+second render of a record 0.42 s instead of 2.31, and drawing the formulas
+another way made them 21–55% faster, one way moving inline formulas by a
+median 0.24 pt — not worth it while the document is 3–9 s of a record's
+minutes. reportlab writes every stream in ASCII85, 17% of the file. A record
+holds its database connection for its whole processing ("Scale debt"); a
+"#word" in a group loads whole records for their titles; a new lecture is
+matched against every notebook within a week, one query each.

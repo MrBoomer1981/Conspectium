@@ -19,7 +19,7 @@ from dataclasses import asdict, dataclass, field, replace
 
 from app.bot import texts
 from app.core.config import settings
-from app.services import figures, lectures, mathcheck, photoguard, vision
+from app.services import figures, images, lectures, mathcheck, photoguard, vision
 from app.services.vision import CallStats, Transcription
 
 logger = logging.getLogger(__name__)
@@ -335,7 +335,7 @@ async def refused_frames(ordered: list[PageInput]) -> list[PageResult]:
 
     async def check(page_input: PageInput, page: int) -> PageResult | None:
         try:
-            frame = await asyncio.to_thread(photoguard.check_photo_bytes, page_input.data)
+            frame = await images.in_worker(photoguard.check_photo_bytes, page_input.data)
         except Exception:
             logger.exception("album page %d: the frame could not be checked", page)
             return None
@@ -376,7 +376,7 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
 
     # The drawings recognition framed, cut out while the page's image is
     # still here; the record places them after composing.
-    cutouts = await asyncio.to_thread(
+    cutouts = await images.in_worker(
         figures.cut, page_input.data, result.best.markdown, result.best.drawings
     )
 

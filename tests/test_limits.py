@@ -87,7 +87,7 @@ async def test_over_the_limit_refused(session):
 async def test_new_user_quota_reset_at_none(session):
     user = await _add_user(session, quota_reset_at=None, pages_used_today=0)
     assert await limits.check_limits(session, user, pages=1) is None
-    assert user.quota_reset_at == _today()
+    assert user.quota_reset_at is None  # the check writes nothing (task 76)
 
 
 async def test_counter_resets_on_a_new_day(session):
@@ -98,7 +98,10 @@ async def test_counter_resets_on_a_new_day(session):
         pages_used_today=settings.DAILY_PAGES_PER_USER,
     )
     assert await limits.check_limits(session, user, pages=1) is None
-    assert user.pages_used_today == 0
+    assert user.pages_used_today == settings.DAILY_PAGES_PER_USER  # unwritten
+    assert user not in session.dirty
+    await limits.consume(session, user, pages=1)
+    assert user.pages_used_today == 1
     assert user.quota_reset_at == _today()
 
 

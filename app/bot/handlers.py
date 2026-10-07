@@ -216,7 +216,7 @@ async def handle_photo(
         original = (await bot.download(page.file_id)).read()
         # Resizing a 12-megapixel photo is CPU-bound; on the event loop it
         # would freeze every other update while it runs.
-        compressed = await asyncio.to_thread(
+        compressed = await images.in_worker(
             images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
         )
         await _read_photo(
@@ -305,7 +305,7 @@ async def _read_photo(
     # The drawings recognition framed, cut out of the image it read while the
     # image is still here — rule 3 keeps nothing else of it. In a thread:
     # filtering pixels is CPU work, and the webhook must not stall on it.
-    cutouts = await asyncio.to_thread(
+    cutouts = await images.in_worker(
         figures.cut, compressed, result.best.markdown, result.best.drawings
     )
 
@@ -680,7 +680,7 @@ async def _fetch_pages(
             return page
         try:
             original = (await bot.download(page.file_id)).read()
-            compressed = await asyncio.to_thread(
+            compressed = await images.in_worker(
                 images.compress,
                 original,
                 settings.IMAGE_MAX_SIDE,
@@ -1084,7 +1084,7 @@ async def _read_summoned(
         group_id=group.id,
     )
     original = (await bot.download(page.file_id)).read()
-    compressed = await asyncio.to_thread(
+    compressed = await images.in_worker(
         images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
     )
     await _read_photo(

@@ -378,6 +378,13 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
 5. **Anything that calls the model never touches the database.** Runs and
    pages run in parallel, and one `AsyncSession` cannot be used concurrently;
    model-calling functions return their stats, and the handler writes.
+6. **A person's day is counted by the database** (task 76): `check_limits`
+   reads it and writes nothing, and `consume` adds the record's pages in one
+   UPDATE, a day that is over starting again from them. The rollover used to
+   be written at the check; the next event flushed it, and the row stayed
+   locked for the record's minutes — the person's second album waited for
+   the first, then zeroed its pages. A refreshed name or title still does
+   this, rarely: "Scale debt".
 
 ---
 
@@ -851,6 +858,14 @@ presentation. `pdf.py` never raises on a record's content; it receives what
 to draw — `Callout`, `Remark`, `Explanation`, `Summary`, `Page`, built by
 `corpus` — and knows nothing about where a record came from.
 
+**One document is drawn at a time** (`pdf._DRAWING`, around `render` and
+`warm_up`, task 76): matplotlib lays every formula out with one parser for
+the whole process, and pyplot numbers its figures from state it shares. Two
+documents drawn at once in two threads broke each other's formulas — half of
+them printed as their source with two threads, nearly all with four, some
+drawn wrong without a word. A second document waits the first one's seconds.
+→ "What the bot spends its time and memory on"
+
 **Its look follows `docs/BRAND.md`**, the CEO's guide (2026-09-30, v1.1 the
 next day), which replaced the look task 36 copied from the author's
 `матан 24.09.2026.pdf`. A change to the look changes both files, in one
@@ -1012,6 +1027,7 @@ number never leaves another quietly cutting the work short:
 | `_SOURCE_TIMEOUT_S` | `services/explain.py` | 90 s — one search; up to eight at once, each on a slot |
 | compose's slot | `services/compose.py` | one of the `API_SLOTS`, held for the whole call; after `process_batch`, outside `_ALBUM_TIMEOUT_S` |
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)`, every attempt timing out — 93 s at the default |
+| `_AFTER_TIMEOUT` | `services/vision.py` | `2` — a first attempt that timed out is followed by one twice as long, and that is the last: 90 s then 180 s in production, 271 s, inside `RUN_WORST_CASE_S` |
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s, a wave of runs; a page that reads further waits for two |
 | `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × (`VISION_RUNS` + `MORE_RUNS`) ÷ `API_SLOTS`⌉ — 604 s, 362 until a page could read further (task 65); raising it is allowed, lowering it is not |
 | `_QUIET_SECONDS` | `bot/albums.py` | 3 s of silence since the last `announce` closes an album, once every announced page is in |
@@ -1019,8 +1035,14 @@ number never leaves another quietly cutting the work short:
 | `max_overflow` | `db/session.py` | 15 — every page of an album holds a session through the debounce, the winner for the whole album |
 
 - `TIMEOUT_MARGIN = 1.3` is the ratio the old hand-written 120 s held to 93 s.
-  The startup log prints all five timeouts: two are computed, and a deploy has
-  to say what it runs on.
+  The startup log prints all five timeouts and the repeat after a timeout:
+  two are computed, and a deploy has to say what it runs on.
+- **A recognition timeout is a page the model thinks about longer, not a line
+  that hung** (task 76): every successful call over 50 s thought 12,000 to
+  21,000 tokens for an answer of a few hundred, and the same 90 s again
+  timed out 14 times of 25, the third 7 of 14 — runs lost, pages compared on
+  two runs or one, albums waiting minutes for nothing. So the repeat gets the
+  time of the two it replaces. → "What the bot spends its time and memory on"
 - **The two timeout settings are not interchangeable**: recognition is per
   page and the album ceilings derive from it; composition is over the whole
   record and its wait grows with the album. Three pages compose in about
@@ -1028,7 +1050,7 @@ number never leaves another quietly cutting the work short:
 - **Composition does not retry a timeout** — at most two calls a composition,
   the second for a 429, a 503 or a dropped connection; and a second
   composition only when the guards refuse the first. `vision._should_retry` counts a timeout
-  worth another call, which is right for a page; at a ceiling of minutes a call
+  worth another call, which is right for a page — once, twice as long; at a ceiling of minutes a call
   that reached it was working, and waiting again doubles the window in which a
   deploy cancels it. Every attempt is written to `ai_calls`.
 - **Raising `VISION_CALL_TIMEOUT_S` is not linear**: at 90 s the album ceiling
@@ -1038,6 +1060,12 @@ number never leaves another quietly cutting the work short:
   stragglers in a `finally`: cancelling the group would discard the
   `CallStats` of runs already billed, and an orphaned run keeps paying for
   results thrown away.
+- **Image work runs on two threads of its own** (`images.in_worker`, task
+  76) — a page compressed, its frame checked, its drawings cut — however
+  many pages an album holds: fanned over the default pool, a thread a page,
+  it left 50–100 MB an album the process never gave back.
+- **One document is drawn at a time** (`pdf._DRAWING`, task 76) — "The
+  document".
 
 ---
 
@@ -1054,8 +1082,9 @@ the machinery before the point arrives — record what you find here instead.
 | No deduplication on `update_id` | **a delivery timeout** | Telegram retries: a duplicate record and a second set of paid calls |
 | `DAILY_COST_LIMIT_USD` is one cap over every chat, above each group's day in pages | **about four groups at their full day** at today's prices, two once they double on 2027-01-01 | the chats that come later in the day find the bot stopped: the cap has to grow with the groups |
 | A group's day is counted from the records already saved | **a group's albums read at once** | the group goes past its day by up to an album |
-| `limits.consume` takes no row lock | **concurrent uploads by one user** | the page quota undercounts |
-| DB pool is 5 + 15 | **~20 updates in flight** | connection checkout starts timing out |
+| A person's day is checked before their record and counted after it | **two records of one person read at once** | both pass the check, and the person goes past their day by up to an album; the count itself is right (task 76) |
+| DB pool is 5 + 15, and a record holds its connection for its whole processing, 3–8 minutes | **~20 records in flight** | connection checkout times out after 30 s: new updates fail, and `log_ai_calls` drops the spend rows it cannot write, so the daily cap undercounts in exactly that burst |
+| A username or group title the middleware refreshes is written at the update's first statement | **a rename while a record is processed** | that person's or group's other updates wait on the row for the record's minutes, the Saturday summary's claim included |
 | `_API_SLOTS` is a per-process `Semaphore(10)` | **tens of active chats** | the queue to Gemini grows into timeouts |
 | Stage three searches up to eight explanations at once | **two records finishing together** | the searches hold most of the ten slots for ~20 s, and another chat's pages queue behind them |
 | Photos are held whole in memory | **many parallel downloads** | container memory |
@@ -1142,7 +1171,7 @@ app/
     figures.py        drawings cut out of the page, placed back after composing
     lectures.py       where a lecture begins on a page; one lecture a record
     merge.py          one lecture from several notebooks: which is one, what each adds
-    images.py         compression
+    images.py         compression, and the two threads image work runs on
     limits.py         spend limits
     docx.py           .docx → markdown, no model call
     graphcheck.py     a matrix against the graph drawn beside it
@@ -1221,6 +1250,11 @@ LOG_LEVEL=INFO
 FEEDBACK_CHAT_ID=        unset: feedback is stored only
 ```
 
+- **`MALLOC_ARENA_MAX=2` is set on Railway and read by glibc**, not by
+  `settings` (task 76): the process grew 50–100 MB an album and gave none of
+  it back until a deploy, which is what glibc's arena per thread does under
+  threaded image work. Two arenas keep what is freed reusable. Taking it off
+  is a measurement on Railway's memory graph, not a cleanup.
 - **A model setting is coupled to its price.** A model absent from
   `PRICE_PER_MTOK` writes `cost_usd = NULL`, the `SUM` behind the daily cap
   skips it, and the breaker stops working with nothing to show for it. So a
@@ -1269,9 +1303,9 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
 - **The startup log is the instrument's label**: `Recognition: <model>, N
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
   numbers, whether drawings are cut out and lectures marked, the image
-  compression, both stages, the call knobs, the five timeouts, the day's
-  limits, where a reader's «Плохо» is sent, when a group's week is summed up,
-  and whether the bot sees a group's photos. What
+  compression, both stages, the call knobs, the five timeouts and the repeat
+  after one, the day's limits, where a reader's «Плохо» is sent, when a
+  group's week is summed up, and whether the bot sees a group's photos. What
   a **record** does not say is which prompt made it —
   `docs/PLAN.md` → "Where the quality work stands", gap 3.
 

@@ -1,8 +1,27 @@
-"""Image compression before sending to the model."""
+"""Image compression before sending to the model, and the threads image work
+runs on."""
 
+import asyncio
+import functools
 import io
+from concurrent.futures import ThreadPoolExecutor
 
 from PIL import Image, ImageOps
+
+# Image work — a page decoded and compressed, its frame checked, its drawings
+# cut — runs on two threads of its own, however many pages an album holds.
+# Fanned over the default pool it ran a thread a page, ten at once, and on
+# Linux each thread keeps an arena of the memory it peaked at: the process
+# grew 50-100 MB an album and gave none of it back (task 76).
+_WORKERS = ThreadPoolExecutor(max_workers=2, thread_name_prefix="images")
+
+
+async def in_worker(work, /, *args):
+    """`work(*args)` on the image threads, awaited — CPU work that would
+    stall every chat on the event loop."""
+    return await asyncio.get_running_loop().run_in_executor(
+        _WORKERS, functools.partial(work, *args)
+    )
 
 
 def compress(image_bytes: bytes, max_side: int = 1500, quality: int = 85) -> bytes:
