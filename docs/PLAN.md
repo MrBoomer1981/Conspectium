@@ -282,6 +282,9 @@ included. "Where this is going, decided 2026-10-02" says why.
       `/stats` and summed up in the chat once a week — the CEO's. Taken on
       2026-10-06, so a group sees what it brings and what it says of it;
       closed on the CEO's word the next day
+- [ ] 73. The week's summary on Saturday: at 10:00 Moscow time, in every
+      group with a record or an отзыв that week, the week Saturday to
+      Friday in `/stats` too — the CEO's. Taken on 2026-10-07
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -370,7 +373,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 71; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -433,6 +436,7 @@ since 2026-10-01.
 | 2026-10-06 | the CEO, with Claude Code | Task 41, the CPO's, gains an item: `/stats` in a group says what is left of the group's day, in pages, under task 72's week | the CEO's own, by the rule of 2026-10-01 |
 | 2026-10-06 | the CEO, with Claude Code | A person's day is 12 pages, not 30: `DAILY_PAGES_PER_USER`'s default here and in "Environment variables" — the variable on Railway stands above it and is the CEO's to set — and the startup log says the day's limits. Cost and limits are the CPO's area; built with task 72, item 7 | the CEO's own, by the rule of 2026-10-01 |
 | 2026-10-07 | the CEO, with Claude Code | Tasks 70 and 72 closed on the CEO's word, the day after they shipped | the CEO's own |
+| 2026-10-07 | the CEO, with Claude Code | Task 73 taken: the week's summary goes to every active group's chat on Saturday at 10:00 Moscow time, sent by the bot's one timer, instead of with a week's first record; the week runs Saturday to Friday, in `/stats` too. Task 72's "no scheduler" gives way to it. No migration: `groups.rating_week` is now the Saturday a summed-up week ends on. "Contracts" → "A group's week" changes with it | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4245,6 +4249,64 @@ asked for the week's summary on Saturday, which is task 73.
 
 ---
 
+# Task 73. The week's summary on Saturday
+
+**Owner: the CEO.** Taken on 2026-10-07. No migration: `groups.rating_week`
+keeps the week claimed, now the Saturday the week ends on.
+
+## Why
+
+The CEO, 2026-10-07: «хочу, чтобы SUM присылал в субботу в чат статистику
+по самым активным недели». Task 72 sent a group the week before with the
+group's first record of the next, which a quiet Monday delays and a quiet
+week loses; a summary at a fixed hour is one a group comes to expect.
+Saturday morning closes the teaching week, so the week becomes Saturday to
+Friday — in `/stats` too, so that the two never show different numbers.
+
+## Do
+
+1. **A week runs from Saturday 00:00 UTC** to the next — the night before
+   Saturday in Moscow — in the summary and in `/stats`, whose head names its
+   first day: «J3115 · неделя с 3 октября».
+2. **Every Saturday at 10:00 Moscow time** — 07:00 UTC, Moscow keeping no
+   summer time — each group with a record or an отзыв in the week just
+   ended gets the week's summary in its chat, as task 72 wrote it: its
+   dates, its two totals, ten people at most. A group with neither gets
+   nothing. In a group divided into topics it goes to the general one: the
+   bot keeps no topic yet (task 66).
+3. **The bot's one timer**, started with the process (`rating.saturdays`):
+   every ten minutes it reads the clock, and from 07:00 UTC on a Saturday to
+   the day's end sends what is due. The week is claimed on the group's row
+   before the summary is sent, so a restart or a second replica never sends
+   it twice. A summary that cannot be sent is a warning in the log and is
+   not tried again; a deploy that falls between the claim and the message,
+   or a Saturday the bot is down for whole, costs that week its summary.
+4. **The summary no longer follows a week's first record**: one summary a
+   week, Saturday's.
+5. `rating_posted` is written by the bot on its own, `user_id` NULL
+   ("Contracts"); the startup log says when the summaries go out.
+6. `CLAUDE.md` → "A group's week".
+
+## Acceptance criterion
+
+- On a Saturday after 10:00 Moscow time each group active in the week just
+  ended has its summary once — two timers at once included — and a group
+  with nothing in it has none.
+- A deploy on that Saturday after the summaries went out sends nothing
+  again.
+- `/stats` in a group counts from Saturday and says so.
+- A record no longer brings a summary.
+- The suite is green.
+
+## Don't do
+
+- No queue, no cron outside the process, no table of jobs: one loop, and
+  the group's row says what was sent.
+- Don't send a week's summary on any other day: a summary is Saturday's.
+- Don't compare groups, or send one group's week to another chat.
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -4503,20 +4565,23 @@ button. `chars`: the length of what they wrote, a caption included;
 
 ## A group's week, and event `rating_posted`
 
-Task 72. A week runs from Monday 00:00 UTC to the next. A record counts for
+Tasks 72 and 73. A week runs from Saturday 00:00 UTC to the next — from
+Monday under task 72, until 2026-10-07. A record counts for
 `coalesce(notes.sender_id, notes.user_id)` in the week of its `created_at`;
 an отзыв is a `feedback` row, counted for its `user_id` in the week it was
 created, however often its buttons are pressed again. `notes.sender_id` is
 set only when the pages' sender is not the record's `user_id` — a reply's
-call on somebody else's photographs. `groups.rating_week` is the Monday of
-the week the group's last summary went out in, `NULL` before the first; the
-summary is of the week before it. `rating_posted` is written when a summary
-is sent, never for a week with nothing in it.
+call on somebody else's photographs. `groups.rating_week` is the Saturday the
+group's last summed-up week ended on, `NULL` before the first; a Monday
+task 72 left there is earlier than the Saturday the next week ends on, and
+holds nothing back. `rating_posted` is written when a summary is sent, by
+the bot on its own — `user_id` `NULL` — and never for a week with nothing in
+it.
 
-    rating_posted  {"week": "2026-09-28", "records": 14, "feedback": 9, "people": 4}
+    rating_posted  {"week": "2026-10-03", "records": 14, "feedback": 9, "people": 4}
 
-`week`: the Monday of the week summed up. `people`: everyone with a record
-or an отзыв in it, the names past ten included.
+`week`: the Saturday the week summed up began on. `people`: everyone with a
+record or an отзыв in it, the names past ten included.
 
 ## The group an event happened in
 
