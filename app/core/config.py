@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     AI_ENABLED: bool = True
     # A person's pages a day: 12 since 2026-10-06, the CEO's (task 72).
     DAILY_PAGES_PER_USER: int = 12
+    # A group's pages a day, everyone in it together: 20 since 2026-10-07,
+    # the CEO's (task 41). Pages rather than dollars, so a group is told
+    # exactly what is left; DAILY_COST_LIMIT_USD stays the breaker over all.
+    DAILY_PAGES_PER_GROUP: int = 20
     DAILY_COST_LIMIT_USD: float = 5
     VISION_RUNS: int = 3
     VISION_MODEL: str = "gemini-3.5-flash-lite"

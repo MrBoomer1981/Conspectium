@@ -163,6 +163,10 @@ class AiCall(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    # The group chat the call was made for, NULL in a private chat (task 41):
+    # what a group costs is read off it. A group's day is counted in pages,
+    # from its records, and never from here.
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id"), index=True)
     kind: Mapped[str] = mapped_column(String)  # "transcribe"
     model: Mapped[str] = mapped_column(String)
     tokens_in: Mapped[int | None] = mapped_column(Integer)

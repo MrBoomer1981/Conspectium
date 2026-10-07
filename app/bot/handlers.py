@@ -190,9 +190,17 @@ async def handle_photo(
         pages = await albums.collect(message.media_group_id)
         if pages is None:
             return  # another update owns this batch
-        await _process_album(
-            message, session, user, pages, group, bot=bot, source_key=source_key
-        )
+        # A tagged album claims its pages against a reply's call on them, one
+        # reading at a time (task 41); in a group an untagged one is not read,
+        # and claims nothing. Already being read — a reply's call got there
+        # first — the record goes to the chat once, from that reading.
+        claimed = source_key if albums.tag_of(pages) is not None else None
+        async with corpus.reading(session, group, claimed) as ours:
+            if ours:
+                await _process_album(
+                    message, session, user, pages, group, bot=bot,
+                    source_key=source_key,
+                )
         return
 
     if message.document is not None and (
@@ -200,16 +208,21 @@ async def handle_photo(
     ) > _MAX_IMAGE_BYTES:
         await message.answer(texts.IMAGE_TOO_BIG)
         return
-    original = (await bot.download(page.file_id)).read()
-    # Resizing a 12-megapixel photo is CPU-bound; on the event loop it would
-    # freeze every other update while it runs.
-    compressed = await asyncio.to_thread(
-        images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
-    )
-    await _read_photo(
-        message, session, user, group, tag, original, compressed, page, source_key,
-        caption=message.caption,
-    )
+    # In a group the photo is tagged by now, and claims its page as an album
+    # does, against a reply's call on it (task 41).
+    async with corpus.reading(session, group, source_key) as ours:
+        if not ours:
+            return
+        original = (await bot.download(page.file_id)).read()
+        # Resizing a 12-megapixel photo is CPU-bound; on the event loop it
+        # would freeze every other update while it runs.
+        compressed = await asyncio.to_thread(
+            images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
+        )
+        await _read_photo(
+            message, session, user, group, tag, original, compressed, page,
+            source_key, caption=message.caption,
+        )
 
 
 async def _read_photo(
@@ -247,7 +260,7 @@ async def _read_photo(
 
     # Step 4: limits before the frame check and before any model call. With the
     # kill switch off or a cap hit, there's no point asking for a better photo.
-    limit_message = await limits.check_limits(session, user, pages=1)
+    limit_message = await limits.check_limits(session, user, pages=1, group=group)
     if limit_message is not None:
         await message.answer(limit_message)
         return
@@ -278,7 +291,8 @@ async def _read_photo(
 
     started = time.monotonic()  # note_processed.latency_ms: step 7 -> end of 15
     result, stats = await vision.transcribe_consensus(compressed)
-    await vision.log_ai_calls(user.id, stats)  # always — the tokens were spent
+    # Always — the tokens were spent.
+    await vision.log_ai_calls(user.id, stats, group_id=group_id)
 
     if result is None:
         # Not one run came back readable: there is nothing to keep.
@@ -346,9 +360,9 @@ async def _read_photo(
     # call per record rather than per page — the page budget is already
     # debited for the recognition — but the kill switch and the daily cost cap
     # still decide whether it may run at all.
-    if await limits.check_limits(session, user, pages=0) is None:
+    if await limits.check_limits(session, user, pages=0, group=group) is None:
         composition = await compose.compose(result.best.markdown)
-        await vision.log_ai_calls(user.id, composition.stats)
+        await vision.log_ai_calls(user.id, composition.stats, group_id=group_id)
 
     # The drawings go back where their lines stand: after composing, which
     # never saw them, and before explaining, so the text explained and the
@@ -371,9 +385,12 @@ async def _read_photo(
     # the author's text and printed as the bot's. Rule 6 again: a third call
     # is still a call, and the kill switch and the cost cap decide first.
     explaining = explain.Explaining()
-    if not explain_skipped and await limits.check_limits(session, user, pages=0) is None:
+    if (
+        not explain_skipped
+        and await limits.check_limits(session, user, pages=0, group=group) is None
+    ):
         explaining = await explain.explain(markdown)
-        await vision.log_ai_calls(user.id, explaining.stats)
+        await vision.log_ai_calls(user.id, explaining.stats, group_id=group_id)
 
     # Step 13: persist the record. "rejected" already exited at step 10, so the
     # verdict here is "clean" or "needs_review". Dataclasses are flattened to
@@ -738,7 +755,9 @@ async def _process_album(
     # everywhere after — note_captured, per-page fields, every message.
     ordered = sorted(pages, key=lambda p: p.message_id)
 
-    limit_message = await limits.check_limits(session, user, pages=len(ordered))
+    limit_message = await limits.check_limits(
+        session, user, pages=len(ordered), group=group
+    )
     if limit_message is not None:
         await message.answer(limit_message)
         return
@@ -787,7 +806,8 @@ async def _process_album(
 
     started = time.monotonic()  # note_processed.latency_ms: gather -> end of save
     outcome = await albums.process_batch(ordered)
-    await vision.log_ai_calls(user.id, outcome.stats)  # once, every page's calls
+    # Once, every page's calls.
+    await vision.log_ai_calls(user.id, outcome.stats, group_id=group_id)
 
     if outcome.record is None:
         # Not one page was read, so there is nothing to deliver and nothing to
@@ -822,9 +842,9 @@ async def _process_album(
     # Stage two runs once over the assembled record, not once per page: a
     # document formatted page by page keeps the seams the assembly removed.
     composition = compose.Composition(rec.markdown)
-    if await limits.check_limits(session, user, pages=0) is None:
+    if await limits.check_limits(session, user, pages=0, group=group) is None:
         composition = await compose.compose(rec.markdown)
-        await vision.log_ai_calls(user.id, composition.stats)
+        await vision.log_ai_calls(user.id, composition.stats, group_id=group_id)
 
     # Every page's drawings back where their lines stand, numbered through
     # the record — after composing, which never saw them.
@@ -841,9 +861,12 @@ async def _process_album(
 
     # Stage three once over the whole record too, for the same reason.
     explaining = explain.Explaining()
-    if not explain_skipped and await limits.check_limits(session, user, pages=0) is None:
+    if (
+        not explain_skipped
+        and await limits.check_limits(session, user, pages=0, group=group) is None
+    ):
         explaining = await explain.explain(markdown)
-        await vision.log_ai_calls(user.id, explaining.stats)
+        await vision.log_ai_calls(user.id, explaining.stats, group_id=group_id)
 
     note = Note(
         user_id=user.id,
@@ -995,6 +1018,33 @@ async def handle_summon(
         await corpus.send_record(message, session, existing)
         return
 
+    # Being read right now — by their own tagged album, or a call a moment
+    # earlier — the pages are not read twice: a second record and a second
+    # bill (task 41).
+    async with corpus.reading(session, group, key) as ours:
+        if not ours:
+            await log_event(
+                session, user.id, "note_summoned", {"outcome": "reading"},
+                group_id=group.id,
+            )
+            await message.answer(texts.SUMMON_READING)
+            return
+        await _read_summoned(message, session, user, bot, group, target, tag, key)
+
+
+async def _read_summoned(
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+    group: Group,
+    target: Message,
+    tag: str,
+    key: str,
+) -> None:
+    """The pages a reply called the bot on, once this call is the one reading
+    them: an album found whole from what was written down of it, or a single
+    page."""
     if target.media_group_id:
         # The reply carries one page of the album; the rest is what the bot
         # wrote down when the album was posted. An album it never saw whole —

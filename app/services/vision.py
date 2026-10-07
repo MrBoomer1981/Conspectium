@@ -1170,16 +1170,21 @@ async def transcribe_consensus(
 # ── Spend logging ────────────────────────────────────────────────────────────
 
 
-async def log_ai_calls(user_id: int, stats: list[CallStats]) -> None:
+async def log_ai_calls(
+    user_id: int, stats: list[CallStats], group_id: int | None = None
+) -> None:
     """Write one ai_calls row per attempt in a dedicated session, committed
     immediately. Takes no session on purpose: spend must survive a rollback of
-    the main transaction (CLAUDE.md -> Sessions and transactions). Never raises."""
+    the main transaction (CLAUDE.md -> Sessions and transactions). Never raises.
+    `group_id` is the group chat the calls were made for, so what a group
+    costs can be read (task 41)."""
     try:
         async with async_session_maker() as session, session.begin():
             session.add_all(
                 [
                     AiCall(
                         user_id=user_id,
+                        group_id=group_id,
                         # Both from the stats, not from settings: a second
                         # stage on another model has to be billed as itself.
                         kind=s.kind,

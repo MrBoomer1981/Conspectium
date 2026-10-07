@@ -968,7 +968,10 @@ async def test_stats_in_a_group_count_the_groups_records(session):
         "1. anna_k — 2 конспекта\n"
         "2. Иван — 1 конспект\n"
         "\n"
-        "За всё время: 3 конспекта, 0 отзывов"
+        "За всё время: 3 конспекта, 0 отзывов\n"
+        "\n"
+        # What is left of the group's day under it (task 41): 6 pages today.
+        "Сегодня группа может прислать ещё 14 страниц из 20."
     )
     assert (await _events(session, "stats_viewed"))[0].group_id == group.id
 

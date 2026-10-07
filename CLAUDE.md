@@ -183,7 +183,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `017_rating`, the head. The next is `018_`.
+  `018_ai_calls_group`, the head. The next is `019_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -336,7 +336,7 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
    exception; `notes`, `users` and `events` go through it. It serves messages,
    the bot's own membership updates and the presses of its buttons, and puts
    the group chat, if any, in `data["group"]` — for a press, the chat of the
-   message the button is on. Three deliberate exceptions:
+   message the button is on. Four deliberate exceptions:
    - a **new** user is committed *before* the handler: `log_ai_calls` inserts
      `ai_calls.user_id` from a session of its own and would fail the foreign
      key;
@@ -346,7 +346,10 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
    - a group album page's reference is committed as soon as it is written
      (`handlers._remember_page`): the update that claims the batch holds its
      session through the album, and its rollback would lose the page for
-     every later call on it.
+     every later call on it;
+   - a group's record is committed before the pages it was read from are
+     free for another reading (`corpus.reading`, task 41): a second call on
+     them finds the reading or the record, never neither.
 2. **`events` are transactional and vanish on rollback — deliberately**: an
    event describes something that in the end happened. `log_event` wraps its
    insert in a SAVEPOINT (`begin_nested`) so a failed insert cannot poison the
@@ -356,7 +359,8 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
    understates the daily cap. `log_ai_calls` takes no session; a row with no
    `Note` is normal. Each row names its own `kind` and `model` from
    `CallStats`, never `settings.VISION_MODEL`, or a second stage would be
-   priced as the first. It carries two output counts — `tokens_out`
+   priced as the first, and the group chat it was made for (`group_id`,
+   task 41): what a group costs. It carries two output counts — `tokens_out`
    (`candidates_token_count`, the answer) and `tokens_thought`
    (`thoughts_token_count`), drawn from the same `max_output_tokens`, billed
    at the same rate, both in `_cost_usd`. `MAX_OUTPUT_TOKENS` (32768,
@@ -713,8 +717,10 @@ than silence. → "Numbers the agreement could not see"
   down on arrival and kept seven days; one the bot never saw whole is asked
   for again. A record remembers its source (`notes.source_key`, built by
   `corpus.source_key`), so a second call on the same pages sends that record
-  instead of paying again. A bare mention earns one line of hint; every call
-  writes `note_summoned`.
+  instead of paying again; while they are being read — by their own tagged
+  album or an earlier call — a second call is told so and starts nothing
+  (`corpus.reading`, task 41). A bare mention earns one line of hint; every
+  call writes `note_summoned`.
 - **What is not addressed to the bot never reaches it.** `middlewares.heard`
   runs before a session, and in a group lets through a command, a message
   that is one "#word" and nothing else (`tags.is_bare` — "#дз на завтра" is
@@ -746,8 +752,18 @@ than silence. → "Numbers the agreement could not see"
 - **Events name their group** (`events.group_id`): weekly use by a group is the
   question. `group_joined` carries whether the bot sees the photos,
   `group_invited` the button's payload; `group_promoted` and `group_left`
-  nothing else. Limits are still the
-  photographer's quota and the global cap — per group is task 41.
+  nothing else.
+- **A group has a day of its own, in pages** (task 41, the CEO's,
+  2026-10-07): `DAILY_PAGES_PER_GROUP`, counted from the group's records
+  made since 00:00 UTC — 03:00 in Moscow, which is what the group is told —
+  a `.docx` not counted, nothing stored for it. Checked after the global
+  cost cap, the breaker over every chat, and before the quota of whoever
+  brought the pages (`limits.check_limits`); asked when pages come and never
+  for a record's later stages, so a record let in is composed and explained
+  whatever the count says by then. Pages rather than dollars, so `/stats`
+  says exactly what is left and the count does not halve when the prices
+  do; what a group costs is read off `ai_calls.group_id`. Soft, as the cost
+  cap is: two albums read at once can take a group past its day.
 
 ### What a reader says of a record
 
@@ -805,8 +821,8 @@ than silence. → "Numbers the agreement could not see"
   the general one, the bot keeping no topic yet (task 66). `rating_posted`,
   with no user, counts the summaries.
 - **No limit depends on it**: an отзыв worth pages would be worth faking,
-  and the отзывы are how a record's errors are found. A group's own day is
-  task 41's.
+  and the отзывы are how a record's errors are found. `/stats` says what is
+  left of the group's own day under the week (task 41).
 
 ---
 
@@ -1017,11 +1033,11 @@ the machinery before the point arrives — record what you find here instead.
 
 | Shortcut | Breaks at | What happens |
 |---|---|---|
-| The album buffer is five module-level dicts in `bot/albums.py` | **a second replica** | pages of one album land in different processes and become separate records |
+| The album buffer is five module-level dicts in `bot/albums.py`, and the pages being read a set in `bot/corpus.py` | **a second replica** | pages of one album land in different processes and become separate records; two calls on one album in two processes read it twice |
 | An update is processed in a background task | **any deploy** | in-flight updates are cancelled; paid Gemini calls are wasted |
 | No deduplication on `update_id` | **a delivery timeout** | Telegram retries: a duplicate record and a second set of paid calls |
-| `DAILY_COST_LIMIT_USD` is global, not per user | **two users** — reached with the group | one person, or one group, can exhaust the day's budget for everyone; task 41 |
-| A call on pages is matched to an earlier record only once that record is saved | **two people calling on one album at once**, or a call while its tagged album is still being read | a second record and a second bill |
+| `DAILY_COST_LIMIT_USD` is one cap over every chat, above each group's day in pages | **about four groups at their full day** at today's prices, two once they double on 2027-01-01 | the chats that come later in the day find the bot stopped: the cap has to grow with the groups |
+| A group's day is counted from the records already saved | **a group's albums read at once** | the group goes past its day by up to an album |
 | `limits.consume` takes no row lock | **concurrent uploads by one user** | the page quota undercounts |
 | DB pool is 5 + 15 | **~20 updates in flight** | connection checkout starts timing out |
 | `_API_SLOTS` is a per-process `Semaphore(10)` | **tens of active chats** | the queue to Gemini grows into timeouts |
@@ -1154,6 +1170,7 @@ stands"):
 ```
 AI_ENABLED=true          kill switch for all model calls
 DAILY_PAGES_PER_USER=12  a person's pages a day, the CEO's since 2026-10-06
+DAILY_PAGES_PER_GROUP=20 a group's pages a day, everyone in it, the CEO's since 2026-10-07
 DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3            at least 2
 VISION_MODEL=gemini-3.5-flash-lite

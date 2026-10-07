@@ -38,6 +38,32 @@ LIMIT_COST = (
 
 LIMIT_PAGES = "На сегодня лимит страниц исчерпан. Вернись завтра — счётчик обнулится."
 
+
+# A group's day (task 41), the CEO's lines of 2026-10-07. The day turns at
+# 00:00 UTC, 03:00 in Moscow, and the lines name the hour: "завтра" said at
+# one in the morning would send a group away for a day it does not have to
+# wait.
+def group_day_over(left: int, pages: int, cap: int) -> str:
+    """Why a group's pages are turned away: none left today, or fewer than
+    the album holds — a single page is refused only when none are left."""
+    if left <= 0:
+        return (
+            f"Страницы группы на сегодня закончились — {cap} в день. "
+            "Новые можно после 3:00 по Москве."
+        )
+    return (
+        f"Сегодня группа может прислать ещё {_pages_to_send(left)}, "
+        f"а в альбоме {pages}. Пришли меньше или подожди до 3:00 по Москве."
+    )
+
+
+def group_day(left: int, cap: int) -> str:
+    """What is left of the group's day, under its week in /stats."""
+    if left <= 0:
+        return group_day_over(0, 0, cap)
+    return f"Сегодня группа может прислать ещё {_pages_to_send(left)} из {cap}."
+
+
 # The one box above a record: the pages it is missing. How the page was read —
 # which spot reads two ways, which numbers the runs read differently, which
 # page no second reading confirmed — is not printed at all: the author's
@@ -120,6 +146,9 @@ SUMMON_ALBUM_UNKNOWN = (
     "не было в чате. Пришлите его заново с тегом предмета в подписи, "
     "например #матан."
 )
+# The same pages being read for the chat at that moment (task 41): the record
+# goes to the chat once, and this call starts nothing.
+SUMMON_READING = "Уже читаю эти страницы — конспект придёт сюда."
 
 # Albums — app/bot/handlers.py _process_album and app/bot/albums.py.
 TOO_MANY_PAGES = (
@@ -387,6 +416,11 @@ def _records(n: int) -> str:
 
 def _ratings(n: int) -> str:
     return f"{n} {_plural(n, 'отзыв', 'отзыва', 'отзывов')}"
+
+
+def _pages_to_send(n: int) -> str:
+    # The accusative, after "прислать": 1 страницу, 2 страницы, 5 страниц.
+    return f"{n} {_plural(n, 'страницу', 'страницы', 'страниц')}"
 
 
 def _people(people: list[tuple[str, int, int]], more: int) -> list[str]:

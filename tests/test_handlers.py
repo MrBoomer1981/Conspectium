@@ -286,7 +286,7 @@ async def _run_album(
     session.add(user)
     await session.flush()
 
-    async def _no_spend(user_id, stats):
+    async def _no_spend(user_id, stats, group_id=None):
         return None
 
     monkeypatch.setattr(handlers.vision, "log_ai_calls", _no_spend)
@@ -541,7 +541,7 @@ async def test_composition_gets_its_own_limits_check(session, monkeypatch):
     answers = [None, texts.LIMIT_COST, texts.LIMIT_COST]
     seen: list[int] = []
 
-    async def fake_check(session_, user_, pages):
+    async def fake_check(session_, user_, pages, group=None):
         seen.append(pages)
         return answers.pop(0)
 
@@ -644,7 +644,7 @@ async def _run_photo(
             composed.append(markdown)
         return composition
 
-    async def no_spend(user_id, stats):
+    async def no_spend(user_id, stats, group_id=None):
         return None
 
     async def no_pdf(message, session, note):
@@ -828,7 +828,7 @@ async def test_composition_on_a_photo_gets_its_own_limits_check(
     answers = [None, texts.LIMIT_COST, texts.LIMIT_COST]
     seen: list[int] = []
 
-    async def fake_check(session_, user_, pages):
+    async def fake_check(session_, user_, pages, group=None):
         seen.append(pages)
         return answers.pop(0)
 

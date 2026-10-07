@@ -22,6 +22,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 
@@ -37,9 +39,10 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import feedback, middlewares, rating, subjects, tags, texts
+from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, Lecture, Note, NoteFigure, NoteTopic, User
-from app.services import explain, graphcheck, merge, pdf, vision
+from app.services import explain, graphcheck, limits, merge, pdf, vision
 
 logger = logging.getLogger(__name__)
 
@@ -247,8 +250,12 @@ async def cmd_stats(
         if week is None:
             await message.answer(texts.STATS_EMPTY)
             return
+        # Under the week, what is left of the group's day (task 41).
+        left = await limits.group_pages_left(session, group)
         await log_event(session, user.id, "stats_viewed", group_id=group.id)
-        await message.answer(week)
+        await message.answer(
+            f"{week}\n\n{texts.group_day(left, settings.DAILY_PAGES_PER_GROUP)}"
+        )
         return
 
     totals = (
@@ -567,6 +574,38 @@ async def recorded(session: AsyncSession, group: Group, key: str) -> Note | None
         .limit(1)
     )
     return (await session.execute(stmt)).scalars().first()
+
+
+# The group's pages being read right now, by (group id, source key): a message
+# id is unique only within its chat. In the process, as the album buffer is —
+# one replica is a requirement (CLAUDE.md -> Scale debt).
+_READING: set[tuple[int, str]] = set()
+
+
+@asynccontextmanager
+async def reading(
+    session: AsyncSession, group: Group | None, key: str | None
+) -> AsyncIterator[bool]:
+    """One reading of a group's pages at a time (task 41): True for the update
+    that is to read them, False while another is reading the same pages —
+    their own tagged album, or a reply's call on them. `recorded` finds a
+    record only once it is committed, so the record is committed here before
+    the pages are free again: a second call finds the one or the other, and
+    never neither. Nothing is claimed for a private chat's pages, which no one
+    else can call the bot on, or with no key."""
+    if group is None or key is None:
+        yield True
+        return
+    claim = (group.id, key)
+    if claim in _READING:
+        yield False
+        return
+    _READING.add(claim)
+    try:
+        yield True
+        await session.commit()
+    finally:
+        _READING.discard(claim)
 
 
 def _not_a_summon(message: Message) -> bool:
