@@ -718,8 +718,7 @@ async def ask_for_tag(
     The last thing every capture path does, so the question is what the user
     is looking at when they reply — and so a "#word" arriving next means the
     answer rather than a search. A record made in a group always came with its
-    subject; the question is a private chat's, and in a group only the week
-    before may follow this (rating.after_record).
+    subject; the question is a private chat's.
     """
     topics = await save_topics(session, note)
     if note.tag is not None:

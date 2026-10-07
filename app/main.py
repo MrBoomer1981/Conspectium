@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, feedback, texts
+from app.bot import albums, corpus, feedback, rating, texts
 from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
@@ -229,6 +229,11 @@ async def lifespan(app: FastAPI):
         if settings.FEEDBACK_CHAT_ID is not None
         else "stored only, FEEDBACK_CHAT_ID unset",
     )
+    # The one thing the bot says unasked (task 73), so the deploy names when.
+    logger.info(
+        "Week's summary: Saturdays at %s UTC, to every group active that week",
+        rating.POST_AT.strftime("%H:%M"),
+    )
 
     # Whether the bot can see a group's photos is decided in BotFather, not
     # here: with privacy mode on it sees them only where it is an admin. Said
@@ -262,10 +267,15 @@ async def lifespan(app: FastAPI):
     # fonts once — several seconds nobody should pay inside their first photo.
     # Off the startup path too: a slow warm-up must not delay serving.
     warm_up = asyncio.create_task(asyncio.to_thread(pdf.warm_up))
+    # A group's week, summed up in its chat every Saturday (task 73): the one
+    # timer the process runs. A deploy cancels it with everything else, and
+    # the next process takes up where it stopped.
+    saturdays = asyncio.create_task(rating.saturdays(bot))
 
     yield
 
     warm_up.cancel()
+    saturdays.cancel()
     if _in_flight:
         # Shutdown wins: an album can run for minutes, far past any grace
         # period, so waiting is futile. Log the loss rather than hide it.

@@ -406,6 +406,7 @@ def _people(people: list[tuple[str, int, int]], more: int) -> list[str]:
 
 def group_week(
     title: str | None,
+    since: date,
     records: int,
     ratings: int,
     people: list[tuple[str, int, int]],
@@ -413,8 +414,10 @@ def group_week(
     all_records: int,
     all_ratings: int,
 ) -> str:
-    """/stats in a group: the week so far, and what the group has come to."""
-    lines = [f"{title or 'Группа'} · эта неделя"]
+    """/stats in a group: the week so far, and what the group has come to.
+    The week runs from Saturday, as the summary does, and its head says so —
+    a week that starts on a Saturday is not the one a student assumes."""
+    lines = [f"{title or 'Группа'} · неделя с {since.day} {_MONTHS[since.month - 1]}"]
     if people:
         lines += [f"{_records(records)}, {_ratings(ratings)}", ""] + _people(people, more)
     else:
@@ -440,9 +443,9 @@ def week_summary(
     people: list[tuple[str, int, int]],
     more: int,
 ) -> str:
-    """The week just ended, posted unasked with the group's first record of
-    the next. Its last line says what an отзыв is: the chat sees the count
-    before it has looked under a document."""
+    """The week just ended, posted unasked on Saturday morning. Its last line
+    says what an отзыв is: the chat sees the count before it has looked under
+    a document."""
     return "\n".join(
         [f"Итоги недели, {_span(first, last)}", f"{_records(records)}, {_ratings(ratings)}", ""]
         + _people(people, more)

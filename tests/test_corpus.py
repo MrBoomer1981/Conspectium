@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.bot import corpus, texts
+from app.bot import corpus, rating, texts
 from app.db.models import Base, Event, Group, Note, NoteTopic, User
 from app.services import graphcheck
 
@@ -959,8 +959,10 @@ async def test_stats_in_a_group_count_the_groups_records(session):
     message = _Message()
     await corpus.cmd_stats(message, session, classmate, group)
 
+    # The week runs from Saturday (task 73), and its head says from which.
+    since = rating.week_start(datetime.now(timezone.utc).date())
     assert message.replies[0] == (
-        "Матан, 2 курс · эта неделя\n"
+        f"Матан, 2 курс · неделя с {since.day} {texts._MONTHS[since.month - 1]}\n"
         "3 конспекта, 0 отзывов\n"
         "\n"
         "1. anna_k — 2 конспекта\n"

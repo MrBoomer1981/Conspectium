@@ -774,28 +774,36 @@ than silence. → "Numbers the agreement could not see"
 ### A group's week
 
 - **Who sent a group's records and who rated them** (task 72, the CEO,
-  2026-10-06): `/stats` in a group is the group's week so far, and the week
-  before is posted in the chat, unasked, after the group's first record of a
-  new week — its dates, two totals, ten people at most, two numbers each,
-  ordered by records (`rating.py`). A group that sees who brings its records
-  and who reads them closely enough to say has a reason to do both, and
-  `/stats` had been called once: what a group is not shown it does not see.
-  A private chat's `/stats` is as it was.
-- **A record counts for whoever sent its pages** (`notes.sender_id`): a
+  2026-10-06): `/stats` in a group is the group's week so far, and every
+  Saturday at 10:00 Moscow time each group active in the week just ended
+  gets it in its chat, unasked (task 73, 2026-10-07) — its dates, two
+  totals, ten people at most, two numbers each, ordered by records
+  (`rating.py`). A group that sees who brings its records and who reads them
+  closely enough to say has a reason to do both, and `/stats` had been
+  called once: what a group is not shown it does not see. A private chat's
+  `/stats` is as it was.
+- **A week runs from Saturday 00:00 UTC**, in the summary and in `/stats`
+  alike, whose head names the day it began: the two never show different
+  numbers. A record counts for whoever sent its pages (`notes.sender_id`): a
   reply's "#word" under a classmate's photographs is paid for by the replier
   and counted for the photographer, registered on the spot if the bot never
   saw them (`middlewares.registered`); a bot, an anonymous admin or a channel
   counts for the replier. `NULL` is the record's user. An отзыв is a
-  `feedback` row, one a person a record. A week runs from Monday 00:00 UTC.
+  `feedback` row, one a person a record.
 - **A person is their username**, the CEO's choice, without the @ that would
   notify them every time the week is shown; their first name when they have
   none. The middleware keeps both current, as it keeps a group's title.
-- **The week is claimed on the group's row** (`groups.rating_week`) by one
-  conditional update: of two records at once one posts, the other waits on
-  the row and finds the week taken. A quiet week is claimed and says
-  nothing. Nothing of it costs the record: the claim and the count run in
-  savepoints after the record is delivered, and what fails is a warning in
-  the log. `rating_posted` counts the summaries.
+- **The bot's one timer** (`rating.saturdays`, started with the process)
+  reads the clock every ten minutes and sends from 07:00 UTC on Saturday to
+  the day's end. A week is claimed on the group's row (`groups.rating_week`)
+  by one conditional update, committed before the message goes: two timers
+  at once — a deploy's old process and its new one — send it once, and a
+  restart sends nothing twice. A summary that cannot be sent is a warning in
+  the log and is not tried again; a deploy between the claim and the
+  message, or a Saturday the bot is down for whole, costs that week its
+  summary. A quiet week gets nothing; a group divided into topics gets it in
+  the general one, the bot keeping no topic yet (task 66). `rating_posted`,
+  with no user, counts the summaries.
 - **No limit depends on it**: an отзыв worth pages would be worth faking,
   and the отзывы are how a record's errors are found. A group's own day is
   task 41's.
@@ -1085,7 +1093,7 @@ app/
     subjects.py       a chat's subjects and lectures: where a record is filed, its day
     tags.py           what a #tag is, and a record's topics
     feedback.py       «Хорошо», «Плохо» and where the error is, under every document
-    rating.py         a group's week: who sent its records and who rated them
+    rating.py         a group's week: who sent its records and who rated them, Saturday's summary
   services/
     vision.py         recognition: the prompt, three runs, parsing, the agreements
     compose.py        stage two: the trusted transcription, formatted
@@ -1221,8 +1229,8 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
   numbers, whether drawings are cut out and lectures marked, the image
   compression, both stages, the call knobs, the five timeouts, the day's
-  limits, where a reader's «Плохо» is sent, and whether the bot sees a
-  group's photos. What
+  limits, where a reader's «Плохо» is sent, when a group's week is summed up,
+  and whether the bot sees a group's photos. What
   a **record** does not say is which prompt made it —
   `docs/PLAN.md` → "Where the quality work stands", gap 3.
 

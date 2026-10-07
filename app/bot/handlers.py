@@ -20,7 +20,7 @@ from aiogram.types import ChatMemberUpdated, Message
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, middlewares, rating, subjects, tags, texts
+from app.bot import albums, corpus, middlewares, subjects, tags, texts
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, GroupPage, Note, NoteFigure, User
@@ -469,8 +469,6 @@ async def _read_photo(
     # Step 17: which subject does this belong to. Last, so the question is
     # what the user is looking at when they reply.
     await corpus.ask_for_tag(message, session, user, note, group, filing)
-    # In a group, where nothing is asked, the week before may follow.
-    await rating.after_record(message, session, user, group)
 
 
 @router.message(F.document)
@@ -570,7 +568,6 @@ async def handle_document(
     await session.flush()  # note.id, for the file name and the caption
     await corpus.send_record(message, session, note)
     await corpus.ask_for_tag(message, session, user, note, group, filing)
-    await rating.after_record(message, session, user, group)
 
 
 async def _keep_figures(
@@ -945,7 +942,6 @@ async def _process_album(
         )
 
     await corpus.ask_for_tag(message, session, user, note, group, filing)
-    await rating.after_record(message, session, user, group)
 
 
 def _filing_payload(filing: subjects.Filing | None, explain_skipped: bool) -> dict:
