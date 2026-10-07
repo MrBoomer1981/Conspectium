@@ -294,6 +294,10 @@ included. "Where this is going, decided 2026-10-02" says why.
 - [ ] 75. A page refused as dark that was not: `MIN_CONTRAST` 28 → 20 —
       the CEO's. Taken on 2026-10-07 from an album whose page 2, sharp and
       filling its frame, was refused three times at 26.1 to 27.8
+- [ ] 76. What the bot spends its time and memory on: a timeout repeated
+      once at twice the ceiling, one document drawn at a time, the day's
+      pages counted by the database, image work on two threads — the
+      CEO's. Taken on 2026-10-07 from a week of production
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -382,7 +386,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -450,6 +454,7 @@ since 2026-10-01.
 | 2026-10-07 | the CEO, with Claude Code | Task 74 taken: `/stats` in the chat `FEEDBACK_CHAT_ID` names — the CEO's own — answers with the whole bot's week and all time: records, people, отзывы and spend, every group active in the week, and the week's people across every chat. `CLAUDE.md` → "What NOT to do": an admin panel stays out but for this one read-only message. `stats_viewed` carries `{"scope": "bot"}` for it | the CEO's own |
 | 2026-10-07 | the CEO, with Claude Code | `README.md` is brought up to date with every push, its plan of development first, in a `docs:` commit of the same push — `CLAUDE.md` → "Who decides". Its section on rights in the repository goes: the same rules stand in `CLAUDE.md` | the CEO's own |
 | 2026-10-07 | the CEO, with Claude Code | Task 75 taken: an album's page 2, sharp and filling its frame, was refused three times as too dark, at contrast 26.1 to 27.8 against 28 — photoguard's contrast is the spread of brightness across the sheet, low on a page with little written however it is lit. `MIN_CONTRAST` 28 → 20, the CEO's choice over a new measure of ink against paper, which would need real pages, good and bad, to set; the fourth edit to the ready-made `photoguard`, made on a reproduced failure. The frame check is the CPO's area | the CEO's own, by the rule of 2026-10-01 |
+| 2026-10-07 | the CEO, with Claude Code | Task 76 taken, from a week of production read on 2026-10-07 — the deploy logs, Railway's metrics, `ai_calls` — and three audits of the code. A recognition call that thinks past 90 s is repeated once at 180 s instead of twice at 90, the run's worst case unchanged; one document drawn at a time, after two drawn at once broke each other's formulas; `check_limits` stops writing the day's rollover and `consume` counts the day in one statement, after a person's first record of the day held their row for minutes; image work on two threads and `MALLOC_ARENA_MAX=2` on Railway, after every album left 50–100 MB the process kept; the SDK's automatic function calling off. "Known risks" → the quota race keeps only its soft half. The model calls, the database and the infrastructure are the CPO's area; "Scale debt" changes with it | the CEO's own, by the rule of 2026-10-01 |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4440,6 +4445,86 @@ one alone.
 
 ---
 
+# Task 76. What the bot spends its time and memory on
+
+**Owner: the CEO.** Taken on 2026-10-07. Most of it is the CPO's area —
+the model calls, the database, the infrastructure — open to the CEO.
+
+## Why
+
+Read off a week of production on 2026-10-07 — the deploy logs from
+2026-10-03, Railway's metrics, `ai_calls` — and three audits of the code:
+
+- **Recognition waited on calls that think past their ceiling.** 46 of 348
+  recognition calls in seven days timed out at 90 s, none before
+  2026-10-04. The successful ones took 18.5 s at the median, 64 s at the
+  95th percentile and 89 s at most, and every one over 50 s thought 12,000
+  to 21,000 tokens for an answer of 400 to 600: a timeout is a page the
+  model thinks about longer, not a line that hung. Repeated at the same
+  90 s, it timed out again 14 times of 25, and the third time 7 of 14.
+  Seven runs were lost, so those pages were compared on two runs or one,
+  and the albums they were in — 7 of 12 since 2026-10-03 — read for 269 to
+  393 s where the rest read for 37 to 112.
+- **Two documents drawn at once break each other's formulas.** matplotlib
+  lays formulas out with one parser for the whole process: drawn in two
+  threads at once, 36 of 72 formulas failed and would print as their
+  source; in four, 136 of 144; some were drawn wrong without a word. Not
+  seen in production yet — it comes with the second busy group.
+- **A person's first record of the day locked their row until it was
+  saved.** `check_limits` wrote the day's rollover, the next event flushed
+  it, and the row stayed locked for the record's 3 to 8 minutes: a second
+  album from the same person — a lecture of twelve pages is two — waited
+  for the first to finish, then zeroed its pages.
+- **Every album left 50 to 100 MB the process never gave back** until a
+  deploy: 0.28 GB after one, 0.74 GB after a day's albums, held for 15
+  hours with nothing running. No leak in the code — rendering stays flat,
+  the album buffer empties — but image work fanned out over a thread per
+  page, and glibc gives each thread an arena it keeps. The peaks of 1.0 to
+  1.5 GB are the minutes of a deploy, two containers at once.
+- **The SDK's automatic function calling ran on every call**: a fifth of
+  the log was its line, «AFC is enabled».
+
+## Do
+
+1. **A timeout earns one more attempt, twice as long, and that is the
+   last**: 90 s, then 180 s — 271 s at worst, inside the 273 s three
+   attempts took, so every ceiling derived from a run stays where it is.
+   Any other transient failure is retried as before.
+2. **One document drawn at a time**: a lock around `pdf.render` and
+   `pdf.warm_up`. The look does not change; a second document waits 1 to
+   3 s.
+3. **The day's pages counted by the database**: `check_limits` only reads,
+   and `consume` writes the day in one statement, a new day started where
+   the stored one is over. The row is locked from the record's saving to
+   its commit, seconds, and two records saved at once both count.
+4. **Image work on two threads of its own** — a page compressed and its
+   frame checked — and `MALLOC_ARENA_MAX=2` on Railway, read by glibc. The
+   memory after the next albums says whether it held.
+5. **Automatic function calling off** on every call; search grounding is
+   not it and is untouched.
+6. "Scale debt": the row on `consume` goes; what the audits found and this
+   does not fix comes in — a pool connection held for a record's whole
+   processing.
+7. `CLAUDE.md` → "Concurrency ceilings", "Sessions and transactions", "The
+   document", "Scale debt", "Environment variables"; `FINDINGS.md` → "What
+   the bot spends its time and memory on".
+
+## Acceptance criterion
+
+- The suite is green.
+- After the deploy: no run waits on a third attempt after a timeout, and
+  memory after the next albums stays near where the process started.
+
+## Don't do
+
+- No change to how a page is read: thinking stays at the model's default,
+  three runs stay three.
+- Nothing more from the audits — a formula parsed five times, a cache of
+  formulas, the PDF's encoding, the connection held for a record: noted in
+  `FINDINGS.md`, not done.
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -4878,11 +4963,12 @@ away. That one is listed with the rest of what a single replica costs in
 `CLAUDE.md` → Scale debt.
 
 **A race between checking and debiting the quota.** `check_limits` reads
-`pages_used_today`, `consume` increments it, and there are seconds of
-model work in between. Two parallel processing runs for the same user
-could both pass the check and both debit the quota, and the page count comes
-out short. Row locking is deliberately not introduced yet; the point at which
-that stops being affordable is in `CLAUDE.md` → Scale debt.
+`pages_used_today`, `consume` increments it, and there are minutes of
+model work in between. Two parallel processing runs for the same user can
+both pass the check, and the person goes past their day by up to an album:
+soft, as the cost cap is. The count itself no longer comes out short: since
+task 76 `consume` adds to the day in one statement, read and written by the
+database, and `check_limits` writes nothing.
 
 **The cost limit is soft.** `DAILY_COST_LIMIT_USD` is only checked before
 processing starts, no budget is reserved. The cap can be exceeded by the
