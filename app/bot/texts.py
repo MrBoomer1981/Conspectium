@@ -2,6 +2,10 @@
 
 import re
 from datetime import date, datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.bot import rating
 
 START = (
     "Привет! Я делаю из фотографий конспекта PDF для всей группы.\n\n"
@@ -418,6 +422,10 @@ def _ratings(n: int) -> str:
     return f"{n} {_plural(n, 'отзыв', 'отзыва', 'отзывов')}"
 
 
+def _persons(n: int) -> str:
+    return f"{n} {_plural(n, 'человек', 'человека', 'человек')}"
+
+
 def _pages_to_send(n: int) -> str:
     # The accusative, after "прислать": 1 страницу, 2 страницы, 5 страниц.
     return f"{n} {_plural(n, 'страницу', 'страницы', 'страниц')}"
@@ -485,6 +493,61 @@ def week_summary(
         + _people(people, more)
         + ["", "Отзыв — «Хорошо» или «Плохо» под конспектом."]
     )
+
+
+# ── The bot's week (task 74) ─────────────────────────────────────────────────
+# /stats in the feedback chat, the CEO's own: every chat's week and all time.
+# The operator's screen — spend is in dollars here, and nowhere a student
+# reads (task 14).
+
+
+def _usd(value: float) -> str:
+    return f"${value:.2f}"
+
+
+def _chat_week(chat: "rating.ChatWeek") -> str:
+    name = "Личные чаты" if chat.private else (chat.title or "Группа без названия")
+    parts = [
+        part
+        for count, part in (
+            (chat.records, _records(chat.records)),
+            (chat.pages, f"{chat.pages} стр."),
+            (chat.people, _persons(chat.people)),
+            (chat.ratings, _ratings(chat.ratings)),
+        )
+        if count
+    ]
+    return f"{name} — " + ", ".join(parts + [_usd(chat.spent)])
+
+
+def bot_week(week: "rating.BotWeek") -> str:
+    """The week so far and all time, every chat active in the week, and the
+    week's people across every chat."""
+    lines = [
+        f"SUM · неделя с {week.since.day} {_MONTHS[week.since.month - 1]}",
+        f"{_records(week.records)}, "
+        f"{week.pages} {_plural(week.pages, 'страница', 'страницы', 'страниц')}"
+        f" · всего {week.all_records}",
+        # The verb first, so that it agrees with any number: "прислали 1".
+        f"Люди: прислали {week.senders}, оценили {week.raters}"
+        f" · всего {week.users}, новых {week.new_users}",
+        f"Отзывы: {week.good} «Хорошо», {week.bad} «Плохо» · всего {week.all_ratings}",
+        f"Расход: сегодня {_usd(week.spent_today)}, неделя {_usd(week.spent_week)}, "
+        f"всего {_usd(week.spent_all)}",
+    ]
+    if week.groups or week.private:
+        lines += ["", "Группы:"] + [_chat_week(chat) for chat in week.groups]
+        if week.more_groups:
+            lines.append(
+                f"и ещё {week.more_groups} "
+                f"{_plural(week.more_groups, 'группа', 'группы', 'групп')}"
+            )
+        lines += [_chat_week(chat) for chat in week.private]
+    if week.people:
+        lines += ["", "Люди:"] + _people(week.people, week.more_people)
+    else:
+        lines += ["", "На этой неделе ещё ни конспектов, ни отзывов."]
+    return "\n".join(lines)
 
 
 # ── The command list ─────────────────────────────────────────────────────────

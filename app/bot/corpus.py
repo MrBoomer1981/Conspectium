@@ -243,6 +243,20 @@ def _streak(days: set[date], today: date) -> int:
 async def cmd_stats(
     message: Message, session: AsyncSession, user: User, group: Group | None = None
 ) -> None:
+    if (
+        settings.FEEDBACK_CHAT_ID is not None
+        and message.chat.id == settings.FEEDBACK_CHAT_ID
+    ):
+        # The chat every «Плохо» goes to, the CEO's own, sees the whole bot
+        # rather than the records of whoever asked (task 74). Marked, so the
+        # operator's views are not read as a person's.
+        await log_event(
+            session, user.id, "stats_viewed", {"scope": "bot"}, group_id=_group_id(group)
+        )
+        for chunk in texts.split_message(await rating.bot_stats(session)):
+            await message.answer(chunk)
+        return
+
     if group is not None:
         # In a group, the group's week: who sent its records and who rated
         # them (task 72).

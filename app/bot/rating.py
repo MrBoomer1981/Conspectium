@@ -9,22 +9,27 @@ pages — `notes.sender_id`, else its user — and an отзыв is a `feedback`
 one a person a record. Two numbers a person, ordered by records, and nothing
 here touches a limit: an отзыв worth pages would be worth faking, and the
 отзывы are how a record's errors are found.
+
+The bot's week (task 74) is the same week across every chat, for whoever
+reads the отзывы: `/stats` in the feedback chat.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
+from typing import Any
 
 from aiogram import Bot
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import ColumnElement, func, or_, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
 from app.core.events import log_event
-from app.db.models import Feedback, Group, Note, User
+from app.db.models import AiCall, Feedback, Group, Note, User
 from app.db.session import async_session_maker
 
 logger = logging.getLogger(__name__)
@@ -76,17 +81,28 @@ def _name(user: User) -> str:
 
 async def tally(session: AsyncSession, group_id: int, since: date, until: date) -> Week:
     """The group's records and отзывы from `since` up to `until`, by person."""
+    return await _tally(
+        session, since, until, Note.group_id == group_id, Feedback.group_id == group_id
+    )
+
+
+async def _tally(
+    session: AsyncSession,
+    since: date,
+    until: date,
+    notes_in: ColumnElement[bool],
+    feedback_in: ColumnElement[bool],
+) -> Week:
+    """Records and отзывы from `since` up to `until`, by person, of the
+    records and the feedback the two conditions take in: one group's, or
+    every chat's for the bot's week."""
     start, end = _midnight(since), _midnight(until)
     sender = func.coalesce(Note.sender_id, Note.user_id)
     records = dict(
         (
             await session.execute(
                 select(sender, func.count())
-                .where(
-                    Note.group_id == group_id,
-                    Note.created_at >= start,
-                    Note.created_at < end,
-                )
+                .where(notes_in, Note.created_at >= start, Note.created_at < end)
                 .group_by(sender)
             )
         ).all()
@@ -96,9 +112,7 @@ async def tally(session: AsyncSession, group_id: int, since: date, until: date) 
             await session.execute(
                 select(Feedback.user_id, func.count())
                 .where(
-                    Feedback.group_id == group_id,
-                    Feedback.created_at >= start,
-                    Feedback.created_at < end,
+                    feedback_in, Feedback.created_at >= start, Feedback.created_at < end
                 )
                 .group_by(Feedback.user_id)
             )
@@ -259,3 +273,208 @@ async def _post(bot: Bot, group_id: int, since: date, until: date) -> int:
         )
         await session.commit()
     return 1
+
+
+# ── The bot's week (task 74) ─────────────────────────────────────────────────
+
+# The most groups and people the bot's week names; the rest are counted. Ten
+# groups hold every chat the bot is in today, and fifteen people fit a phone.
+_GROUPS_SHOWN = 10
+_PEOPLE_SHOWN = 15
+
+
+@dataclass
+class ChatWeek:
+    """A group's week as the bot's week shows it, or every private chat's as
+    one."""
+
+    title: str | None
+    private: bool
+    records: int
+    pages: int
+    people: int
+    ratings: int
+    spent: float
+
+
+@dataclass
+class BotWeek:
+    """Every chat's week so far, and all time."""
+
+    since: date
+    records: int
+    pages: int
+    all_records: int
+    senders: int
+    raters: int
+    users: int
+    new_users: int
+    good: int
+    bad: int
+    all_ratings: int
+    spent_today: float
+    spent_week: float
+    spent_all: float
+    groups: list[ChatWeek]
+    more_groups: int
+    private: list[ChatWeek]
+    people: list[tuple[str, int, int]]
+    more_people: int
+
+
+async def bot_stats(session: AsyncSession) -> str:
+    """`/stats` in the feedback chat (task 74): the whole bot's week so far
+    and all time — records, people, отзывы and spend — every chat active in
+    the week, and the week's people across every chat. Counted from what is
+    stored, as a group's week is; a group's spend from `ai_calls.group_id`,
+    which is written since task 41's deploy only."""
+    now = datetime.now(timezone.utc)
+    since = week_start(now.date())
+    start, end = _midnight(since), _midnight(since + timedelta(days=7))
+    notes_in = (Note.created_at >= start, Note.created_at < end)
+    feedback_in = (Feedback.created_at >= start, Feedback.created_at < end)
+    calls_in = (AiCall.created_at >= start, AiCall.created_at < end)
+    sender = func.coalesce(Note.sender_id, Note.user_id)
+    spent = func.coalesce(func.sum(AiCall.cost_usd), 0.0)
+
+    async def scalar(stmt) -> Any:
+        return (await session.execute(stmt)).scalar_one()
+
+    records, pages, senders = (
+        await session.execute(
+            select(
+                func.count(),
+                func.coalesce(func.sum(Note.page_count), 0),
+                func.count(func.distinct(sender)),
+            ).where(*notes_in)
+        )
+    ).one()
+    by_rating = dict(
+        (
+            await session.execute(
+                select(Feedback.rating, func.count())
+                .where(*feedback_in)
+                .group_by(Feedback.rating)
+            )
+        ).all()
+    )
+    groups, private = await _chats(session, notes_in, feedback_in, calls_in)
+    everyone = await _tally(session, since, since + timedelta(days=7), true(), true())
+    return texts.bot_week(
+        BotWeek(
+            since=since,
+            records=records,
+            pages=pages,
+            all_records=await scalar(select(func.count()).select_from(Note)),
+            senders=senders,
+            raters=await scalar(
+                select(func.count(func.distinct(Feedback.user_id))).where(*feedback_in)
+            ),
+            users=await scalar(select(func.count()).select_from(User)),
+            new_users=await scalar(
+                select(func.count())
+                .select_from(User)
+                .where(User.created_at >= start, User.created_at < end)
+            ),
+            good=by_rating.get("good", 0),
+            bad=by_rating.get("bad", 0),
+            all_ratings=await scalar(select(func.count()).select_from(Feedback)),
+            spent_today=await scalar(
+                select(spent).where(AiCall.created_at >= _midnight(now.date()))
+            ),
+            spent_week=await scalar(select(spent).where(*calls_in)),
+            spent_all=await scalar(select(spent)),
+            groups=groups[:_GROUPS_SHOWN],
+            more_groups=max(len(groups) - _GROUPS_SHOWN, 0),
+            private=private,
+            people=everyone.people[:_PEOPLE_SHOWN],
+            more_people=max(len(everyone.people) - _PEOPLE_SHOWN, 0),
+        )
+    )
+
+
+async def _chats(
+    session: AsyncSession,
+    notes_in: tuple[ColumnElement[bool], ...],
+    feedback_in: tuple[ColumnElement[bool], ...],
+    calls_in: tuple[ColumnElement[bool], ...],
+) -> tuple[list[ChatWeek], list[ChatWeek]]:
+    """Every chat with a record, an отзыв or a call in the week: the groups by
+    records, and the private chats as one, if any. A call counts, so a group
+    that only paid for readings that came to nothing is seen too."""
+    sender = func.coalesce(Note.sender_id, Note.user_id)
+    records = {
+        group_id: (count, pages)
+        for group_id, count, pages in (
+            await session.execute(
+                select(
+                    Note.group_id,
+                    func.count(),
+                    func.coalesce(func.sum(Note.page_count), 0),
+                )
+                .where(*notes_in)
+                .group_by(Note.group_id)
+            )
+        ).all()
+    }
+    ratings = dict(
+        (
+            await session.execute(
+                select(Feedback.group_id, func.count())
+                .where(*feedback_in)
+                .group_by(Feedback.group_id)
+            )
+        ).all()
+    )
+    spent = dict(
+        (
+            await session.execute(
+                select(AiCall.group_id, func.coalesce(func.sum(AiCall.cost_usd), 0.0))
+                .where(*calls_in)
+                .group_by(AiCall.group_id)
+            )
+        ).all()
+    )
+    people: dict[int | None, set[int]] = defaultdict(set)
+    for group_id, person in (
+        await session.execute(select(Note.group_id, sender).where(*notes_in).distinct())
+    ).all():
+        people[group_id].add(person)
+    for group_id, person in (
+        await session.execute(
+            select(Feedback.group_id, Feedback.user_id).where(*feedback_in).distinct()
+        )
+    ).all():
+        people[group_id].add(person)
+
+    active = set(records) | set(ratings) | set(spent)
+    ids = active - {None}
+    titles = (
+        dict(
+            (
+                await session.execute(
+                    select(Group.id, Group.title).where(Group.id.in_(ids))
+                )
+            ).all()
+        )
+        if ids
+        else {}
+    )
+
+    def chat(group_id: int | None) -> ChatWeek:
+        count, pages = records.get(group_id, (0, 0))
+        return ChatWeek(
+            title=titles.get(group_id),
+            private=group_id is None,
+            records=count,
+            pages=pages,
+            people=len(people[group_id]),
+            ratings=ratings.get(group_id, 0),
+            spent=float(spent.get(group_id, 0.0)),
+        )
+
+    groups = sorted(
+        (chat(group_id) for group_id in ids),
+        key=lambda c: (-c.records, -c.ratings, -c.spent, (c.title or "").lower()),
+    )
+    return groups, [chat(None)] if None in active else []

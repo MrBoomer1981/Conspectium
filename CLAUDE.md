@@ -823,6 +823,17 @@ than silence. → "Numbers the agreement could not see"
 - **No limit depends on it**: an отзыв worth pages would be worth faking,
   and the отзывы are how a record's errors are found. `/stats` says what is
   left of the group's own day under the week (task 41).
+- **The bot's week, in the feedback chat** (task 74, the CEO's,
+  2026-10-07): `/stats` in the chat `FEEDBACK_CHAT_ID` names — the CEO's
+  own — answers with every chat's week and all time: records and pages, who
+  sent and who rated, everyone the bot knows and the new, «Хорошо» and
+  «Плохо», spend today, this week and all time; then each chat active in the
+  week — a record, an отзыв or a call — with its spend, private chats as
+  one line, and the week's people across every chat (`rating.bot_stats`).
+  Spend is in dollars there and nowhere a student reads; a group's is
+  `ai_calls.group_id`, written since 2026-10-07. One read-only message, the
+  only exception to "no admin panel"; `stats_viewed` marks it
+  `{"scope": "bot"}`.
 
 ---
 
@@ -1109,7 +1120,7 @@ app/
     subjects.py       a chat's subjects and lectures: where a record is filed, its day
     tags.py           what a #tag is, and a record's topics
     feedback.py       «Хорошо», «Плохо» and where the error is, under every document
-    rating.py         a group's week: who sent its records and who rated them, Saturday's summary
+    rating.py         a group's week: who sent its records and who rated them, Saturday's summary; the bot's week
   services/
     vision.py         recognition: the prompt, three runs, parsing, the agreements
     compose.py        stage two: the trusted transcription, formatted
