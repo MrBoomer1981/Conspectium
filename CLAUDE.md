@@ -100,6 +100,11 @@ In a session:
 - **Pull before pushing, and never force-push `main`**: both push to it,
   GitHub's free plan cannot protect a private repository's branch, and every
   push deploys.
+- **Every push carries `README.md` up to date** (the CEO, 2026-10-07): its
+  plan of development first — the phases, what is done, what is under way
+  and whose, what comes next — read off `docs/PLAN.md` → "Progress" and
+  "State". In a `docs:` commit of the same push, never a push of its own:
+  every push deploys, and a deploy cancels what is being processed.
 
 ---
 
