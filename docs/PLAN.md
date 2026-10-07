@@ -291,6 +291,9 @@ included. "Where this is going, decided 2026-10-02" says why.
 - [ ] 74. The bot's week for whoever reads the отзывы: `/stats` in the
       feedback chat counts every chat — records, people, отзывы, spend,
       every group and the week's people — the CEO's. Taken on 2026-10-07
+- [ ] 75. A page refused as dark that was not: `MIN_CONTRAST` 28 → 20 —
+      the CEO's. Taken on 2026-10-07 from an album whose page 2, sharp and
+      filling its frame, was refused three times at 26.1 to 27.8
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -379,7 +382,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -446,6 +449,7 @@ since 2026-10-01.
 | 2026-10-07 | the CEO, with Claude Code | Task 41 taken from the CPO's track, which moves on to 48. A group's day is counted in pages — `DAILY_PAGES_PER_GROUP`, 20 — rather than the $2 the task first named: `/stats` then says exactly what is left, and the count does not halve when the prices double on 2027-01-01; the global cost cap stays the breaker. Spend is still counted per group (`ai_calls.group_id`, migration `018_ai_calls_group`, the CPO's area, named to the CPO before it is pushed). One reading of the same pages at a time, the record committed before its pages are free for another: `CLAUDE.md` → "Sessions and transactions" gains that exception, "Scale debt" loses the two rows 41 was for. `note_summoned` gains `reading` ("Contracts"). Task 52's overview, a call with no pages, counts against the group's day as 52 decides | the CEO's own |
 | 2026-10-07 | the CEO, with Claude Code | Task 74 taken: `/stats` in the chat `FEEDBACK_CHAT_ID` names — the CEO's own — answers with the whole bot's week and all time: records, people, отзывы and spend, every group active in the week, and the week's people across every chat. `CLAUDE.md` → "What NOT to do": an admin panel stays out but for this one read-only message. `stats_viewed` carries `{"scope": "bot"}` for it | the CEO's own |
 | 2026-10-07 | the CEO, with Claude Code | `README.md` is brought up to date with every push, its plan of development first, in a `docs:` commit of the same push — `CLAUDE.md` → "Who decides". Its section on rights in the repository goes: the same rules stand in `CLAUDE.md` | the CEO's own |
+| 2026-10-07 | the CEO, with Claude Code | Task 75 taken: an album's page 2, sharp and filling its frame, was refused three times as too dark, at contrast 26.1 to 27.8 against 28 — photoguard's contrast is the spread of brightness across the sheet, low on a page with little written however it is lit. `MIN_CONTRAST` 28 → 20, the CEO's choice over a new measure of ink against paper, which would need real pages, good and bad, to set; the fourth edit to the ready-made `photoguard`, made on a reproduced failure. The frame check is the CPO's area | the CEO's own, by the rule of 2026-10-01 |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4390,6 +4394,49 @@ what each costs.
 - No buttons, no actions, no second command: one read-only message.
 - Nothing of it to any chat but the feedback chat.
 - No new table or column: everything is counted from what is stored.
+
+---
+
+# Task 75. A page refused as dark that was not
+
+**Owner: the CEO.** Taken on 2026-10-07. The frame check is the CPO's area,
+open to the CEO; `photoguard` is a ready-made module, edited only on a
+reproduced failure.
+
+## Why
+
+On 2026-10-07 page 2 of the CEO's album was refused before anything was
+read, with «Слишком темно или блик — добавьте света», three times in two
+minutes: contrast 26.1, 26.4 and 27.8 against 28, while sharpness stood at
+1337 to 1636 against 90 and the sheet filled 91 to 100% of the frame. The
+photograph was good. photoguard's contrast is the spread of brightness
+across the sheet, and it measures how much is written as much as the light:
+a page of a few lines is mostly even paper, and its spread stays low however
+it is lit, so a retake measures the same. In the deploy logs Railway still
+holds, from 2026-10-03, the frame check saw 75 album pages and refused this
+one alone.
+
+## Do
+
+1. `MIN_CONTRAST` 28 → 20: under the lowest legible page measured, with a
+   margin, as `MIN_LINE_HEIGHT_PX` went from 20 to 16 in task 43. A frame
+   where the ink all but merges with the paper is still refused.
+2. `CLAUDE.md` → "Ready-made modules": the fourth exception, and what stays
+   open — the measure still depends on how much is written, and on this
+   page the line height came out at 1161 to 1280 px, the sheet's own
+   height: no lines found, so «Текст мелкий» could not fire on such a page.
+3. `FINDINGS.md`: the page and its numbers.
+
+## Acceptance criterion
+
+- The album sent again goes through, page 2 read with the rest.
+- The suite is green.
+
+## Don't do
+
+- No new measure of contrast: its threshold would need real pages, good
+  and bad, and the bot keeps no photograph.
+- Nothing else in `photoguard` moves.
 
 ---
 
