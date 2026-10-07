@@ -1484,3 +1484,40 @@ had moved it a year back returned to the first's day.
 
 Not settled: whether the model ever writes a year the page does not — the
 CEO's «все» may hold records this one does not show.
+
+## A page refused as dark
+
+**The CEO's album**, 2026-10-07: three pages, and page 2 refused before
+anything was read — «Страница 2: слишком темно или блик — добавьте света»
+— the CEO saying the photograph was good. Sent three times in two minutes,
+each refusal in the deploy log:
+
+    album page 2 refused by the frame check (contrast): line height 1240.0/16, sharpness 1337/90, paper 97%/18%, contrast 26.1/28
+    album page 2 refused by the frame check (contrast): line height 1161.0/16, sharpness 1525/90, paper 91%/18%, contrast 26.4/28
+    album page 2 refused by the frame check (contrast): line height 1280.0/16, sharpness 1636/90, paper 100%/18%, contrast 27.8/28
+
+Sharpness fifteen to eighteen times its threshold, the sheet filling the
+frame, and contrast short by 0.2 to 1.9. photoguard's contrast is the
+standard deviation of brightness across the sheet. On a sheet of paper and
+ink alone that is the ink's depth times √(p(1−p)), p the share of the sheet
+the ink covers: ink 140 levels darker than the paper gives 30 at 5% and 24
+at 3%. A page with little written on it is "dark" however it is lit, and a
+retake measures the same. 28 was the module's starting value, never set on
+a page of ours; the two legible pages on record measured 41.9 (record 45's
+first) and 54.7 (the page the sentinel refused on 22 September). In the
+twenty deploys whose logs Railway still held, from 2026-10-03, the frame
+check saw 75 album pages and refused this one alone.
+
+`MIN_CONTRAST` went to 20, under the lowest legible page with a margin, as
+the line height went from 20 to 16 on record 45 — calibrated from above
+only, the CEO's choice. A measure of the ink against the paper would not
+depend on how much is written, but its threshold would need real pages,
+good and bad, and the bot keeps no photograph: that the page held little
+writing is read off its numbers, not seen.
+
+**The line height found no lines.** On the same page it came out at 1161
+to 1280 px, about the sheet's height: `_line_height` found one band of ink
+rows from top to bottom, or two far apart — never the lines. It is not why
+the page was refused, but «Текст мелкий» could not have fired on it.
+Squared paper's grid read as ink on every row, or a shadow across the
+sheet, would do it; the numbers do not say which.

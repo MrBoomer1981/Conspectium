@@ -1077,23 +1077,31 @@ survives.
 written and tested before this repository. **Import and call them; don't
 rewrite or "improve" them.** Found a bug — report it, don't fix it silently.
 
-Three exceptions, each made after the failure was reproduced, all in
+Four exceptions, each made after the failure was reproduced. Three are in
 photoguard's line height: `UNMEASURED_LINE_HEIGHT` names a height that was not
 measured, and the criterion is skipped rather than reading `0.0` as a tiny
 line; `photoguard._line_height` thresholds by Otsu and takes the pitch as the
 median distance between bands of ink, with no three-line minimum (task 35); and
 `MIN_LINE_HEIGHT_PX` went from 20 to 16 (task 43), after record 45's dense
 notebook measured 22.75 px on four legible pages and 19.75 on a fifth that 20
-cut off. → "The line height photoguard could not measure", "Record 45, a
-lecture on remainders"
+cut off. The fourth: `MIN_CONTRAST` went from 28 to 20 (task 75, the CEO's),
+after a page sharp and filling its frame was refused as too dark three times,
+at 26.1 to 27.8. → "The line height photoguard could not measure", "Record
+45, a lecture on remainders", "A page refused as dark"
 
 Still open in photoguard: `MIN_LINE_HEIGHT_PX` is calibrated from above only —
 the one frame measured below 16, refused at 15.0 px, may or may not have been
 legible, and the module's CLI over real pages would settle it; every skip logs
-its four metrics. `_paper_box` thresholds at `0.82 × percentile99`, so a
-bright highlight shrinks the mask to the glare and `paper_fraction` collapses.
-All four thresholds apply to the compressed image, so `IMAGE_MAX_SIDE` silently
-recalibrates them.
+its four metrics. So is `MIN_CONTRAST`, and its measure is the spread of
+brightness across the sheet: it counts how much is written as much as the
+light, so a page of a few lines is mostly even paper and reads as dark however
+it is lit. A measure of ink against paper would not, and would need real
+pages, good and bad, to set. On that page the line height came out at the
+sheet's own height, 1161 to 1280 px — no lines found, so «Текст мелкий» could
+not fire on such a page. `_paper_box` thresholds at `0.82 × percentile99`, so
+a bright highlight shrinks the mask to the glare and `paper_fraction`
+collapses. All four thresholds apply to the compressed image, so
+`IMAGE_MAX_SIDE` silently recalibrates them.
 
 Worked around, not fixed:
 
