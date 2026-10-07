@@ -298,6 +298,10 @@ included. "Where this is going, decided 2026-10-02" says why.
       once at twice the ceiling, one document drawn at a time, the day's
       pages counted by the database, image work on two threads — the
       CEO's. Taken on 2026-10-07 from a week of production
+- [ ] 77. Two formulas the document printed as their source: a term the
+      author struck out, `\cancel{…}`, drawn struck, and an arrow with its
+      condition under it, `\xrightarrow[k \to \infty]{}` — the CEO's. Taken
+      on 2026-10-07 from the production log
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -386,7 +390,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -455,6 +459,7 @@ since 2026-10-01.
 | 2026-10-07 | the CEO, with Claude Code | `README.md` is brought up to date with every push, its plan of development first, in a `docs:` commit of the same push — `CLAUDE.md` → "Who decides". Its section on rights in the repository goes: the same rules stand in `CLAUDE.md` | the CEO's own |
 | 2026-10-07 | the CEO, with Claude Code | Task 75 taken: an album's page 2, sharp and filling its frame, was refused three times as too dark, at contrast 26.1 to 27.8 against 28 — photoguard's contrast is the spread of brightness across the sheet, low on a page with little written however it is lit. `MIN_CONTRAST` 28 → 20, the CEO's choice over a new measure of ink against paper, which would need real pages, good and bad, to set; the fourth edit to the ready-made `photoguard`, made on a reproduced failure. The frame check is the CPO's area | the CEO's own, by the rule of 2026-10-01 |
 | 2026-10-07 | the CEO, with Claude Code | Task 76 taken, from a week of production read on 2026-10-07 — the deploy logs, Railway's metrics, `ai_calls` — and three audits of the code. A recognition call that thinks past 90 s is repeated once at 180 s instead of twice at 90, the run's worst case unchanged; one document drawn at a time, after two drawn at once broke each other's formulas; `check_limits` stops writing the day's rollover and `consume` counts the day in one statement, after a person's first record of the day held their row for minutes; image work on two threads and `MALLOC_ARENA_MAX=2` on Railway, after every album left 50–100 MB the process kept; the SDK's automatic function calling off. "Known risks" → the quota race keeps only its soft half. The model calls, the database and the infrastructure are the CPO's area; "Scale debt" changes with it | the CEO's own, by the rule of 2026-10-01 |
+| 2026-10-07 | the CEO, with Claude Code | Task 77 taken: five formulas in two records went out as their source — `\cancel{…}`, which mathtext does not know, and `\xrightarrow` with its condition in brackets, which the rewrite did not match. A struck term is drawn struck, as `~~…~~` is in a line: dropping the command would have made «\cancel{56}^{48}», 56 crossed out and 48 written over it, read as 56 to the 48th. `docs/BRAND.md` v1.6 | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4522,6 +4527,53 @@ Read off a week of production on 2026-10-07 — the deploy logs from
 - Nothing more from the audits — a formula parsed five times, a cache of
   formulas, the PDF's encoding, the connection held for a record: noted in
   `FINDINGS.md`, not done.
+
+---
+
+# Task 77. Two formulas the document printed as their source
+
+**Owner: the CEO.** Taken on 2026-10-07. The document is the CEO's area.
+
+## Why
+
+The production log since 2026-10-03 names five formulas mathtext refused,
+each printed as its LaTeX in two records:
+
+- `- 105 - \cancel{56}^{48} - 72 = …`, `- \cancel{120} - \cancel{158} - …`
+  and a determinant's working struck out whole, `\cancel{\Delta = …}`, on
+  2026-10-05: mathtext has no `\cancel`. What the model writes for what the
+  author crossed out — 56 struck, 48 written over it.
+- `\boxed{\frac{1}{2^{k-1}}} \xrightarrow[k \to \infty]{} 0`, twice, on
+  2026-10-06: `\xrightarrow{…}` is rewritten to `\overset`, but not with its
+  condition under the arrow, in brackets.
+
+## Do
+
+1. **`\xrightarrow[below]{above}`** and `\xleftarrow` alike: the condition
+   under the arrow by `\underset`, the label over it by `\overset` as
+   before, either one empty.
+2. **A struck term drawn struck**: `\cancel{…}` with a stroke from its
+   lower left to its upper right, as LaTeX draws it; `\bcancel` the other
+   way, `\xcancel` both. mathtext has no strike, so the formula is drawn a
+   second time with the term's place left empty (`\phantom`), and the
+   stroke goes across the pixels the two drawings differ by — wherever the
+   term stands: under a power, in a fraction, round a matrix. A stroke
+   that cannot be placed sends the formula out as its source, as before:
+   the command is never dropped silently, because «\cancel{56}^{48}»
+   without its stroke reads as 56 to the 48th.
+3. `docs/BRAND.md` v1.6; `CLAUDE.md` → "The document"'s paragraph on
+   mathtext; `FINDINGS.md` → "mathtext, one record at a time".
+
+## Acceptance criterion
+
+- The five formulas from the log drawn, the struck terms struck.
+- The suite is green.
+
+## Don't do
+
+- No `\cancelto` until a record writes one.
+- A struck term is not dropped from the formula: what the author struck
+  out and the reading kept is shown struck, as `~~…~~` is in a line.
 
 ---
 
