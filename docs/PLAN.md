@@ -271,16 +271,17 @@ included. "Where this is going, decided 2026-10-02" says why.
       and the author's shorthand spelled out by the composer — the CEO's.
       Taken on 2026-10-06 from record 74, closed on the CEO's word the same
       day
-- [ ] 70. A record rated: «Хорошо» and «Плохо» under every document, and
+- [x] 70. A record rated: «Хорошо» and «Плохо» under every document, and
       the reader's own words on where the error is — the CEO's. Taken on
       2026-10-06, so the records' quality is read off the groups rather than
-      found one record at a time
+      found one record at a time; closed on the CEO's word the next day
 - [ ] 71. A lecture dated by a day it could not have been given on: a
       margin's day after the pages came no longer makes it last year's —
       the CEO's. Taken on 2026-10-06 from record 79, headed 10.11.2025
-- [ ] 72. A group's week: who sent its records and who rated them, in
+- [x] 72. A group's week: who sent its records and who rated them, in
       `/stats` and summed up in the chat once a week — the CEO's. Taken on
-      2026-10-06, so a group sees what it brings and what it says of it
+      2026-10-06, so a group sees what it brings and what it says of it;
+      closed on the CEO's word the next day
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -368,8 +369,8 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-40, 42-43, 45-47, 51, 55-56, 69
-CEO — current: 72, 71, 70; next: 65 once there is data for it, 63's rest, then 60
+Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
+CEO — current: 71; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 41
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -431,6 +432,7 @@ since 2026-10-01.
 | 2026-10-06 | the CEO, with Claude Code | Task 72 taken: a group's week — who sent its records and who rated them, two numbers a person, ordered by records — in `/stats` in a group, and summed up in the chat with the first record of the week after. A record a reply called the bot on counts for whoever sent the photographs (`notes.sender_id`), its cost still the replier's; the week's summary is claimed on the group's row (`groups.rating_week`) — both in `017_rating`, the CPO's area, named to the CPO before it is pushed. The limits do not depend on it. `CLAUDE.md` → "What NOT to do": social features stay out but for this one, inside its group. Event `rating_posted` in "Contracts" | the CEO's own |
 | 2026-10-06 | the CEO, with Claude Code | Task 41, the CPO's, gains an item: `/stats` in a group says what is left of the group's day, in pages, under task 72's week | the CEO's own, by the rule of 2026-10-01 |
 | 2026-10-06 | the CEO, with Claude Code | A person's day is 12 pages, not 30: `DAILY_PAGES_PER_USER`'s default here and in "Environment variables" — the variable on Railway stands above it and is the CEO's to set — and the startup log says the day's limits. Cost and limits are the CPO's area; built with task 72, item 7 | the CEO's own, by the rule of 2026-10-01 |
+| 2026-10-07 | the CEO, with Claude Code | Tasks 70 and 72 closed on the CEO's word, the day after they shipped | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4051,6 +4053,12 @@ wrong.
 7. `CLAUDE.md` → the middleware, "A group chat", the routers, "Environment
    variables", the revision ids; a section on feedback.
 
+## Closed, 2026-10-07
+
+On the CEO's word, the day after it shipped (`102e8d5`). Whether the groups
+use the buttons is read off `note_rated` and `note_feedback`, and what they
+say off `feedback`.
+
 ## Acceptance criterion
 
 - In a private chat and in a group: a record's «Хорошо» and «Плохо» are
@@ -4203,6 +4211,12 @@ is read off the tables two weeks on: `stats_viewed` in groups, and a group's
 8. `CLAUDE.md` → "The corpus", a section on a group's week; "Structure"; the
    revision ids; "Environment variables" and the startup log. "What NOT to
    do" is narrowed in this task's `plan:` commit.
+
+## Closed, 2026-10-07
+
+On the CEO's word, the day after it shipped (`81cf601`). Whether it moves
+anything is still read two weeks on, as "Why" says. The same day the CEO
+asked for the week's summary on Saturday, which is task 73.
 
 ## Acceptance criterion
 
