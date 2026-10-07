@@ -288,6 +288,9 @@ included. "Where this is going, decided 2026-10-02" says why.
 - [ ] 73. The week's summary on Saturday: at 10:00 Moscow time, in every
       group with a record or an отзыв that week, the week Saturday to
       Friday in `/stats` too — the CEO's. Taken on 2026-10-07
+- [ ] 74. The bot's week for whoever reads the отзывы: `/stats` in the
+      feedback chat counts every chat — records, people, отзывы, spend,
+      every group and the week's people — the CEO's. Taken on 2026-10-07
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -376,7 +379,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -441,6 +444,7 @@ since 2026-10-01.
 | 2026-10-07 | the CEO, with Claude Code | Tasks 70 and 72 closed on the CEO's word, the day after they shipped | the CEO's own |
 | 2026-10-07 | the CEO, with Claude Code | Task 73 taken: the week's summary goes to every active group's chat on Saturday at 10:00 Moscow time, sent by the bot's one timer, instead of with a week's first record; the week runs Saturday to Friday, in `/stats` too. Task 72's "no scheduler" gives way to it. No migration: `groups.rating_week` is now the Saturday a summed-up week ends on. "Contracts" → "A group's week" changes with it | the CEO's own |
 | 2026-10-07 | the CEO, with Claude Code | Task 41 taken from the CPO's track, which moves on to 48. A group's day is counted in pages — `DAILY_PAGES_PER_GROUP`, 20 — rather than the $2 the task first named: `/stats` then says exactly what is left, and the count does not halve when the prices double on 2027-01-01; the global cost cap stays the breaker. Spend is still counted per group (`ai_calls.group_id`, migration `018_ai_calls_group`, the CPO's area, named to the CPO before it is pushed). One reading of the same pages at a time, the record committed before its pages are free for another: `CLAUDE.md` → "Sessions and transactions" gains that exception, "Scale debt" loses the two rows 41 was for. `note_summoned` gains `reading` ("Contracts"). Task 52's overview, a call with no pages, counts against the group's day as 52 decides | the CEO's own |
+| 2026-10-07 | the CEO, with Claude Code | Task 74 taken: `/stats` in the chat `FEEDBACK_CHAT_ID` names — the CEO's own — answers with the whole bot's week and all time: records, people, отзывы and spend, every group active in the week, and the week's people across every chat. `CLAUDE.md` → "What NOT to do": an admin panel stays out but for this one read-only message. `stats_viewed` carries `{"scope": "bot"}` for it | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -2428,7 +2432,8 @@ or from yesterday when nothing has arrived yet today. A counter that read
 zero every morning until you posted would be noise rather than a signal, so
 the streak breaks only once a whole day passes with nothing.
 
-Empty corpus → `texts.STATS_EMPTY`. Event `stats_viewed`, no payload.
+Empty corpus → `texts.STATS_EMPTY`. Event `stats_viewed`, no payload —
+`{"scope": "bot"}` in the feedback chat since task 74.
 
 ## Why this belongs in the week
 
@@ -4332,6 +4337,58 @@ Friday — in `/stats` too, so that the two never show different numbers.
   the group's row says what was sent.
 - Don't send a week's summary on any other day: a summary is Saturday's.
 - Don't compare groups, or send one group's week to another chat.
+
+---
+
+# Task 74. The bot's week, for whoever reads the отзывы
+
+**Owner: the CEO.** Taken on 2026-10-07.
+
+## Why
+
+The CEO reads every «Плохо» in the feedback chat and has no view of the
+bot as a whole short of the production database, which a working session
+cannot read. Whether a group uses the bot weekly — the question the
+project exists to answer — is counted there, group by group, and so is
+what each costs.
+
+## Do
+
+1. **`/stats` in the feedback chat** — the chat `FEEDBACK_CHAT_ID` names,
+   the CEO's own chat with the bot — answers with the whole bot's week
+   instead of the records of whoever asked. Everywhere else `/stats` is as
+   it was; with `FEEDBACK_CHAT_ID` unset, no chat gets it.
+2. **What it says**, the CEO's choice of 2026-10-07: the week from Saturday
+   00:00 UTC, as a group's, and all time —
+   - records and pages; the people who sent a record and who rated one,
+     everyone the bot knows and the new; «Хорошо» and «Плохо»; spend today,
+     this week and all time, in dollars — the operator's screen, not a
+     student's (task 14);
+   - every group active in the week, by records: its records, pages,
+     people, отзывы and spend, and private chats as one line; ten groups
+     at most, the rest counted;
+   - the week's people across every chat, two numbers each as in a group's
+     week, fifteen at most, the rest counted.
+3. A group's spend is `ai_calls.group_id`, written since task 41's deploy
+   on 2026-10-07: the week it went out in counts a group's spend from that
+   day only, and private chats carry the rest.
+4. `stats_viewed` carries `{"scope": "bot"}` for it, so the operator's
+   views are not read as a person's.
+5. `CLAUDE.md` → "What NOT to do": an admin panel stays out but for this
+   one message.
+
+## Acceptance criterion
+
+- `/stats` in the feedback chat: the week and all time, the groups, the
+  people, the spend; in a group and in any other private chat, as before.
+- With `FEEDBACK_CHAT_ID` unset, no chat gets it.
+- The suite is green.
+
+## Don't do
+
+- No buttons, no actions, no second command: one read-only message.
+- Nothing of it to any chat but the feedback chat.
+- No new table or column: everything is counted from what is stored.
 
 ---
 

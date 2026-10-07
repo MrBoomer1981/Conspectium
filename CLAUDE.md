@@ -1325,7 +1325,9 @@ Shared by both owners. Deliberately postponed — don't suggest or implement:
   in the bot or the document (2026-10-02)
 - Payments, subscriptions, pricing tiers
 - Custom registration and passwords — identity already comes from Telegram
-- An admin panel
+- An admin panel, save one read-only message, the CEO's of 2026-10-07:
+  `/stats` in the chat every «Плохо» goes to answers with the whole bot's
+  week (`docs/PLAN.md` → task 74)
 - Export to Anki, and any bulk export of the corpus. A record comes back as one
   PDF when a tag matches it — presentation, not an exit door, and no licence
   for "download everything". The one exception is the author's, 2026-09-30: a
