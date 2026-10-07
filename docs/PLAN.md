@@ -144,7 +144,9 @@ root.
       the bot without a subject earns a hint. An image sent as a file is a
       page everywhere
 - [ ] 41. Limits and spend counted per group; the scale-debt rows that come due
-      with a second person in the chat — the CPO's, in phase D's order
+      with a second person in the chat — the CPO's, in phase D's order, until
+      the CEO took it on 2026-10-07: a group's day in pages, 20, and one
+      reading of the same pages at a time
 
 **Back to the record — what record 45 showed.** The author put the group on
 hold on 2026-09-25, after 39 shipped: every effort goes to the records first,
@@ -207,9 +209,10 @@ Set by the CEO on 2026-09-30, in two tracks, one an owner: **the CEO's 51,
 54, 55, 56, 47, 52 and the CPO's 41, 48**, each in that order — 51 moved
 first on 2026-10-01, when the CEO's guide to the look came in, and 54 to 56
 came in after it the same day, from record 59. 52's overview is a model call
-and waits for 41, which counts its cost against the chat's cap. Each task's
-specification is under "# Task N", after the task descriptions of week 2;
-41 is the one listed under phase C.
+and waits for 41, which gives the chat a day of its own — in pages since
+2026-10-07, when the CEO took 41, so what an overview counts for in it is
+52's to say. Each task's specification is under "# Task N", after the task
+descriptions of week 2; 41 is the one listed under phase C.
 
 - [x] 51. The document's own look: the CEO's guide, `BRAND.md`, the body
       included — the CEO's
@@ -373,8 +376,8 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71; next: 65 once there is data for it, 63's rest, then 60
-CPO — current: none; next: 41
+CEO — current: 73, 71, 41; next: 65 once there is data for it, 63's rest, then 60
+CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
 
@@ -437,6 +440,7 @@ since 2026-10-01.
 | 2026-10-06 | the CEO, with Claude Code | A person's day is 12 pages, not 30: `DAILY_PAGES_PER_USER`'s default here and in "Environment variables" — the variable on Railway stands above it and is the CEO's to set — and the startup log says the day's limits. Cost and limits are the CPO's area; built with task 72, item 7 | the CEO's own, by the rule of 2026-10-01 |
 | 2026-10-07 | the CEO, with Claude Code | Tasks 70 and 72 closed on the CEO's word, the day after they shipped | the CEO's own |
 | 2026-10-07 | the CEO, with Claude Code | Task 73 taken: the week's summary goes to every active group's chat on Saturday at 10:00 Moscow time, sent by the bot's one timer, instead of with a week's first record; the week runs Saturday to Friday, in `/stats` too. Task 72's "no scheduler" gives way to it. No migration: `groups.rating_week` is now the Saturday a summed-up week ends on. "Contracts" → "A group's week" changes with it | the CEO's own |
+| 2026-10-07 | the CEO, with Claude Code | Task 41 taken from the CPO's track, which moves on to 48. A group's day is counted in pages — `DAILY_PAGES_PER_GROUP`, 20 — rather than the $2 the task first named: `/stats` then says exactly what is left, and the count does not halve when the prices double on 2027-01-01; the global cost cap stays the breaker. Spend is still counted per group (`ai_calls.group_id`, migration `018_ai_calls_group`, the CPO's area, named to the CPO before it is pushed). One reading of the same pages at a time, the record committed before its pages are free for another: `CLAUDE.md` → "Sessions and transactions" gains that exception, "Scale debt" loses the two rows 41 was for. `note_summoned` gains `reading` ("Contracts"). Task 52's overview, a call with no pages, counts against the group's day as 52 decides | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -998,6 +1002,7 @@ WEBHOOK_URL=                     required
 WEBHOOK_SECRET=                  required
 AI_ENABLED=true
 DAILY_PAGES_PER_USER=12
+DAILY_PAGES_PER_GROUP=20
 DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3
 VISION_MODEL=gemini-3.5-flash-lite
@@ -1016,8 +1021,9 @@ startup**, not on the first request.
 `VISION_RUNS` below 2 is forbidden: there would be nothing to compare
 against. Validate it in `Settings` and crash at startup.
 
-**All daily boundaries are UTC.** Both the reset of `pages_used_today` and
-the `ai_calls` selection for today.
+**All daily boundaries are UTC.** The reset of `pages_used_today`, the
+`ai_calls` selection for today, and a group's pages today (task 41) — 03:00
+in Moscow, which is what the group is told.
 
 ## Dependencies
 
@@ -2469,9 +2475,9 @@ never been used.
 
 Specified on 2026-09-30. Two tracks: the CEO's 51, 54, 55, 56, 47, 52 — 51
 moved first and 54 to 56 came in on 2026-10-01 — and the CPO's 41, 48, each
-in that order. Where a specification and the code disagree, the code is
-what exists and the specification is what was decided: ask the task's owner
-before choosing either.
+in that order, 41 the CEO's since 2026-10-07. Where a specification and the
+code disagree, the code is what exists and the specification is what was
+decided: ask the task's owner before choosing either.
 
 # Task 47. The bot added to a group in one tap
 
@@ -2538,7 +2544,9 @@ usually not one. Every group but the author's has to be able to do it alone.
 
 # Task 41. Limits and spend counted per group
 
-**Owner: the CPO.** Its lines in `texts.py` are agreed with the CEO.
+**Owner: the CEO, since 2026-10-07** — the CPO's until then, taken on the
+CEO's word with the CPO's track moving on to 48. Its migration is the CPO's
+area and is named to the CPO before it is pushed.
 
 ## Why
 
@@ -2554,36 +2562,52 @@ only once that record is saved.
 
 ## Do
 
-1. **A group's day has a cap of its own.** `ai_calls.group_id`, in a
-   migration — the next revision id is in `CLAUDE.md` → "Development
-   commands": the group a call was made for, `NULL` in a private chat.
-   `vision.log_ai_calls` takes it, and every call made for a group's record
-   writes it. A new setting, `DAILY_COST_LIMIT_PER_GROUP_USD` — default 2, the
-   value the CPO's — and `limits.check_limits` refuses a group's pages once
-   that group's spend today has reached it, with a line of its own in
-   `texts.py`. The global cap stays above it as the breaker and is checked
-   first; a person's page quota stays as it is.
-2. **One reading of the same pages at a time.** While a group's pages are
+1. **A group's day has a cap of its own, in pages** — the CEO's decision of
+   2026-10-07, over the $2 this task first named: a student reads pages,
+   `/stats` then says exactly what is left rather than an estimate, and the
+   count does not halve when the prices double on 2027-01-01. A new setting,
+   `DAILY_PAGES_PER_GROUP`, default 20, the CEO's. A group's pages today are
+   the pages of its records made since 00:00 UTC — `notes.page_count`, what
+   was read and charged; a `.docx` costs nothing and is not counted — so
+   nothing new is stored for the count, and two albums at once lose none of
+   it. `limits.check_limits` refuses pages that would take the group past it,
+   with a line of its own in `texts.py`, in this order: the kill switch, the
+   global cost cap — the breaker over every chat — the group's pages, the
+   person's. A person's page quota stays as it is. The group's count is
+   checked when pages come and never for a record's later stages
+   (`pages=0`): a record let in is composed and explained whatever the
+   count says by then.
+2. **Spend counted per group.** `ai_calls.group_id`, in migration
+   `018_ai_calls_group`: the group a call was made for, `NULL` in a private
+   chat. `vision.log_ai_calls` takes it, and every call made for a group's
+   record writes it. What a group costs is read off it; the cap does not
+   read it.
+3. **One reading of the same pages at a time.** While a group's pages are
    being read — `corpus.source_key` names them, a tagged album and a reply's
    call alike — a second call on them starts no second reading: it is told in
    a line that the record is on its way, and the record goes to the chat once.
    An in-process set of the keys being read is enough while the bot is one
-   replica; it is emptied in a `finally`.
-3. `CLAUDE.md`: "Scale debt" — the two rows this closes, and the new set
-   beside the album buffer in the row a second replica breaks — "Environment
-   variables", and the limits sentence of "A group chat".
+   replica. It is emptied in a `finally`, and only once the record is
+   committed, so that a second call finds the one or the other.
+   `note_summoned` gains the outcome `reading`.
 4. **What is left of the group's day, in `/stats`** — added by the CEO on
    2026-10-06, with task 72: under the group's week, how many pages the
    group can still send today. In pages, never dollars: a screen a student
-   reads shows no cost (task 14). Whether the cap is set in pages or its
-   dollars are turned into pages is this task's to decide; the line in
-   `texts.py` is the CEO's.
+   reads shows no cost (task 14). The lines in `texts.py` are the CEO's,
+   agreed on 2026-10-07.
+5. The startup log names the group's day beside a person's.
+6. `CLAUDE.md`: "Scale debt" — the two rows this closes, and the new set
+   beside the album buffer in the row a second replica breaks; "Sessions and
+   transactions" — the record committed before its pages are free;
+   "Environment variables", and the limits sentence of "A group chat".
 
 ## Acceptance criterion
 
-- A group whose spend today reached its cap gets the new line for its next
+- A group whose pages today reached its cap gets the new line for its next
   page and nothing is spent; another group and a private chat go on as
   before.
+- An album longer than what is left of the group's day is refused whole,
+  the line saying how many pages are left.
 - The global cap still stops every chat.
 - Two replies "#матан" to one untagged album a second apart: one record, one
   set of `ai_calls` rows, one PDF in the chat.
@@ -2597,6 +2621,8 @@ only once that record is saved.
   soft, as `PLAN.md` → "Known risks" says.
 - Don't move the album buffer or the new set out of the process — that is the
   first row of "Scale debt" and a task of its own.
+- Don't cut a record's composing or explaining for the group's count: its
+  pages were let in, and the document is not traded for a count.
 
 ---
 
@@ -2656,10 +2682,12 @@ the course a student needs before reading twenty lectures of it.
    results, what to go back to before an exam — a page or two, in
    paragraphs, as JSON. On `EXPLAIN_MODEL` at the model's default thinking —
    it is text of the document, and its quality is not traded for price —
-   within `EXPLAIN_CALL_TIMEOUT_S`. Limits are checked before it and its cost
-   counts against the chat's cap from task 41 (rule 6); every attempt is
-   written to `ai_calls` with `kind="overview"` (rule 4); its answer is
-   parsed without trust (rule 7).
+   within `EXPLAIN_CALL_TIMEOUT_S`. Limits are checked before it (rule 6);
+   the chat's own day is counted in pages since task 41, and what an
+   overview, a call with no pages, counts for in it is decided here when
+   this task is taken. Every attempt is written to `ai_calls` with
+   `kind="overview"` and the chat's group (rule 4); its answer is parsed
+   without trust (rule 7).
 5. **Its guard is the summary's, by code.** The overview says what the
    records say, so a paragraph that states a number no record carries is
    dropped — `explain`'s summary check, applied to each paragraph against
@@ -4539,12 +4567,16 @@ else sent (task 40). The one event to count to know whether the call is used.
 
     {"outcome": "read", "pages": 4}
     {"outcome": "existing", "note_id": 52}
+    {"outcome": "reading"}
     {"outcome": "album_unknown"}
     {"outcome": "no_tag"}
 
 `read`: the pages go through the pipeline, and `note_captured` and
 `note_processed` follow as for any record. `existing`: a record of the same
 pages was already made in the chat and was sent again, nothing spent.
+`reading`: the same pages were being read for the chat at that moment — by
+their own tagged album or by an earlier call — and the record goes to the
+chat once, nothing spent (task 41).
 `album_unknown`: the bot never saw that album whole, or saw it more than seven
 days ago, and asked for it again with its subject. `no_tag`: the reply named
 the bot without a subject and got a hint.
@@ -4750,6 +4782,10 @@ that stops being affordable is in `CLAUDE.md` → Scale debt.
 **The cost limit is soft.** `DAILY_COST_LIMIT_USD` is only checked before
 processing starts, no budget is reserved. The cap can be exceeded by the
 cost of one album — at current prices, that's cents.
+
+**So is a group's day** (task 41). `DAILY_PAGES_PER_GROUP` is checked when
+pages come, against the group's records already saved: two albums read at
+once both pass, and the group goes past its day by up to an album.
 
 **The album buffer lives in the process's memory.** Railway restarts the
 container and an unfinished batch is silently lost. The heavier half is that
