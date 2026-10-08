@@ -351,6 +351,14 @@ CEO's, not yet scheduled:
       the order its pages say — their numbers, a sentence across a seam —
       and in the order sent when they do not say — the CEO's, measured first
 
+Specified on 2026-10-08, when the CEO asked whether the bot should make
+study materials rather than records — the CEO's, its spec awaiting the
+CEO's approval:
+
+- [ ] 80. A lecture's study version: a button under the document builds,
+      from the record and only when pressed, the lecture set out by topic —
+      the author's text moved whole, the bot's sections marked — the CEO's
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -469,6 +477,7 @@ since 2026-10-01.
 | 2026-10-07 | the CEO, with Claude Code | Task 77 taken: five formulas in two records went out as their source — `\cancel{…}`, which mathtext does not know, and `\xrightarrow` with its condition in brackets, which the rewrite did not match. A struck term is drawn struck, as `~~…~~` is in a line: dropping the command would have made «\cancel{56}^{48}», 56 crossed out and 48 written over it, read as 56 to the 48th. `docs/BRAND.md` v1.6 | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 78 taken, from a reader's «Плохо» on record 86, the first album after task 76's deploy. Not task 76: the request Gemini receives is the same byte for byte, and the four pages agreed above the week's mean. What the reader saw was a title's formula printed as its source, the author's frame inside a line printed as «[рамка: ?!]», a composition refused twice for «1))» tidied to «1)», and a teacher's example that was the lecture's construction for √3. Two of its items are the CPO's, taken on the CEO's word: the numbers guard counts «1))» opening a line as an item's marker, and `prompts-explain-v3.md` says an example is not the lecture's working with another number — production switches to it on the CEO's word. `docs/BRAND.md` v1.7 | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 79 taken, from record 87 — record 86's album sent again, its composition refused twice as 86's was. Run twice more on Railway on the CEO's word, the composer lost the same two numbers, and neither was a value: the theorem's parts «1 Существование» and «2 Число…», made the list they are. The numbers guard, the CPO's, counts a number opening a line before a capitalised word as an item's; «1))», task 78's likely cause, was not record 87's. And three cases begun on a line of text are set on one ground | the CEO's own |
+| 2026-10-08 | the CEO, with Claude Code | Task 80 specified, not scheduled: the CEO asked whether the bot should make study materials based on the records instead of the records, and chose to build them over the records — the record stays what a group trusts and everything else is made from, and a lecture's study version is built from it when somebody presses a button. Made instead of the record, the material would have changed the rule the product stands on, marked is the whole licence to add, and lifted «text rewriting» from "What NOT to do". It takes up the design of the idea of 2026-10-06, the lecture as structured material, archived that day. The spec waits for the CEO's approval | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4725,6 +4734,81 @@ first in the text — «в рамке только 2 из 3», the CEO wrote.
   capitalised word — «10 Ом» — goes uncounted, and that is the price.
 - No formula moves without a relation to compare: «Пусть дано: $f(x)$»
   over a formula of another left side stays as written.
+
+---
+
+# Task 80. A lecture's study version
+
+**Owner: the CEO.** Specified on 2026-10-08; the spec waits for the CEO's
+approval before it is scheduled. The document and the bot's buttons are the
+CEO's area; the model call, the schema and the limits it needs are the
+CPO's, open to the CEO.
+
+## Why
+
+The CEO asked whether SUM should make study materials based on the records
+rather than the records. Two ways were weighed:
+
+- **The material instead of the record.** The model writes the document and
+  the author's text becomes its quotations. That changes the rule the
+  product stands on — marked is the whole licence to add — and lifts «text
+  rewriting» from `CLAUDE.md` → "What NOT to do"; every record costs 20 to
+  40% more; and what the model invents reads as the lecture, the failure
+  the project was built to keep out. Code can check the material's numbers
+  and formulas, never whether an explanation is true.
+- **The material over the record.** The record stays what it is — the text
+  a group trusts, what a "#word" finds, what two notebooks of a lecture
+  merge into, what the app's library will show — and a study version is
+  built from it when somebody asks for one.
+
+The CEO chose the second on 2026-10-08. It takes up the design of the idea
+of 2026-10-06, the lecture as structured material, archived that day.
+
+## Do — the first version
+
+1. **«Учебная версия», a button under every document**, beside «Хорошо»
+   and «Плохо». A press builds the lecture's study version from the record
+   and sends it as a second PDF. Never built unasked: the presses are the
+   measure.
+2. **What it holds**: the lecture set out by its topics rather than in the
+   lecturer's order. The author's text cut into units — a paragraph, a
+   formula, a drawing, a list — each moved whole and never reworded. Between
+   them, under the bot's label: what a topic is about, its key notions — the
+   author's words, picked from the markup — and the record's explanations
+   and teacher's boxes where their anchors went.
+3. **How**: one text-only call over the record numbered by units, answering
+   with the arrangement by number and the bot's own texts, never the
+   author's text back. Code checks that every unit is placed once and that
+   the bot's texts state no number the record does not carry, as stage
+   three's are checked. A version that fails is not sent; the reader is
+   told it could not be built.
+4. **Stored** beside the record — the arrangement and the bot's texts — so
+   a second press sends it again and pays nothing.
+5. **Paid inside the day's limits**, checked before the call: about a
+   composition's price, $0.03 to $0.05 a press.
+6. **Measured**: `study_requested` and `study_sent`, with the group's id.
+   The subject's version (52) and the exam preparation (59) come after,
+   and only once the presses show it is used.
+
+## Open, for the CEO
+
+- What a student lacks more — understanding a lecture they missed, or
+  preparing for an exam: it decides the bot's sections.
+- Whether questions to check oneself belong in it: «Проверь себя» was put
+  in the app, not the PDF, on 2026-10-02.
+
+## Acceptance criterion
+
+- A press on a record with headings sends a study version in which every
+  unit of the author's text stands once, every text of the bot is marked,
+  and a second press costs nothing.
+- The suite is green.
+
+## Don't do
+
+- The record is not replaced, and its document does not change.
+- No unit of the author's text is reworded: the model arranges and adds,
+  and what it adds is marked.
 
 ---
 
