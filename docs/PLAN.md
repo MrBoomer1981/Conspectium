@@ -528,6 +528,7 @@ since 2026-10-01.
 | 2026-10-08 | the CEO, with Claude Code | Task 82 taken: records 88 and 89, the two records of twelve pages, both went out uncomposed. Composed again on Railway on the CEO's word ($0.16 in all, nineteen rows in `ai_calls`), the composer lost no value of 88's — the numbers were an item's after a bullet and one the author struck out — and squared a formula of 89's, nine times of fourteen. The numbers guard, the CPO's, counts neither of the first two; a formula the composer changed is put back as read rather than refused, counted as `compose_restored` ("Contracts"). `CLAUDE.md` → "Stage two". Five records of fifteen went out uncomposed since `prompts-compose-v4.md` went to production on 2026-10-06 | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Tasks 83 and 84 taken, in that order, from the CEO's reading of records 88 and 89 against the photographs — sixteen points, ten in the lecture and six in how it was set out. The CEO asked whether to check them with algorithms rather than a model. 83 is the document's share, all code: a box set after the sentence it is anchored in, found across the lines of one, a word carried over with a hyphen joined, struck words not printed, ≤ for ⩽, a short formula ending a sentence set in its line, a ringed sign framed. 84 is the one class of the lecture's errors code can prove — an equality that does not hold, «(−x)(−x) = x», «c − h = c² − 2ch + h²» — a finding under its line, never the author corrected; measured over every record in the database before it is on, the CEO's word given to read them. The rest of the sixteen is meaning, no code's to find | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Tasks 85–88 taken and 89–91 specified, from thirty-two pages the CEO sent at once on the evening of 2026-10-08 and the thirty-eight errors another model listed over the three documents that came back. The CEO asked for the list to be checked and a plan made, and went to sleep: the four are made overnight without a push, and wait for the CEO's word. 85: the albums of the send came 19 s apart, the window was 15 s — an album of ten waits a minute. 86: the document's share of what was found, all code. 87: record 91's study version did not parse and was asked for only by a press of its button. 88: records 91 and 92 went out uncomposed for numbered items in lower case, the guard the CPO's — measured on them, on the CEO's word, before it ships. 89–91 are decisions: the bot's reasoning that assumed what the lecture proves, the photographs against the reading, a definition the lecture relies on and does not give. Checked against the documents, most of the list is the lecture as the notebook has it or one stroke of the reading from it; three points are not there; one is the bot's own. `FINDINGS.md` → "Records 90, 91 and 92" | the CEO's own |
+| 2026-10-09 | the CEO, with Claude Code | Task 88 widened while it was made: what the author struck out leaves the count of `[неразборчиво]` and the length as it leaves the numbers — record 91's struck passage held a mark — and an item may stand inside a line, «верно 3) …» | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -5348,7 +5349,11 @@ abbreviation (rule 10, the CEO's) and has no heading: that is how 91 and
    before. A number alone before a word in lower case stays a value:
    «2 мн-ва».
 2. **What the author struck out over two lines** is left out of the count
-   too, as over one (task 82).
+   too, as over one (task 82) — and out of the count of `[неразборчиво]`
+   and of the length, which the guard compared whole: record 91's struck
+   passage held a mark, and a composition that dropped it would have been
+   refused for it. A later item may stand inside a line, «верно 3) …», as
+   record 91 has it, unless its bracket closes one opened before it.
 3. **Measured before it ships**: records 91 and 92 composed again on
    Railway under the new guard, on the CEO's word to read them — accepted,
    or the numbers it still loses counted.
