@@ -302,6 +302,10 @@ included. "Where this is going, decided 2026-10-02" says why.
       author struck out, `\cancel{…}`, drawn struck, and an arrow with its
       condition under it, `\xrightarrow[k \to \infty]{}` — the CEO's. Taken
       on 2026-10-07 from the production log
+- [ ] 78. What record 86 showed: a title's formula printed as its source,
+      the author's frame inside a line, «1))» refusing a composition, and
+      a teacher's example that was the lecture's working with another
+      number — the CEO's. Taken on 2026-10-08 from a reader's «Плохо»
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -390,7 +394,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -460,6 +464,7 @@ since 2026-10-01.
 | 2026-10-07 | the CEO, with Claude Code | Task 75 taken: an album's page 2, sharp and filling its frame, was refused three times as too dark, at contrast 26.1 to 27.8 against 28 — photoguard's contrast is the spread of brightness across the sheet, low on a page with little written however it is lit. `MIN_CONTRAST` 28 → 20, the CEO's choice over a new measure of ink against paper, which would need real pages, good and bad, to set; the fourth edit to the ready-made `photoguard`, made on a reproduced failure. The frame check is the CPO's area | the CEO's own, by the rule of 2026-10-01 |
 | 2026-10-07 | the CEO, with Claude Code | Task 76 taken, from a week of production read on 2026-10-07 — the deploy logs, Railway's metrics, `ai_calls` — and three audits of the code. A recognition call that thinks past 90 s is repeated once at 180 s instead of twice at 90, the run's worst case unchanged; one document drawn at a time, after two drawn at once broke each other's formulas; `check_limits` stops writing the day's rollover and `consume` counts the day in one statement, after a person's first record of the day held their row for minutes; image work on two threads and `MALLOC_ARENA_MAX=2` on Railway, after every album left 50–100 MB the process kept; the SDK's automatic function calling off. "Known risks" → the quota race keeps only its soft half. The model calls, the database and the infrastructure are the CPO's area; "Scale debt" changes with it | the CEO's own, by the rule of 2026-10-01 |
 | 2026-10-07 | the CEO, with Claude Code | Task 77 taken: five formulas in two records went out as their source — `\cancel{…}`, which mathtext does not know, and `\xrightarrow` with its condition in brackets, which the rewrite did not match. A struck term is drawn struck, as `~~…~~` is in a line: dropping the command would have made «\cancel{56}^{48}», 56 crossed out and 48 written over it, read as 56 to the 48th. `docs/BRAND.md` v1.6 | the CEO's own |
+| 2026-10-08 | the CEO, with Claude Code | Task 78 taken, from a reader's «Плохо» on record 86, the first album after task 76's deploy. Not task 76: the request Gemini receives is the same byte for byte, and the four pages agreed above the week's mean. What the reader saw was a title's formula printed as its source, the author's frame inside a line printed as «[рамка: ?!]», a composition refused twice for «1))» tidied to «1)», and a teacher's example that was the lecture's construction for √3. Two of its items are the CPO's, taken on the CEO's word: the numbers guard counts «1))» opening a line as an item's marker, and `prompts-explain-v3.md` says an example is not the lecture's working with another number — production switches to it on the CEO's word. `docs/BRAND.md` v1.7 | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4574,6 +4579,95 @@ each printed as its LaTeX in two records:
 - No `\cancelto` until a record writes one.
 - A struck term is not dropped from the formula: what the author struck
   out and the reading kept is shown struck, as `~~…~~` is in a line.
+
+---
+
+# Task 78. What record 86 showed
+
+**Owner: the CEO.** Taken on 2026-10-08, from a reader's «Плохо» on record
+86. The document is the CEO's area; the composer's numbers guard and the
+explaining prompt are the CPO's, taken on the CEO's word under the rule of
+2026-10-01.
+
+## Why
+
+Record 86 — a proof that √2 is irrational, an album of four pages read on
+2026-10-07, the first after task 76's deploy. The reader wrote: the title
+in the wrong format, «3 instead of 2» in 1.3, formulas wrongly set off in
+1.4, the «неразборчиво» marks. The CEO suspected task 76. It is not:
+
+- The request Gemini receives is the same byte for byte with automatic
+  function calling off — captured for a reading, a composition and a
+  search. The image is compressed by the same function with the same
+  arguments, on another thread. No call timed out, so the new repeat never
+  ran.
+- All four pages came back from all three runs, at a text agreement of
+  0.94 to 0.99 and a numeric one of 0.90 to 0.99 — above the 55 pages of
+  the week before, whose means were 0.84 and 0.89.
+
+What the reader saw:
+
+- **The title printed as its source**, «Теорема об иррациональности
+  \sqrt{2}», at the top, in the head of every page and in the file's name:
+  the model wrote the title's formula with no dollars round it, and nothing
+  marked it as one.
+- **«3 instead of 2»** is the bot's «Пример» under 1.3: the lecture's own
+  construction, done for √3. The prompt asks for an example unlike the
+  lecture's — another set, another space — and the reader took this one for
+  the lecture misread.
+- **The formulas in 1.4** are a record that went out uncomposed. The
+  numbers guard refused the composition twice, one number lost and then
+  two, so the document is recognition's text: the notebook's line breaks,
+  «1))», the first of three cases in its line and the other two on the
+  kraft ground, the shorthand as written, the bot's boxes between the
+  halves of a sentence. «1))» opening a line is the number 1 to the guard
+  and «1)» an item's marker, so a composer tidying the one into the other
+  loses a number: the first refusal, most likely; the second lost one more,
+  which the log does not name. One record on 2026-10-06 was refused twice
+  the same way, before task 76.
+- **«[рамка: ?!]» printed twice in its proof**: the author ringed «?!»
+  inside a line, and the document draws a frame only round a line that
+  holds nothing else. A `\boxed` inside a line loses its frame as well.
+- **Five «[неразборчиво]»**, one of them struck out — the author crossed
+  something out and the reading marked it — and printed struck. Whether
+  the others were legible, only the photographs tell.
+
+## Do
+
+1. **A formula in a title written without its dollars is drawn as one**,
+   found the way a quoted fragment's is (`pdf.as_formula`), and written in
+   characters in the head, the file's name and a chat's listing: «√2».
+   Stored records included.
+2. **The author's frame inside a line is drawn round what it frames** —
+   «[рамка: …]» standing in a line, and a `\boxed{…}` in a formula set in a
+   line — with a hairline, found as task 77's strike is: the formula drawn
+   again with the term's place left empty. One that cannot be placed sends
+   the formula out as its source, as before. A frame round a whole line
+   stays as it is, set apart and numbered when it holds a formula.
+3. **«[неразборчиво]» struck out is not printed**, as «[зачёркнуто]» is
+   not: what the author struck out is not the lecture.
+4. **«1))» opening a line is an item's marker** to the numbers guard, as
+   «1)» is.
+5. **A teacher's example is not the lecture's working with another
+   number**: rule 6 of `prompts-explain-v3.md` says so. Production switches
+   `EXPLAIN_PROMPT_FILE` on the CEO's word.
+6. `CLAUDE.md` → "The document", "Stage two", "Stage three", "Structure";
+   `docs/BRAND.md` v1.7; `FINDINGS.md` → "Record 86, √2".
+
+## Acceptance criterion
+
+- Record 86 drawn again by «#матан»: «√2» in its title and its head, «?!»
+  framed in its proof, no struck «[неразборчиво]».
+- The suite is green.
+
+## Don't do
+
+- Record 86 is not composed again: a stored record is drawn again, never
+  read again, and a composed one needs its album sent again.
+- The numbers guard is not loosened beyond «1))»: which number the second
+  attempt lost is not known, and a number lost for real is what the guard
+  is for.
+- Nothing about the «[неразборчиво]» until the photographs are compared.
 
 ---
 
