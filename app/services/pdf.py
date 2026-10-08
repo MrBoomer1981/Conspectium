@@ -778,6 +778,64 @@ def _lift_drawings(markdown: str) -> str:
     return "\n".join(out)
 
 
+# A column of formulas begun on the line that introduces it: record 86's
+# «Возможно 3 случая: c² < 2», with c² > 2 and c² = 2 under the first. Read as
+# written, the first stood in the line and the other two on the kraft ground —
+# «в рамке только 2 из 3» (_formula_columns, task 79).
+_COLUMN_HEAD_RE = re.compile(
+    r"^(?P<text>.+?:(?:\*\*|__)?)[ \t]*(?<!\\)\$(?P<latex>[^$\n]+?)(?<!\\)\$[ \t]*$"
+)
+_RELATION_RE = re.compile(
+    r"\\(?:leqslant|geqslant|leq|geq|le|ge|neq|ne|notin|in|equiv|approx|sim"
+    r"|subseteq|subset|supseteq|supset)(?![A-Za-z])|[<>=]"
+)
+
+
+def _left_side(latex: str) -> str | None:
+    """What a formula states a relation of — "c^2" in "c^2 < 2" — its spaces
+    and braces gone; None when it states none."""
+    relation = _RELATION_RE.search(latex)
+    if relation is None:
+        return None
+    return re.sub(r"[\s{}]", "", latex[: relation.start()]) or None
+
+
+def _formula_below(lines: list[str], index: int) -> str | None:
+    """The formula the next line holding anything is, alone or opening a
+    block of "$$" lines, else None."""
+    rest = [line.strip() for line in lines[index + 1 :] if line.strip()]
+    if not rest:
+        return None
+    if rest[0] == "$$" and len(rest) > 1:
+        return rest[1]
+    return _is_whole_formula(rest[0])
+
+
+def _formula_columns(markdown: str) -> str:
+    """A formula ending a line after a colon moved down to the formulas under
+    it when it is the first of their column — a relation of the same left
+    side, as c² < 2 is of c² > 2 — so the column stands on one ground. A
+    formula with no relation to compare stays where it was written. Done for
+    the document only, as _lift_drawings is."""
+    lines = markdown.splitlines()
+    out: list[str] = []
+    pending: str | None = None
+    for index, line in enumerate(lines):
+        if pending is not None and line.strip():
+            out.append(pending)
+            pending = None
+        head = _COLUMN_HEAD_RE.match(line.strip())
+        if head is not None:
+            side = _left_side(head.group("latex"))
+            below = _formula_below(lines, index)
+            if side is not None and below is not None and _left_side(below) == side:
+                out.append(head.group("text"))
+                pending = f"$${head.group('latex')}$$"
+                continue
+        out.append(line)
+    return "\n".join(out)
+
+
 def _framed_inline(found: re.Match) -> str:
     """One frame inside a line, as a formula with the frame round it: its
     words set as text, its formulas as they stand. Words mathtext would read
@@ -3766,7 +3824,7 @@ def render(
     wanted = title.strip().casefold()
     parsed = [
         block
-        for block in blocks(_lift_drawings(_unstruck(markdown)))
+        for block in blocks(_formula_columns(_lift_drawings(_unstruck(markdown))))
         if not (block.kind == "heading" and block.text.strip().casefold() == wanted)
     ]
     for block in parsed:

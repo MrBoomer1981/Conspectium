@@ -482,12 +482,15 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   not materially shorter. Otherwise the record is the one stage one produced:
   off, refused or failed, the worst case of the stage is the pipeline without
   it — and a refusal costs the record its headings, which is why the numbers
-  leave out what only counts items: "1)", "1))" or "2." opening a line, a
-  heading or a bold label, and "1)" after a colon or a semicolon inside a line
-  unless it closes a bracket — "(0; 1)" is a value. Record 59 lost its
-  composition to "Примеры: 1) …" made into a list, and record 86 to «1))»
-  tidied to «1)» (task 78). The log line says how many numbers went and came,
-  never which. → "The composition record 59 lost", "Record 86, √2"
+  leave out what only counts items: "1)", "1))", "2." or a bare number before
+  a capitalised word opening a line, a heading or a bold label, and "1)"
+  after a colon or a semicolon inside a line unless it closes a bracket —
+  "(0; 1)" is a value. Record 59 lost its composition to "Примеры: 1) …" made
+  into a list, and records 86 and 87 to a theorem's parts numbered
+  «1 Существование», «2 Число…», made «1.» and «2.» (task 79). Before a
+  lower-case word a number is a value: «2 мн-ва» written «два множества» is
+  refused. The log line says how many numbers went and came, never which. →
+  "The composition record 59 lost", "Record 86, √2"
 - **A refused composition is asked for once more** (`compose_retried`,
   2026-10-03): the composer is sampled, and a refusal is one sample's.
   Record 66's, refused in production for three numbers it gained, was
@@ -886,7 +889,12 @@ why each is what it is. What a change must not break:
   Computer Modern; words in braces or in an environment stay the formula's.
 - **A formula is a picture made to sit like text**: lowered by its measured
   depth, a quarter-point stroke to darken Computer Modern, shrunk to the
-  column; on the kraft ground when displayed (`pdf._grounded`). A zero-width
+  column; on the kraft ground when displayed (`pdf._grounded`). A column of
+  formulas the author began on the line that introduces it stands on one
+  ground: a formula ending a line after a colon goes down to the formulas
+  under it when they state a relation of the same left side
+  (`pdf._formula_columns`, task 79) — record 86 set c² > 2 and c² = 2 on the
+  ground and left c² < 2 in «Возможно 3 случая:». A zero-width
   space after an inline formula is the only place reportlab breaks a line
   after an image. A tall one makes room in its line, a paragraph's first line
   included: reportlab set that line a font size below the paragraph's top

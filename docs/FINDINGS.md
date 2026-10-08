@@ -1672,8 +1672,9 @@ or a heading, it is one number lost —
     '1)) Случай $c^2<2$' -> '**1) Случай $c^2<2$**'    lost 1 gained 0
     '1)) Случай $c^2<2$' -> '1)) Случай $c^2<2$'       lost 0 gained 0
 
-— most likely the first refusal. The second lost one number more, which the
-log does not name; the composer's answer is not kept. A composition under
+— the first refusal, it seemed; record 87, below, says otherwise. The
+second lost one number more, which the log does not name; the composer's
+answer is not kept. A composition under
 v4 can also lose a number by spelling it out, «2 мн-ва» as «два множества»,
 which rule 10 forbids — not shown here. Not task 76's either: a record on
 2026-10-06 at 18:06 UTC was refused twice the same way, one number lost
@@ -1714,3 +1715,31 @@ set as a grey line like a drawing's caption. Whether those four were
 legible, only the photographs tell, and so do two more places: «α := 2 − c²»
 followed by «a» everywhere after it, and «c − h = c² − 2ch + h²», where
 (c − h)² is meant.
+
+**Sent again as record 87**, 2026-10-08, after task 78's deploy: four pages
+read by all three runs, the composition refused twice again, two numbers
+lost each time. Run twice more over record 87's text on Railway, on the
+CEO's word — $0.017, both calls in `ai_calls` — the composer lost the same
+two numbers both times, and the token diff of what it gave back, list
+markers set aside as the guard sets them, shows where:
+
+    replace: «1» -> «* *»  | after «… $\sqrt{2}$ - иррациональное число»
+    delete:  «2» -> «»     | after «… его как $\sqrt{2}$»
+
+The author numbered the theorem's two parts «1 Существование» and «2 Число
+не является рациональным», with no dot after the number. The composer made
+them the list they are — «1. **Существование.**», «2. Число…» — and the
+guard, which leaves out «1.» and «1)» as markers but counted a bare «1»
+opening a line as a value, read both as lost. Every value was kept. «1))»
+was not record 87's cause, and on record 86 the same two parts were there
+to lose: its «1 lost» and «2 lost» were most likely these. A number opening
+a line before a capitalised word is now an item's number to the guard;
+before a lower-case word it is still a value — «2 мн-ва» written «два
+множества» is refused.
+
+The three cases of 1.4 stood as on record 86, «Возможно 3 случая: c² < 2»
+with the other two alone on their lines under it, and the CEO wrote «в
+рамке только 2 из 3». The author began the column on the line that
+introduces it; the document now moves such a formula down to the ground of
+the formulas under it when they state a relation of the same left side,
+and leaves a formula with no relation to compare where it was written.

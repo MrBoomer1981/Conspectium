@@ -47,10 +47,14 @@ _MIN_LENGTH_RATIO = 0.8
 # lets the composer turn a run of lines into a list, which renumbers them, and
 # that must not read as arithmetic being rewritten. Such a marker opens a line,
 # a heading or a bold label — "1))" too, as the reading wrote record 86's first
-# case: the composer tidied it to "1)", the 1 seemed to vanish, and the record
-# went out uncomposed ...
+# case, and a bare number before a capitalised word: the author numbered record
+# 87's theorem «1 Существование», «2 Число не является рациональным», the
+# composer made them the list they are, and both numbers seemed to vanish —
+# the record went out uncomposed twice. Before a lower-case word a number is a
+# value: «2 мн-ва» written «два множества» is refused ...
 _LIST_MARKER_RE = re.compile(
-    r"^([ \t]*(?:#{1,6}[ \t]+)?(?:\*\*|__)?)\d+(?:\.|\)+)[ \t]+", re.MULTILINE
+    r"^([ \t]*(?:#{1,6}[ \t]+)?(?:\*\*|__)?)\d+(?:\.|\)+|(?=[ \t]+[A-ZА-ЯЁ]))[ \t]+",
+    re.MULTILINE,
 )
 # ... or follows, inside a line, the colon or semicolon that introduces it.
 # Record 59 lost its whole composition, headings and all, to "Примеры: 1) …"
