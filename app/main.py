@@ -192,10 +192,12 @@ async def lifespan(app: FastAPI):
         "asked for" if explain.PROMPT_ASKS_ELEMENTS else "not asked for",
         settings.SOURCE_THINKING_LEVEL,
     )
-    # The study version is built on request, on the explaining stage's model,
-    # and its prompt is read by name like the source searches'.
+    # What a chat gets for a record (task 80): its study version where the
+    # explaining stage is on, on that stage's model, its prompt read by name
+    # like the source searches'; the record's own document where it is off.
     logger.info(
-        "Study version: on request, %s, %s, %d words",
+        "Study version: %s, %s, %s, %d words",
+        "sent in place of the record" if settings.EXPLAIN_ENABLED else "off, the record is sent",
         settings.EXPLAIN_MODEL,
         study.STUDY_PROMPT_FILE,
         study.STUDY_PROMPT_WORDS,
