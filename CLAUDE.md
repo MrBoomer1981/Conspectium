@@ -132,8 +132,8 @@ In a session:
   runs, `prompts-v6.md`, thinking at the model's default; composition on,
   `gemini-3.8-flash`, `prompts-compose-v4.md` since 2026-10-06, thinking
   `low`; the explaining stage on,
-  `gemini-3.8-flash`, its searches at `low`, `prompts-explain-v2.md` with the
-  teacher's boxes since 2026-10-03; a call's ceiling 90 s. **The
+  `gemini-3.8-flash`, its searches at `low`, `prompts-explain-v3.md` since
+  2026-10-08, the teacher's boxes since 2026-10-03; a call's ceiling 90 s. **The
   code's defaults are not these** — `gemini-3.5-flash-lite`, `prompts-v3.md`,
   both stages off, 30 s — so a deploy that lost its variables reads worse, and
   its startup log says so.
@@ -1218,9 +1218,10 @@ lecture begins, measured and asleep (task 64); composing
 `prompts-compose-v1.md` to `v4`, v3 framing a section's main formula, v4
 (production since 2026-10-06) v3 with the author's shorthand spelled out
 (task 69);
-explaining `prompts-explain-v1.md` to `v3`, v2 (production since 2026-10-03)
-adding the teacher's boxes, v3 v2 with an example that is not the lecture's
-working with another number (task 78), switched on the CEO's word; with
+explaining `prompts-explain-v1.md` to `v3`, v2 (production 2026-10-03 to
+10-08) adding the teacher's boxes, v3 (production since 2026-10-08) v2 with
+an example that is not the lecture's working with another number (task 78),
+kept on the CEO's word while the next records' examples are read; with
 `prompts-explain-source-v2.md` for the searches — `v1` before it, kept as
 the records made with it were. Every
 prompt stays in `prompts/` once used: a record does not say which made it.
