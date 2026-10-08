@@ -317,6 +317,13 @@ included. "Where this is going, decided 2026-10-02" says why.
       after a bullet, a number the author struck out and a formula the
       composer corrected — the CEO's. Taken on 2026-10-08 from the two
       records of task 81's twelve pages
+- [ ] 83. What the CEO read in records 88 and 89: the bot's boxes set
+      inside a sentence, a word carried over with a hyphen, struck
+      words printed, ⩽ beside ≤, a short formula alone on its ground, a
+      ringed sign printed as words — the CEO's. Taken on 2026-10-08
+- [ ] 84. An equality that does not hold, found by code: both sides
+      counted at random numbers, with what the lecture defined — the
+      CEO's. Taken on 2026-10-08, after 83
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -414,7 +421,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83; next: 84, then 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -491,6 +498,7 @@ since 2026-10-01.
 | 2026-10-08 | the CEO, with Claude Code | Task 80 changed the same day, before it shipped: a chat gets the study version, not the record's document — on every capture path and every "#word" that brings a record back, built once and kept, the record's document only when no study version can be had. The CEO's words: «мы не присылаем пользователю конспект, сразу отдаём ему учебную версию», and «в будущем я хочу иметь возможность разделить эти функции и присылать по кнопке» — so the two stay separate, decided in one place. A lecture of several notebooks is studied whole | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 81 taken: twelve pages sent at once came back as two records, ten pages and two — Telegram puts at most ten in an album and sends the rest as the next. The albums one person sends into one chat are one album while each before the last is full, up to `MAX_ALBUM_PAGES`, 30 by default as in production since that afternoon; an album of exactly ten waits 15 s for the rest of its send; a page left over as a photo of its own joins too, heard in a group without its "#word". A page's update commits before it waits for its album, so the wait holds no connection. `note_processed` gains `album_parts` ("Contracts"); `CLAUDE.md` → "Sessions and transactions", "Updates and albums", "Concurrency ceilings", the environment. The capture path is the CEO's area, the pool and the ceilings the CPO's | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 82 taken: records 88 and 89, the two records of twelve pages, both went out uncomposed. Composed again on Railway on the CEO's word ($0.16 in all, nineteen rows in `ai_calls`), the composer lost no value of 88's — the numbers were an item's after a bullet and one the author struck out — and squared a formula of 89's, nine times of fourteen. The numbers guard, the CPO's, counts neither of the first two; a formula the composer changed is put back as read rather than refused, counted as `compose_restored` ("Contracts"). `CLAUDE.md` → "Stage two". Five records of fifteen went out uncomposed since `prompts-compose-v4.md` went to production on 2026-10-06 | the CEO's own |
+| 2026-10-08 | the CEO, with Claude Code | Tasks 83 and 84 taken, in that order, from the CEO's reading of records 88 and 89 against the photographs — sixteen points, ten in the lecture and six in how it was set out. The CEO asked whether to check them with algorithms rather than a model. 83 is the document's share, all code: a box set after the sentence it is anchored in, found across the lines of one, a word carried over with a hyphen joined, struck words not printed, ≤ for ⩽, a short formula ending a sentence set in its line, a ringed sign framed. 84 is the one class of the lecture's errors code can prove — an equality that does not hold, «(−x)(−x) = x», «c − h = c² − 2ch + h²» — a finding under its line, never the author corrected; measured over every record in the database before it is on, the CEO's word given to read them. The rest of the sixteen is meaning, no code's to find | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -5003,6 +5011,107 @@ records of fifteen went out uncomposed, the last four in a row: 86 and 87
   drops.
 - The prompt does not change: it already says formulas stay as written,
   and code puts them back.
+
+---
+
+# Task 83. What the CEO read in records 88 and 89
+
+**Owner: the CEO.** Taken on 2026-10-08, from the CEO's reading of the
+study versions of records 88 and 89 against the photographs. The
+document is the CEO's area.
+
+## Why
+
+The CEO wrote down sixteen points: ten in the lecture itself, six in how
+it was set out, and asked whether algorithms rather than a model should
+find them. Of the six, these are the document's own, and code does them:
+
+- **The bot's boxes cut sentences and formulas**: «Существует элемент
+  1 ∈ ℝ, 1 ≠ 0», a box, «такой, что x·1 = x». A record whose composition
+  was refused goes out line by line as the notebook has it, and a box
+  stood under the line its anchor is in.
+- **A box pages from its place**: «Корректность определения через
+  пересечение» is anchored on «Множеством натуральных чисел называется»,
+  which runs over two lines of the notebook; found on neither, it went
+  to the end of the text, into the proof about √2.
+- «множес-» over «твом», «предполо-» over «жению»: words carried over
+  with a hyphen.
+- «~~3.1 Строгое~~» printed struck; ⩽ beside ≤.
+- «$X_i$», the end of a sentence, alone on a formula's ground.
+- «[схема: ?! в кружке]» printed as a line of words.
+
+The rest is the lecture's — task 84 takes the class code can prove —
+or the meaning of the bot's own texts, which no code reads.
+
+## Do
+
+1. **A box goes after the sentence it is anchored in** (`pdf._sentence_end`):
+   the lines of a sentence as code can tell them — a line that goes on in
+   lower case; a formula or a sign after a line that does not end one;
+   the list a line opens — are one place for the boxes, ten lines at most.
+   An anchor is found across them; a box set under is set under the
+   last; «Идея», set before, before the first. A finding too.
+2. **A word carried over with a hyphen is joined**, three letters on
+   either side at least: «мн-ва» and «док-во» stay as written, and so do
+   «во-», «по-», «кое-», «из-» and «-то», «-либо», «-нибудь».
+3. **What the author struck out is not printed**, as «[зачёркнуто]» is
+   not — unless it is all the line has but its number: «1.3. ~~Мн-ва
+   Аксиома полноты~~» stays struck, since the reading may have struck more
+   than the author did.
+4. **⩽ and ⩾ are drawn as ≤ and ≥**: one sign through the document.
+5. **A short formula ending a sentence is set in its line** — «$X_i$»,
+   «$P(k+1)$» — never one of a column.
+6. **A sign the author ringed**, «[схема: ?! в кружке]», is drawn framed
+   in its line, as «[рамка: ?!]» is.
+7. `CLAUDE.md` → "The document"; `BRAND.md` v1.9; `FINDINGS.md` →
+   "Records 88 and 89".
+
+## Acceptance criterion
+
+- Record 88's study version drawn again: no box inside a sentence,
+  «Корректность определения через пересечение» under the definition of
+  ℕ, «множеством», ≤ alone, «3.1 Строгое» gone, «?!» framed.
+- The suite is green.
+
+## Don't do
+
+- No word of the author's changes but by a hyphen's join; the numbering
+  stays the author's — «1.2» of the axioms and «1.2» of the sections.
+- The bot's own texts are not checked here: task 84 and the guards.
+
+---
+
+# Task 84. An equality that does not hold
+
+**Owner: the CEO.** Taken on 2026-10-08, after 83. A check of code like
+`mathcheck`, which the CEO's area takes on the CEO's word.
+
+## Why
+
+Two of the ten errors the CEO found in the lecture of records 88 and 89
+are equalities that do not hold — «(−x)(−x) = x» and «c − h = c² − 2ch +
+h²» — and code can prove that, where it cannot tell what a proof lacks.
+
+## Do
+
+1. Every «=» whose two sides carry the same letters, with what the
+   lecture defined before it substituted («положим h = b/3c», «:=»),
+   both sides counted at random numbers: two that differ are an
+   equality that does not hold. An equation, «x + a = b», a claim about
+   one number, «c² = 2», and a contradiction reached on purpose, «1 = 0»,
+   carry different letters, or none, and are left alone; so is whatever
+   the code does not read.
+2. A finding under its line, as `mathcheck`'s are, with the numbers it
+   was refuted at — the reader can count them; the text stays as read.
+3. Measured over every record in the database before it is on (the
+   CEO's word, 2026-10-08): in the container, only the equalities found
+   come out. On only if none of them is false.
+
+## Don't do
+
+- No model; no new library.
+- The author is not corrected: a finding says the equality does not
+  hold, not what was meant.
 
 ---
 
