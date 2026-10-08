@@ -292,6 +292,10 @@ _INSERT_OPEN_RE = re.compile(r"^⟦\+\s*(.+?)⟧$")
 # stored record either: study.layout writes them, and nothing else does.
 _PLACED_RE = re.compile(r"^⟦бот (\d+)⟧$")
 PAGE_BREAK = "⟦новая страница⟧"
+# Where the lecture's text ends and the study version's questions begin: a
+# finding or a box that found no line of its own goes here, not after the
+# answers on the last page.
+TEXT_END = "⟦конец лекции⟧"
 
 
 def placed_mark(number: int) -> str:
@@ -451,7 +455,7 @@ class Page:
 @dataclass
 class Block:
     # heading | bullet | text | math | note | framed | gap | rule | table |
-    # graph | picture | inserted | inserted_end | placed | pagebreak
+    # graph | picture | inserted | inserted_end | placed | pagebreak | textend
     kind: str
     text: str = ""
     level: int = 0
@@ -468,6 +472,10 @@ class Block:
     # A picture's drawing as the record keeps it — the darkness of its ink,
     # a greyscale PNG — attached by render() from what the record stored.
     image: bytes | None = field(default=None, compare=False, repr=False)
+    # The line as the record wrote it, when the document sets it otherwise —
+    # a formula moved down to its column (_formula_columns): what an anchor
+    # quoting the line is looked for in.
+    quoted: str = field(default="", compare=False, repr=False)
 
 
 def _latex(match: re.Match) -> str:
@@ -812,40 +820,39 @@ def _left_side(latex: str) -> str | None:
     return re.sub(r"[\s{}]", "", latex[: relation.start()]) or None
 
 
-def _formula_below(lines: list[str], index: int) -> str | None:
-    """The formula the next line holding anything is, alone or opening a
-    block of "$$" lines, else None."""
-    rest = [line.strip() for line in lines[index + 1 :] if line.strip()]
-    if not rest:
-        return None
-    if rest[0] == "$$" and len(rest) > 1:
-        return rest[1]
-    return _is_whole_formula(rest[0])
-
-
-def _formula_columns(markdown: str) -> str:
+def _formula_columns(parsed: list[Block]) -> list[Block]:
     """A formula ending a line after a colon moved down to the formulas under
     it when it is the first of their column — a relation of the same left
     side, as c² < 2 is of c² > 2 — so the column stands on one ground. A
-    formula with no relation to compare stays where it was written. Done for
-    the document only, as _lift_drawings is."""
-    lines = markdown.splitlines()
-    out: list[str] = []
-    pending: str | None = None
-    for index, line in enumerate(lines):
-        if pending is not None and line.strip():
-            out.append(pending)
-            pending = None
-        head = _COLUMN_HEAD_RE.match(line.strip())
-        if head is not None:
-            side = _left_side(head.group("latex"))
-            below = _formula_below(lines, index)
-            if side is not None and below is not None and _left_side(below) == side:
-                out.append(head.group("text"))
-                pending = f"$${head.group('latex')}$$"
-                continue
-        out.append(line)
-    return "\n".join(out)
+    formula with no relation to compare stays where it was written.
+
+    The line keeps what it quoted (`Block.quoted`): an explanation anchored
+    on «возможно 3 случая: c² < 2» still finds it, where the line cut short
+    sent record 87's idea of a proof to the end of the document."""
+    out: list[Block] = []
+    waiting: dict[int, Block] = {}
+    for index, block in enumerate(parsed):
+        moved = waiting.pop(id(block), None)
+        if moved is not None:
+            out.append(moved)
+        out.append(block)
+        if block.kind not in ("text", "bullet"):
+            continue
+        head = _COLUMN_HEAD_RE.match(block.text.strip())
+        if head is None:
+            continue
+        side = _left_side(head.group("latex"))
+        below = next((after for after in parsed[index + 1 :] if after.kind != "gap"), None)
+        if side is None or below is None or below.kind != "math":
+            continue
+        if _left_side(below.text) != side:
+            continue
+        # Set right above the formulas it heads, past a blank line if one
+        # stands between, so it joins their ground.
+        waiting[id(below)] = _math_block(head.group("latex"))
+        block.quoted = block.text
+        block.text = head.group("text")
+    return out
 
 
 def _framed_inline(found: re.Match) -> str:
@@ -913,6 +920,10 @@ def blocks(markdown: str) -> list[Block]:
             continue
         if stripped == PAGE_BREAK:
             out.append(Block("pagebreak"))
+            index += 1
+            continue
+        if stripped == TEXT_END:
+            out.append(Block("textend"))
             index += 1
             continue
 
@@ -1030,7 +1041,7 @@ def numbered_formulas(markdown: str) -> int:
     counts in each unit to keep the record's numbers (task 80)."""
     return sum(
         1
-        for block in blocks(_formula_columns(_lift_drawings(_unstruck(markdown))))
+        for block in _formula_columns(blocks(_lift_drawings(_unstruck(markdown))))
         if _is_numbered(block)
     )
 
@@ -2976,7 +2987,7 @@ def _reading(member: Block) -> str:
     them, since a table holds its text in its cells."""
     if member.kind == "table":
         return "\n".join("|" + "|".join(row) + "|" for row in member.rows)
-    return member.text
+    return member.quoted or member.text
 
 
 def _anchored(anchor: str, members: list[Block], numbers: set[int]) -> bool:
@@ -3603,6 +3614,26 @@ def _unit(
     return [block], index + 1, flowables, kind
 
 
+def _set_unplaced(
+    story: list,
+    pending: list[Remark],
+    unexplained: list[Explanation],
+    formulas: _Formulas,
+    styles: dict[str, ParagraphStyle],
+) -> None:
+    """A finding whose anchor was never found is still worth reading; it goes
+    at the end of the text rather than nowhere. So does an explanation. Both
+    lists are emptied: what is set is set once."""
+    for remark in pending:
+        story.append(Spacer(1, _SET_APART_GAP))
+        story.append(_remark(remark, formulas, styles))
+    for item in unexplained:
+        story.append(Spacer(1, _SET_APART_GAP))
+        story.append(_explanation(item, formulas, styles))
+    pending.clear()
+    unexplained.clear()
+
+
 def _space_before(previous: str | None, kind: str, paragraph_break: bool) -> float:
     """How much space goes between a unit of kind `previous` and one of kind
     `kind`, `paragraph_break` saying whether a blank line stood between them.
@@ -3868,7 +3899,7 @@ def render(
     wanted = title.strip().casefold()
     parsed = [
         block
-        for block in blocks(_formula_columns(_lift_drawings(_unstruck(markdown))))
+        for block in _formula_columns(blocks(_lift_drawings(_unstruck(markdown))))
         if not (block.kind == "heading" and block.text.strip().casefold() == wanted)
     ]
     for block in parsed:
@@ -3972,6 +4003,14 @@ def render(
                 paragraph_break = False
                 index += 1
                 continue
+            if parsed[index].kind == "textend":
+                story.extend(held)
+                held = []
+                _set_unplaced(story, pending, unexplained, formulas, styles)
+                previous = "box"
+                paragraph_break = False
+                index += 1
+                continue
             if parsed[index].kind == "pagebreak":
                 story.extend(held)
                 held = []
@@ -4052,14 +4091,7 @@ def render(
         # A heading with nothing after it has nothing to be kept with.
         story.extend(held)
 
-        # A finding whose anchor was never found is still worth reading; it
-        # goes at the end rather than nowhere. So does an explanation.
-        for remark in pending:
-            story.append(Spacer(1, _SET_APART_GAP))
-            story.append(_remark(remark, formulas, styles))
-        for item in unexplained:
-            story.append(Spacer(1, _SET_APART_GAP))
-            story.append(_explanation(item, formulas, styles))
+        _set_unplaced(story, pending, unexplained, formulas, styles)
 
         SimpleDocTemplate(
             buffer,

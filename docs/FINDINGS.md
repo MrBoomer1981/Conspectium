@@ -1743,3 +1743,13 @@ with the other two alone on their lines under it, and the CEO wrote «в
 introduces it; the document now moves such a formula down to the ground of
 the formulas under it when they state a relation of the same left side,
 and leaves a formula with no relation to compare where it was written.
+
+**What the column cost an explanation.** Drawn after task 79's deploy,
+record 87 set its idea of the proof of 1.4, «план доказательства
+равенства», at the end of the document: it was anchored on «возможно 3
+случая: $c^2 < 2$», and the line, its formula gone down to the ground, no
+longer held the quote. The column is now made of the record's blocks, and
+the line keeps what it quoted for an anchor to find; the idea stands
+before «возможно 3 случая:» again. Found on 2026-10-08 drawing record 87's
+study version, three hours after the deploy.
+

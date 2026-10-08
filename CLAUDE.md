@@ -833,9 +833,10 @@ than silence. → "Numbers the agreement could not see"
   notions — the author's bold words, picked by code; the author's sections
   a level down; every main formula keeping the record's number, so an
   explanation's "(3)" still names its formula (`pdf.render`'s `placed` and
-  `formula_numbers`); the questions at the end and their answers on the
-  last page. Of the record alone: in a lecture of several notebooks, its
-  base.
+  `formula_numbers`); a box that found no line of its own before the
+  questions, never after the answers (`pdf.TEXT_END`); the questions at the
+  end and their answers on the last page. Of the record alone: in a
+  lecture of several notebooks, its base.
 - **Kept on the record** (`notes.study`): a second press draws it again and
   pays nothing. The first is one call on the explaining stage's model,
   inside the day's cost cap (`pages=0`), its `ai_calls` row of
@@ -931,7 +932,9 @@ why each is what it is. What a change must not break:
   ground: a formula ending a line after a colon goes down to the formulas
   under it when they state a relation of the same left side
   (`pdf._formula_columns`, task 79) — record 86 set c² > 2 and c² = 2 on the
-  ground and left c² < 2 in «Возможно 3 случая:». A zero-width
+  ground and left c² < 2 in «Возможно 3 случая:». The line keeps what it
+  quoted for an anchor (`Block.quoted`): cut short, it sent record 87's idea
+  of the proof to the end of the document. A zero-width
   space after an inline formula is the only place reportlab breaks a line
   after an image. A tall one makes room in its line, a paragraph's first line
   included: reportlab set that line a font size below the paragraph's top

@@ -451,6 +451,7 @@ def layout(markdown: str, version: Study) -> Layout:
                 continue
             lines += [_demoted(pieces[unit - 1]), ""]
             numbers += range(starts[unit - 1], starts[unit - 1] + counts[unit - 1])
+    lines += [pdf.TEXT_END, ""]
     if version.questions:
         lines += [pdf.placed_mark(len(boxes)), ""]
         boxes.append({"kind": "questions", "items": [q["question"] for q in version.questions]})
