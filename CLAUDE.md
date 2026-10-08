@@ -911,7 +911,10 @@ does not hold"
   joining the lecture builds it anew. One call on the explaining stage's
   model, where that stage is on, inside the day's cost cap (`pages=0`),
   paid by whoever it is delivered to, its `ai_calls` row of
-  `kind="study"`; while it runs, a second delivery of the record gets the
+  `kind="study"`. An answer that does not parse is asked for once more, as
+  recognition's is, and its row names the finish reason and the shape
+  (task 87): record 91's did not, and the record's document went out
+  until its button was pressed. While it runs, a second delivery of the record gets the
   record's document — a set in this process ("Scale debt"). Events
   `study_sent` (`via` delivery or button), `study_requested`,
   `study_failed`.

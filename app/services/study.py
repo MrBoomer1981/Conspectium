@@ -330,13 +330,33 @@ async def build(markdown: str) -> Study:
 
     all_stats: list[CallStats] = []
     response = None
+    data = None
     text = _for_reading(pieces)
     for attempt in range(_ATTEMPTS):
+        last = attempt == _ATTEMPTS - 1
         response, stats, retryable = await _call(text)
         all_stats.append(stats)  # rule 4: a call that failed was still a call
         if response is not None:
-            break
-        last = attempt == _ATTEMPTS - 1
+            data = _answer_of(response)
+            if data is not None:
+                break
+            # Record 91's came back whole and would not parse; the press of
+            # its button asked again, and the second parsed (task 87). Asked
+            # again here, as recognition's answers are — never after a
+            # refusal or our own ceiling — and its row says why (rule 7).
+            stats.success = False
+            stats.error = vision._unparseable(response)
+            again = not last and vision._worth_asking_again(response)
+            logger.warning(
+                "study attempt %d/%d did not parse as the JSON asked for, %s: %s",
+                attempt + 1,
+                _ATTEMPTS,
+                "asking again" if again else "no retry",
+                stats.error,
+            )
+            if not again:
+                break
+            continue
         logger.warning(
             "study attempt %d/%d failed, %s: %s",
             attempt + 1,
@@ -347,13 +367,10 @@ async def build(markdown: str) -> Study:
         if last or not retryable:
             break
         await asyncio.sleep(_RETRY_PAUSE_S)
-    if response is None:
-        return Study(refused="call failed", stats=all_stats)
-
-    data = _answer_of(response)
     if data is None:
-        logger.warning("study: the answer did not parse as the JSON asked for")
-        return Study(refused="unparseable", stats=all_stats)
+        return Study(
+            refused="call failed" if response is None else "unparseable", stats=all_stats
+        )
     arranged = _arranged(_topics_of(data, len(pieces)), len(pieces))
     if arranged is None:
         logger.warning("study: the answer left out too much of the record")

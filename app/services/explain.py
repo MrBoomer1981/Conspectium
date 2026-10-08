@@ -240,7 +240,9 @@ def _answer(text: str) -> dict | None:
     body = _LONE_COMMAND_RE.sub(r"\\\\", stripped[start : end + 1])
     body = _BAD_ESCAPE_RE.sub(r"\\\\", body)
     try:
-        data = json.loads(body)
+        # A line break written raw inside a string is still the string's,
+        # not a reason to lose the answer (task 87).
+        data = json.loads(body, strict=False)
     except (ValueError, TypeError):
         return None
     return data if isinstance(data, dict) else None
