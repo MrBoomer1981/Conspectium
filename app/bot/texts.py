@@ -693,12 +693,14 @@ def study_notions(notions: list[str]) -> str:
     return f"**{STUDY_NOTIONS}:** {', '.join(notions)}"
 
 
-def study_caption(note_id: int, topics: int) -> str:
-    """The line under the study version's file."""
+def study_caption(note_id: int, page_count: int, topics: int) -> str:
+    """The line under the study version's file — what a chat gets for a
+    record (task 80): the record's number and pages, as record_caption gives
+    them, and what the file is."""
     return (
-        f"#{note_id} · учебная версия · {topics} "
-        f"{_plural(topics, 'тема', 'темы', 'тем')}. "
-        "Текст лекции — слова автора; всё, что добавил бот, — в рамках «от бота»."
+        f"{record_caption(note_id, page_count)} · учебная версия, {topics} "
+        f"{_plural(topics, 'тема', 'темы', 'тем')}. Текст лекции — слова автора; "
+        "всё, что добавил бот, — в рамках «от бота»."
     )
 
 

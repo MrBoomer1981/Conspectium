@@ -284,7 +284,7 @@ _RULE_RE = re.compile(r"^(?:-{3,}|\*{3,}|_{3,}|~{3,})$")
 # A passage another notebook of the same lecture adds (task 63): a line
 # "⟦+ label⟧" opens it and "⟦+⟧" closes it. Never in a stored record —
 # merge.merged writes them into the text it hands to render, and nowhere else.
-_INSERT_CLOSE = "⟦+⟧"
+_INSERT_CLOSE = INSERT_CLOSE = "⟦+⟧"
 _INSERT_OPEN_RE = re.compile(r"^⟦\+\s*(.+?)⟧$")
 # A lecture's study version (task 80): a line "⟦бот 3⟧" is where the fourth of
 # the boxes render is given in `placed` stands, and "⟦новая страница⟧" starts
@@ -1038,12 +1038,15 @@ def _is_numbered(block: Block) -> bool:
 
 def numbered_formulas(markdown: str) -> int:
     """How many formulas render numbers in this text — what a study version
-    counts in each unit to keep the record's numbers (task 80)."""
-    return sum(
-        1
-        for block in _formula_columns(blocks(_lift_drawings(_unstruck(markdown))))
-        if _is_numbered(block)
-    )
+    counts in each unit to keep the record's numbers (task 80). None inside
+    a passage from another notebook, as render numbers none there."""
+    count, inside = 0, False
+    for block in _formula_columns(blocks(_lift_drawings(_unstruck(markdown)))):
+        if block.kind in ("inserted", "inserted_end"):
+            inside = block.kind == "inserted"
+        elif _is_numbered(block) and not inside:
+            count += 1
+    return count
 
 
 def _formula_numbers(given: Sequence[int] | None):

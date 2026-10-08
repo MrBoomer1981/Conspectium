@@ -18,6 +18,7 @@ the stages before it, this never touches the database.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import re
 import time
@@ -77,10 +78,11 @@ class Study:
 
     topics: list[Topic] = field(default_factory=list)
     questions: list[dict] = field(default_factory=list)  # {"question", "answer"}
-    # How many units the record was cut into when this was built: a kept
-    # version is drawn only over the same cut, so a later rule of cutting
-    # never sets one topic's numbers over another's units.
-    unit_count: int = 0
+    # The text it was built from, as a fingerprint (`fingerprint`): a kept
+    # version is drawn only over the same text cut the same way — a second
+    # notebook joining the lecture, or a later rule of cutting, and it is
+    # built again rather than set one topic's numbers over another's units.
+    source: str = ""
     # Why nothing usable came back: None when it did.
     refused: str | None = None
     # Units the model left out and code put back, and units it named twice.
@@ -96,7 +98,7 @@ class Study:
         return {
             "topics": [asdict(topic) for topic in self.topics],
             "questions": list(self.questions),
-            "unit_count": self.unit_count,
+            "source": self.source,
         }
 
 
@@ -119,10 +121,21 @@ def from_stored(data: object) -> Study | None:
         for q in data.get("questions") or []
         if isinstance(q, dict)
     ]
-    count = data.get("unit_count")
-    if not topics or not isinstance(count, int):
+    source = data.get("source")
+    if not topics or not isinstance(source, str):
         return None
-    return Study(topics=topics, questions=questions, unit_count=count)
+    return Study(topics=topics, questions=questions, source=source)
+
+
+# What a fingerprint is taken of besides the text: the rule of cutting it.
+# Raised when units() cuts differently, so every kept version is built again.
+_CUT_VERSION = "1"
+
+
+def fingerprint(markdown: str) -> str:
+    """The text a study version is built from, and the way it is cut, in
+    sixteen characters."""
+    return hashlib.sha1(f"{_CUT_VERSION}\n{markdown}".encode()).hexdigest()[:16]
 
 
 def units(markdown: str) -> list[str]:
@@ -184,10 +197,15 @@ def _figure_only(piece: str) -> bool:
 
 
 def _closed(text: str) -> bool:
-    """Whether every formula opened in `text` closes in it."""
+    """Whether every formula opened in `text` closes in it, and every passage
+    another notebook adds to a lecture (pdf.inserted) — moved apart, its
+    label would stand in one topic and its end in another."""
+    lines = [line.strip() for line in text.splitlines()]
+    opened = sum(1 for line in lines if line.startswith("⟦+") and line != pdf.INSERT_CLOSE)
     return (
         len(_DOLLAR_RE.findall(text)) % 2 == 0
         and text.count("\\begin{") == text.count("\\end{")
+        and opened == lines.count(pdf.INSERT_CLOSE)
     )
 
 
@@ -376,7 +394,7 @@ async def build(markdown: str) -> Study:
     return Study(
         topics=topics,
         questions=questions,
-        unit_count=len(pieces),
+        source=fingerprint(markdown),
         missing=missing,
         repeated=repeated,
         abouts_dropped=abouts_dropped,

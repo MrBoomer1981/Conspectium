@@ -17,8 +17,10 @@ The work and its order are in `docs/PLAN.md`, the document's look in
 
 **SUM** — the Telegram bot `@sum_konspictiumbot` — for a **university group**.
 One person photographs a handwritten page of a lecture, and everyone in the
-group gets back a PDF they can study from without having been there: the page
-read and set, its formulas drawn, its hard places explained. **Everything the
+group gets back a PDF they can study from without having been there: the
+lecture set out by topic, its formulas drawn, its hard places explained,
+questions to check oneself at the end — the study version, built from the
+record the bot reads and keeps (2026-10-08). **Everything the
 bot adds stands in a marked box with its sources**, never woven into the
 author's text. The records accumulate into the group's corpus, and a "#word"
 finds one again by its subject or by a topic read off its headings.
@@ -653,7 +655,7 @@ than silence. → "Numbers the agreement could not see"
   delivered in a private chat, the bot asks its subject and shows the topics
   read off its headings; the answer is stored on `Note.tag`. A later "#word"
   searches subjects and topics at once, and a single match comes back as the
-  document itself.
+  document itself — its study version, since 2026-10-08.
 - **Which of the two a "#word" means is decided by the corpus, not a state
   machine**: the newest record without a subject means the question is open;
   with one, the word searches. Stateless — it survives a restart and a second
@@ -808,14 +810,20 @@ than silence. → "Numbers the agreement could not see"
 
 ### A lecture's study version
 
-- **«Учебная версия», a third button under every document** (task 80, the
-  CEO's, 2026-10-08), builds the lecture set out by topic for someone who
-  was not there — only when pressed: the presses are the measure. The
-  record stays what it is, what a group trusts, what a "#word" finds and
-  notebooks merge into; the study version is made from it, never instead
-  of it. Made instead, the bot would write the document and its inventions
-  would read as the lecture — the rule this product stands on, marked is
-  the whole licence to add, undone.
+- **A chat gets a record's study version, not the record** (task 80, the
+  CEO's, 2026-10-08): the lecture set out by topic for someone who was not
+  there, on every capture path and every "#word" that brings a record
+  back. The record stays what everything is made from — what a "#word"
+  finds, what notebooks merge into — and its own document goes out only
+  when no study version can be had, with «Учебная версия» under it to ask
+  again (`bot/study_version.py`): a record is never lost over its
+  presentation. The two stay separate documents, decided in one place
+  (`corpus.deliver`): the CEO wants to be able to split them, one sent and
+  the other offered by a button.
+- **Made from the record, never instead of it.** Written by the model, the
+  document's inventions would read as the lecture — the rule this product
+  stands on, marked is the whole licence to add, undone. So the study
+  version moves the author's text and marks what it adds.
 - **The model arranges, code moves** (`services/study.py`): the record is
   cut into units — its paragraphs, a heading with what follows it, a
   formula or a drawing set apart with the text that leads up to it, no
@@ -835,14 +843,18 @@ than silence. → "Numbers the agreement could not see"
   explanation's "(3)" still names its formula (`pdf.render`'s `placed` and
   `formula_numbers`); a box that found no line of its own before the
   questions, never after the answers (`pdf.TEXT_END`); the questions at the
-  end and their answers on the last page. Of the record alone: in a
-  lecture of several notebooks, its base.
-- **Kept on the record** (`notes.study`): a second press draws it again and
-  pays nothing. The first is one call on the explaining stage's model,
-  inside the day's cost cap (`pages=0`), its `ai_calls` row of
-  `kind="study"`; while it runs, a second press on the record starts
-  nothing — a set in this process ("Scale debt"). Events
-  `study_requested`, `study_sent`, `study_failed`.
+  end and their answers on the last page. A lecture of several notebooks
+  is studied whole: its base with what the others add, each passage moved
+  whole.
+- **Built once, kept on the base** (`notes.study`), with a fingerprint of
+  the text it was built from: drawn again it pays nothing, and a notebook
+  joining the lecture builds it anew. One call on the explaining stage's
+  model, where that stage is on, inside the day's cost cap (`pages=0`),
+  paid by whoever it is delivered to, its `ai_calls` row of
+  `kind="study"`; while it runs, a second delivery of the record gets the
+  record's document — a set in this process ("Scale debt"). Events
+  `study_sent` (`via` delivery or button), `study_requested`,
+  `study_failed`.
 
 ### A group's week
 
@@ -897,9 +909,12 @@ than silence. → "Numbers the agreement could not see"
 ## The document
 
 **A saved record goes out as a PDF**: every capture path ends in
-`corpus.send_record`, which renders in a thread and, if rendering fails for
-any reason, sends the record as plain text. A record is never lost over its
-presentation. `pdf.py` never raises on a record's content; it receives what
+`corpus.deliver`, which sends the record's study version ("A lecture's study
+version") and, when there is none to be had, the record's own document
+(`corpus.send_record`), which renders in a thread and, if rendering fails
+for any reason, sends the record as plain text. A record is never lost over
+its presentation. What follows is the look of both: the study version is
+the record's document set out by topic. `pdf.py` never raises on a record's content; it receives what
 to draw — `Callout`, `Remark`, `Explanation`, `Summary`, `Page`, built by
 `corpus` — and knows nothing about where a record came from.
 

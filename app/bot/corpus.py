@@ -4,7 +4,9 @@ Its own Router, and `main.py` includes it **before** `handlers.router`:
 handlers ends with a filterless catch-all that matches every message, so a
 router registered after it would never receive a message beginning with "#".
 
-Nothing here calls the model — the corpus is already text. Every query is
+Nothing here calls the model — the corpus is already text — but for the
+study version a record is delivered as (task 80), built once by
+services/study.py and kept on the record. Every query is
 scoped to its owner (`_owned`): in a group chat the group, whose records any
 member reaches, and in a private chat the user, whose own records made there
 nobody else does. A record belongs to the chat it was made in — its
@@ -24,7 +26,7 @@ import logging
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta, timezone
 
 from aiogram import F, Router
@@ -419,12 +421,20 @@ async def _lecture(session: AsyncSession, note: Note) -> tuple[Lecture | None, l
     return lecture, notes or [note]
 
 
-async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -> bool:
-    """Send one record as a PDF — or, when the record is one notebook of a
-    lecture that has several, the lecture's document: the fullest notebook,
-    with what the others add set in at its place (task 63). Returns False if
-    it could not be built, so the caller can fall back to plain text — a
-    record is never worth losing over its presentation."""
+@dataclass
+class _Source:
+    """What a record's documents are drawn from: the record, or — when it is
+    one notebook of a lecture that has several — the lecture's base with what
+    the other notebooks add set in at its place (task 63)."""
+
+    base: Note
+    markdown: str
+    remarks: list[pdf.Remark]
+    notebooks: int
+    lecture: Lecture | None
+
+
+async def _source(session: AsyncSession, note: Note) -> _Source:
     lecture, notes = await _lecture(session, note)
     base = subjects.base_of(notes)
     others = [other for other in notes if other.id != base.id]
@@ -444,8 +454,19 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
                 for remark in _remarks(other)
                 if len(_squash(remark.anchor)) >= 3 and _squash(remark.anchor) in set_in
             ]
+    return _Source(base, markdown, remarks, len(notes), lecture)
+
+
+async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -> bool:
+    """Send one record as a PDF — or, when the record is one notebook of a
+    lecture that has several, the lecture's document: the fullest notebook,
+    with what the others add set in at its place (task 63). Returns False if
+    it could not be built, so the caller can fall back to plain text — a
+    record is never worth losing over its presentation."""
+    source = await _source(session, note)
+    base = source.base
     page = _page(
-        base, await _bot_username(message), lecture.given_on if lecture else None
+        base, await _bot_username(message), source.lecture.given_on if source.lecture else None
     )
     drawings = await figures_of(session, base.id)
     try:
@@ -453,10 +474,10 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
         data = await asyncio.to_thread(
             pdf.render,
             base.title,
-            markdown,
+            source.markdown,
             callouts=_callouts(base),
             byline=texts.byline(base.margin_notes),
-            remarks=remarks,
+            remarks=source.remarks,
             explanations=_explanations(base),
             summary=_summary(base),
             page=page,
@@ -467,13 +488,15 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
         return False
 
     caption = texts.record_caption(base.id, base.page_count)
-    if others:
-        caption = texts.lecture_caption(caption, len(notes))
+    if source.notebooks > 1:
+        caption = texts.lecture_caption(caption, source.notebooks)
     await message.answer_document(
         BufferedInputFile(data, filename=pdf_filename(base.id, base.title)),
         caption=caption,
-        # «Хорошо» and «Плохо» on the document itself (task 70).
-        reply_markup=feedback.keyboard(base.id),
+        # «Хорошо» and «Плохо» on the document itself (task 70), and the
+        # study version to ask for: the record goes out only when it could
+        # not be had (deliver).
+        reply_markup=feedback.keyboard(base.id, study=True),
     )
     return True
 
@@ -491,43 +514,144 @@ def _study_box(box: dict) -> pdf.Explanation:
 
 
 async def send_study_pdf(
-    message: Message, session: AsyncSession, note: Note, version: study.Study
+    message: Message, session: AsyncSession, source: _Source, version: study.Study
 ) -> bool:
-    """A record's study version as a PDF (task 80): the record set out by
+    """A record's study version as a PDF (task 80): the lecture set out by
     topic and drawn with all its document carries — the summary, the missing
     pages, the findings, the bot's boxes, which follow their units — and the
-    study version's own boxes where it put them. Of the record alone: in a
-    lecture of several notebooks, its base. False if it could not be drawn."""
-    arranged = study.layout(note.markdown, version)
-    lecture = await session.get(Lecture, note.lecture_id) if note.lecture_id else None
-    page = _page(note, await _bot_username(message), lecture.given_on if lecture else None)
-    drawings = await figures_of(session, note.id)
+    study version's own boxes where it put them. False if it could not be
+    drawn."""
+    base = source.base
+    arranged = study.layout(source.markdown, version)
+    page = _page(
+        base, await _bot_username(message), source.lecture.given_on if source.lecture else None
+    )
+    drawings = await figures_of(session, base.id)
     try:
         data = await asyncio.to_thread(
             pdf.render,
-            note.title,
+            base.title,
             arranged.markdown,
             subtitle=texts.STUDY_SUBTITLE,
-            callouts=_callouts(note),
-            byline=texts.byline(note.margin_notes),
-            remarks=_remarks(note),
-            explanations=_explanations(note),
-            summary=_summary(note),
+            callouts=_callouts(base),
+            byline=texts.byline(base.margin_notes),
+            remarks=source.remarks,
+            explanations=_explanations(base),
+            summary=_summary(base),
             page=page,
             figures=drawings,
             placed=[_study_box(box) for box in arranged.boxes],
             formula_numbers=arranged.formula_numbers,
         )
     except Exception:
-        logger.exception("could not build the study version's PDF for note %s", note.id)
+        logger.exception("could not build the study version's PDF for note %s", base.id)
         return False
+    caption = texts.study_caption(base.id, base.page_count, len(version.topics))
+    if source.notebooks > 1:
+        caption = texts.lecture_caption(caption, source.notebooks)
     await message.answer_document(
         BufferedInputFile(
-            data, filename=pdf_filename(note.id, note.title, texts.STUDY_FILE_WORD)
+            data, filename=pdf_filename(base.id, base.title, texts.STUDY_FILE_WORD)
         ),
-        caption=texts.study_caption(note.id, len(version.topics)),
+        caption=caption,
+        reply_markup=feedback.keyboard(base.id),
     )
     return True
+
+
+# The records whose study version is being built in this process: a second
+# delivery or press meanwhile starts nothing ("Scale debt").
+_building: set[int] = set()
+
+
+async def study_of(
+    session: AsyncSession, source: _Source, user: User, group: Group | None
+) -> tuple[study.Study | None, str | None]:
+    """The study version of what a record's documents are drawn from — the
+    one kept on its base when it was built from this same text, else one
+    built now and kept — and, when there is none, why: "off", "busy", the
+    limit's own words, "refused".
+
+    Built where the explaining stage is on, on its model; inside the day's
+    cost cap (pages=0), as that stage is; paid by whoever it is delivered
+    to. Calls the model, and writes only once it has come back."""
+    base = source.base
+    if _kept(source):
+        return study.from_stored(base.study), None
+    if not settings.EXPLAIN_ENABLED:
+        return None, "off"
+    if base.id in _building:
+        return None, "busy"
+    refusal = await limits.check_limits(session, user, pages=0, group=group)
+    if refusal is not None:
+        return None, refusal
+    _building.add(base.id)
+    try:
+        version = await study.build(source.markdown)
+    finally:
+        _building.discard(base.id)
+    await vision.log_ai_calls(user.id, version.stats, group_id=_group_id(group))
+    if version.refused is not None:
+        await log_event(
+            session, user.id, "study_failed",
+            {"note_id": base.id, "reason": version.refused}, group_id=_group_id(group),
+        )
+        return None, "refused"
+    base.study = version.stored()
+    return version, None
+
+
+async def study_sent(
+    session: AsyncSession, user: User, group: Group | None, base: Note,
+    version: study.Study, kept: bool, via: str,
+) -> None:
+    await log_event(
+        session,
+        user.id,
+        "study_sent",
+        {
+            "note_id": base.id,
+            "via": via,
+            "kept": kept,
+            "topics": len(version.topics),
+            "units": sum(len(topic.units) for topic in version.topics),
+            "missing": version.missing,
+            "repeated": version.repeated,
+            "abouts_dropped": version.abouts_dropped,
+            "questions": len(version.questions),
+            "questions_dropped": version.questions_dropped,
+        },
+        group_id=_group_id(group),
+    )
+
+
+async def deliver(
+    message: Message, session: AsyncSession, note: Note, user: User, group: Group | None
+) -> None:
+    """What a chat gets for a record: its study version, the CEO's of
+    2026-10-08 — «мы не присылаем пользователю конспект, сразу отдаём ему
+    учебную версию». When there is none to be had — the stage off, the cap
+    reached, the call refused, the drawing failed — the record's own
+    document, with «Учебная версия» under it to ask again: a record is never
+    lost over its presentation.
+
+    The record's document and the study version stay two documents, each
+    drawn on its own; which goes out is decided here and nowhere else, so
+    one can be sent and the other offered by a button — the CEO wants to be
+    able to split them."""
+    source = await _source(session, note)
+    kept = _kept(source)
+    version, _ = await study_of(session, source, user, group)
+    if version is not None and await send_study_pdf(message, session, source, version):
+        await study_sent(session, user, group, source.base, version, kept, via="delivery")
+        return
+    await send_record(message, session, note)
+
+
+def _kept(source: _Source) -> bool:
+    """Whether the base keeps a study version built from this same text."""
+    kept = study.from_stored(source.base.study)
+    return kept is not None and kept.source == study.fingerprint(source.markdown)
 
 
 async def send_record(message: Message, session: AsyncSession, note: Note) -> None:
@@ -539,7 +663,7 @@ async def send_record(message: Message, session: AsyncSession, note: Note) -> No
     chunks = texts.split_message(f"{note.title}\n\n{note.markdown}")
     for index, chunk in enumerate(chunks):
         if index == len(chunks) - 1:
-            await message.answer(chunk, reply_markup=feedback.keyboard(note.id))
+            await message.answer(chunk, reply_markup=feedback.keyboard(note.id, study=True))
         else:
             await message.answer(chunk)
 
@@ -710,7 +834,7 @@ async def on_tag(
             if filing.joined:
                 # A notebook of a lecture already here: the lecture's
                 # document, with what this one adds, and a line saying so.
-                await send_record(message, session, newest)
+                await deliver(message, session, newest, user, group)
                 await message.answer(await joined_line(session, newest, filing))
                 return
             await message.answer(texts.tagged(tag, filing.lecture.given_on))
@@ -737,7 +861,7 @@ async def on_tag(
     found = _one_per_lecture(found)
     if len(found) == 1:
         # One match is the answer itself, not a line about the answer.
-        await send_record(message, session, found[0])
+        await deliver(message, session, found[0], user, group)
         return
     await message.answer(texts.several_tagged(tag, await _listing(session, found)))
 

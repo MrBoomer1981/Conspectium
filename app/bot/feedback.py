@@ -47,27 +47,31 @@ _RATINGS = ("good", "bad")
 STUDY_PREFIX = "study"
 
 
-def keyboard(note_id: int) -> InlineKeyboardMarkup:
-    """The buttons under a document: «Хорошо» and «Плохо», and under them
-    «Учебная версия». Each names the record the document is drawn from — for
-    a lecture of several notebooks, its base."""
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=texts.RATE_GOOD, callback_data=f"{_PREFIX}:good:{note_id}"
-                ),
-                InlineKeyboardButton(
-                    text=texts.RATE_BAD, callback_data=f"{_PREFIX}:bad:{note_id}"
-                ),
-            ],
+def keyboard(note_id: int, study: bool = False) -> InlineKeyboardMarkup:
+    """The buttons under a document: «Хорошо» and «Плохо», and under them,
+    with `study`, «Учебная версия» — under the record's own document, which
+    goes out only when its study version could not be had (corpus.deliver).
+    Each names the record the document is drawn from — for a lecture of
+    several notebooks, its base."""
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=texts.RATE_GOOD, callback_data=f"{_PREFIX}:good:{note_id}"
+            ),
+            InlineKeyboardButton(
+                text=texts.RATE_BAD, callback_data=f"{_PREFIX}:bad:{note_id}"
+            ),
+        ]
+    ]
+    if study:
+        rows.append(
             [
                 InlineKeyboardButton(
                     text=texts.STUDY_BUTTON, callback_data=f"{STUDY_PREFIX}:{note_id}"
-                ),
-            ],
-        ]
-    )
+                )
+            ]
+        )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _pressed(data: str | None) -> tuple[str, int] | None:

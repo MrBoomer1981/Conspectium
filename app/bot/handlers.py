@@ -481,7 +481,7 @@ async def _read_photo(
     # 2026-09-25; in a group chat that message was noise for everyone.
     await session.flush()  # note.id, for the file name, the caption, the drawings
     await _keep_figures(session, note, placed)
-    await corpus.send_record(message, session, note)
+    await corpus.deliver(message, session, note, user, group)
 
     # Step 17: which subject does this belong to. Last, so the question is
     # what the user is looking at when they reply.
@@ -583,7 +583,7 @@ async def handle_document(
     )
 
     await session.flush()  # note.id, for the file name and the caption
-    await corpus.send_record(message, session, note)
+    await corpus.deliver(message, session, note, user, group)
     await corpus.ask_for_tag(message, session, user, note, group, filing)
 
 
@@ -954,7 +954,7 @@ async def _process_album(
 
     await session.flush()  # note.id, for the file name, the caption, the drawings
     await _keep_figures(session, note, placed)
-    await corpus.send_record(message, session, note)
+    await corpus.deliver(message, session, note, user, group)
 
     # What follows the document is what only the photographer can act on: the
     # pages it went out without. The rest is in the document or nowhere, as on
@@ -1015,7 +1015,7 @@ async def handle_summon(
             {"outcome": "existing", "note_id": existing.id},
             group_id=group.id,
         )
-        await corpus.send_record(message, session, existing)
+        await corpus.deliver(message, session, existing, user, group)
         return
 
     # Being read right now — by their own tagged album, or a call a moment
