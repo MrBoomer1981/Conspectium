@@ -355,8 +355,8 @@ Specified on 2026-10-08, when the CEO asked whether the bot should make
 study materials rather than records — the CEO's, approved the same day and
 taken next:
 
-- [ ] 80. A lecture's study version: a button under the document builds,
-      from the record and only when pressed, the lecture set out by topic —
+- [ ] 80. A lecture's study version: what a chat gets for a record, in
+      place of the record's own document — the lecture set out by topic,
       the author's text moved whole, the bot's sections marked, questions
       to check oneself at the end — the CEO's
 
@@ -480,6 +480,7 @@ since 2026-10-01.
 | 2026-10-08 | the CEO, with Claude Code | Task 79 taken, from record 87 — record 86's album sent again, its composition refused twice as 86's was. Run twice more on Railway on the CEO's word, the composer lost the same two numbers, and neither was a value: the theorem's parts «1 Существование» and «2 Число…», made the list they are. The numbers guard, the CPO's, counts a number opening a line before a capitalised word as an item's; «1))», task 78's likely cause, was not record 87's. And three cases begun on a line of text are set on one ground | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 80 specified, not scheduled: the CEO asked whether the bot should make study materials based on the records instead of the records, and chose to build them over the records — the record stays what a group trusts and everything else is made from, and a lecture's study version is built from it when somebody presses a button. Made instead of the record, the material would have changed the rule the product stands on, marked is the whole licence to add, and lifted «text rewriting» from "What NOT to do". It takes up the design of the idea of 2026-10-06, the lecture as structured material, archived that day. The spec waits for the CEO's approval | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 80 approved and taken next. The study version is for understanding a lecture by someone who was not there — the exam stays the subject's, 52 and 59 — and ends on three to five questions to check oneself, their answers on the last page, marked as the bot's: the decision of 2026-10-02 put «Проверь себя» in the app alone, and now the study version's PDF has its own. The record's document does not change | the CEO's own |
+| 2026-10-08 | the CEO, with Claude Code | Task 80 changed the same day, before it shipped: a chat gets the study version, not the record's document — on every capture path and every "#word" that brings a record back, built once and kept, the record's document only when no study version can be had. The CEO's words: «мы не присылаем пользователю конспект, сразу отдаём ему учебную версию», and «в будущем я хочу иметь возможность разделить эти функции и присылать по кнопке» — so the two stay separate, decided in one place. A lecture of several notebooks is studied whole | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4794,6 +4795,20 @@ of 2026-10-06, the lecture as structured material, archived that day.
 6. **Measured**: `study_requested` and `study_sent`, with the group's id.
    The subject's version (52) and the exam preparation (59) come after,
    and only once the presses show it is used.
+
+## The CEO's decision of 2026-10-08, the same day: the study version is sent
+
+**A chat gets the study version, not the record.** Every capture path and
+every "#word" that brings a record back delivers its study version, built
+the first time and kept on the record after; the record's own document goes
+out only when there is no study version to be had — the cap reached, the
+call refused, the drawing failed — with «Учебная версия» under it to ask
+again: a record is never lost over its presentation. The record stays what
+everything is made from and what a "#word" finds. The two stay separate
+functions, decided in one place (`corpus.deliver`): the CEO wants to be
+able to split them later, one sent and the other by a button. A lecture of
+several notebooks is studied whole — its base with what the others add.
+Built where the explaining stage is on, on its model.
 
 ## The CEO's answers, 2026-10-08
 
