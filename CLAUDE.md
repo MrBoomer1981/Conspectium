@@ -356,9 +356,9 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
      every later call on it;
    - every album page's update commits before it waits for its album
      (`handlers.handle_photo`, task 81): nothing of its own is left to
-     write, and an album of ten waits 15 s for the rest of its send — a
-     send of thirty pages is thirty updates waiting at once, and the pool is
-     twenty;
+     write, and an album of ten waits a minute for the rest of its send —
+     a send of thirty pages is thirty updates waiting at once, and the pool
+     is twenty;
    - a group's record is committed before the pages it was read from are
      free for another reading (`corpus.reading`, task 41): a second call on
      them finds the reading or the record, never neither.
@@ -474,15 +474,18 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   own. The albums one person sends into one chat are one batch while every
   one before the last holds ten (`albums._send_of`) — up to
   `MAX_ALBUM_PAGES`, past which an album begins a send of its own, and
-  never across two "#words". An album of exactly ten waits `_CONTINUE_S`
-  for the rest; a photo its sender sends meanwhile joins as an album of one
-  page, heard in a group without its "#word" (`albums.collecting`). Decided
+  never across two "#words". An album of exactly ten waits `_CONTINUE_S`,
+  a minute, for the rest: a phone sends each album once its photographs are
+  uploaded, and thirty-two pages came as albums 19 s apart — three records
+  at the 15 s it was (task 85). A photo its sender sends meanwhile joins as
+  an album of one page, heard in a group without its "#word"
+  (`albums.collecting`). Decided
   when the batch closes, over every album of theirs still waiting — never
   when a page arrives, since pages register in the order their updates
   finish their database work. The record's pages are in message order
   across the albums, its subject whichever album carries one, its source
   key in a group the first album's; `note_processed` counts `album_parts`.
-  → "A lecture sent at once"
+  → "A lecture sent at once", "Records 90, 91 and 92"
 - **Router order in `main.py` is load-bearing.** `handlers.router` ends with a
   filterless catch-all, so `corpus.router` goes before it, capture after, and
   a third router is placed relative to that catch-all. `on_tag` matches text,
@@ -1195,8 +1198,8 @@ number never leaves another quietly cutting the work short:
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s, a wave of runs; a page that reads further waits for two |
 | `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × (`VISION_RUNS` + `MORE_RUNS`) ÷ `API_SLOTS`⌉ — 1813 s, 604 until a send of thirty pages was one album (task 81), 362 until a page could read further (task 65); 5323 s at production's 90 s call; raising it is allowed, lowering it is not |
 | `_QUIET_SECONDS` | `bot/albums.py` | 3 s of silence since the last `announce` closes an album, once every announced page is in |
-| `_CONTINUE_S` | `bot/albums.py` | 15 s of silence closes a send that ends on an album of exactly ten, which the rest of the send may follow (task 81) — some thirty times the gaps measured, 0.07 and 0.45 s |
-| `_COLLECT_MAX_S` | `bot/albums.py` | 60 s from the send's first page, so a stream that never goes quiet cannot hold a session for ever |
+| `_CONTINUE_S` | `bot/albums.py` | 60 s of silence closes a send that ends on an album of exactly ten, which the rest of the send may follow (task 81) — three times the 19 s a phone took to upload the next album of thirty-two pages, 15 s until it split them into three records (task 85) |
+| `_COLLECT_MAX_S` | `bot/albums.py` | (⌈`MAX_ALBUM_PAGES` ÷ 10⌉ + 1) × `_CONTINUE_S` from the send's first page — 240 s at thirty pages, 60 s until task 85 — so a stream that never goes quiet is not waited on for ever, and a send that keeps coming is not cut |
 | `max_overflow` | `db/session.py` | 15 — every page of an album arrives at once with a session, the winner holding a connection for the whole album; the others commit before they wait (task 81) |
 
 - `TIMEOUT_MARGIN = 1.3` is the ratio the old hand-written 120 s held to 93 s.

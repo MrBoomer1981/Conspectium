@@ -41,10 +41,6 @@ _QUIET_SECONDS = 3.0
 # delayed by the poll interval.
 _POLL_SECONDS = 0.3
 
-# Hard ceiling from the first page. A stream that never goes quiet must not
-# hold its middleware DB session open indefinitely.
-_COLLECT_MAX_S = 60
-
 # Telegram puts at most ten photographs in an album. A send of more arrives
 # as several albums, every one but the last holding ten, each a media group
 # of its own — and a page left over after the tens can come as a photo with
@@ -52,11 +48,23 @@ _COLLECT_MAX_S = 60
 TELEGRAM_ALBUM_MAX = 10
 
 # How long an album of exactly ten waits, with nothing new from its sender,
-# for the rest of its send. Two sends of twelve pages on 2026-10-08 brought
-# the second album 0.07 s and 0.45 s after the first; the rest of the window
-# is for an upload slower than theirs. Every album of ten pays
-# it whether or not more comes — seconds, on a record that takes minutes.
-_CONTINUE_S = 15.0
+# for the rest of its send. A phone sends each album of a send once its
+# photographs are uploaded: thirty-two pages on 2026-10-08 brought the next
+# album 19.1 s after the last page of the one before, twice, and at 15 s
+# they were three records (task 85). Three times that, for an upload twice
+# as slow. Two sends of twelve the same day, uploaded before they went,
+# came 0.07 s and 0.45 s apart. Every album of ten pays it whether or not
+# more comes — a minute, on a record that takes several.
+_CONTINUE_S = 60.0
+
+# Hard ceiling from the send's first page: a stream that never goes quiet
+# must not be waited on for ever. One _CONTINUE_S for every album a send
+# of MAX_ALBUM_PAGES holds, and one more, so a send that keeps coming is
+# never cut by it — 240 s at thirty pages. A waiting page holds no
+# connection (handlers.handle_photo), only its place in memory.
+_COLLECT_MAX_S = (
+    math.ceil(settings.MAX_ALBUM_PAGES / TELEGRAM_ALBUM_MAX) + 1
+) * _CONTINUE_S
 
 # Ten pages at three runs each under Semaphore(10) is three waves of one run's
 # worst case — five since a page may ask for two runs more to read itself
