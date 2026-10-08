@@ -681,6 +681,28 @@ stays quiet when the page does not settle it** — a cycle, labels that don't
 match, a bare matrix of named vertices: a confident wrong finding costs more
 than silence. → "Numbers the agreement could not see"
 
+### An equality that does not hold
+
+`algebracheck.failures` (task 84, the CEO's of 2026-10-08) counts the two
+sides of every «=» that carries letters at three points picked at random —
+an identity holds at each — and a finding under the sentence says where they
+differ, at small numbers the reader can count: «Равенство (−x)(−x) = x не
+выполняется. При x = 2 левая часть равна 4, правая — 2». Found when the
+document is drawn (`corpus._remarks`), never stored, so a record made before
+it has it too; no model, no library. The one class of the lecture's errors
+code can prove — the CEO found two in records 88 and 89 by reading them
+against the photographs. **It stays quiet when the page does not settle it**:
+only sides with the same letters, after what the lecture defined («положим
+h = b/3c», a letter alone on the left) is put in; never a capital letter — a
+set, a matrix, an ideal — nor i or j, the imaginary unit; never a formula
+with \lim, \to, \infty, a sum or an integral, nor in a lecture on limits an
+«=» that holds as the letters grow; never a line that solves, supposes or
+argues the contrary, nor a lecture on logic; and whatever it does not read —
+f(x), arg z, a set, an absolute value — is left alone. Over every record in
+the database it found 30 before the last of those rules and 7 after, each an
+equality that does not hold as the record reads it. → "An equality that
+does not hold"
+
 ---
 
 ## The corpus
@@ -1119,7 +1141,8 @@ text it is about, taken when the page is checked and stored in `notes.issues`
 as `anchor` — a line number would not survive composition. `render` sets it
 after the sentence holding its anchor, compared without spaces, dollars and
 bold, across the sentence's lines (`pdf._anchored`); one that anchors nowhere
-goes to the end. **A box never stands inside a sentence** (task 83): a record
+goes to the end. An equality of letters that does not hold is one too
+(`algebracheck`, task 84, "An equality that does not hold"). **A box never stands inside a sentence** (task 83): a record
 whose composition was refused is set line by line as the notebook has it,
 and a box under its line cut «Существует элемент 1 ∈ ℝ, 1 ≠ 0» from «такой,
 что x·1 = x». The lines of a sentence, as code tells them — a line in lower
@@ -1319,6 +1342,7 @@ app/
     limits.py         spend limits
     docx.py           .docx → markdown, no model call
     graphcheck.py     a matrix against the graph drawn beside it
+    algebracheck.py   an equality of letters that does not hold, counted at random numbers
     photoguard.py, consensus.py, mathcheck.py    ready-made
   assets/fonts/       Onest, Unbounded, JetBrains Mono, and their OFL licences
   db/                 models.py, session.py, migrations/

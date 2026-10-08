@@ -1865,3 +1865,37 @@ meaning: what a proof leaves unsaid, what «(+ обратное)» means, an axi
 the definition lacks. No code finds those, and the model that would is
 the verification pass this project gave up — it finds errors that are not
 there, and the reader cannot tell.
+
+## An equality that does not hold
+
+**What the check found, and what it was taught not to.** `algebracheck`
+(task 84) was run over every record in the database on 2026-10-08, in the
+container, on the CEO's word, only the equalities it found coming out. 89
+records; the first version found 30 equalities, and 23 of them held:
+
+- **Complex numbers** — records 38 and 40 to 43, one album read five times:
+  «(a + ib)(c + id) = ac + iad + ibc − bd», «(a + ib)⁻¹ = (a − ib)/(a² + b²)»
+  hold with i the imaginary unit, and fail with i a number. i and j now
+  leave their «=» alone.
+- **Ideals and a matrix** — records 50 to 52, «x + y + J + J = x + y + J»,
+  «xy + Jy + xJ + J² = xy + J», a quotient ring's cosets; record 72,
+  «(A + B)ᵀ = Aᵀ + Bᵀ». A capital letter is a set, a matrix, an ideal, and
+  leaves its «=» alone.
+- **A function in letters** — record 40, «arg z^n = n arg z», read as a·r·g.
+  A run of letters that opens with a function's name is unread; not «2ch»,
+  which is 2·c·h and which record 89's error is written in.
+- **A limit's working** — record 80, n⁴(…)/n³(…) = n/(−1), which holds as n
+  grows and nowhere else. A formula with \lim, \to or \infty is left alone,
+  and in a lecture on limits so is an «=» that grows alike. Only there:
+  (x + 1)² = x² + 1 grows alike too, and is wrong.
+
+The seven left: «c − h = c² − 2ch + h²» in records 86 and 89, the CEO's two
+readings of one page; «(−x)(−x) = x» in record 88; and «2x⁴/x² = x²» in
+records 45 and 47 to 49, one album read four times — 2x² is what the
+division gives. Each is an equality that does not hold as the record reads
+it; whether the author or the reading lost the square, the 2, the
+exponent, the photographs would say, and the finding does not.
+
+A first example for record 88 read x = 3/2: the check took «x = b·a⁻¹», the
+solution an earlier line found, for a definition of x. A line that solves an
+equation defines nothing now, nor «то x = y», and the example reads x = 2.

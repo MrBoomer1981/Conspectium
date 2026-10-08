@@ -128,6 +128,18 @@ def finding_lines(message: str, detail: str, suggestion: str) -> list[str]:
     return [first, f"→ {suggestion}"] if suggestion else [first]
 
 
+def equality_lines(
+    equality: str, point: list[tuple[str, str]], left: str, right: str
+) -> list[str]:
+    """An equality that does not hold (task 84), as the box under it says
+    so: the equality, and numbers the reader can count it at."""
+    at = ", ".join(f"${letter} = {value}$" for letter, value in point)
+    return [
+        f"**Равенство ${equality}$ не выполняется.** При {at} левая часть "
+        f"равна ${left}$, правая — ${right}$."
+    ]
+
+
 # Documents — app/bot/handlers.py handle_document.
 DOCX_ONLY = "Понимаю только файлы .docx. Другие форматы пока не умею."
 

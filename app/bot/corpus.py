@@ -44,7 +44,7 @@ from app.bot import feedback, middlewares, rating, subjects, tags, texts
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, Lecture, Note, NoteFigure, NoteTopic, User
-from app.services import explain, graphcheck, limits, merge, pdf, study, vision
+from app.services import algebracheck, explain, graphcheck, limits, merge, pdf, study, vision
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +84,10 @@ _TRAILING_BRACKET_RE = re.compile(r"\s*(\([^()]*\))\s*$")
 
 
 def _remarks(note: Note) -> list[pdf.Remark]:
-    """What the checks by code found wrong in the record — an equality that
-    does not hold, a constant written wrong, a matrix its graph contradicts —
-    each set under the text it is about.
+    """What the checks by code found wrong in the record — a chain of numbers
+    that does not hold, a constant written wrong, a matrix its graph
+    contradicts, an equality of letters that does not hold — each set under
+    the text it is about.
 
     Only errors in the work: never how a page was read. A spot that reads two
     ways was a remark here, labelled with what stood in the manuscript; the
@@ -127,6 +128,22 @@ def _remarks(note: Note) -> list[pdf.Remark]:
                     str(issue.get("suggestion") or ""),
                 ),
                 tone="warning" if issue.get("severity") == "critical" else "info",
+            )
+        )
+    # An equality that does not hold (task 84): found when the document is
+    # drawn rather than stored, so a record made before the check has it too.
+    failed = algebracheck.failures(note.markdown or "")
+    if failed:
+        logger.info("note %s: %d equalities that do not hold", note.id, len(failed))
+    for failure in failed:
+        boxes.append(
+            pdf.Remark(
+                anchor=failure.anchor,
+                label=texts.FINDING_LABEL,
+                lines=texts.equality_lines(
+                    failure.anchor, failure.point, failure.left_value, failure.right_value
+                ),
+                tone="warning",
             )
         )
     return boxes
