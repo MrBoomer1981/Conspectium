@@ -666,6 +666,42 @@ def feedback_answer_report(note_id: int, title: str, where: str, who: str) -> st
     return f"Что не так — конспект #{note_id} «{title}», {where}, {who}:"
 
 
+# ── A lecture's study version — app/bot/corpus.py on_study (task 80) ────────
+# A third button under every document. The study version is the record set
+# out by topic: the author's text moved whole, the bot's boxes marked, three
+# to five questions at the end and their answers on the last page.
+
+STUDY_BUTTON = "Учебная версия"
+STUDY_BUILDING = "Собираю учебную версию — около минуты."
+STUDY_BUSY = "Учебная версия уже собирается."
+STUDY_SENDING = "Отправляю учебную версию."
+STUDY_FAILED = (
+    "Не получилось собрать учебную версию этого конспекта. Сам конспект — выше."
+)
+STUDY_SUBTITLE = "Учебная версия · лекция по темам, собрана ботом из конспекта"
+STUDY_LABELS = {
+    "about": "О чём тема · от бота",
+    "questions": "Проверь себя · от бота",
+    "answers": "Ответы · от бота",
+}
+STUDY_NOTIONS = "Ключевые понятия"
+STUDY_FILE_WORD = "uchebnaya"
+
+
+def study_notions(notions: list[str]) -> str:
+    """The key notions of a topic, the author's words, on one line."""
+    return f"**{STUDY_NOTIONS}:** {', '.join(notions)}"
+
+
+def study_caption(note_id: int, topics: int) -> str:
+    """The line under the study version's file."""
+    return (
+        f"#{note_id} · учебная версия · {topics} "
+        f"{_plural(topics, 'тема', 'темы', 'тем')}. "
+        "Текст лекции — слова автора; всё, что добавил бот, — в рамках «от бота»."
+    )
+
+
 # ── The record as a file — app/bot/corpus.py send_record_pdf ─────────────────
 
 PDF_FAILED = "Не смог собрать PDF — вот текст записи."

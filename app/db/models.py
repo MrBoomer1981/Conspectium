@@ -232,6 +232,13 @@ class Note(Base):
     #   "sources": [{"title": "...", "uri": "..."}]}]
     explanations: Mapped[list] = mapped_column(JSONB, server_default="[]")
     summary: Mapped[str | None] = mapped_column(Text)
+    # The record's study version (task 80), built when somebody first presses
+    # «Учебная версия» and kept so a second press pays nothing: the topics,
+    # each a title, the record's units by number and what it is about, and
+    # the questions to check oneself with their answers. NULL until then.
+    # {"topics": [{"title": "...", "units": [1, 2], "about": "..."}],
+    #  "questions": [{"question": "...", "answer": "..."}], "unit_count": 12}
+    study: Mapped[dict | None] = mapped_column(JSONB)
     text_agreement: Mapped[float | None] = mapped_column(Float)
     numeric_agreement: Mapped[float | None] = mapped_column(Float)
     # The subject, stored without its "#": the "#word" the photo was sent

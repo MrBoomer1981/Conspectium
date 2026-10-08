@@ -43,11 +43,14 @@ router = Router()
 
 _PREFIX = "rate"
 _RATINGS = ("good", "bad")
+# The study version's button (task 80), answered in corpus.on_study.
+STUDY_PREFIX = "study"
 
 
 def keyboard(note_id: int) -> InlineKeyboardMarkup:
-    """The two buttons under a document. Each names the record the document
-    is drawn from — for a lecture of several notebooks, its base."""
+    """The buttons under a document: «Хорошо» and «Плохо», and under them
+    «Учебная версия». Each names the record the document is drawn from — for
+    a lecture of several notebooks, its base."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -57,7 +60,12 @@ def keyboard(note_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text=texts.RATE_BAD, callback_data=f"{_PREFIX}:bad:{note_id}"
                 ),
-            ]
+            ],
+            [
+                InlineKeyboardButton(
+                    text=texts.STUDY_BUTTON, callback_data=f"{STUDY_PREFIX}:{note_id}"
+                ),
+            ],
         ]
     )
 

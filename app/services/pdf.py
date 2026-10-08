@@ -58,6 +58,7 @@ from reportlab.platypus import (  # noqa: E402
     HRFlowable,
     Image,
     KeepTogether,
+    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -285,6 +286,17 @@ _RULE_RE = re.compile(r"^(?:-{3,}|\*{3,}|_{3,}|~{3,})$")
 # merge.merged writes them into the text it hands to render, and nowhere else.
 _INSERT_CLOSE = "⟦+⟧"
 _INSERT_OPEN_RE = re.compile(r"^⟦\+\s*(.+?)⟧$")
+# A lecture's study version (task 80): a line "⟦бот 3⟧" is where the fourth of
+# the boxes render is given in `placed` stands, and "⟦новая страница⟧" starts
+# a page — the answers to the questions stand on the last one. Never in a
+# stored record either: study.layout writes them, and nothing else does.
+_PLACED_RE = re.compile(r"^⟦бот (\d+)⟧$")
+PAGE_BREAK = "⟦новая страница⟧"
+
+
+def placed_mark(number: int) -> str:
+    """The line that stands where the box `placed[number]` is set."""
+    return f"⟦бот {number}⟧"
 # A markdown table row, and the "|---|:--|" line that marks the row above it
 # as a header rather than data.
 _ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
@@ -439,7 +451,7 @@ class Page:
 @dataclass
 class Block:
     # heading | bullet | text | math | note | framed | gap | rule | table |
-    # graph | picture | inserted | inserted_end
+    # graph | picture | inserted | inserted_end | placed | pagebreak
     kind: str
     text: str = ""
     level: int = 0
@@ -894,6 +906,15 @@ def blocks(markdown: str) -> list[Block]:
             out.append(Block("inserted", opened.group(1)))
             index += 1
             continue
+        placed = _PLACED_RE.match(stripped)
+        if placed:
+            out.append(Block("placed", marker=placed.group(1)))
+            index += 1
+            continue
+        if stripped == PAGE_BREAK:
+            out.append(Block("pagebreak"))
+            index += 1
+            continue
 
         display = _display_lines(lines, index)
         if display is not None:
@@ -1002,6 +1023,24 @@ def _is_numbered(block: Block) -> bool:
     return (block.kind == "math" and block.main) or (
         block.kind == "framed" and "$" in block.text
     )
+
+
+def numbered_formulas(markdown: str) -> int:
+    """How many formulas render numbers in this text — what a study version
+    counts in each unit to keep the record's numbers (task 80)."""
+    return sum(
+        1
+        for block in blocks(_formula_columns(_lift_drawings(_unstruck(markdown))))
+        if _is_numbered(block)
+    )
+
+
+def _formula_numbers(given: Sequence[int] | None):
+    """The numbers the numbered formulas carry in the order they stand: the
+    caller's, and on from the highest should they run out; else 1, 2, 3."""
+    if not given:
+        return itertools.count(1)
+    return itertools.chain(given, itertools.count(max(given) + 1))
 
 
 def numbered_for_reading(markdown: str) -> str:
@@ -3806,9 +3845,14 @@ def render(
     summary: Summary | None = None,
     page: Page | None = None,
     figures: Mapping[int, bytes] | None = None,
+    placed: Sequence[Explanation] = (),
+    formula_numbers: Sequence[int] | None = None,
 ) -> bytes:
     """A record as PDF bytes. Never raises on the content of the record.
-    `figures` are the drawings the record keeps, by the N of "[рисунок N: …]"."""
+    `figures` are the drawings the record keeps, by the N of "[рисунок N: …]".
+    A study version (task 80) gives `placed`, the boxes set where their
+    "⟦бот N⟧" lines stand, and `formula_numbers`, the number each numbered
+    formula carries in the order they stand: the record's, not their order."""
     _register_fonts()
     styles = _styles()
     buffer = io.BytesIO()
@@ -3874,12 +3918,13 @@ def render(
         # The number each numbered block will carry, known before the loop so
         # an explanation anchored on "(3)" finds the unit that holds it.
         numbered: dict[int, int] = {}
+        counted = _formula_numbers(formula_numbers)
         inside = False
         for block in parsed:
             if block.kind in ("inserted", "inserted_end"):
                 inside = block.kind == "inserted"
             elif _is_numbered(block) and not inside:
-                numbered[id(block)] = len(numbered) + 1
+                numbered[id(block)] = next(counted)
         previous: str | None = None
         paragraph_break = False
         # Headings waiting for what they head. A heading is never the last
@@ -3895,7 +3940,7 @@ def render(
         held: list = []
         # Main formulas are numbered in the order they stand, through the
         # whole record, and so are its sections.
-        numbers = itertools.count(1)
+        numbers = _formula_numbers(formula_numbers)
         sections = itertools.count(1)
         # Inside a passage from another notebook (task 63) nothing is
         # numbered: the numbers are the base's, an explanation points at
@@ -3910,6 +3955,29 @@ def render(
         while index < len(parsed):
             if parsed[index].kind == "gap":
                 paragraph_break = True
+                index += 1
+                continue
+            if parsed[index].kind == "placed":
+                # A box of the study version where its line stands, held with
+                # the heading over it like any unit.
+                number = int(parsed[index].marker)
+                if number < len(placed):
+                    box = [Spacer(1, 6), _explanation(placed[number], formulas, styles)]
+                    if held:
+                        story.append(KeepTogether(held + box))
+                        held = []
+                    else:
+                        story.extend(box)
+                    previous = "box"
+                paragraph_break = False
+                index += 1
+                continue
+            if parsed[index].kind == "pagebreak":
+                story.extend(held)
+                held = []
+                story.append(PageBreak())
+                previous = None
+                paragraph_break = False
                 index += 1
                 continue
             if parsed[index].kind in ("inserted", "inserted_end"):

@@ -10,12 +10,12 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, feedback, rating, texts
+from app.bot import albums, corpus, feedback, rating, study_version, texts
 from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
 from app.core.events import log_event_standalone
-from app.services import compose, explain, pdf, vision
+from app.services import compose, explain, pdf, study, vision
 from app.db.models import User
 from app.db.session import async_session_maker, get_session
 
@@ -38,6 +38,8 @@ dp.callback_query.outer_middleware(DbSessionMiddleware())
 # feedback router comes first of all: a reply to the bot's question «что не
 # так» is feedback whatever it says, a "#word" included.
 dp.include_router(feedback.router)
+# «Учебная версия» under a document (task 80): a button press, like a rating.
+dp.include_router(study_version.router)
 dp.include_router(corpus.router)
 dp.include_router(router)
 
@@ -189,6 +191,14 @@ async def lifespan(app: FastAPI):
         explain.EXPLAIN_PROMPT_WORDS,
         "asked for" if explain.PROMPT_ASKS_ELEMENTS else "not asked for",
         settings.SOURCE_THINKING_LEVEL,
+    )
+    # The study version is built on request, on the explaining stage's model,
+    # and its prompt is read by name like the source searches'.
+    logger.info(
+        "Study version: on request, %s, %s, %d words",
+        settings.EXPLAIN_MODEL,
+        study.STUDY_PROMPT_FILE,
+        study.STUDY_PROMPT_WORDS,
     )
     logger.info(
         "Model call: media_resolution=%s, thinking_level=%s",

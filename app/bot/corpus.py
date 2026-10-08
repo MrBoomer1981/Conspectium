@@ -42,7 +42,7 @@ from app.bot import feedback, middlewares, rating, subjects, tags, texts
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, Lecture, Note, NoteFigure, NoteTopic, User
-from app.services import explain, graphcheck, limits, merge, pdf, vision
+from app.services import explain, graphcheck, limits, merge, pdf, study, vision
 
 logger = logging.getLogger(__name__)
 
@@ -349,15 +349,17 @@ _FILENAME_KEEP = re.compile(r"[^\w\s-]", re.UNICODE)
 _FILENAME_GAPS = re.compile(r"[\s_]+")
 
 
-def pdf_filename(note_id: int, title: str) -> str:
+def pdf_filename(note_id: int, title: str, word: str = "") -> str:
     """A file name a phone will not choke on, still recognisable in a
-    downloads folder, and carrying the record number. A formula in the title
-    is written out in characters first: stripped of its markup as it stood,
-    "$2^{1001}$" became "21001"."""
+    downloads folder, and carrying the record number — and `word` after it,
+    when the file is not the record's own document but its study version.
+    A formula in the title is written out in characters first: stripped of
+    its markup as it stood, "$2^{1001}$" became "21001"."""
     safe = _FILENAME_KEEP.sub("", pdf.plain(title)).strip()
     safe = _FILENAME_GAPS.sub("-", safe)[:40]
     safe = safe.strip("-")
-    return f"{note_id}-{safe}.pdf" if safe else f"zapis-{note_id}.pdf"
+    named = f"{note_id}-{word}" if word else f"{note_id}"
+    return f"{named}-{safe}.pdf" if safe else f"zapis-{named}.pdf"
 
 
 async def _bot_username(message: Message) -> str:
@@ -472,6 +474,58 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
         caption=caption,
         # «Хорошо» and «Плохо» on the document itself (task 70).
         reply_markup=feedback.keyboard(base.id),
+    )
+    return True
+
+
+def _study_box(box: dict) -> pdf.Explanation:
+    """One of the study version's own boxes, drawn as the bot's are."""
+    kind = box["kind"]
+    if kind == "about":
+        lines = [box["text"]] if box.get("text") else []
+        if box.get("notions"):
+            lines.append(texts.study_notions(box["notions"]))
+    else:
+        lines = [f"{number}. {item}" for number, item in enumerate(box["items"], 1)]
+    return pdf.Explanation(anchor="", label=texts.STUDY_LABELS[kind], lines=lines, sources=[])
+
+
+async def send_study_pdf(
+    message: Message, session: AsyncSession, note: Note, version: study.Study
+) -> bool:
+    """A record's study version as a PDF (task 80): the record set out by
+    topic and drawn with all its document carries — the summary, the missing
+    pages, the findings, the bot's boxes, which follow their units — and the
+    study version's own boxes where it put them. Of the record alone: in a
+    lecture of several notebooks, its base. False if it could not be drawn."""
+    arranged = study.layout(note.markdown, version)
+    lecture = await session.get(Lecture, note.lecture_id) if note.lecture_id else None
+    page = _page(note, await _bot_username(message), lecture.given_on if lecture else None)
+    drawings = await figures_of(session, note.id)
+    try:
+        data = await asyncio.to_thread(
+            pdf.render,
+            note.title,
+            arranged.markdown,
+            subtitle=texts.STUDY_SUBTITLE,
+            callouts=_callouts(note),
+            byline=texts.byline(note.margin_notes),
+            remarks=_remarks(note),
+            explanations=_explanations(note),
+            summary=_summary(note),
+            page=page,
+            figures=drawings,
+            placed=[_study_box(box) for box in arranged.boxes],
+            formula_numbers=arranged.formula_numbers,
+        )
+    except Exception:
+        logger.exception("could not build the study version's PDF for note %s", note.id)
+        return False
+    await message.answer_document(
+        BufferedInputFile(
+            data, filename=pdf_filename(note.id, note.title, texts.STUDY_FILE_WORD)
+        ),
+        caption=texts.study_caption(note.id, len(version.topics)),
     )
     return True
 

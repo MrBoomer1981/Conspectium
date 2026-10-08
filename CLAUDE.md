@@ -188,7 +188,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `018_ai_calls_group`, the head. The next is `019_`.
+  `019_note_study`, the head. The next is `020_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -806,6 +806,43 @@ than silence. → "Numbers the agreement could not see"
   log, never the reader's problem. Events `note_rated` and `note_feedback`;
   the reader's words stay in `feedback.text`, never in an event.
 
+### A lecture's study version
+
+- **«Учебная версия», a third button under every document** (task 80, the
+  CEO's, 2026-10-08), builds the lecture set out by topic for someone who
+  was not there — only when pressed: the presses are the measure. The
+  record stays what it is, what a group trusts, what a "#word" finds and
+  notebooks merge into; the study version is made from it, never instead
+  of it. Made instead, the bot would write the document and its inventions
+  would read as the lecture — the rule this product stands on, marked is
+  the whole licence to add, undone.
+- **The model arranges, code moves** (`services/study.py`): the record is
+  cut into units — its paragraphs, a heading with what follows it, a
+  formula or a drawing set apart with the text that leads up to it, no
+  formula ever cut — numbered, and one call answers with the topics, each
+  its units by number and what it is about, and three to five questions
+  with their answers. The author's text never comes back from the model,
+  so not a word of it can change, and every unit stands once: one named
+  twice keeps its first place, one left out goes back after the unit
+  before it, and past a quarter left out the version is refused. What the
+  bot writes states no number the record does not carry, and an answer's
+  working is checked as a teacher's example is; what fails goes.
+- **Drawn as the record is** (`corpus.send_study_pdf`), with its summary,
+  missing pages, findings and boxes, which follow their units; each topic
+  a numbered section with «О чём тема · от бота» under it and its key
+  notions — the author's bold words, picked by code; the author's sections
+  a level down; every main formula keeping the record's number, so an
+  explanation's "(3)" still names its formula (`pdf.render`'s `placed` and
+  `formula_numbers`); the questions at the end and their answers on the
+  last page. Of the record alone: in a lecture of several notebooks, its
+  base.
+- **Kept on the record** (`notes.study`): a second press draws it again and
+  pays nothing. The first is one call on the explaining stage's model,
+  inside the day's cost cap (`pages=0`), its `ai_calls` row of
+  `kind="study"`; while it runs, a second press on the record starts
+  nothing — a set in this process ("Scale debt"). Events
+  `study_requested`, `study_sent`, `study_failed`.
+
 ### A group's week
 
 - **Who sent a group's records and who rated them** (task 72, the CEO,
@@ -1055,6 +1092,7 @@ number never leaves another quietly cutting the work short:
 | `EXPLAIN_CALL_TIMEOUT_S` | environment | 240 s, 30–600; the writing call, sized like composing; it takes a slot the same way, after `process_batch` |
 | `_SOURCE_TIMEOUT_S` | `services/explain.py` | 90 s — one search; up to eight at once, each on a slot |
 | compose's slot | `services/compose.py` | one of the `API_SLOTS`, held for the whole call; after `process_batch`, outside `_ALBUM_TIMEOUT_S` |
+| the study version's call | `services/study.py` | one of the `API_SLOTS`, on a press, `EXPLAIN_CALL_TIMEOUT_S` — a call over the whole record, as the explaining one is |
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)`, every attempt timing out — 93 s at the default |
 | `_AFTER_TIMEOUT` | `services/vision.py` | `2` — a first attempt that timed out is followed by one twice as long, and that is the last: 90 s then 180 s in production, 271 s, inside `RUN_WORST_CASE_S` |
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s, a wave of runs; a page that reads further waits for two |
@@ -1106,7 +1144,7 @@ the machinery before the point arrives — record what you find here instead.
 
 | Shortcut | Breaks at | What happens |
 |---|---|---|
-| The album buffer is five module-level dicts in `bot/albums.py`, and the pages being read a set in `bot/corpus.py` | **a second replica** | pages of one album land in different processes and become separate records; two calls on one album in two processes read it twice |
+| The album buffer is five module-level dicts in `bot/albums.py`, the pages being read a set in `bot/corpus.py`, and the study versions being built a set in `bot/study_version.py` | **a second replica** | pages of one album land in different processes and become separate records; two calls on one album in two processes read it twice; two presses of «Учебная версия» pay twice |
 | An update is processed in a background task | **any deploy** | in-flight updates are cancelled; paid Gemini calls are wasted |
 | No deduplication on `update_id` | **a delivery timeout** | Telegram retries: a duplicate record and a second set of paid calls |
 | `DAILY_COST_LIMIT_USD` is one cap over every chat, above each group's day in pages | **about four groups at their full day** at today's prices, two once they double on 2027-01-01 | the chats that come later in the day find the bot stopped: the cap has to grow with the groups |
@@ -1191,11 +1229,13 @@ app/
     subjects.py       a chat's subjects and lectures: where a record is filed, its day
     tags.py           what a #tag is, and a record's topics
     feedback.py       «Хорошо», «Плохо» and where the error is, under every document
+    study_version.py  «Учебная версия»: a record's study version built on request
     rating.py         a group's week: who sent its records and who rated them, Saturday's summary; the bot's week
   services/
     vision.py         recognition: the prompt, three runs, parsing, the agreements
     compose.py        stage two: the trusted transcription, formatted
     explain.py        stage three: hard places explained with sources, a summary
+    study.py          a lecture's study version: the record in units, arranged by topic
     pdf.py            a record as a PDF
     figures.py        drawings cut out of the page, placed back after composing
     lectures.py       where a lecture begins on a page; one lecture a record
@@ -1231,7 +1271,8 @@ explaining `prompts-explain-v1.md` to `v3`, v2 (production 2026-10-03 to
 an example that is not the lecture's working with another number (task 78),
 kept on the CEO's word while the next records' examples are read; with
 `prompts-explain-source-v2.md` for the searches — `v1` before it, kept as
-the records made with it were. Every
+the records made with it were; the study version `prompts-study-v1.md`
+(task 80), read by name as the searches' prompt is. Every
 prompt stays in `prompts/` once used: a record does not say which made it.
 `vision.load_prompt` reads a prompt from `prompts/` by file name at
 **import**: the file has to ship with the deploy or the process dies at
@@ -1335,8 +1376,8 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
 - **The startup log is the instrument's label**: `Recognition: <model>, N
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
   numbers, whether drawings are cut out and lectures marked, the image
-  compression, both stages, the call knobs, the five timeouts and the repeat
-  after one, the day's limits, where a reader's «Плохо» is sent, when a
+  compression, both stages, the study version's prompt, the call knobs, the
+  five timeouts and the repeat after one, the day's limits, where a reader's «Плохо» is sent, when a
   group's week is summed up, and whether the bot sees a group's photos. What
   a **record** does not say is which prompt made it —
   `docs/PLAN.md` → "Where the quality work stands", gap 3.
