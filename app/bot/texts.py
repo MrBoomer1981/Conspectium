@@ -102,9 +102,14 @@ SOURCES_LABEL = "Источники"
 
 def explanation_line(title: str, text: str) -> str:
     """One explanation as the text of its box: what it is about, in bold,
-    then what it says."""
-    title = title.strip().rstrip(".:")
-    return f"**{title}.** {text}" if title else text
+    then what it says — opening with a capital letter, as every box of
+    record 92's did not (task 86)."""
+    title = _capitalised(title.strip().rstrip(".:"))
+    return f"**{title}.** {text}" if title else _capitalised(text)
+
+
+def _capitalised(text: str) -> str:
+    return text[:1].upper() + text[1:]
 
 
 # mathcheck names a chain by its line — "строка 29: звенья цепочки не
@@ -768,14 +773,20 @@ def _belongs_under_title(part: str) -> bool:
 
 def byline(margin_notes: list[str]) -> str | None:
     """What stood in the margin that says whose lecture, which day or which
-    page, as one line under the title. None when nothing did — an empty line
-    under a title is worse than none."""
-    parts = [
-        part
-        for note in margin_notes
-        for part in _MARGIN_SEPARATOR_RE.split(str(note).strip())
-        if part and _belongs_under_title(part)
-    ]
+    page, as one line under the title, each once. None when nothing did —
+    an empty line under a title is worse than none.
+
+    A page's number only when one page gave one: record 90 printed «4 · 16
+    · 17 · 8 · 2 · 19 · 2», a number from every page's margin, which says
+    nothing of the record (task 86)."""
+    parts: list[str] = []
+    for note in margin_notes:
+        for part in _MARGIN_SEPARATOR_RE.split(str(note).strip()):
+            if part and part not in parts and _belongs_under_title(part):
+                parts.append(part)
+    pages = [part for part in parts if _MARGIN_PAGE_RE.match(part)]
+    if len(pages) > 1:
+        parts = [part for part in parts if part not in pages]
     return " · ".join(parts) if parts else None
 
 

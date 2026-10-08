@@ -897,7 +897,8 @@ does not hold"
 - **Drawn as the record is** (`corpus.send_study_pdf`), with its summary,
   missing pages, findings and boxes, which follow their units; each topic
   a numbered section with «О чём тема · от бота» under it and its key
-  notions — the author's bold words, picked by code; the author's sections
+  notions — the author's bold words, picked by code, with a formula
+  written against one («ε-окрестностью», task 86); the author's sections
   a level down; every main formula keeping the record's number, so an
   explanation's "(3)" still names its formula (`pdf.render`'s `placed` and
   `formula_numbers`); a box that found no line of its own before the
@@ -1010,7 +1011,10 @@ why each is what it is. What a change must not break:
   quoted for an anchor (`Block.quoted`): cut short, it sent record 87's idea
   of the proof to the end of the document. A zero-width
   space after an inline formula is the only place reportlab breaks a line
-  after an image. A tall one makes room in its line, a paragraph's first line
+  after an image — and it breaks before one too, so the comma, the period,
+  the bracket written against a formula are drawn with it, as `\text{…}`
+  for mathtext's own space after a comma (`pdf._inline`, task 86): record
+  90 opened a line with «, то есть». A tall one makes room in its line, a paragraph's first line
   included: reportlab set that line a font size below the paragraph's top
   whatever it held, and record 62's column vector rose over the line above
   (`paraFontSizeHeightOffset`, off since 2026-10-02).
@@ -1022,7 +1026,8 @@ why each is what it is. What a change must not break:
   which knows what both of them are. The last line of a paragraph never goes
   over a page alone (`allowWidows=0`): record 74 ended on a page of one word.
 - **Every box has one anatomy** — a bar, a label in spaced capitals
-  (`pdf._Label`), lines at the text's size — **and its tone is its meaning**:
+  (`pdf._Label`), lines at the text's size, the bot's title in bold and
+  opening with a capital (`texts.explanation_line`, task 86) — **and its tone is its meaning**:
   dark amber what is certainly wrong, kraft what only may be, ink the bot's
   explanation, an amber line with no label a definition
   (`pdf._definition_end`). "Суть", the summary, opens the document on the one
@@ -1038,8 +1043,10 @@ why each is what it is. What a change must not break:
 - **Under the title stands a name, a date or a page, or nothing**
   (`texts.byline`): what the margin said of whose lecture, which day, which
   page — the notebook's print, a doodle described and stray letters are not
-  that, and record 59 printed «фор · 21:27 (0, 1)» there. Chosen when the
-  document is drawn, so a record stored before the rule is drawn by it too.
+  that, and record 59 printed «фор · 21:27 (0, 1)» there. Each once, and a
+  page only when one page gave its number: record 90 printed «4 · 16 · 17 ·
+  8 · 2 · 19 · 2», every page's (task 86). Chosen when the document is
+  drawn, so a record stored before the rule is drawn by it too.
 - **Every page carries a head and the signature** (`pdf.Page`, built by
   `corpus._page`): the subject as its "#word", the day and "стр. 2/5" — never
   "с. 2", which inside a record means a photographed page; no number on a
@@ -1060,13 +1067,15 @@ why each is what it is. What a change must not break:
   could not see through (task 78), nor struck words the reading could read,
   `~~…~~` (task 83) — unless they are all the line has but its number:
   «1.3. ~~Мн-ва Аксиома полноты~~» stays struck, since the reading may strike
-  more than the author did.
+  more than the author did. A line struck whole goes, and so does a passage
+  struck over two or three lines (task 86): record 91 printed one struck.
 - **The notebook's line is not the document's** (task 83, the CEO's reading
   of records 88 and 89): a word carried over with a hyphen is whole at the
   end of the first line (`pdf._unhyphenated`, three letters on either side,
   so «мн-ва» stays); a short formula a sentence ends on — «$X_i$» — is set in
   its line, never one of a column (`pdf._tail_formulas`); a sign the author
-  ringed, «[схема: ?! в кружке]», is framed in its line (`pdf._ringed`);
+  ringed, «[схема: ?! в кружке]», «[знак: ?!, обведённый в кружок]» or
+  «[?!]» as the reading writes it, is framed in its line (`pdf._ringed`);
   ⩽ and ⩾ are drawn as ≤ and ≥, one sign through the document. One pipeline
   reads a record for render and for the formulas it numbers (`pdf._parsed`),
   so the study version's numbers stay the record's.
@@ -1150,11 +1159,17 @@ whose composition was refused is set line by line as the notebook has it,
 and a box under its line cut «Существует элемент 1 ∈ ℝ, 1 ≠ 0» from «такой,
 что x·1 = x». The lines of a sentence, as code tells them — a line in lower
 case goes on from the one before, a formula or a sign from a line that does
-not end a sentence, a line that does not end one into the list it opens,
-ten lines at most (`pdf._sentence_end`) — are one place: a finding, an
-explanation, a teacher's box after the last, an idea before the first, and
-an anchor found across them, which record 88's «Множеством / натуральных
-чисел называется» was not, and went pages on. A record stored
+not end a sentence, a blank line before a formula set apart and a main
+formula included (task 86), a line that does not end one into the list it
+opens at its first item, ten lines at most (`pdf._sentence_end`) — are one
+place: a finding, an explanation, a teacher's box after the last, and an
+anchor found across them, which record 88's «Множеством / натуральных
+чисел называется» was not, and went pages on. An idea stands before the
+line its anchor begins in — the line its proof begins on — moved up only
+over lines that go on in lower case (`pdf._anchor_line`): set before a
+sentence of ten lines, record 92's idea of a proof stood above its
+theorem. Record 90 had «Зачем условие» between «такое, что:» and the
+formula it led to. A record stored
 before anchors is checked again when rendered. graphcheck's unread cell is not
 an error in the work and is not printed (`graphcheck.UNREAD_CELLS`).
 

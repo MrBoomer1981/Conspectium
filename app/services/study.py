@@ -53,7 +53,9 @@ _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
 _HEADING_RE = re.compile(r"^(#{1,6})[ \t]+\S")
 _RULE_RE = re.compile(r"^(?:-{3,}|\*{3,}|_{3,}|~{3,})$")
 _DOLLAR_RE = re.compile(r"(?<!\\)\$")
-_BOLD_RE = re.compile(r"\*\*([^*\n]+?)\*\*")
+# With the formula written right against it: record 90's «$\varepsilon$**-
+# окрестностью точки**» lost its ε among the key notions (task 86).
+_BOLD_RE = re.compile(r"(\$[^$\n]+\$)?\*\*([^*\n]+?)\*\*")
 # A bold label is not a notion: «**Определение.**», «**Теорема 2**».
 _LABEL_RE = re.compile(
     r"^(?:определени\w*|теорем\w*|лемм\w*|доказательств\w*|док-во|следстви\w*"
@@ -408,7 +410,9 @@ def notions(text: str) -> list[str]:
     sets in bold, a bold label like «Определение» left out."""
     found: list[str] = []
     for match in _BOLD_RE.finditer(text):
-        notion = " ".join(match.group(1).split()).strip(" .,:;")
+        notion = " ".join(match.group(2).split()).strip(" .,:;")
+        if match.group(1) and notion.startswith("-"):
+            notion = match.group(1) + notion
         if (
             not notion
             or _LABEL_RE.match(notion)

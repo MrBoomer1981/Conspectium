@@ -351,6 +351,11 @@ _STRUCK_RE = re.compile(
 # a section number given up, printed struck in record 88 — and not the
 # lecture either (task 83, the CEO's reading).
 _STRUCK_WORDS_RE = re.compile(r"[ \t]*(?<!~)~~(?!~)[^~\n]+?(?<!~)~~(?!~)")
+# A passage struck over several lines, three at most and no blank line
+# between: one «~~» opening it, one closing it (task 86).
+_STRUCK_ACROSS_RE = re.compile(
+    r"(?<!~)~~(?!~)((?:[^~\n]+\n){1,2}[^~\n]+?)(?<!~)~~(?!~)"
+)
 # What a line has besides a number: a letter, or a formula.
 _WORDED_RE = re.compile(r"[^\W\d_]|\$")
 # A word the author carried over to the next line with a hyphen: «множес-»
@@ -366,11 +371,17 @@ _CARRIED_TAIL_RE = re.compile(
 _HYPHENED_HEADS = frozenset({"кое"})
 _HYPHENED_TAILS = frozenset({"либо", "нибудь", "таки"})
 # A sign the author ringed, which the reading wrote as a drawing:
-# «[схема: ?! в кружке]», printed as a line of words in record 88.
+# «[схема: ?! в кружке]», printed as a line of words in record 88 — and as
+# a sign, «[знак: ?!, обведённый в кружок]» in record 90, which printed it
+# so too (task 86).
 _RINGED_RE = re.compile(
-    r"\[\s*схема\s*:\s*(?P<sign>[^\s\[\]]{1,4})\s+(?:в|во)\s+(?:кружк|круг|кольц)\w*\s*\]",
+    r"\[\s*(?:(?:схема|знак|символ|значок)\s*:\s*)?(?P<sign>[^\s\[\],:]{1,4})\s*,?\s*"
+    r"(?:обвед[её]н\w*\s+)?(?:(?:в|во)\s+)?(?:круж|круг|кольц|окружност)\w*\s*\]",
     re.IGNORECASE,
 )
+# The author's «?!» the reading put in brackets of its own: «[?!]» in a line
+# of record 90's proof, where the same sign ringed stood a page before.
+_BRACKETED_SIGN_RE = re.compile(r"\[\s*(?:(?:знак|символ)\s*:\s*)?(?P<sign>[?!]{1,3})\s*\]")
 _FRAME_OPEN_RE = re.compile(r"^\[\s*(?:в\s+)?рамк\w*\s*:?\s*(.*)$", re.IGNORECASE)
 # The author's frame round a sign or a word inside a line: record 86's «?!»,
 # ringed twice in a proof, printed as "[рамка: ?!]" — only a line that is
@@ -791,17 +802,31 @@ def _unstruck(markdown: str) -> str:
     number. Record 88's «1.3. ~~Мн-ва Аксиома полноты~~» was struck, by the
     CEO's reading of the photograph, in «Мн-ва» only: the reading can strike
     more than the author did, and a heading left a number would lose the
-    words it had. Such a line keeps them, struck as read."""
+    words it had. Such a line keeps them, struck as read. A line struck
+    whole goes, and so does a passage struck over two lines, read as one
+    struck span a line (task 86): record 91 printed «~~Но действительно … С
+    другой~~» struck, over two."""
     out: list[str] = []
-    for line in markdown.splitlines():
+    for line in _STRUCK_ACROSS_RE.sub(_struck_by_line, markdown).splitlines():
         cleaned = _STRUCK_RE.sub("", line)
         if line.strip() and not cleaned.strip():
             continue
         unworded = _STRUCK_WORDS_RE.sub("", cleaned)
-        if unworded != cleaned and _WORDED_RE.search(unworded):
-            cleaned = unworded.strip()
+        if unworded != cleaned:
+            if not unworded.strip():
+                continue
+            if _WORDED_RE.search(unworded):
+                cleaned = unworded.strip()
         out.append(cleaned)
     return "\n".join(out)
+
+
+def _struck_by_line(found: re.Match) -> str:
+    """A passage struck over several lines as one struck span on each."""
+    return "\n".join(
+        f"~~{part.strip()}~~" if part.strip() else part
+        for part in found.group(1).split("\n")
+    )
 
 
 def _unhyphenated(markdown: str) -> str:
@@ -833,8 +858,10 @@ def _unhyphenated(markdown: str) -> str:
 def _ringed(markdown: str) -> str:
     """A sign the author ringed, written as a drawing by the reading, made the
     frame it is: «[схема: ?! в кружке]» drawn as «[рамка: ?!]» is, round the
-    sign in its line (task 83)."""
-    return _RINGED_RE.sub(lambda found: f"[рамка: {found.group('sign')}]", markdown)
+    sign in its line (task 83) — and so are «[знак: ?!, обведённый в
+    кружок]» and «[?!]» (task 86)."""
+    framed = _RINGED_RE.sub(lambda found: f"[рамка: {found.group('sign')}]", markdown)
+    return _BRACKETED_SIGN_RE.sub(lambda found: f"[рамка: {found.group('sign')}]", framed)
 
 
 def _lift_drawings(markdown: str) -> str:
@@ -970,6 +997,16 @@ def _ends_sentence(block: Block) -> bool:
     return block.kind != "math" and bool(_SENTENCE_END_RE.search(block.text))
 
 
+def _set_apart(block: Block) -> bool:
+    """A formula on a line of its own: displayed, or framed by the author."""
+    return block.kind == "math" or (block.kind == "framed" and "$" in block.text)
+
+
+def _first_item(block: Block) -> bool:
+    """A list's first item: «1)», «1.», or a bullet, which carries no number."""
+    return not block.marker or bool(re.match(r"1[.)]", block.marker))
+
+
 def _tail_formulas(parsed: list[Block]) -> list[Block]:
     """A short formula alone on its line set at the end of the line before it
     when that line runs on into it: «$X_i$», «$P(k+1)$». Never a main
@@ -1004,35 +1041,49 @@ def _sentence_end(parsed: list[Block], index: int) -> int:
     x·1 = x». So the lines of one sentence, as code can tell them, are one
     place for the boxes: a line in lower case goes on from the one before; a
     formula or a sign goes on from a line that does not end a sentence; and
-    a line that does not end one goes on into the list it opens — but a list
-    item does not run into the next item. A heading, a gap, a table, a
-    drawing, a main formula, a definition's lines end it, and so does
-    _SENTENCE_LINES."""
+    a line that does not end one goes on into the list it opens — at its
+    first item, «1)» or a bullet, so the last line of one proof does not run
+    into «2) Пусть …» of the next — but a list item does not run into the
+    next item. A formula set apart goes on across a blank line, since that
+    is how one is written, and so does a main formula, which ends the
+    sentence (task 86): record 90 set «Зачем условие» between «такое, что:»
+    and the formula it introduced. A heading, a gap before prose, a table, a
+    drawing, a definition's lines end it, and so does _SENTENCE_LINES."""
     first = parsed[index]
     if first.kind not in _PROSE or first.main:
         return index + 1
     end, listing = index + 1, False
     while end < len(parsed) and end - index < _SENTENCE_LINES:
-        if (
-            listing
-            and parsed[end].kind == "gap"
-            and end + 1 < len(parsed)
-            and parsed[end + 1].kind == "bullet"
-        ):
+        before, line = parsed[end - 1], parsed[end]
+        if line.kind == "gap" and end + 1 < len(parsed):
+            after = parsed[end + 1]
             # A list goes on over a blank line between its items: record 88's
             # «Операции с бесконечностями» had one between «1)» and «2)».
-            end += 1
-            continue
-        before, line = parsed[end - 1], parsed[end]
+            if (listing and after.kind == "bullet") or (
+                _set_apart(after) and not _ends_sentence(before)
+            ):
+                end += 1
+                continue
+        if line.main or (line.kind == "framed" and _set_apart(line)):
+            # The formula the sentence was leading up to, and its end.
+            if not _ends_sentence(before):
+                end += 1
+            break
         if (
             line.kind not in _PROSE
-            or line.main
             or _is_name(line)
             or _definition_end(parsed, end) is not None
         ):
             break
         if line.kind == "bullet":
-            if not (listing or (first.kind != "bullet" and not _ends_sentence(before))):
+            if not (
+                listing
+                or (
+                    first.kind != "bullet"
+                    and not _ends_sentence(before)
+                    and _first_item(line)
+                )
+            ):
                 break
             listing = True
         elif line.kind == "math" or _GOES_ON_RE.match(line.text):
@@ -2339,6 +2390,10 @@ def _run(chars: list[str], known: bool) -> str:
 # noise, on six of twelve records.
 _EMPHASIS_RE = re.compile(r"\*\*|~~")
 _EMPHASIS_TAGS = {"**": "b", "~~": "strike"}
+# Punctuation written against a formula, which no line may open with: drawn
+# with the formula (_inline, task 86). Not a colon, which mathtext spaces as
+# a relation.
+_STUCK_PUNCTUATION_RE = re.compile(r"^[,.;!?)]+(?=\s|$)")
 
 
 # Words written inside a formula — "$\forall \text{ узел достижим из корня}$",
@@ -2464,18 +2519,38 @@ def _inline(
         )
 
     drawn_before = False
-    for kind, value in runs:
+    # Characters of the next run already drawn with the formula before it.
+    carried = 0
+    for position, (kind, value) in enumerate(runs):
         if kind == "math":
-            tag = (
-                formulas.inline(value, size_pt * _MATH_SCALE, color)
-                if formulas is not None
-                else None
-            )
+            tag = None
+            if formulas is not None:
+                # reportlab breaks a line on either side of an image, and
+                # record 90 had «, то есть n ≤ −c» open a line after the
+                # formula its comma follows (task 86). The comma, the
+                # period, the bracket written against a formula are drawn
+                # with it; drawn alone when the two together will not draw.
+                following = runs[position + 1] if position + 1 < len(runs) else None
+                stuck = (
+                    _STUCK_PUNCTUATION_RE.match(following[1])
+                    if following is not None and following[0] == "text"
+                    else None
+                )
+                if stuck:
+                    # As text: mathtext sets a space after a comma of its own.
+                    tag = formulas.inline(
+                        rf"{value}\text{{{stuck.group()}}}", size_pt * _MATH_SCALE, color
+                    )
+                    carried = len(stuck.group()) if tag else 0
+                if not tag:
+                    tag = formulas.inline(value, size_pt * _MATH_SCALE, color)
             # Unreadable LaTeX stays visible as its own source: worse to look
             # at than a drawn formula, far better than a silently missing one.
             pieces.append(tag if tag else _text(f"${value}$"))
             drawn_before = bool(tag)
             continue
+        if carried:
+            value, carried = value[carried:], 0
         if drawn_before and value[:1].isspace():
             # reportlab does not break a line at a space that follows an
             # image: the word after a long formula stayed on its line and ran
@@ -3201,6 +3276,28 @@ def _anchored(anchor: str, members: list[Block], numbers: set[int]) -> bool:
     return wanted in _squash(
         "".join(_reading(member) for member in members if member.kind != "graph")
     )
+
+
+def _anchor_line(anchor: str, scope: list[Block], numbers_in) -> int:
+    """Which line of a sentence an anchor begins in, by its place in `scope`
+    — the last from which the rest of the sentence still holds it — moved
+    up over the lines that go on in lower case, which a box set before
+    them would cut from the line they go on from (task 86). 0 for the
+    first. `numbers_in` gives the formula numbers some of its lines carry."""
+    at = 0
+    for position in range(len(scope) - 1, 0, -1):
+        rest = scope[position:]
+        if scope[position].kind != "gap" and _anchored(anchor, rest, numbers_in(rest)):
+            at = position
+            break
+    while (
+        at > 0
+        and scope[at].kind == "text"
+        and _LOWER_RE.match(scope[at].text)
+        and scope[at - 1].kind != "gap"
+    ):
+        at -= 1
+    return at
 
 
 def _opened(flowables: list) -> tuple[list, bool]:
@@ -4180,6 +4277,12 @@ def render(
         sentence_end = 0
         findings_after: list = []
         explained_after: list = []
+        # «Идея» boxes waiting for the line their anchor begins in, by its
+        # index (task 86).
+        ahead: dict[int, list] = {}
+
+        def numbers_in(members: list[Block]) -> set[int]:
+            return {numbered[id(m)] for m in members if id(m) in numbered}
 
         index = 0
         while index < len(parsed):
@@ -4243,7 +4346,7 @@ def render(
             space = _space_before(previous, kind, paragraph_break)
             paragraph_break = False
 
-            lead: list = []
+            lead: list = ahead.pop(start, [])
             if start >= sentence_end:
                 # A sentence begins here: the boxes anchored anywhere in it are
                 # found now, the one set before goes before its first line and
@@ -4254,7 +4357,7 @@ def render(
                     _sentence_end(parsed, start) if index == start + 1 else index
                 )
                 scope = parsed[start:sentence_end]
-                scope_numbers = {numbered[id(m)] for m in scope if id(m) in numbered}
+                scope_numbers = numbers_in(scope)
                 for remark in [
                     remark for remark in pending
                     if _anchored(remark.anchor, scope, scope_numbers)
@@ -4266,12 +4369,25 @@ def render(
                     if _anchored(item.anchor, scope, scope_numbers)
                 ]:
                     unexplained.remove(item)
-                    if item.before:
-                        lead += [_explanation(item, formulas, styles), Spacer(1, 6)]
-                    else:
+                    if not item.before:
                         explained_after += [
                             Spacer(1, 6), _explanation(item, formulas, styles)
                         ]
+                        continue
+                    # «Идея» quotes the line its proof begins on: it goes
+                    # before that line, not ten lines up at the first of a
+                    # sentence that code could not end (task 86). A unit of
+                    # several blocks is set whole, and the idea before it.
+                    at = (
+                        _anchor_line(item.anchor, scope, numbers_in)
+                        if index == start + 1
+                        else 0
+                    )
+                    box = [_explanation(item, formulas, styles), Spacer(1, 6)]
+                    if at:
+                        ahead.setdefault(start + at, []).extend(box)
+                    else:
+                        lead += box
             group, whole = _opened(flowables)
             boxed = False
             if index >= sentence_end and (findings_after or explained_after):
@@ -4304,8 +4420,11 @@ def render(
         # A heading with nothing after it has nothing to be kept with.
         story.extend(held)
         # A sentence ends where the record does, and its boxes with it; set
-        # here, should the last line not have taken them.
+        # here, should the last line not have taken them — and an idea whose
+        # line was never reached as a line of its own.
         story.extend(findings_after + explained_after)
+        for boxes in ahead.values():
+            story.extend(boxes)
 
         _set_unplaced(story, pending, unexplained, formulas, styles)
 

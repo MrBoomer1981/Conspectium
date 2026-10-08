@@ -560,8 +560,8 @@ class _FakeFormulas:
 
 def test_a_line_mixes_drawn_formulas_with_escaped_text():
     formulas = _FakeFormulas()
-    result = pdf._line_markup("Если $a < b$, то c & d", formulas, 10.0)
-    assert result == "Если <img:a < b>, то c &amp; d"
+    result = pdf._line_markup("Если $a < b$ то c & d", formulas, 10.0)
+    assert result == 'Если <img:a < b><font face="DejaVu">​</font> то c &amp; d'
     assert formulas.asked == ["a < b"]
 
 
@@ -588,8 +588,11 @@ def test_a_space_after_a_formula_is_a_place_to_break():
 
 
 def test_a_formula_and_its_comma_are_never_parted():
+    # reportlab breaks a line on either side of an image: the comma is drawn
+    # with the formula, and the line may break after it (task 86).
     result = pdf._line_markup("$x$, то", _FakeFormulas(), 10.0)
-    assert "​" not in result
+    assert result.startswith(r"<img:x\text{,}>")
+    assert result.endswith(" то")
 
 
 # ── render: a real document, and never a crash ───────────────────────────────
