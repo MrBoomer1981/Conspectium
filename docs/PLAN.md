@@ -309,6 +309,10 @@ included. "Where this is going, decided 2026-10-02" says why.
 - [ ] 79. Record 86 sent again: a theorem's parts numbered «1 Существование»
       read as numbers the composer lost, and three cases in a column begun
       on a line of text — the CEO's. Taken on 2026-10-08 from record 87
+- [ ] 81. A lecture sent at once is one record: the albums of ten that
+      Telegram cuts a send of more pages into are read as one album — the
+      CEO's. Taken on 2026-10-08 from twelve pages that came back as two
+      records
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -406,7 +410,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -481,6 +485,7 @@ since 2026-10-01.
 | 2026-10-08 | the CEO, with Claude Code | Task 80 specified, not scheduled: the CEO asked whether the bot should make study materials based on the records instead of the records, and chose to build them over the records — the record stays what a group trusts and everything else is made from, and a lecture's study version is built from it when somebody presses a button. Made instead of the record, the material would have changed the rule the product stands on, marked is the whole licence to add, and lifted «text rewriting» from "What NOT to do". It takes up the design of the idea of 2026-10-06, the lecture as structured material, archived that day. The spec waits for the CEO's approval | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 80 approved and taken next. The study version is for understanding a lecture by someone who was not there — the exam stays the subject's, 52 and 59 — and ends on three to five questions to check oneself, their answers on the last page, marked as the bot's: the decision of 2026-10-02 put «Проверь себя» in the app alone, and now the study version's PDF has its own. The record's document does not change | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 80 changed the same day, before it shipped: a chat gets the study version, not the record's document — on every capture path and every "#word" that brings a record back, built once and kept, the record's document only when no study version can be had. The CEO's words: «мы не присылаем пользователю конспект, сразу отдаём ему учебную версию», and «в будущем я хочу иметь возможность разделить эти функции и присылать по кнопке» — so the two stay separate, decided in one place. A lecture of several notebooks is studied whole | the CEO's own |
+| 2026-10-08 | the CEO, with Claude Code | Task 81 taken: twelve pages sent at once came back as two records, ten pages and two — Telegram puts at most ten in an album and sends the rest as the next. The albums one person sends into one chat are one album while each before the last is full, up to `MAX_ALBUM_PAGES`, 30 by default as in production since that afternoon; an album of exactly ten waits 15 s for the rest of its send; a page left over as a photo of its own joins too, heard in a group without its "#word". A page's update commits before it waits for its album, so the wait holds no connection. `note_processed` gains `album_parts` ("Contracts"); `CLAUDE.md` → "Sessions and transactions", "Updates and albums", "Concurrency ceilings", the environment. The capture path is the CEO's area, the pool and the ceilings the CPO's | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -1047,7 +1052,7 @@ DAILY_COST_LIMIT_USD=5
 VISION_RUNS=3
 VISION_MODEL=gemini-3.5-flash-lite
 MIN_MARKDOWN_LEN=40
-MAX_ALBUM_PAGES=10
+MAX_ALBUM_PAGES=30
 LOG_LEVEL=INFO
 ```
 
@@ -4836,6 +4841,94 @@ Built where the explaining stage is on, on its model.
 
 ---
 
+# Task 81. A lecture sent at once
+
+**Owner: the CEO.** Taken on 2026-10-08, from twelve pages of a lecture sent
+at once. What a chat gets is the CEO's area; the pool and the concurrency
+ceilings are the CPO's, taken on the CEO's word.
+
+## Why
+
+Telegram puts at most ten photographs in an album. A send of twelve arrives
+as two albums, ten and two, each with a media group of its own, and the bot
+made a record of each: two documents, two compositions, two study versions,
+the lecture cut after its tenth page. Two such sends that day, at 11:27 and
+14:28 UTC, each came as ten and two, the second album's first page 0.07 s
+and 0.45 s after the first album's last. Raising `MAX_ALBUM_PAGES` to 30 and
+a person's day to 50 pages, as was done at 14:23, joins nothing: the bot
+never saw an album of more than ten.
+
+In a group it is worse. The caption, and the "#word" in it, rides on one of
+the albums, and the bot takes an album only with its "#word": ten pages of
+twelve are read and the rest is dropped without a word.
+
+A page left over after the tens — the eleventh, the twenty-first — can come
+as a photo of its own, with no media group: an album holds two items at
+least. Not seen in production yet.
+
+## Do
+
+1. **The albums of one send are one album** (`albums.collect`): the albums
+   one person sends into one chat, in page order, while every one before
+   the last holds ten pages — Telegram fills every album of a send but the
+   last. Decided when the batch closes, over every album of that person
+   still waiting, not when a page arrives: the order the pages are
+   registered in is the order their updates finish their database work.
+2. **A send ends**: at an album of fewer than ten pages; at
+   `MAX_ALBUM_PAGES`, the next album beginning a send of its own — 35
+   pages are two records, 30 and 5, never one refused; and before an album
+   whose "#word" is not the send's — two subjects are two sends.
+3. **An album of exactly ten waits for the rest of its send**:
+   `_CONTINUE_S`, 15 s of quiet against `_QUIET_SECONDS`' 3 — some thirty
+   times the gaps measured, for a slow upload. It waits whether or not more
+   comes; an album that comes later than that is a record of its own, as
+   every album was.
+4. **A photo sent apart continues a send** (`handlers.handle_photo`): a
+   photo the same person sends while an album of theirs is being collected
+   goes into the buffer as an album of one page. In a group it is heard
+   without a "#word" for that reason (`middlewares.heard`); a photo that
+   continues nothing is then its own album, and in a group, without a
+   "#word", nobody's.
+5. **The record is the send's**: its pages in message order across the
+   albums, its subject from whichever album carries one, its source key in
+   a group the first album's.
+6. **A page waiting for its album holds no connection**: its update commits
+   before it waits, as a group's page already did after writing itself
+   down (`_remember_page`). A send of thirty pages is thirty updates
+   waiting at once, and the pool is twenty.
+7. **`MAX_ALBUM_PAGES` is the pages of one send**, 30 by default — the
+   value production runs since 2026-10-08. At 10 nothing would ever join.
+   The album ceiling follows it: 1813 s at the default call, 5323 s at
+   production's.
+8. `note_processed` gains `album_parts`, the albums and photos the send
+   arrived as ("Contracts"); the log line that closes a batch names how
+   many and the gap before each — what `_CONTINUE_S` is to be measured
+   against.
+9. `CLAUDE.md` → "Sessions and transactions", "Updates and albums",
+   "Concurrency ceilings", the environment; `FINDINGS.md` → "A lecture sent
+   at once".
+
+## Acceptance criterion
+
+- Twelve pages sent at once in a private chat: one record of twelve pages,
+  one «Обрабатываю», one study version.
+- Twelve pages with «#матан» in a group: one record of twelve pages.
+- Two albums of four and three sent seconds apart: two records.
+- The suite is green.
+
+## Don't do
+
+- A reply's "#word" under one album of an untagged send in a group still
+  reads that album alone: what is written down of a group's pages
+  (`group_pages`) does not say who sent them — a column and a migration,
+  taken when a group needs it.
+- No guess at an album that came after `_CONTINUE_S`: it is a record of its
+  own.
+- A group's day stays 20 pages: a send of more in a group is refused whole
+  by its day, where its first ten used to be read alone.
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -4999,6 +5092,7 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `lecture_id`, `lecture_joined` | the lecture the record was filed into, and whether it had a notebook already — `None`, `false` with no subject (task 63) | the same | the same |
 | `explain_skipped` | stage three not asked: the record joined a lecture whose base is fuller (task 63) | the same | `false` |
 | `runs_added`, `read_further` | runs asked for beyond the three because one read a block the chosen did not, and whether a second run read it and the page was read further (task 65) | summed over the pages; `read_further` the pages read further | — |
+| `album_parts` | — | the albums, and photos sent apart, that one send arrived as (task 81); `1` for an album that came whole | — |
 
 **`verdict` for an album** is computed only from successfully processed
 pages: if at least one gives `needs_review`, the result is
