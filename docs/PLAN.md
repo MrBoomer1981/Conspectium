@@ -313,6 +313,10 @@ included. "Where this is going, decided 2026-10-02" says why.
       Telegram cuts a send of more pages into are read as one album — the
       CEO's. Taken on 2026-10-08 from twelve pages that came back as two
       records
+- [ ] 82. Records 88 and 89: compositions refused for an item's number
+      after a bullet, a number the author struck out and a formula the
+      composer corrected — the CEO's. Taken on 2026-10-08 from the two
+      records of task 81's twelve pages
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -410,7 +414,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -486,6 +490,7 @@ since 2026-10-01.
 | 2026-10-08 | the CEO, with Claude Code | Task 80 approved and taken next. The study version is for understanding a lecture by someone who was not there — the exam stays the subject's, 52 and 59 — and ends on three to five questions to check oneself, their answers on the last page, marked as the bot's: the decision of 2026-10-02 put «Проверь себя» in the app alone, and now the study version's PDF has its own. The record's document does not change | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 80 changed the same day, before it shipped: a chat gets the study version, not the record's document — on every capture path and every "#word" that brings a record back, built once and kept, the record's document only when no study version can be had. The CEO's words: «мы не присылаем пользователю конспект, сразу отдаём ему учебную версию», and «в будущем я хочу иметь возможность разделить эти функции и присылать по кнопке» — so the two stay separate, decided in one place. A lecture of several notebooks is studied whole | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 81 taken: twelve pages sent at once came back as two records, ten pages and two — Telegram puts at most ten in an album and sends the rest as the next. The albums one person sends into one chat are one album while each before the last is full, up to `MAX_ALBUM_PAGES`, 30 by default as in production since that afternoon; an album of exactly ten waits 15 s for the rest of its send; a page left over as a photo of its own joins too, heard in a group without its "#word". A page's update commits before it waits for its album, so the wait holds no connection. `note_processed` gains `album_parts` ("Contracts"); `CLAUDE.md` → "Sessions and transactions", "Updates and albums", "Concurrency ceilings", the environment. The capture path is the CEO's area, the pool and the ceilings the CPO's | the CEO's own |
+| 2026-10-08 | the CEO, with Claude Code | Task 82 taken: records 88 and 89, the two records of twelve pages, both went out uncomposed. Composed again on Railway on the CEO's word ($0.16 in all, nineteen rows in `ai_calls`), the composer lost no value of 88's — the numbers were an item's after a bullet and one the author struck out — and squared a formula of 89's, nine times of fourteen. The numbers guard, the CPO's, counts neither of the first two; a formula the composer changed is put back as read rather than refused, counted as `compose_restored` ("Contracts"). `CLAUDE.md` → "Stage two". Five records of fifteen went out uncomposed since `prompts-compose-v4.md` went to production on 2026-10-06 | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4929,6 +4934,78 @@ least. Not seen in production yet.
 
 ---
 
+# Task 82. Records 88 and 89
+
+**Owner: the CEO.** Taken on 2026-10-08, after the two records twelve pages
+came back as (task 81) both went out uncomposed. The numbers guard and the
+composing stage are the CPO's area, taken on the CEO's word.
+
+## Why
+
+Both compositions were refused by the numbers guard, twice each, and both
+records went out without a heading. Composed twice more on Railway over
+their text, on the CEO's word ($0.044, four rows in `ai_calls`):
+
+- **Record 89**, two pages: the composer wrote $(c-h)^2$ where the record
+  reads «$c-h = c^2 - 2ch + h^2 =$» — the square the working needs and the
+  reading does not have — nine times of the fourteen it was asked on
+  Railway, most of them making one formula of that line and the next,
+  «$= c^2 - … = 2$». The guard was right to refuse a formula changed, and
+  the record lost every heading for one exponent.
+- **Record 88**, ten pages, lost no value. The composer set the author's
+  numbered items as a bulleted list, «* 2) …», «* 1 База индукции», and the
+  guard knows an item's number only at the start of a line; it dropped what
+  the author struck out, «~~3.1 Строгое~~», whose number the guard counted;
+  and once it dropped the «1)» after it, an item's number the struck words
+  before it hid. Once it also merged «Теорема $\sqrt{2}$ — …», written
+  twice, into one: a sentence lost, and that refusal stands.
+
+Since `prompts-compose-v4.md` went to production on 2026-10-06, five
+records of fifteen went out uncomposed, the last four in a row: 86 and 87
+(tasks 78 and 79), 88 and 89.
+
+## Do
+
+1. **An item's number after a bullet is an item's number** — «* 2)»,
+   «- 1.», «• 3 База»: the composer's list over the author's.
+2. **What the author struck out is not counted**: the numbers inside a
+   `~~…~~` the source carries leave the count on both sides, so the
+   composer may drop the struck words. A struck span the composer adds is
+   still counted.
+3. **A formula the composer changed is put back, not refused**
+   (`compose._restore_formulas`, after the repairs and before the guards):
+   when the numbers differ, a formula of the composition the source does
+   not carry is matched against the source's formulas, and against runs
+   of them standing one after another — the lines of one working, which
+   the composer makes one formula. The closest, four-fifths of its
+   characters alike at least, is put back as recognition read it, each
+   source formula once, and only where that brings the numbers closer to
+   the source's. A short formula a character or two from several is too
+   ambiguous to put back, and stays refused. Counted: `compose_restored`
+   in `note_processed` ("Contracts"), "formulas put back" in the log
+   line.
+4. `CLAUDE.md` → "Stage two"; `FINDINGS.md` → "Records 88 and 89".
+
+## Acceptance criterion
+
+- Record 88 composed again on Railway under the new guard: accepted three
+  times of three.
+- Record 89's composition as the composer wrote it on Railway — two lines
+  of the working made one formula, and squared — accepted with the
+  author's formula put back.
+- The lecture sent again at once, twelve pages: one record, composed.
+- The suite is green.
+
+## Don't do
+
+- No number the author wrote is let go: a value the composer spells out,
+  «2 мн-ва» as «два множества», is still refused, and so is a sentence it
+  drops.
+- The prompt does not change: it already says formulas stay as written,
+  and code puts them back.
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -5087,6 +5164,7 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `figures` | drawings cut out and placed (task 54) | over the record | — |
 | `explain_judged` | explanations dropped for judging the record (task 55) | over the record | — |
 | `compose_retried` | the guards refused the first composition and a second was asked for | the same, over the record | — |
+| `compose_restored` | formulas the composer changed a number in, put back as read before the guards (task 82) | the same, over the record | — |
 | `elements`, `elements_dropped` | the teacher's boxes kept, and those a check of code threw away (task 56) | over the record | — |
 | `lecture_head_cut`, `lecture_tail_cut` | — | lines cut off the first page and off the last (task 64) | — |
 | `lecture_id`, `lecture_joined` | the lecture the record was filed into, and whether it had a notebook already — `None`, `false` with no subject (task 63) | the same | the same |
