@@ -324,6 +324,21 @@ included. "Where this is going, decided 2026-10-02" says why.
 - [ ] 84. An equality that does not hold, found by code: both sides
       counted at random numbers, with what the lecture defined — the
       CEO's. Taken on 2026-10-08, after 83
+- [ ] 85. Thirty-two pages sent at once: an album of ten waits a minute
+      for the rest of its send, the ceiling following the send — the
+      CEO's. Taken on 2026-10-09 from a lecture that came back as three
+      records
+- [ ] 86. What records 90, 91 and 92 showed in the document: a box
+      between a sentence and its formula, «Идея» pages before its proof, a
+      comma opening a line, a ringed sign and struck lines printed, a
+      margin's page numbers under the title — the CEO's. Taken on
+      2026-10-09
+- [ ] 87. A study version asked again when its answer does not parse,
+      its row saying why — the CEO's. Taken on 2026-10-09 from record 91
+- [ ] 88. Numbered items in lower case: a run of numbers 1, 2, 3 opening
+      lines is a list to the numbers guard, whatever follows each — the
+      CEO's. Taken on 2026-10-09 from records 91 and 92, measured on them
+      before it ships
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -375,6 +390,19 @@ taken next:
       the author's text moved whole, the bot's sections marked, questions
       to check oneself at the end — the CEO's
 
+Specified on 2026-10-09, from records 90, 91 and 92 and a model's list of
+their errors — the CEO's, not yet scheduled:
+
+- [ ] 89. The bot's reasoning that leans on what the lecture proves: an
+      explanation or a teacher's box may not assume the statement it
+      stands under — the CEO's, measured first
+- [ ] 90. The reading against the photographs: the places in records 90,
+      91 and 92 where a stroke decides between the author's text and a
+      misreading, checked by the CEO — the CEO's, no code
+- [ ] 91. What the lecture uses without defining: whether the bot recalls,
+      under its own label, a definition the lecture relies on and does
+      not give — the CEO's, a decision first
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -421,7 +449,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88; next: 89, 90 and 91 once decided, 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -499,6 +527,7 @@ since 2026-10-01.
 | 2026-10-08 | the CEO, with Claude Code | Task 81 taken: twelve pages sent at once came back as two records, ten pages and two — Telegram puts at most ten in an album and sends the rest as the next. The albums one person sends into one chat are one album while each before the last is full, up to `MAX_ALBUM_PAGES`, 30 by default as in production since that afternoon; an album of exactly ten waits 15 s for the rest of its send; a page left over as a photo of its own joins too, heard in a group without its "#word". A page's update commits before it waits for its album, so the wait holds no connection. `note_processed` gains `album_parts` ("Contracts"); `CLAUDE.md` → "Sessions and transactions", "Updates and albums", "Concurrency ceilings", the environment. The capture path is the CEO's area, the pool and the ceilings the CPO's | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 82 taken: records 88 and 89, the two records of twelve pages, both went out uncomposed. Composed again on Railway on the CEO's word ($0.16 in all, nineteen rows in `ai_calls`), the composer lost no value of 88's — the numbers were an item's after a bullet and one the author struck out — and squared a formula of 89's, nine times of fourteen. The numbers guard, the CPO's, counts neither of the first two; a formula the composer changed is put back as read rather than refused, counted as `compose_restored` ("Contracts"). `CLAUDE.md` → "Stage two". Five records of fifteen went out uncomposed since `prompts-compose-v4.md` went to production on 2026-10-06 | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Tasks 83 and 84 taken, in that order, from the CEO's reading of records 88 and 89 against the photographs — sixteen points, ten in the lecture and six in how it was set out. The CEO asked whether to check them with algorithms rather than a model. 83 is the document's share, all code: a box set after the sentence it is anchored in, found across the lines of one, a word carried over with a hyphen joined, struck words not printed, ≤ for ⩽, a short formula ending a sentence set in its line, a ringed sign framed. 84 is the one class of the lecture's errors code can prove — an equality that does not hold, «(−x)(−x) = x», «c − h = c² − 2ch + h²» — a finding under its line, never the author corrected; measured over every record in the database before it is on, the CEO's word given to read them. The rest of the sixteen is meaning, no code's to find | the CEO's own |
+| 2026-10-09 | the CEO, with Claude Code | Tasks 85–88 taken and 89–91 specified, from thirty-two pages the CEO sent at once on the evening of 2026-10-08 and the thirty-eight errors another model listed over the three documents that came back. The CEO asked for the list to be checked and a plan made, and went to sleep: the four are made overnight without a push, and wait for the CEO's word. 85: the albums of the send came 19 s apart, the window was 15 s — an album of ten waits a minute. 86: the document's share of what was found, all code. 87: record 91's study version did not parse and was asked for only by a press of its button. 88: records 91 and 92 went out uncomposed for numbered items in lower case, the guard the CPO's — measured on them, on the CEO's word, before it ships. 89–91 are decisions: the bot's reasoning that assumed what the lecture proves, the photographs against the reading, a definition the lecture relies on and does not give. Checked against the documents, most of the list is the lecture as the notebook has it or one stroke of the reading from it; three points are not there; one is the bot's own. `FINDINGS.md` → "Records 90, 91 and 92" | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -5112,6 +5141,309 @@ h²» — and code can prove that, where it cannot tell what a proof lacks.
 - No model; no new library.
 - The author is not corrected: a finding says the equality does not
   hold, not what was meant.
+
+---
+
+# Task 85. Thirty-two pages sent at once
+
+**Owner: the CEO.** Taken on 2026-10-09, from the lecture the CEO sent at
+once the evening before. The capture path is the CEO's area; the ceilings
+the CPO's, taken on the CEO's word.
+
+## Why
+
+Thirty-two pages sent at once came back as three records, 90, 91 and 92:
+ten pages, ten and twelve. Telegram cut the send into albums of 10, 10, 10
+and 2, and the phone sent each album once its photographs were uploaded:
+the next album's first page came 19.1 s after the last page of the one
+before, twice, and the album of two 9.1 s after its ten. An album of
+exactly ten waits `_CONTINUE_S`, 15 s, for the rest of its send (task 81),
+so the first two closed alone, and the last ten and the two joined. The
+sends of twelve that set the window had come 0.07 s and 0.45 s apart —
+photographs uploaded before the first album went.
+
+A cut costs the lecture: record 91 opens on the last lines of record 90's
+proof and was titled after them, «Иррациональность числа и плотность», over
+nested segments and metric spaces.
+
+## Do
+
+1. **An album of ten waits a minute for the rest of its send**:
+   `_CONTINUE_S` 15 → 60 s, three times the 19 s measured — an upload twice
+   as slow as that evening's still joins. A send that ends on ten pages
+   starts 45 s later than it did; one that ends on fewer starts as before,
+   3 s after its last page.
+2. **The ceiling follows the send** (`albums._COLLECT_MAX_S`): one
+   `_CONTINUE_S` for every album a send of `MAX_ALBUM_PAGES` holds, and one
+   more — 240 s at 30 pages, 300 s at 40, from the send's first page. At
+   60 s it would cut a send of four albums that keeps coming.
+3. `CLAUDE.md` → "Updates and albums", "Concurrency ceilings";
+   `FINDINGS.md` → "Records 90, 91 and 92".
+
+## Acceptance criterion
+
+- The same thirty-two pages sent again: one record of thirty-two pages —
+  with `MAX_ALBUM_PAGES` at 32 or more on Railway. It is 15 there since
+  00:09 Moscow time on 2026-10-09, and at 15 a send of more than fifteen
+  pages is several records by design.
+- Ten pages sent alone: «Обрабатываю» about a minute after the last page.
+- The suite is green.
+
+## Don't do
+
+- No reading begun before the send has ended, the rest added while it
+  runs: it would spare the minute, and it is another pipeline — a batch
+  whose pages change while they are read, its limits and its refused
+  frames counted twice. Taken up if a minute proves too long.
+- Nothing said in the chat while the bot waits.
+
+---
+
+# Task 86. What records 90, 91 and 92 showed in the document
+
+**Owner: the CEO.** Taken on 2026-10-09, from the three study versions of
+the thirty-two pages and the errors another model listed over them for the
+CEO. The document is the CEO's area.
+
+## Why
+
+Of what was found in the three documents, these are how the record is set
+out, and code does them:
+
+- **A box between a sentence and its formula**: «…существует единственное
+  k ∈ ℤ такое, что:», «Зачем условие», then (4); «множество X называется
+  ограниченным», the box, then the condition. A formula set apart stands
+  after a blank line — how the composer writes it, and how a study version
+  joins a formula to the text that leads up to it — and a blank line ended
+  the sentence (task 83). So did a main formula.
+- **«Идея» pages before its proof**: the idea of a proof's second part set
+  before the last line of its first, «Точка x — произвольная…», since that
+  line's «мн-во» did not end its sentence and ran into «2) Пусть …»; the
+  idea of a proof of compactness set above the theorem, ten lines up.
+- **A comma opening a line**: «…выполнялось бы −n ≥ c», and «, то есть
+  n ≤ −c» on the next. reportlab breaks a line on either side of an
+  inline image.
+- **«[знак: ?!, обведённый в кружок]» printed as words**, and «[?!]» in
+  its brackets: task 83 knew «[схема: ?! в кружке]» only.
+- **Two struck lines printed struck**: a passage struck over two lines,
+  which the rule that drops struck words reads line by line — and a line
+  struck whole was kept, as a line that would lose its words.
+- **«4 · 16 · 17 · 8 · 2 · 19 · 2» under the title**: the page numbers of
+  every page's margin, where one page's number says which page and seven
+  say nothing.
+- **A box's title in lower case**, «внутренние точки множества.», in every
+  box of record 92.
+- **«-окрестностью точки» among the key notions**, its ε lost: the formula
+  stood before the bold.
+
+## Do
+
+1. **A formula set apart goes on from a line that does not end its
+   sentence**, a blank line between them or not; so does a main formula,
+   and ends it (`pdf._sentence_end`). **A list goes on from a line only at
+   its first item** — «1)», «1.», a bullet.
+2. **«Идея» stands before the line its anchor begins in**, moved up only
+   over the lines that go on in lower case: a proof begins on a line of
+   its own.
+3. **Punctuation after a formula stays with it**: a comma, a period, a
+   semicolon, a closing bracket drawn with the formula, so that no line
+   opens with one.
+4. **A ringed sign however the reading wrote it** — «[знак: ?!,
+   обведённый в кружок]», «[?! в кружке]», «[?!]» — framed in its line,
+   as «[рамка: ?!]» is.
+5. **What the author struck out is not printed over two lines either**,
+   and a line struck whole goes with it. A line struck but for its number
+   keeps its words, struck, as task 83 decided.
+6. **Under the title, one page's number or none**: page numbers from
+   several pages' margins are left out; a name and a date stay, each once.
+7. **A box's title begins with a capital letter.**
+8. **A key notion keeps the formula written against it**: «ε-окрестностью».
+9. `CLAUDE.md` → "The document"; `BRAND.md` v1.10; `FINDINGS.md` →
+   "Records 90, 91 and 92".
+
+## Acceptance criterion
+
+- Records 90, 91 and 92 drawn again: no box between a sentence and its
+  formula, no comma opening a line, «?!» framed, no struck line, nothing
+  under the titles, every box's title capitalised, «ε-окрестностью» among
+  the notions.
+- Records 88 and 89 drawn again: what task 83 fixed stays fixed.
+- The suite is green.
+
+## Don't do
+
+- No word of the author's changes; the numbering stays the author's.
+- The title stays as read: the composer spells out the body's
+  abbreviations, not the title's («Введение в мат.анализ. Модуль веществ.
+  числа» over «Введение в математический анализ») — how a record is
+  titled is a change of its own.
+- Not here: the lecture's own errors and the bot's own reasoning — tasks
+  89 to 91.
+
+---
+
+# Task 87. A study version asked again
+
+**Owner: the CEO.** Taken on 2026-10-09, from record 91. The model's call
+is the CPO's area, taken on the CEO's word.
+
+## Why
+
+Record 91's study version came back from the model, 1048 tokens of
+answer, and did not parse as the JSON asked for. The record's own document
+went out with «Учебная версия» under it; the CEO pressed it, and the
+second call parsed. The call's row in `ai_calls` says `success` and
+nothing else: rule 7's finish reason and shape were never written for it.
+
+## Do
+
+1. **An answer that does not parse is asked for once more**, as
+   recognition's is (`vision._worth_asking_again`) — never after `SAFETY`,
+   `MAX_TOKENS` or `RECITATION`. Two calls at most, as now.
+2. **Its row says why**: `success` false, `error` the finish reason and the
+   shape (`vision._unparseable`), as recognition's rows do.
+3. **A raw line break inside the answer's strings is read**
+   (`json.loads(…, strict=False)`), by the explaining stage's parser too.
+4. `CLAUDE.md` → "A lecture's study version".
+
+## Acceptance criterion
+
+- The suite is green.
+- In production, a study version that did not parse is followed by a
+  second call in the log.
+
+## Don't do
+
+- The prompt does not change.
+
+---
+
+# Task 88. Numbered items in lower case
+
+**Owner: the CEO.** Taken on 2026-10-09, from records 91 and 92. The
+numbers guard is the CPO's area, taken on the CEO's word.
+
+## Why
+
+Records 91 and 92 went out uncomposed, refused by the numbers guard twice
+each: sixteen numbers lost of record 91, four and three of 92, none
+gained. Both are written as the notebook has them, and the notebook
+numbers in lower case — a metric's axioms «1 тождественность», «2
+симметричность», «3 нер-во треугольника», a norm's «1 невырожденность»,
+«2 однородность», examples «1 $A = [1; 2) \cup \{3\}$», «2 $A = [0; 1] \cap
+\mathbb{Q}$». A number opening a line before a word in lower case or a
+formula is a value to the guard (task 79: «2 мн-ва» written «два
+множества» is refused); made into the list it is, each seemed to vanish.
+Counted off the documents, record 91 carries fourteen such numbers and 92
+three — about the size of the refusals. An uncomposed record keeps every
+abbreviation (rule 10, the CEO's) and has no heading: that is how 91 and
+92 read.
+
+## Do
+
+1. **A run of numbers opening lines, 1, 2, 3 in order, is a list**,
+   whatever follows each: the guard leaves its numbers out on both sides,
+   as it leaves «1)» and «1.». A run begins at 1, holds two numbers at
+   least, and each next number opens one of the six lines after the one
+   before. A number alone before a word in lower case stays a value:
+   «2 мн-ва».
+2. **What the author struck out over two lines** is left out of the count
+   too, as over one (task 82).
+3. **Measured before it ships**: records 91 and 92 composed again on
+   Railway under the new guard, on the CEO's word to read them — accepted,
+   or the numbers it still loses counted.
+4. `CLAUDE.md` → "Stage two"; `FINDINGS.md` → "Records 90, 91 and 92".
+
+## Acceptance criterion
+
+- Records 91 and 92 composed again under the new guard: accepted.
+- The suite is green.
+
+## Don't do
+
+- No number the author wrote is let go: «2 мн-ва» spelled out is still
+  refused, and so is a value inside an item.
+
+---
+
+# Task 89. The bot's reasoning that leans on what the lecture proves
+
+**Owner: the CEO.** Specified on 2026-10-09, not scheduled: the CEO's
+decision. The explaining stage's prompt is the CPO's area.
+
+## Why
+
+Under the proof that ℝⁿ is complete, record 92's explanation reads
+«Используется … теорема о вложенных замкнутых шарах в полном пространстве»
+— the completeness being proved, assumed. Record 91's example of the
+integral norm says its axioms hold «благодаря линейности и монотонности
+интеграла», where non-degeneracy rests on the functions being continuous.
+Both were sourced: a source shows the words exist, not that they fit the
+lecture. A wrong box is worse than none — it is marked as the bot's, and
+the reader trusts the mark.
+
+## Do — a proposal
+
+1. `prompts-explain-v4.md`: an explanation and a teacher's box do not use
+   the statement they stand under, nor one the lecture proves after them.
+2. Measured on records 88 to 92: the boxes it drops or changes, read by
+   the CEO, before production switches to it.
+
+## Don't do
+
+- No model checking the boxes: a verification call does not work
+  (`CLAUDE.md` → "What the model is not trusted with").
+
+---
+
+# Task 90. The reading against the photographs
+
+**Owner: the CEO.** Specified on 2026-10-09: the CEO's to do, no code.
+
+## Why
+
+Most of the thirty-eight points are the lecture as the record reads it, and in
+some of them one stroke decides between what the author wrote and a
+misreading: A for H, x for X, r for n in «√2 = r(α − q)», ℝ for X in the
+equivalence of norms, k for m, «лемме 4» for 2, «Теория Кантора» for
+«Теорема», «D-во» for «Д-во», «пл-ть» for «п-ть», «имеет предел» without
+«единственный», «Такая послед-ть» with nothing before it, «q² ⋮ 2» for p²,
+the open ball's proof with its lines interleaved, the closedness proof
+with p and q exchanged. And record 91 holds two proofs that a finite
+intersection of open sets is open: the first in whole sentences, the
+second in the notebook's shorthand. If the page holds only the second,
+the first was written by the reading model — the fluent retelling
+`CLAUDE.md` fears most, which nothing after the fact catches.
+
+## Do
+
+1. The CEO checks those places against the photographs.
+2. What the photographs say decides what follows: misreadings are a
+   question for recognition, the CPO's, asked with data — the prompt, the
+   model, the runs; the author's text is kept as it is.
+
+---
+
+# Task 91. What the lecture uses without defining
+
+**Owner: the CEO.** Specified on 2026-10-09, not scheduled: a decision
+first.
+
+## Why
+
+Record 90's lecture uses an upper bound, [x] and {x} without defining
+them; record 92's «Такая послед-ть наз-ся бесконечно малой» follows
+nothing. The model the CEO asked wrote the definitions into the lecture,
+and added a proof the lecture left out — what the bot never does: the
+author is not corrected, and an addition is marked.
+
+## The question
+
+Whether the bot recalls, in a box under its own label, a definition the
+lecture relies on and does not give — a fourth teacher's box beside
+«Идея», «Зачем условие» and «Пример», written by the same call, its
+numbers checked as theirs are. A gap in a proof stays the lecture's: the
+bot does not fill it.
 
 ---
 

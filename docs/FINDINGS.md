@@ -1899,3 +1899,78 @@ exponent, the photographs would say, and the finding does not.
 A first example for record 88 read x = 3/2: the check took «x = b·a⁻¹», the
 solution an earlier line found, for a definition of x. A line that solves an
 equation defines nothing now, nor «то x = y», and the example reads x = 2.
+
+## Records 90, 91 and 92
+
+**Thirty-two pages, three records.** On 2026-10-08 at 20:47 UTC the CEO sent
+a lecture of thirty-two pages at once, `MAX_ALBUM_PAGES` at 40 and a
+person's day at 70 on Railway since 20:39. Telegram cut it into albums of
+10, 10, 10 and 2. The log's "batch closed" lines: the first album closed
+alone 16.6 s after its first page, the second the same, the third with the
+album of two, «9.11s apart». Worked back from when each closed, the second
+and the third album's first pages came 19.1 s after the last page of the
+album before — what the phone took to upload the next ten photographs.
+`_CONTINUE_S` was 15 s (task 81). The two sends of twelve that set it had
+come 0.07 s and 0.45 s apart: photographs uploaded before the first album
+went. At 00:09 Moscow time `MAX_ALBUM_PAGES` was set to 15 and the day to
+20, and at 15 a send of more pages is several records whatever the window.
+
+**What the records were.** Record 90, ten pages, composed. Records 91, ten
+pages, and 92, twelve, were refused by the numbers guard twice each —
+sixteen numbers lost of 91, four and then three of 92, none gained — and
+went out as the notebook has them, every abbreviation kept, no heading.
+The notebook numbers in lower case: «1 тождественность», «2
+симметричность», «1 невырожденность», examples «1 $A = …$», «2 $A = …$» —
+fourteen such numbers in 91 by the document, three in 92, values to the
+guard since task 79 and gone once the composer makes them the list they
+are (task 88). Record 91 opens on the last lines of record 90's proof that
+the irrationals are dense, and its title was read off them. Its study
+version came back from the model, 1048 tokens, and did not parse; the
+record's own document went out, the CEO pressed «Учебная версия», and the
+second call parsed (task 87). The explaining stage kept 2, 3 and 6
+explanations and twelve teacher's boxes on each record; two searches of 26
+timed out. All of this is from the log, `ai_calls`, `events` and the PDFs:
+no record's text was read from the database.
+
+**A model's list, read against the documents.** The CEO gave the three
+study versions to another model and asked for their errors; it answered
+with thirty-eight points and a corrected lecture. Read against the PDFs —
+the photographs were not at hand:
+
+- **Most are there as it says.** «по лемме 4» where lemma 2 is meant;
+  «q² ⋮ 2, следовательно q четно. (?)»; «m > y/x > l» after «l ≤ y/x»; the
+  set A called H further down; «sup x»; lemma 1 twice, the first proof
+  broken off before the theorem of Archimedes; «Первое доказано» for ℤ
+  after a proof for ℕ; [x], {x} and an upper bound never defined; strict
+  inequalities for nested segments; «∀x ∈ ℝ» where X is meant; λ ∈ ℝ over
+  a field that may be ℂ; definition 18 twice, cut; «k штук» then m; x for
+  x_n; «m — номер коо-ты»; «имеет предел» for the unique limit; a in two
+  senses; «имеет предел в этом же множ-ве» among a Cauchy sequence's
+  properties; open balls and ∃ for ∀ in the proof of completeness;
+  «Такая послед-ть» with nothing before it; a stray «x_p = 1 + 2 + …».
+- **Three are not.** The integral norm is given over C[0, 1], continuous
+  functions — though what the box says of the axioms is loose:
+  non-degeneracy rests on continuity, not on the integral's linearity.
+  «≤ √(mε²)» is ε√m, right. «3/2^k» is in no record.
+- **One is the bot's own.** The explanation under the proof that ℝⁿ is
+  complete leans on «теорема о вложенных замкнутых шарах в полном
+  пространстве» — the completeness being proved (task 89).
+- **Which of the rest is the notebook's and which the reading's, only the
+  photographs say**: A and H, x and X, r and n, 4 and 2 are a stroke apart
+  (task 90). Record 91 holds two proofs of one statement, the first in
+  whole sentences, the second in the notebook's shorthand; if the page has
+  only the second, the reading wrote the first.
+
+The model rewrote the lecture to correct it — «дописал доказательство»,
+«исправлено на стандартное», «удалено» — which is what the bot exists not
+to do: the author's text is kept, and what is added is marked.
+
+**What the documents showed of their own** (task 86): boxes between a
+sentence and its formula, where a blank line or a main formula had ended
+the sentence; «Идея» set ten lines above its proof; «, то есть» opening a
+line after a formula, reportlab breaking on either side of an image;
+«[знак: ?!, обведённый в кружок]» and «[?!]» printed as written; a passage
+struck over two lines printed struck; «4 · 16 · 17 · 8 · 2 · 19 · 2» under
+a title, every page's margin number; boxes titled in lower case; and an
+ε lost from a key notion. The title keeps the reading's «мат.анализ» and
+«веществ.» while the composed body spells them out.
