@@ -46,9 +46,11 @@ _MIN_LENGTH_RATIO = 0.8
 # "1. " and "2) " that count items are markdown, not values on the page. Rule 8
 # lets the composer turn a run of lines into a list, which renumbers them, and
 # that must not read as arithmetic being rewritten. Such a marker opens a line,
-# a heading or a bold label ...
+# a heading or a bold label — "1))" too, as the reading wrote record 86's first
+# case: the composer tidied it to "1)", the 1 seemed to vanish, and the record
+# went out uncomposed ...
 _LIST_MARKER_RE = re.compile(
-    r"^([ \t]*(?:#{1,6}[ \t]+)?(?:\*\*|__)?)\d+[.)][ \t]+", re.MULTILINE
+    r"^([ \t]*(?:#{1,6}[ \t]+)?(?:\*\*|__)?)\d+(?:\.|\)+)[ \t]+", re.MULTILINE
 )
 # ... or follows, inside a line, the colon or semicolon that introduces it.
 # Record 59 lost its whole composition, headings and all, to "Примеры: 1) …"

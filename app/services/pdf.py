@@ -324,9 +324,22 @@ _INLINE_DRAWING_RE = re.compile(
 # What recognition writes where the author crossed something out — record 74
 # printed "[зачёркнуто] и [зачёркнуто]" in the middle of a line of a proof.
 # What the author struck out is not the lecture, and the mark is about the
-# page rather than the work: the document leaves out both (_unstruck).
-_STRUCK_RE = re.compile(r"[ \t]*\[\s*зач[её]ркнут[^\[\]\n]*\]", re.IGNORECASE)
+# page rather than the work: the document leaves out both (_unstruck). So
+# does it "~~[неразборчиво]~~", a crossing-out the reading could not see
+# through: record 86 printed it struck, in its heading «1.3.».
+_STRUCK_RE = re.compile(
+    r"[ \t]*(?:\[\s*зач[её]ркнут[^\[\]\n]*\]|~~\s*\[\s*неразборчиво\s*\]\s*~~)",
+    re.IGNORECASE,
+)
 _FRAME_OPEN_RE = re.compile(r"^\[\s*(?:в\s+)?рамк\w*\s*:?\s*(.*)$", re.IGNORECASE)
+# The author's frame round a sign or a word inside a line: record 86's «?!»,
+# ringed twice in a proof, printed as "[рамка: ?!]" — only a line that is
+# nothing but its frame was drawn as one (_inline_frames).
+_INLINE_FRAME_RE = re.compile(
+    r"\[\s*(?:в\s+)?рамк\w*\s*:\s*([^\[\]\n]*?)\s*\]", re.IGNORECASE
+)
+# What \text{…} cannot hold without mathtext reading it as LaTeX.
+_NOT_PLAIN_WORDS_RE = re.compile(r"[\\{}$^_#%&~]")
 _FRAMED_ARRAY_RE = re.compile(r"\\begin\{array\}\{\|[^{}]*\|\}")
 _BOXED = "\\boxed{"
 # A frame round more than a dozen lines is not a frame the parser should guess
@@ -765,6 +778,30 @@ def _lift_drawings(markdown: str) -> str:
     return "\n".join(out)
 
 
+def _framed_inline(found: re.Match) -> str:
+    """One frame inside a line, as a formula with the frame round it: its
+    words set as text, its formulas as they stand. Words mathtext would read
+    as LaTeX go out unframed — never as the frame's source."""
+    parts: list[str] = []
+    for kind, value in split_inline(found.group(1)):
+        if kind == "math":
+            parts.append(value)
+        elif value.strip():
+            if _NOT_PLAIN_WORDS_RE.search(value):
+                return found.group(1)
+            parts.append(rf"\text{{{value}}}")
+    return f"${_BOXED}{''.join(parts)}}}$" if parts else ""
+
+
+def _inline_frames(line: str) -> str:
+    """Every frame inside a line drawn where it stands (task 78) — as the line
+    is drawn, so the record keeps "[рамка: …]" and what quotes the line, a
+    remark's anchor or an explanation's, still finds it. A line that is
+    nothing but its frame never comes here: blocks() sets it apart, and
+    numbers it when it frames a formula."""
+    return _INLINE_FRAME_RE.sub(_framed_inline, line)
+
+
 def blocks(markdown: str) -> list[Block]:
     """Split a record into renderable pieces.
 
@@ -993,8 +1030,9 @@ def _plain_formula(latex: str) -> str:
 
 def plain(text: str) -> str:
     """A line with its formulas turned into characters, for the places that
-    cannot draw one."""
-    drawn = _MATH_RE.sub(lambda found: _plain_formula(_latex(found)), text)
+    cannot draw one — a formula written without its dollars included, as a
+    title's often is (record 86: "\\sqrt{2}" in the head of every page)."""
+    drawn = _MATH_RE.sub(lambda found: _plain_formula(_latex(found)), as_formula(text))
     return " ".join(drawn.replace("\\$", "$").split())
 
 
@@ -1177,16 +1215,27 @@ def _labelled_arrow(found: re.Match) -> str:
 # «\cancel{56}^{48}», 56 crossed out and 48 written over it, would read as 56
 # to the 48th.
 _STRIKES = {"cancel": ("/",), "bcancel": ("\\",), "xcancel": ("/", "\\")}
-_STRIKE_RE = re.compile(rf"\\({'|'.join(_STRIKES)}){_COMMAND_END}\s*\{{")
+# And the frame the author drew round a term inside a line (task 78): mathtext
+# has no \boxed either, and the frame was dropped — record 86's «?!», ringed
+# twice in a proof. A display formula's frame is not drawn here: render frames
+# the whole block and numbers it, as a main formula.
+_FRAMED = "boxed"
+_MARK_RE = re.compile(rf"\\({'|'.join([*_STRIKES, _FRAMED])}){_COMMAND_END}\s*\{{")
+# A framed term keeps its neighbours clear of the frame, as \boxed's own
+# margin does in LaTeX: 0.2 em a side, about the frame's room in a line.
+_FRAME_SPACE = r"\hspace{0.2}"
+
+Mark = tuple[int, int, str, str]  # where it starts and ends, how, what it holds
 
 
-def _struck(latex: str) -> list[tuple[int, int, str, str]]:
-    """Each struck term — where it starts and ends, how it is struck, what it
-    holds — the outermost only, its braces balanced; one left unclosed stays
-    in the formula, and mathtext refuses it as before."""
-    found: list[tuple[int, int, str, str]] = []
+def _marks(latex: str, nested: bool = False) -> list[Mark]:
+    """Each struck or framed term, its braces balanced — the outermost only,
+    or with `nested` every one, a term framed inside a struck one included.
+    One left unclosed stays in the formula, and mathtext refuses it as
+    before."""
+    found: list[Mark] = []
     position = 0
-    while (start := _STRIKE_RE.search(latex, position)) is not None:
+    while (start := _MARK_RE.search(latex, position)) is not None:
         depth, end = 1, start.end()
         while end < len(latex) and depth:
             if latex[end] == "\\":
@@ -1197,19 +1246,26 @@ def _struck(latex: str) -> list[tuple[int, int, str, str]]:
         if depth:
             break
         found.append((start.start(), end, start.group(1), latex[start.end() : end - 1]))
-        position = end
+        position = start.end() if nested else end
     return found
 
 
-def _without_strokes(
-    latex: str, struck: list[tuple[int, int, str, str]], empty: int | None = None
-) -> str:
-    """The formula with its struck terms as they stand, braced so that a power
-    on one stays on it — and the one at `empty` as a place of its size with
-    nothing in it, which is how _strike finds where the term is drawn."""
-    for index, (start, end, _, term) in reversed(list(enumerate(struck))):
-        held = rf"\phantom{{{term}}}" if index == empty else term
-        latex = f"{latex[:start]}{{{held}}}{latex[end:]}"
+def _held(how: str, term: str) -> str:
+    """What a marked term is drawn as: itself, braced so that a power on it
+    stays on it, and spaced from its neighbours when it is framed."""
+    return f"{{{_FRAME_SPACE}{term}{_FRAME_SPACE}}}" if how == _FRAMED else f"{{{term}}}"
+
+
+def _unmarked(latex: str, empty: Mark | None = None) -> str:
+    """The formula with every mark taken off and every term left where it
+    stands — and the term `empty` as a place of its size with nothing in it,
+    which is how _mark finds where the term is drawn."""
+    if empty is not None:
+        start, end, how, term = empty
+        latex = latex[:start] + _held(how, rf"\phantom{{{term}}}") + latex[end:]
+    while marks := _marks(latex):
+        for start, end, how, term in reversed(marks):
+            latex = latex[:start] + _held(how, term) + latex[end:]
     return latex
 
 
@@ -1467,8 +1523,7 @@ def _environment(found: re.Match) -> str:
 
 def for_mathtext(latex: str) -> str:
     """LaTeX as close to it as matplotlib's mathtext will accept."""
-    latex = _without_strokes(latex, _struck(latex))
-    latex, _ = unbox(latex)
+    latex = _unmarked(latex)
     latex = _CLINE_RE.sub("", latex)
     latex = _ENVIRONMENT_RE.sub(_environment, latex)
     latex = _LABELLED_ARROW_RE.sub(_labelled_arrow, latex)
@@ -1599,12 +1654,16 @@ def _formula_png(
 
     `color` is the ink's everywhere but on the one dark block, "Суть", where
     a formula in ink would be ink on ink. A term the author struck out is
-    drawn struck (_strike).
+    drawn struck, and one the author framed framed (_mark).
     """
-    struck = _struck(latex)
+    marks = _marks(latex, nested=True)
     data, width, height, depth = _formula_drawn(latex, size_pt, color)
-    if struck:
-        data = _strike(data, latex, struck, size_pt, color)
+    if marks:
+        data, room = _mark(data, latex, marks, size_pt, color)
+        if room:
+            pixels_wide, pixels_high = PILImage.open(io.BytesIO(data)).size
+            width, height = pixels_wide * 72.0 / _DPI, pixels_high * 72.0 / _DPI
+            depth += room * 72.0 / _DPI
     return data, width, height, depth
 
 
@@ -1650,40 +1709,63 @@ def _formula_drawn(
 # its box.
 _STRIKE_EM = 0.065
 _STRIKE_PAST_PT = 1.0
+# The frame round a term in a line: the hairline of a pen, a point and a half
+# clear of what it frames, as \fboxsep leaves it at a line's size.
+_INLINE_FRAME_RULE_PT = 0.6
+_INLINE_FRAME_SEP_PT = 1.5
 
 
-def _strike(
-    data: bytes,
-    latex: str,
-    struck: list[tuple[int, int, str, str]],
-    size_pt: float,
-    color: str,
-) -> bytes:
-    """The formula's picture with a stroke across each struck term (task 77).
+def _mark(
+    data: bytes, latex: str, marks: list[Mark], size_pt: float, color: str
+) -> tuple[bytes, int]:
+    """The formula's picture with a stroke across each struck term (task 77)
+    and a frame round each framed one (task 78), and the pixels it grew by on
+    every side to hold a frame.
 
     mathtext cannot say where it drew a term, so each is found by drawing the
     formula again with the term's place left empty: the term is what the two
     pictures differ by, wherever it stands — under a power, in a fraction,
     round a matrix. Raises when a term cannot be found, and the formula goes
-    out as its source, as it did before: never without its stroke."""
+    out as its source, as it did before: never without its mark."""
     picture = PILImage.open(io.BytesIO(data)).convert("RGBA")
     ink = np.asarray(picture)[..., 3].astype(np.int16)
-    pen = ImageDraw.Draw(picture)
-    weight = max(2, round(size_pt * _STRIKE_EM * _DPI / 72.0))
-    past = round(_STRIKE_PAST_PT * _DPI / 72.0)
-    for index, (_, _, how, _) in enumerate(struck):
-        without, *_ = _formula_drawn(
-            _without_strokes(latex, struck, empty=index), size_pt, color
-        )
+    places: list[tuple[str, int, int, int, int]] = []
+    for mark in marks:
+        without, *_ = _formula_drawn(_unmarked(latex, empty=mark), size_pt, color)
         other = PILImage.open(io.BytesIO(without)).convert("RGBA")
         other_ink = np.asarray(other)[..., 3].astype(np.int16)
         if other_ink.shape != ink.shape:
-            raise ValueError("a struck term moved the rest of the formula")
+            raise ValueError("a marked term moved the rest of the formula")
         rows, columns = np.nonzero(np.abs(ink - other_ink) > 40)
         if not len(rows):
-            raise ValueError("a struck term with nothing drawn")
-        left, right = int(columns.min()) - past, int(columns.max()) + past
-        top, bottom = int(rows.min()) - past, int(rows.max()) + past
+            raise ValueError("a marked term with nothing drawn")
+        places.append(
+            (mark[2], int(columns.min()), int(rows.min()), int(columns.max()), int(rows.max()))
+        )
+    pixels = _DPI / 72.0
+    rule = max(1, round(_INLINE_FRAME_RULE_PT * pixels))
+    room = round(_INLINE_FRAME_SEP_PT * pixels) + rule
+    if not any(how == _FRAMED for how, *_ in places):
+        room = 0
+    if room:
+        # A frame round the whole formula stands outside the picture
+        # mathtext drew: the picture grows to hold it.
+        grown = PILImage.new("RGBA", (picture.width + 2 * room, picture.height + 2 * room))
+        grown.paste(picture, (room, room))
+        picture = grown
+    pen = ImageDraw.Draw(picture)
+    weight = max(2, round(size_pt * _STRIKE_EM * pixels))
+    past = round(_STRIKE_PAST_PT * pixels)
+    for how, left, top, right, bottom in places:
+        left, top, right, bottom = left + room, top + room, right + room, bottom + room
+        if how == _FRAMED:
+            pen.rectangle(
+                (left - room, top - room, right + room, bottom + room),
+                outline=color,
+                width=rule,
+            )
+            continue
+        left, right, top, bottom = left - past, right + past, top - past, bottom + past
         for stroke in _STRIKES[how]:
             rising = stroke == "/"
             pen.line(
@@ -1691,9 +1773,23 @@ def _strike(
                 fill=color,
                 width=weight,
             )
+    if room:
+        # The space a framed term keeps from its neighbours is blank where it
+        # has none: «?!» framed alone stood a space off its comma. Only the
+        # sides are trimmed; the height holds the baseline.
+        drawn = np.nonzero(np.asarray(picture)[..., 3].any(axis=0))[0]
+        keep = round(_FORMULA_PAD_PT * pixels)
+        picture = picture.crop(
+            (
+                max(0, int(drawn[0]) - keep),
+                0,
+                min(picture.width, int(drawn[-1]) + 1 + keep),
+                picture.height,
+            )
+        )
     buffer = io.BytesIO()
     picture.save(buffer, format="PNG")
-    return buffer.getvalue()
+    return buffer.getvalue(), room
 
 
 def _loop_circle(x: float, y: float, node: float) -> tuple[float, float, float]:
@@ -2196,7 +2292,7 @@ class _Formulas:
 
 def _line_markup(text: str, formulas: _Formulas, size_pt: float) -> str:
     """One line of a record as reportlab markup, formulas drawn in place."""
-    return _inline(_words_as_text(split_inline(text)), formulas, size_pt)
+    return _inline(_words_as_text(split_inline(_inline_frames(text))), formulas, size_pt)
 
 
 def _styles() -> dict[str, ParagraphStyle]:
@@ -3659,6 +3755,10 @@ def render(
     styles = _styles()
     buffer = io.BytesIO()
     page = page or Page()
+    # Recognition can write a title's formula without its dollars: record 86
+    # was "Теорема об иррациональности \sqrt{2}", in those letters at the top
+    # of the page.
+    title = as_formula(title)
 
     # A first heading repeating the title is the commonest shape a page takes:
     # the record is called "Графы" and the page is headed "Графы". Printing

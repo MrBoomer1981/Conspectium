@@ -126,12 +126,12 @@ In a session:
   **F, the app**: a Telegram Mini App where a group studies from its
   records. Both after 56 and 47, the records' quality first — "Where this
   is going, decided 2026-10-02". What is under way is "State" there.
-- **What production runs**, as last read off the startup log and the Railway
-  variables, 2026-09-23 to 09-29 — the log is the authority, and
-  `docs/PLAN.md` → "What production says" the record of each reading:
-  recognition on `gemini-3.8-flash`, three runs, `prompts-v6.md`,
-  thinking at the model's default; composition on, `gemini-3.8-flash`,
-  `prompts-compose-v3.md`, thinking `low`; the explaining stage on,
+- **What production runs**, as last read off the startup log, 2026-10-08 —
+  the log is the authority, and `docs/PLAN.md` → "What production says" the
+  record of the first readings: recognition on `gemini-3.8-flash`, three
+  runs, `prompts-v6.md`, thinking at the model's default; composition on,
+  `gemini-3.8-flash`, `prompts-compose-v4.md` since 2026-10-06, thinking
+  `low`; the explaining stage on,
   `gemini-3.8-flash`, its searches at `low`, `prompts-explain-v2.md` with the
   teacher's boxes since 2026-10-03; a call's ceiling 90 s. **The
   code's defaults are not these** — `gemini-3.5-flash-lite`, `prompts-v3.md`,
@@ -482,11 +482,12 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   not materially shorter. Otherwise the record is the one stage one produced:
   off, refused or failed, the worst case of the stage is the pipeline without
   it — and a refusal costs the record its headings, which is why the numbers
-  leave out what only counts items: "1)" or "2." opening a line, a heading or
-  a bold label, and "1)" after a colon or a semicolon inside a line unless it
-  closes a bracket — "(0; 1)" is a value. Record 59 lost its composition to
-  "Примеры: 1) …" made into a list. The log line says how many numbers went
-  and came, never which. → "The composition record 59 lost"
+  leave out what only counts items: "1)", "1))" or "2." opening a line, a
+  heading or a bold label, and "1)" after a colon or a semicolon inside a line
+  unless it closes a bracket — "(0; 1)" is a value. Record 59 lost its
+  composition to "Примеры: 1) …" made into a list, and record 86 to «1))»
+  tidied to «1)» (task 78). The log line says how many numbers went and came,
+  never which. → "The composition record 59 lost", "Record 86, √2"
 - **A refused composition is asked for once more** (`compose_retried`,
   2026-10-03): the composer is sampled, and a refusal is one sample's.
   Record 66's, refused in production for three numbers it gained, was
@@ -511,9 +512,9 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   БД), «т.е.» and «т.к.», formulas and numbers stay as written, and so does
   whatever the composer is not sure of. A student who missed the lecture
   should not have to decode the notebook. The only rewording the stage is
-  allowed, measured as drift like the rest; production composes with v3
-  until v4 is measured on record 74's album. → "Record 74, a lecture on
-  trees"
+  allowed, measured as drift like the rest. Production composes with v4
+  since 2026-10-06, the CEO's switch, unmeasured on record 74's album. →
+  "Record 74, a lecture on trees"
 - Its ceiling and retries are in "Concurrency ceilings".
 
 ### Stage three: what the bot adds
@@ -559,7 +560,10 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   «Идея» before every proof — its plan; «Зачем условие» at every definition
   and theorem with a condition — what it is for and what breaks without it,
   where no explanation stands already; «Пример» at every new notion — one
-  unlike the lecture's own. Written by the same first call, in `elements` of
+  unlike the lecture's own, and never the lecture's working with another
+  number (`prompts-explain-v3.md`, task 78): record 86's «то же для √3» under
+  the lecture's √2 was read as the lecture misread. Written by the same first
+  call, in `elements` of
   its JSON, so they cost no call of their own. They are reasoning about the
   lecture rather than facts from books, so no search can source them: each is
   printed without a source, under a label that says whose it is
@@ -905,7 +909,10 @@ why each is what it is. What a change must not break:
   record. Two sources mark one, kept apart: what the author framed is
   perception (`\boxed{…}`, `[рамка: …]`, older `[в рамке: …]` and arrays
   ruled with `\hline`), a section's result is the composing stage's
-  interpretation, capped by `compose._cap_marks`.
+  interpretation, capped by `compose._cap_marks`. A frame inside a line —
+  «[рамка: ?!]» in a sentence, a `\boxed` in a formula set in a line — is
+  drawn where it stands, round what it frames, and is no main formula
+  (`pdf._inline_frames`, task 78): record 86 printed «[рамка: ?!]» twice.
 - **Under the title stands a name, a date or a page, or nothing**
   (`texts.byline`): what the margin said of whose lecture, which day, which
   page — the notebook's print, a doodle described and stray letters are not
@@ -918,15 +925,20 @@ why each is what it is. What a change must not break:
   signature's QR code opens the bot named by `bot.me()` — the one that sent
   the document. Where a formula cannot be drawn — the head, the file's name, a
   chat listing — `pdf.plain` writes it in characters: "2¹⁰⁰¹", never
-  "$2^{1001}$".
+  "$2^{1001}$". A title's formula written without its dollars is found the
+  way a quoted fragment's is (`pdf.as_formula`), drawn in the title and
+  written in characters elsewhere: record 86 carried «\sqrt{2}» in all
+  three (task 78).
 - **Markup never prints as its source**: `$$` blocks, `$$…$$` inside a line,
   emphasis across a formula, `~~…~~` struck through, a line of `~~~` a
   separator as `---` is; a finding's quoted LaTeX through `pdf.as_formula`.
   «[зачёркнуто]», what recognition writes where the author crossed something
   out, is not printed, nor a line that held only it (`pdf._unstruck`): what
-  the author struck out is not the lecture.
+  the author struck out is not the lecture. Nor is «~~[неразборчиво]~~», a
+  crossing-out the reading could not see through (task 78).
 
-→ "The document as the group got it", "Record 74, a lecture on trees"
+→ "The document as the group got it", "Record 74, a lecture on trees",
+"Record 86, √2"
 
 **mathtext is not LaTeX, and a formula it refuses prints as its own source.**
 `pdf.for_mathtext` rewrites what the model writes into what mathtext draws:
@@ -946,11 +958,12 @@ where the author wrote them — and an aligned chain alone in a display formula
 is drawn a row at a time (`pdf.aligned_rows`), since `\substack` sets its rows
 touching. **A term the author struck out is drawn struck** (task 77):
 `\cancel{…}` with a stroke rising across it, `\bcancel` falling, `\xcancel`
-both. mathtext has no strike, so the formula is drawn a second time with the
-term's place left empty, and the stroke goes across what the two pictures
-differ by (`pdf._strike`) — under a power, in a fraction, round a matrix. One
+both; **a term framed inside a line is drawn framed** (task 78). mathtext
+has neither, so the formula is drawn a second time with the term's place
+left empty, and the stroke or the frame goes round what the two pictures
+differ by (`pdf._mark`) — under a power, in a fraction, round a matrix. One
 that cannot be placed sends the formula out as its source, never without its
-stroke: «\cancel{56}^{48}», 56 crossed out and 48 written over it, would read
+mark: «\cancel{56}^{48}», 56 crossed out and 48 written over it, would read
 as 56 to the 48th. A command ends where its letters end, `(?![A-Za-z])`.
 `\ce{…}` and `\cancelto` stay unsupported. `test_pdf.py` proves each rewrite made before 2026-09-29 both
 rewrites and draws — those after it were checked by drawing the record that
@@ -1202,12 +1215,14 @@ extraction only, v6 (production) v5 with the author's frames written as
 `\boxed{…}`, v7 without the list of numbers, tried and rolled back, v8 v6
 with each drawing's frame, measured and asleep (task 54), v9 v6 with where a
 lecture begins, measured and asleep (task 64); composing
-`prompts-compose-v1.md` to `v4`, v3 (production) framing a section's main
-formula, v4 v3 with the author's shorthand spelled out, to be measured
+`prompts-compose-v1.md` to `v4`, v3 framing a section's main formula, v4
+(production since 2026-10-06) v3 with the author's shorthand spelled out
 (task 69);
-explaining `prompts-explain-v1.md` and `v2` (production since 2026-10-03), v2
-adding the teacher's boxes, with `prompts-explain-source-v2.md` for the
-searches — `v1` before it, kept as the records made with it were. Every
+explaining `prompts-explain-v1.md` to `v3`, v2 (production since 2026-10-03)
+adding the teacher's boxes, v3 v2 with an example that is not the lecture's
+working with another number (task 78), switched on the CEO's word; with
+`prompts-explain-source-v2.md` for the searches — `v1` before it, kept as
+the records made with it were. Every
 prompt stays in `prompts/` once used: a record does not say which made it.
 `vision.load_prompt` reads a prompt from `prompts/` by file name at
 **import**: the file has to ship with the deploy or the process dies at

@@ -1632,3 +1632,85 @@ minutes. reportlab writes every stream in ASCII85, 17% of the file. A record
 holds its database connection for its whole processing ("Scale debt"); a
 "#word" in a group loads whole records for their titles; a new lecture is
 matched against every notebook within a week, one query each.
+
+## Record 86, √2
+
+**A reader's «Плохо»**, 2026-10-08, on record 86 — a proof that √2 is
+irrational, four pages read on 2026-10-07 at 19:42 UTC, the first album
+after task 76's deploy (`evidence/records/86_Теорема_об_иррациональности_sqrt2.pdf`).
+The reader wrote: the title in the wrong format, «3 instead of 2» in 1.3,
+the formulas in 1.4 wrongly set off, the «неразборчиво» marks. The CEO
+asked whether task 76 had made the reading worse.
+
+**Task 76 changed nothing the model is given.** The request
+`generate_content` sends, captured from google-genai 2.24.0 with automatic
+function calling on and off, is the same JSON for a call with a JSON answer
+and for one with the search tool: the setting is the SDK's own and never
+leaves the process. The image is compressed by the same function with the
+same arguments, on another thread. No call of the album timed out, so the
+new repeat did not run. And the reading held: every page came back from
+all three runs, at a text agreement of 0.986, 0.967, 0.944 and 0.938 and a
+numeric one of 0.936, 0.971, 0.989 and 0.901 — against means of 0.837 and
+0.894 over the 55 pages read from 2026-10-03 to the morning of 10-07, 50 of
+them with every run back, 28 clean. Three of record 86's four were clean.
+
+**The record went out uncomposed.** The deploy log, in order:
+
+    compose: refused (numbers), 3573 -> 3792 chars, word drift 60, numbers 1 lost 0 gained, …
+    compose: refused (numbers), 3573 -> 3821 chars, word drift 49, numbers 2 lost 0 gained, …
+
+So the document is recognition's text: the notebook's line breaks, the
+shorthand as written — «мн-ва», «нер-во», «Следвст.» — «1)) Случай», the
+first of three cases in its line and the other two on the kraft ground, and
+the bot's boxes set between the halves of a sentence, their anchors being
+lines the composer would have joined. That is the reader's «1.4». The
+numbers guard leaves "1)" opening a line out of its count, as an item's
+marker, but "1))" was the number 1: tidied to "1)", in a list, a bold label
+or a heading, it is one number lost —
+
+    '1)) Случай $c^2<2$' -> '1) Случай $c^2<2$'        lost 1 gained 0
+    '1)) Случай $c^2<2$' -> '**1) Случай $c^2<2$**'    lost 1 gained 0
+    '1)) Случай $c^2<2$' -> '1)) Случай $c^2<2$'       lost 0 gained 0
+
+— most likely the first refusal. The second lost one number more, which the
+log does not name; the composer's answer is not kept. A composition under
+v4 can also lose a number by spelling it out, «2 мн-ва» as «два множества»,
+which rule 10 forbids — not shown here. Not task 76's either: a record on
+2026-10-06 at 18:06 UTC was refused twice the same way, one number lost
+each time. Of the 12 records composed under v4 in the logs Railway still
+held, from 2026-10-06, these two went out uncomposed.
+
+**The title printed as its source.** Recognition's `title` was
+«Теорема об иррациональности \sqrt{2}», with no dollars, while the same line
+in the markdown had them. `pdf.plain` turns only a formula in dollars into
+characters, and the title paragraph draws only those: «\sqrt{2}» stood at
+the top of the page, in the head of the four after it, in the file's
+metadata, and the file's name ended in «sqrt2». `pdf.as_formula` already found
+bare LaTeX in a quoted fragment; the title goes through it now.
+
+**«3 instead of 2» is the bot's example.** Under 1.3, the axiom of
+completeness, «Пример · от бота» set out «Разделяющее число для корня из
+трёх»: the lecture's two sets with x² < 3 and y² > 3, the separating number
+whose square is 3. Rule 6 of the explaining prompt asks for an example
+unlike the lecture's — another set, another space — and this was the
+lecture's own working with one number changed, which a reader takes for
+the lecture misread. `prompts-explain-v3.md` says so in the rule.
+
+**The author's frame inside a line printed as its source.** The proof of
+1.4 ends twice on «?!» ringed by hand — «а это [рамка: ?!], что x ⩽ c для
+всех x ∈ X» — and `blocks()` draws a frame only round a line that is
+nothing else. A `\boxed` in a formula set in a line lost its frame without
+a word: `for_mathtext` unboxed it, and only a display formula's frame was
+drawn. Now both are found the way task 77's strike is — the formula drawn
+again with the term's place empty — and framed with a hairline; the space
+a frame keeps from its neighbours is trimmed where it has none, or «?!»
+framed alone stood a space off its comma.
+
+**Five «[неразборчиво]»**: «1.3. ~~[неразборчиво]~~ Аксиома полноты» —
+a crossing-out the reading could not see through, printed struck, and now
+left out as «[зачёркнуто]» is; «то [неразборчиво] четно», «от
+[неразборчиво] контр.», «четных [неразборчиво]», and one alone on page 5,
+set as a grey line like a drawing's caption. Whether those four were
+legible, only the photographs tell, and so do two more places: «α := 2 − c²»
+followed by «a» everywhere after it, and «c − h = c² − 2ch + h²», where
+(c − h)² is meant.
