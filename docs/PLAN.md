@@ -352,12 +352,13 @@ CEO's, not yet scheduled:
       and in the order sent when they do not say — the CEO's, measured first
 
 Specified on 2026-10-08, when the CEO asked whether the bot should make
-study materials rather than records — the CEO's, its spec awaiting the
-CEO's approval:
+study materials rather than records — the CEO's, approved the same day and
+taken next:
 
 - [ ] 80. A lecture's study version: a button under the document builds,
       from the record and only when pressed, the lecture set out by topic —
-      the author's text moved whole, the bot's sections marked — the CEO's
+      the author's text moved whole, the bot's sections marked, questions
+      to check oneself at the end — the CEO's
 
 ### Why the design comes before the explaining stage
 
@@ -405,7 +406,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -478,6 +479,7 @@ since 2026-10-01.
 | 2026-10-08 | the CEO, with Claude Code | Task 78 taken, from a reader's «Плохо» on record 86, the first album after task 76's deploy. Not task 76: the request Gemini receives is the same byte for byte, and the four pages agreed above the week's mean. What the reader saw was a title's formula printed as its source, the author's frame inside a line printed as «[рамка: ?!]», a composition refused twice for «1))» tidied to «1)», and a teacher's example that was the lecture's construction for √3. Two of its items are the CPO's, taken on the CEO's word: the numbers guard counts «1))» opening a line as an item's marker, and `prompts-explain-v3.md` says an example is not the lecture's working with another number — production switches to it on the CEO's word. `docs/BRAND.md` v1.7 | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 79 taken, from record 87 — record 86's album sent again, its composition refused twice as 86's was. Run twice more on Railway on the CEO's word, the composer lost the same two numbers, and neither was a value: the theorem's parts «1 Существование» and «2 Число…», made the list they are. The numbers guard, the CPO's, counts a number opening a line before a capitalised word as an item's; «1))», task 78's likely cause, was not record 87's. And three cases begun on a line of text are set on one ground | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 80 specified, not scheduled: the CEO asked whether the bot should make study materials based on the records instead of the records, and chose to build them over the records — the record stays what a group trusts and everything else is made from, and a lecture's study version is built from it when somebody presses a button. Made instead of the record, the material would have changed the rule the product stands on, marked is the whole licence to add, and lifted «text rewriting» from "What NOT to do". It takes up the design of the idea of 2026-10-06, the lecture as structured material, archived that day. The spec waits for the CEO's approval | the CEO's own |
+| 2026-10-08 | the CEO, with Claude Code | Task 80 approved and taken next. The study version is for understanding a lecture by someone who was not there — the exam stays the subject's, 52 and 59 — and ends on three to five questions to check oneself, their answers on the last page, marked as the bot's: the decision of 2026-10-02 put «Проверь себя» in the app alone, and now the study version's PDF has its own. The record's document does not change | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4739,10 +4741,11 @@ first in the text — «в рамке только 2 из 3», the CEO wrote.
 
 # Task 80. A lecture's study version
 
-**Owner: the CEO.** Specified on 2026-10-08; the spec waits for the CEO's
-approval before it is scheduled. The document and the bot's buttons are the
-CEO's area; the model call, the schema and the limits it needs are the
-CPO's, open to the CEO.
+**Owner: the CEO.** Specified on 2026-10-08 and approved by the CEO the
+same day, taken next. The document and the bot's buttons are the CEO's
+area; the model call, the schema and the limits it needs are the CPO's,
+open to the CEO — the migration it needs named to the CPO before it is
+pushed.
 
 ## Why
 
@@ -4775,13 +4778,15 @@ of 2026-10-06, the lecture as structured material, archived that day.
    formula, a drawing, a list — each moved whole and never reworded. Between
    them, under the bot's label: what a topic is about, its key notions — the
    author's words, picked from the markup — and the record's explanations
-   and teacher's boxes where their anchors went.
+   and teacher's boxes where their anchors went. At the end, three to five
+   questions to check oneself, their answers on the last page.
 3. **How**: one text-only call over the record numbered by units, answering
    with the arrangement by number and the bot's own texts, never the
    author's text back. Code checks that every unit is placed once and that
    the bot's texts state no number the record does not carry, as stage
-   three's are checked. A version that fails is not sent; the reader is
-   told it could not be built.
+   three's are checked; a question whose answer fails is dropped. A
+   version that fails is not sent; the reader is told it could not be
+   built.
 4. **Stored** beside the record — the arrangement and the bot's texts — so
    a second press sends it again and pays nothing.
 5. **Paid inside the day's limits**, checked before the call: about a
@@ -4790,12 +4795,16 @@ of 2026-10-06, the lecture as structured material, archived that day.
    The subject's version (52) and the exam preparation (59) come after,
    and only once the presses show it is used.
 
-## Open, for the CEO
+## The CEO's answers, 2026-10-08
 
-- What a student lacks more — understanding a lecture they missed, or
-  preparing for an exam: it decides the bot's sections.
-- Whether questions to check oneself belong in it: «Проверь себя» was put
-  in the app, not the PDF, on 2026-10-02.
+- **For understanding a lecture**, by someone who was not there: what each
+  topic is about, its key notions, how the parts hold together. The exam
+  is the subject's level — 52 and 59.
+- **Questions to check oneself at the end of the PDF**, three to five,
+  their answers on the last page, marked as the bot's — the study version
+  is a document of its own, and the record stays clean. This changes the
+  decision of 2026-10-02 that put «Проверь себя» in the app alone; the app
+  can still have its own.
 
 ## Acceptance criterion
 
