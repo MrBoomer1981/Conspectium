@@ -383,9 +383,10 @@ def test_the_call_timeout_moves_all_three_ceilings_together():
     # 30 / 93 / 120 are the three numbers this commit replaced with arithmetic;
     # the margin was chosen to land back on them. The album's is the one that
     # moves — upward, which is the direction it is allowed to move: 362 until a
-    # page could ask for two runs more to read itself whole (task 65).
-    assert ceilings("30") == [30, 93, 120, 604]
-    assert ceilings("90") == [90, 273, 354, 1774]
+    # page could ask for two runs more to read itself whole (task 65), 604
+    # until a send of thirty pages was one album (task 81).
+    assert ceilings("30") == [30, 93, 120, 1813]
+    assert ceilings("90") == [90, 273, 354, 5323]
 
 
 # ── the two knobs on the model call ──────────────────────────────────────────

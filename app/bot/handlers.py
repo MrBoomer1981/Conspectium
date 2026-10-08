@@ -156,7 +156,15 @@ async def handle_photo(
     # _process_album, and a page sent without its subject can still be called
     # on by a reply that carries one — handle_summon.
     tag = tags.from_caption(message.caption)
-    if group is not None and tag is None and not message.media_group_id:
+    # A photo sent while the same person's album is still being collected may
+    # be the rest of it — Telegram holds ten pages in an album, and the
+    # eleventh can come as a photo of its own (task 81) — so it is buffered
+    # as an album of one page, which joins that send or stands alone.
+    sender = (message.chat.id, user.tg_id)
+    album = message.media_group_id or (
+        albums.apart(message.message_id) if albums.collecting(sender) else None
+    )
+    if group is not None and tag is None and album is None:
         return
     source_key = corpus.source_key(message) if group is not None else None
 
@@ -166,13 +174,13 @@ async def handle_photo(
     # in as Telegram's reference and is not downloaded here: the update that
     # claims the batch fetches the pages once it knows the album is to be read,
     # so in a group an album nobody tagged is never fetched at all.
-    if message.media_group_id:
+    if album is not None:
         # Announced first: albums.collect() times the album from here.
-        albums.announce(message.media_group_id, message.message_id)
-        if group is not None:
+        albums.announce(album, message.message_id, sender)
+        if group is not None and message.media_group_id:
             await _remember_page(session, group, message, page)
         albums.add_page(
-            message.media_group_id,
+            album,
             albums.PageInput(
                 data=b"",
                 message_id=message.message_id,
@@ -187,9 +195,20 @@ async def handle_photo(
                 file_id=page.file_id,
             ),
         )
-        pages = await albums.collect(message.media_group_id)
+        # Nothing of this update's is left to write while it waits, and an
+        # album of ten waits for the rest of its send: committed, the wait
+        # holds no connection. A send of thirty pages is thirty updates
+        # waiting at once, and the pool is twenty. A group's page committed
+        # already, when it wrote itself down.
+        await session.commit()
+        pages = await albums.collect(album)
         if pages is None:
             return  # another update owns this batch
+        # A send of several albums is known in a group by its first
+        # (task 81), whichever page's update owns the batch.
+        if group is not None:
+            first = min(pages, key=lambda p: p.message_id)
+            source_key = corpus.page_key(first.media_group_id, first.message_id)
         # A tagged album claims its pages against a reply's call on them, one
         # reading at a time (task 41); in a group an untagged one is not read,
         # and claims nothing. Already being read — a reply's call got there
@@ -942,6 +961,7 @@ async def _process_album(
             "lecture_tail_cut": rec.lecture_tail_cut,
             "runs_added": rec.runs_added,
             "read_further": rec.read_further,
+            "album_parts": albums.parts_of(ordered),
             "figures": len(placed),
             **_filing_payload(filing, explain_skipped),
             "latency_ms": int((time.monotonic() - started) * 1000),

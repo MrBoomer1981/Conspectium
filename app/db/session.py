@@ -14,10 +14,12 @@ from app.core.config import settings
 # between photos: without pre_ping the first request after a pause would take
 # a dead connection from the pool and fail as a random-looking database error.
 #
-# max_overflow above the default 10: an album of MAX_ALBUM_PAGES arrives as
-# that many separate updates, each holding its middleware session open for the
-# ~1 s debounce in albums.collect() while one of them also runs the batch. The
-# 5 + 15 ceiling covers that with headroom and still stays well under a small
+# max_overflow above the default 10: an album of ten arrives as ten separate
+# updates at once, each with its middleware session, while one of them also
+# runs the batch. A page's update commits before it waits in albums.collect()
+# (task 81), so the wait — fifteen seconds for an album of ten — holds no
+# connection, and a send of thirty pages does not take thirty. The 5 + 15
+# ceiling covers the rest with headroom and still stays well under a small
 # managed instance's connection limit.
 engine = create_async_engine(
     settings.DATABASE_URL,

@@ -10,7 +10,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import tags
+from app.bot import albums, tags
 from app.core.events import log_event
 from app.db.models import Group, User
 from app.db.session import async_session_maker
@@ -88,11 +88,12 @@ def heard(message: Message, bot_username: str | None = None) -> bool:
     whose caption carries a "#word", a reply to a page that calls the bot on
     it or names it, a reply to the bot's own message — and every page of an
     album, because an album's caption rides on one page only and the album
-    is judged whole, in handlers._process_album. So does the notice that the
-    chat's id changed: it is what moves the group. A reply to the bot that
-    answers no question of its own reaches the catch-all, which says nothing
-    in a group, and an untagged photo among them is still refused by
-    handle_photo.
+    is judged whole, in handlers._process_album — with it a page its
+    sender sent apart while the album was being collected. So does the
+    notice that the chat's id changed: it is what moves the group. A reply
+    to the bot that answers no question of its own reaches the catch-all,
+    which says nothing in a group, and an untagged photo among them is
+    still refused by handle_photo.
     """
     if message.chat.type not in GROUP_CHATS:
         return True
@@ -112,7 +113,16 @@ def heard(message: Message, bot_username: str | None = None) -> bool:
     if message.media_group_id and is_page(message):
         return True
     if message.photo or message.document:
-        return tags.from_caption(message.caption) is not None
+        if tags.from_caption(message.caption) is not None:
+            return True
+        # A page sent apart while its sender's album is being collected — the
+        # eleventh of a send, Telegram holding ten in an album — is judged
+        # with that album (task 81).
+        return (
+            is_page(message)
+            and message.from_user is not None
+            and albums.collecting((message.chat.id, message.from_user.id))
+        )
     return False
 
 

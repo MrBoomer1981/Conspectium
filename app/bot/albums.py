@@ -2,7 +2,9 @@
 
 Telegram delivers an album as separate messages that share a media_group_id,
 each its own webhook update with its own DB session. Pages are buffered here
-until the group goes quiet, then one update assembles the whole batch.
+until the group goes quiet, then one update assembles the whole batch. A send
+of more than ten pages arrives as several albums, and they are one batch:
+see _send_of (task 81).
 
 Nothing in this module touches the database — the handler does the writes.
 See CLAUDE.md -> Sessions and transactions.
@@ -43,9 +45,23 @@ _POLL_SECONDS = 0.3
 # hold its middleware DB session open indefinitely.
 _COLLECT_MAX_S = 60
 
+# Telegram puts at most ten photographs in an album. A send of more arrives
+# as several albums, every one but the last holding ten, each a media group
+# of its own — and a page left over after the tens can come as a photo with
+# no media group at all (task 81).
+TELEGRAM_ALBUM_MAX = 10
+
+# How long an album of exactly ten waits, with nothing new from its sender,
+# for the rest of its send. Two sends of twelve pages on 2026-10-08 brought
+# the second album 0.07 s and 0.45 s after the first; the rest of the window
+# is for an upload slower than theirs. Every album of ten pays
+# it whether or not more comes — seconds, on a record that takes minutes.
+_CONTINUE_S = 15.0
+
 # Ten pages at three runs each under Semaphore(10) is three waves of one run's
 # worst case — five since a page may ask for two runs more to read itself
-# whole (vision.MORE_RUNS, task 65). Computed rather than written down:
+# whole (vision.MORE_RUNS, task 65), fifteen since a send of thirty pages is
+# one album (task 81). Computed rather than written down:
 # vision's call timeout is a setting now, and a ceiling that did not follow it
 # would cut a slow album short. Normative, not an estimate — the margin is not
 # to be lowered (PLAN.md task 10).
@@ -71,7 +87,8 @@ class PageInput:
     data: bytes
     message_id: int
     chat_id: int
-    media_group_id: str
+    # None for a photo sent apart from the album it continues (task 81).
+    media_group_id: str | None
     bytes_before: int
     bytes_after: int
     # None for an image sent as a file: Telegram gives a photo's size, not a
@@ -116,9 +133,15 @@ _last_page_at: dict[str, float] = {}
 # Groups already handed to a caller, with when. A page that turns up after its
 # batch went out is dropped rather than allowed to open a second record.
 _claimed: dict[str, float] = {}
+# Who sent each album still waiting: its chat, and its sender's Telegram id.
+# The albums of one send are found by it (task 81); an album announced
+# without one — a reply's call on pages written down — is a send of its own.
+_sender: dict[str, tuple[int, int]] = {}
 
 
-def announce(media_group_id: str, message_id: int) -> None:
+def announce(
+    media_group_id: str, message_id: int, sender: tuple[int, int] | None = None
+) -> None:
     """Register a page the moment its update arrives, before anything else is
     done with it.
 
@@ -129,14 +152,37 @@ def announce(media_group_id: str, message_id: int) -> None:
     while the rest were still in flight. A page is handed in right after this
     now — in a group, after its reference is written down — and the batch is
     still timed from here, which measures what it is supposed to.
+
+    `sender`, the chat and the Telegram id of whoever sent the page, is what
+    joins the albums of one send.
     """
     now = time.monotonic()
     _prune_claimed(now)
     if media_group_id in _claimed:
         return
     _announced.setdefault(media_group_id, set()).add(message_id)
+    if sender is not None:
+        _sender.setdefault(media_group_id, sender)
     _first_page_at.setdefault(media_group_id, now)
     _last_page_at[media_group_id] = now
+
+
+def collecting(sender: tuple[int, int]) -> bool:
+    """Whether an album this person sent into this chat is still being
+    collected — a photo they send now may be the rest of it (task 81)."""
+    return any(_sender.get(group) == sender for group in _announced)
+
+
+def apart(message_id: int) -> str:
+    """What a photo sent apart from an album is buffered under: an album of
+    its own, of one page, which joins the send before it when that one may
+    go on (task 81)."""
+    return f"photo:{message_id}"
+
+
+def parts_of(pages: list[PageInput]) -> int:
+    """How many albums, and photos sent apart, a batch arrived as."""
+    return len({page.media_group_id or page.message_id for page in pages})
 
 
 def add_page(media_group_id: str, page: PageInput) -> None:
@@ -160,7 +206,9 @@ def reset() -> None:
     """Drop every album in flight. The buffer lives in the process, so a
     restart does exactly this in production: an unfinished album is lost, which
     is the accepted trade for not introducing Redis for one user."""
-    for registry in (_buffer, _announced, _first_page_at, _last_page_at, _claimed):
+    for registry in (
+        _buffer, _announced, _first_page_at, _last_page_at, _claimed, _sender
+    ):
         registry.clear()
 
 
@@ -171,12 +219,77 @@ def _prune_claimed(now: float) -> None:
             del _claimed[group]
 
 
-def _forget(media_group_id: str) -> list[PageInput] | None:
-    pages = _buffer.pop(media_group_id, None)
-    _announced.pop(media_group_id, None)
-    _first_page_at.pop(media_group_id, None)
-    _last_page_at.pop(media_group_id, None)
-    _claimed[media_group_id] = time.monotonic()
+def _pages(send: list[str]) -> int:
+    return sum(len(_announced[group]) for group in send)
+
+
+def _tag(send: list[str]) -> str | None:
+    return tag_of([page for group in send for page in _buffer.get(group, ())])
+
+
+def _follows(send: list[str], group: str) -> bool:
+    """Whether an album is the rest of the send before it. Telegram fills
+    every album of a send but the last, so a send that ends on fewer than
+    ten pages has ended. So has one the album would take past
+    MAX_ALBUM_PAGES: the album begins a send of its own, and thirty-five
+    pages are two records rather than one refused. And an album whose
+    "#word" is not the send's is a send of its own — two subjects sent in a
+    breath are two lectures."""
+    if len(_announced[send[-1]]) < TELEGRAM_ALBUM_MAX:
+        return False
+    if _pages(send) + len(_announced[group]) > settings.MAX_ALBUM_PAGES:
+        return False
+    ours, its = _tag(send), _tag([group])
+    return ours is None or its is None or ours == its
+
+
+def _send_of(media_group_id: str) -> list[str]:
+    """The albums of the send this one belongs to, in page order (task 81):
+    those its sender sent into its chat that are still waiting, cut where a
+    send ends (_follows).
+
+    Worked out over every album still waiting each time it is asked, never
+    fixed when a page arrives: pages are registered in the order their
+    updates finish their database work, which is not quite the order they
+    came in, and only a send that has gone quiet has all of its pages."""
+    sender = _sender.get(media_group_id)
+    if sender is None:
+        return [media_group_id]
+    theirs = sorted(
+        (group for group in _announced if _sender.get(group) == sender),
+        key=lambda group: min(_announced[group]),
+    )
+    send: list[str] = []
+    for group in theirs:
+        if send and not _follows(send, group):
+            if media_group_id in send:
+                return send
+            send = []
+        send.append(group)
+    return send
+
+
+def _open(send: list[str]) -> bool:
+    """Whether more of a send may be on its way: it ends on a full album and
+    has room for another page."""
+    return (
+        send[-1] in _sender
+        and len(_announced[send[-1]]) >= TELEGRAM_ALBUM_MAX
+        and _pages(send) < settings.MAX_ALBUM_PAGES
+    )
+
+
+def _forget(send: list[str]) -> list[PageInput] | None:
+    now = time.monotonic()
+    pages: list[PageInput] = []
+    for group in send:
+        pages.extend(_buffer.pop(group, ()))
+        _announced.pop(group, None)
+        _sender.pop(group, None)
+        _first_page_at.pop(group, None)
+        _last_page_at.pop(group, None)
+        _claimed[group] = now
+    pages.sort(key=lambda page: page.message_id)
     # None, not an empty list: the caller reads None as "not mine, say
     # nothing", and process_batch has nothing to wait on for an empty batch.
     return pages or None
@@ -184,48 +297,64 @@ def _forget(media_group_id: str) -> list[PageInput] | None:
 
 async def collect(media_group_id: str) -> list[PageInput] | None:
     """Block until the album stops growing, then hand the whole batch to one
-    caller. Every other caller for the same group gets None and must return
-    without replying — otherwise the batch is processed once per page.
+    caller — every album of its send (task 81). Every other caller for the
+    same batch gets None and must return without replying — otherwise the
+    batch is processed once per page.
 
     Two conditions have to hold: _QUIET_SECONDS with nothing new announced, so
-    the album has stopped growing, and every announced page handed in, so
-    nothing still in flight is left behind. The _COLLECT_MAX_S ceiling bounds
-    the wait either way — an update that never hands its page in must not
-    strand the pages that did."""
+    the album has stopped growing — _CONTINUE_S when the send ends on a full
+    album, which the next of it may follow — and every announced page handed
+    in, so nothing still in flight is left behind. The _COLLECT_MAX_S
+    ceiling bounds the wait either way — an update that never hands its page
+    in must not strand the pages that did."""
     while True:
         if media_group_id not in _announced:
             return None  # another caller already claimed this batch
         now = time.monotonic()
-        quiet_for = now - _last_page_at[media_group_id]
-        handed_in = len(_buffer.get(media_group_id, ()))
-        expected = len(_announced[media_group_id])
-        if quiet_for >= _QUIET_SECONDS and handed_in >= expected:
+        send = _send_of(media_group_id)
+        quiet_for = now - max(_last_page_at[group] for group in send)
+        window = _CONTINUE_S if _open(send) else _QUIET_SECONDS
+        handed_in = all(
+            len(_buffer.get(group, ())) >= len(_announced[group]) for group in send
+        )
+        if quiet_for >= window and handed_in:
             break
-        if now - _first_page_at[media_group_id] >= _COLLECT_MAX_S:
+        if now - min(_first_page_at[group] for group in send) >= _COLLECT_MAX_S:
             logger.warning(
                 "album %s: %d of %d pages ready after %ds, assembling anyway",
-                media_group_id,
-                handed_in,
-                expected,
+                send[0],
+                sum(len(_buffer.get(group, ())) for group in send),
+                _pages(send),
                 _COLLECT_MAX_S,
             )
             break
         # Never overshoot the moment the quiet window expires.
-        await asyncio.sleep(min(_POLL_SECONDS, max(_QUIET_SECONDS - quiet_for, 0.01)))
-    # Exactly one of these per media_group_id is what a healthy album looks
-    # like. Two means the batch was claimed twice and the album split into
-    # separate records — the failure that took three attempts to find, and
-    # which nothing in the log could previously tell from one slow page.
+        await asyncio.sleep(min(_POLL_SECONDS, max(window - quiet_for, 0.01)))
+    # Exactly one of these per send is what a healthy album looks like. Two
+    # means the batch was claimed twice and the album split into separate
+    # records — the failure that took three attempts to find, and which
+    # nothing in the log could previously tell from one slow page. A send of
+    # several albums names the gap before each: what _CONTINUE_S is measured
+    # against.
+    gaps = [
+        _first_page_at[later] - _last_page_at[earlier]
+        for earlier, later in zip(send, send[1:])
+    ]
     logger.info(
-        "album %s: batch closed, %d of %d pages, %.1fs since the first",
-        media_group_id,
-        len(_buffer.get(media_group_id, ())),
-        len(_announced[media_group_id]),
-        time.monotonic() - _first_page_at[media_group_id],
+        "album %s: batch closed, %d of %d pages%s, %.1fs since the first",
+        send[0],
+        sum(len(_buffer.get(group, ())) for group in send),
+        _pages(send),
+        f" in {len(send)} albums, "
+        + ", ".join(f"{gap:.2f}s" for gap in gaps)
+        + " apart"
+        if gaps
+        else "",
+        time.monotonic() - min(_first_page_at[group] for group in send),
     )
     # No await between the decision and this pop: exactly one caller gets the
-    # list, every other one comes back around and finds the group gone.
-    return _forget(media_group_id)
+    # list, every other one comes back around and finds its album gone.
+    return _forget(send)
 
 
 @dataclass

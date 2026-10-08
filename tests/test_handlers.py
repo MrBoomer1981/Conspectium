@@ -996,7 +996,7 @@ async def test_an_album_nobody_tagged_is_left_alone_in_a_group(session, monkeypa
     monkeypatch.setattr(handlers.albums, "process_batch", must_not_run)
     user = await _user(session)
     message = _AlbumMessage()
-    pages = [_input(i) for i in range(1, 30)]  # over MAX_ALBUM_PAGES, too
+    pages = [_input(i) for i in range(1, 40)]  # over MAX_ALBUM_PAGES, too
 
     await handlers._process_album(message, session, user, pages, group)
 

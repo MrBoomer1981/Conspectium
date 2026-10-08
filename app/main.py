@@ -220,7 +220,8 @@ async def lifespan(app: FastAPI):
     # The variables on Railway stand above the code's defaults, so the limits
     # a deploy runs under are only known from what it says here.
     logger.info(
-        "Limits: %d pages a person a day, %d a group, $%g a day for the whole bot",
+        "Limits: %d pages a send, %d a person a day, %d a group, $%g a day for the whole bot",
+        settings.MAX_ALBUM_PAGES,
         settings.DAILY_PAGES_PER_USER,
         settings.DAILY_PAGES_PER_GROUP,
         settings.DAILY_COST_LIMIT_USD,

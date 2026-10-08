@@ -751,9 +751,15 @@ def source_key(message: Message) -> str:
     """What a record in a group chat is made of: an album by its media group,
     a single page by its message. The same pages always give the same key,
     whether they came with their subject or were called on later."""
-    if message.media_group_id:
-        return f"album:{message.media_group_id}"
-    return f"msg:{message.message_id}"
+    return page_key(message.media_group_id, message.message_id)
+
+
+def page_key(media_group_id: str | None, message_id: int) -> str:
+    """The source key of one page — its album's, else its own message's. A
+    send of several albums is keyed by its first page's (task 81)."""
+    if media_group_id:
+        return f"album:{media_group_id}"
+    return f"msg:{message_id}"
 
 
 async def recorded(session: AsyncSession, group: Group, key: str) -> Note | None:

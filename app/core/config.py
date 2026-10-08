@@ -143,7 +143,11 @@ class Settings(BaseSettings):
     # a thing to decide rather than to discover.
     ALLOW_UNPRICED_MODEL: bool = False
     MIN_MARKDOWN_LEN: int = 40
-    MAX_ALBUM_PAGES: int = 10
+    # The pages one send may hold: the albums of ten Telegram cuts a send of
+    # more into are read as one (task 81), and an album past this begins a
+    # send of its own. Production's value since 2026-10-08; at Telegram's ten
+    # no album would ever join another.
+    MAX_ALBUM_PAGES: int = 30
     LOG_LEVEL: str = "INFO"
     # The chat every «Плохо» under a document and every reader's account of
     # an error is sent to at once, with the document (task 70) — the CEO's

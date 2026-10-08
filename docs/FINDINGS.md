@@ -1753,3 +1753,43 @@ the line keeps what it quoted for an anchor to find; the idea stands
 before «возможно 3 случая:» again. Found on 2026-10-08 drawing record 87's
 study version, three hours after the deploy.
 
+
+## A lecture sent at once
+
+**Twelve pages, two records.** Two sends of twelve pages on 2026-10-08, at
+11:27 and 14:28 UTC, each arrived as two albums, ten pages and two: Telegram
+puts at most ten photographs in an album and sends the rest as the next,
+each a media group of its own. The first send was not read; the second,
+after `MAX_ALBUM_PAGES` had been raised to 30 and a person's day to 50
+pages at 14:23, came back as two records — two documents, two compositions,
+two study versions, the lecture cut after its tenth page. The cap could
+change nothing: the bot never saw an album of more than ten.
+
+The log's "batch closed" lines say when. Each album closes three seconds
+after its last page, and the line says how long after its first: the ten
+pages of the first album came over 1.6 s, and the second album's first page
+0.07 s after the first album's last at 11:27, 0.45 s at 14:28 — as close
+as the pages of one album to each other. Fifteen seconds of waiting after a
+full album is some thirty times what was measured, for an upload slower
+than these two.
+
+**What it cost in a group, without being seen there.** The caption, and
+the "#word" in it, rides on one album, and the bot takes an album in a
+group only with its "#word": the album that carried it was read alone and
+the rest dropped without a word. A page left over after the tens can come
+as a photo of its own, an album holding two items at least, and in a group
+it never reached the bot at all. Neither was seen in production; both
+follow from the code and from how Telegram divides a send.
+
+**Why the albums are joined when the batch closes.** A page registers in
+the buffer once its update has passed the middleware's queries, so pages
+register in roughly, not exactly, the order they came: the tenth page of
+the first album can register after the second album's first. Joined when
+the second album's first page arrived, the first album might still look
+short of ten. Joined when a send has gone quiet, every page of it is in.
+
+**What is left.** A reply's "#word" under one album of an untagged send in
+a group reads that album alone: `group_pages` keeps no sender to find the
+rest by. An album that comes after the fifteen seconds is a record of its
+own. The gaps the log now names for every send of several albums are what
+the window is to be measured against.

@@ -343,7 +343,7 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
    exception; `notes`, `users` and `events` go through it. It serves messages,
    the bot's own membership updates and the presses of its buttons, and puts
    the group chat, if any, in `data["group"]` — for a press, the chat of the
-   message the button is on. Four deliberate exceptions:
+   message the button is on. Five deliberate exceptions:
    - a **new** user is committed *before* the handler: `log_ai_calls` inserts
      `ai_calls.user_id` from a session of its own and would fail the foreign
      key;
@@ -354,6 +354,11 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
      (`handlers._remember_page`): the update that claims the batch holds its
      session through the album, and its rollback would lose the page for
      every later call on it;
+   - every album page's update commits before it waits for its album
+     (`handlers.handle_photo`, task 81): nothing of its own is left to
+     write, and an album of ten waits 15 s for the rest of its send — a
+     send of thirty pages is thirty updates waiting at once, and the pool is
+     twenty;
    - a group's record is committed before the pages it was read from are
      free for another reading (`corpus.reading`, task 41): a second call on
      them finds the reading or the record, never neither.
@@ -463,6 +468,21 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   pages** (`handlers._fetch_pages`), after the album's tag, size and limits —
   so an untagged album in a group is never fetched. → "The album that came
   back as four records"
+- **A send of more than ten pages is one album** (task 81, 2026-10-08):
+  Telegram puts at most ten photographs in an album and sends the rest as
+  the next, and a page left over after the tens can come as a photo of its
+  own. The albums one person sends into one chat are one batch while every
+  one before the last holds ten (`albums._send_of`) — up to
+  `MAX_ALBUM_PAGES`, past which an album begins a send of its own, and
+  never across two "#words". An album of exactly ten waits `_CONTINUE_S`
+  for the rest; a photo its sender sends meanwhile joins as an album of one
+  page, heard in a group without its "#word" (`albums.collecting`). Decided
+  when the batch closes, over every album of theirs still waiting — never
+  when a page arrives, since pages register in the order their updates
+  finish their database work. The record's pages are in message order
+  across the albums, its subject whichever album carries one, its source
+  key in a group the first album's; `note_processed` counts `album_parts`.
+  → "A lecture sent at once"
 - **Router order in `main.py` is load-bearing.** `handlers.router` ends with a
   filterless catch-all, so `corpus.router` goes before it, capture after, and
   a third router is placed relative to that catch-all. `on_tag` matches text,
@@ -1114,10 +1134,11 @@ number never leaves another quietly cutting the work short:
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)`, every attempt timing out — 93 s at the default |
 | `_AFTER_TIMEOUT` | `services/vision.py` | `2` — a first attempt that timed out is followed by one twice as long, and that is the last: 90 s then 180 s in production, 271 s, inside `RUN_WORST_CASE_S` |
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s, a wave of runs; a page that reads further waits for two |
-| `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × (`VISION_RUNS` + `MORE_RUNS`) ÷ `API_SLOTS`⌉ — 604 s, 362 until a page could read further (task 65); raising it is allowed, lowering it is not |
+| `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × (`VISION_RUNS` + `MORE_RUNS`) ÷ `API_SLOTS`⌉ — 1813 s, 604 until a send of thirty pages was one album (task 81), 362 until a page could read further (task 65); 5323 s at production's 90 s call; raising it is allowed, lowering it is not |
 | `_QUIET_SECONDS` | `bot/albums.py` | 3 s of silence since the last `announce` closes an album, once every announced page is in |
-| `_COLLECT_MAX_S` | `bot/albums.py` | 60 s from the first page, so a stream that never goes quiet cannot hold a session for ever |
-| `max_overflow` | `db/session.py` | 15 — every page of an album holds a session through the debounce, the winner for the whole album |
+| `_CONTINUE_S` | `bot/albums.py` | 15 s of silence closes a send that ends on an album of exactly ten, which the rest of the send may follow (task 81) — some thirty times the gaps measured, 0.07 and 0.45 s |
+| `_COLLECT_MAX_S` | `bot/albums.py` | 60 s from the send's first page, so a stream that never goes quiet cannot hold a session for ever |
+| `max_overflow` | `db/session.py` | 15 — every page of an album arrives at once with a session, the winner holding a connection for the whole album; the others commit before they wait (task 81) |
 
 - `TIMEOUT_MARGIN = 1.3` is the ratio the old hand-written 120 s held to 93 s.
   The startup log prints all five timeouts and the repeat after a timeout:
@@ -1139,7 +1160,7 @@ number never leaves another quietly cutting the work short:
   that reached it was working, and waiting again doubles the window in which a
   deploy cancels it. Every attempt is written to `ai_calls`.
 - **Raising `VISION_CALL_TIMEOUT_S` is not linear**: at 90 s the album ceiling
-  is 1774 s. It fires only when calls hang; what it buys is exposure, since any
+  is 5323 s. It fires only when calls hang; what it buys is exposure, since any
   deploy cancels the background task an album runs in.
 - **The group ceilings use `asyncio.wait`, never `wait_for`**, and cancel the
   stragglers in a `finally`: cancelling the group would discard the
@@ -1162,7 +1183,7 @@ the machinery before the point arrives — record what you find here instead.
 
 | Shortcut | Breaks at | What happens |
 |---|---|---|
-| The album buffer is five module-level dicts in `bot/albums.py`, the pages being read a set in `bot/corpus.py`, and the study versions being built a set in `bot/study_version.py` | **a second replica** | pages of one album land in different processes and become separate records; two calls on one album in two processes read it twice; two presses of «Учебная версия» pay twice |
+| The album buffer is six module-level dicts in `bot/albums.py`, the pages being read a set in `bot/corpus.py`, and the study versions being built a set in `bot/study_version.py` | **a second replica** | pages of one album land in different processes and become separate records; two calls on one album in two processes read it twice; two presses of «Учебная версия» pay twice |
 | An update is processed in a background task | **any deploy** | in-flight updates are cancelled; paid Gemini calls are wasted |
 | No deduplication on `update_id` | **a delivery timeout** | Telegram retries: a duplicate record and a second set of paid calls |
 | `DAILY_COST_LIMIT_USD` is one cap over every chat, above each group's day in pages | **about four groups at their full day** at today's prices, two once they double on 2027-01-01 | the chats that come later in the day find the bot stopped: the cap has to grow with the groups |
@@ -1336,7 +1357,7 @@ IMAGE_MAX_SIDE=1500
 IMAGE_QUALITY=85
 ALLOW_UNPRICED_MODEL=false
 MIN_MARKDOWN_LEN=40
-MAX_ALBUM_PAGES=10
+MAX_ALBUM_PAGES=30       the pages of one send, its albums of ten read as one (task 81)
 LOG_LEVEL=INFO
 FEEDBACK_CHAT_ID=        unset: feedback is stored only
 ```
@@ -1395,7 +1416,7 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
   numbers, whether drawings are cut out and lectures marked, the image
   compression, both stages, the study version's prompt, the call knobs, the
-  five timeouts and the repeat after one, the day's limits, where a reader's «Плохо» is sent, when a
+  five timeouts and the repeat after one, the pages of one send and the day's limits, where a reader's «Плохо» is sent, when a
   group's week is summed up, and whether the bot sees a group's photos. What
   a **record** does not say is which prompt made it —
   `docs/PLAN.md` → "Where the quality work stands", gap 3.
