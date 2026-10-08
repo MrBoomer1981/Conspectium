@@ -505,14 +505,16 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   off, refused or failed, the worst case of the stage is the pipeline without
   it — and a refusal costs the record its headings, which is why the numbers
   leave out what only counts items: "1)", "1))", "2." or a bare number before
-  a capitalised word opening a line, a heading or a bold label, and "1)"
-  after a colon or a semicolon inside a line unless it closes a bracket —
-  "(0; 1)" is a value. Record 59 lost its composition to "Примеры: 1) …" made
-  into a list, and records 86 and 87 to a theorem's parts numbered
-  «1 Существование», «2 Число…», made «1.» and «2.» (task 79). Before a
+  a capitalised word opening a line, a heading, a bold label or a bulleted
+  item, and "1)" after a colon or a semicolon inside a line unless it closes
+  a bracket — "(0; 1)" is a value — and what the author struck out, a
+  `~~…~~` of the source, on both sides. Record 59 lost its composition to
+  "Примеры: 1) …" made into a list, records 86 and 87 to a theorem's parts
+  numbered «1 Существование», «2 Число…», made «1.» and «2.» (task 79), and
+  record 88 to «* 2) …» and to «~~3.1 Строгое~~» dropped (task 82). Before a
   lower-case word a number is a value: «2 мн-ва» written «два множества» is
   refused. The log line says how many numbers went and came, never which. →
-  "The composition record 59 lost", "Record 86, √2"
+  "The composition record 59 lost", "Record 86, √2", "Records 88 and 89"
 - **A refused composition is asked for once more** (`compose_retried`,
   2026-10-03): the composer is sampled, and a refusal is one sample's.
   Record 66's, refused in production for three numbers it gained, was
@@ -523,6 +525,17 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   (`_demote_invented_headings`, before `_refusal`, counted as
   `compose_demoted`): the marker comes off, every word stays. → "Headings the
   composer invented"
+- **A formula the composer changed is put back, not refused**
+  (`_restore_formulas`, task 82, before `_refusal`, counted as
+  `compose_restored`): where the numbers differ, a formula of the
+  composition the source does not carry is matched against the source's
+  formulas and against runs of them one after another — a working's lines,
+  which the composer makes one formula — and the closest, four-fifths alike,
+  is put back as read where that brings the numbers closer. Record 89's
+  composer squared «$c-h = c^2 - 2ch + h^2 =$», as the working needs and the
+  reading does not have, nine times of fourteen: the bot does not correct
+  the author, and the record no longer loses every heading for it. →
+  "Records 88 and 89"
 - **Main-formula marks are capped**: rule 9 of `prompts-compose-v3.md` frames a
   section's main formula, and `_cap_marks` keeps two of the stage's own frames
   a section (`compose_unmarked`). A frame from recognition is the author's pen

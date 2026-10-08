@@ -1793,3 +1793,51 @@ a group reads that album alone: `group_pages` keeps no sender to find the
 rest by. An album that comes after the fifteen seconds is a record of its
 own. The gaps the log now names for every send of several albums are what
 the window is to be measured against.
+
+## Records 88 and 89
+
+**Five of fifteen, the last four in a row.** Since `prompts-compose-v4.md`
+went to production on 2026-10-06, five records of fifteen went out
+uncomposed — refused by the numbers guard, twice each — and the last four
+in a row: 86 and 87 (tasks 78 and 79), and 88 and 89, the ten pages and the
+two of one send of twelve (task 81).
+
+**Record 88 lost no value.** Composed twice more on Railway over its text,
+the composer kept every number the lecture has, and the guard counted
+three that are markup. It set the author's numbered items as a bulleted
+list, «* 2) $a > b$», «* 1 База индукции», and the guard knew an item's
+number only at the start of a line or after a heading's or a bold label's
+mark. It dropped what the author struck out, «~~3.1 Строгое~~», a section
+number given up for «3. Другие отношения порядка», and the guard counted
+the 3.1. And once it dropped the «1)» after the struck words — an item's
+number the struck words before it hid from the markers. Under the guard of
+task 82 the record was composed three times of three on Railway, at the
+first asking each time. Once in five the composer also merged «Теорема
+$\sqrt{2}$ — иррациональное число» into the heading above it, written as
+«Теорема об иррациональности $\sqrt{2}$»: a sentence lost, and that
+refusal stands.
+
+**Record 89 has a formula the working does not support.** It reads
+«Во-вторых, $c-h = c^2 - 2ch + h^2 =$» over «$= c^2 - \frac{2b}{3} + … =
+2$»: the working needs $(c-h)^2$, and the reading has $c-h$ — whether the
+author's slip or the reading's, the photographs would say. Asked fourteen
+times on Railway, the composer wrote $(c-h)^2$ nine times, most of them
+making one formula of the two lines. The guard refused each, and was
+right: a formula changed is the author corrected, the thing the bot never
+does. But the record lost every heading for one exponent.
+
+**Put back rather than refused.** A formula the composer changed is now
+put back as recognition read it, as an invented heading is demoted: where
+the numbers differ, a formula of the composition the source does not carry
+is matched against the source's formulas, and against runs of them one
+after another — the lines of one working. The first version matched
+single formulas only, and on the composer's one formula of two lines it
+chose the longer line: the other's three numbers were lost instead of one
+gained. So a working is matched whole, the sign the author repeats at the
+start of the next line written once, and a formula is put back only where
+that brings the numbers closer. The composition the composer wrote on
+Railway, squared and made one formula, is accepted with
+«$c-h = c^2 - 2ch + h^2 = c^2 - \frac{2b}{3} + … = 2$» in it.
+
+What it cost to find: nineteen calls on Railway, $0.16, in `ai_calls`
+under record 88's and 89's owner.

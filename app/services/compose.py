@@ -21,10 +21,12 @@ already had. The worst case of this stage is the output without it.
 from __future__ import annotations
 
 import asyncio
+import difflib
 import logging
 import re
 import time
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from google.genai import types
@@ -51,9 +53,12 @@ _MIN_LENGTH_RATIO = 0.8
 # 87's theorem «1 Существование», «2 Число не является рациональным», the
 # composer made them the list they are, and both numbers seemed to vanish —
 # the record went out uncomposed twice. Before a lower-case word a number is a
-# value: «2 мн-ва» written «два множества» is refused ...
+# value: «2 мн-ва» written «два множества» is refused. A bullet may stand
+# before the number: record 88's items became «* 2) …» and «* 1 База
+# индукции», the composer's list over the author's, and seemed gained ...
 _LIST_MARKER_RE = re.compile(
-    r"^([ \t]*(?:#{1,6}[ \t]+)?(?:\*\*|__)?)\d+(?:\.|\)+|(?=[ \t]+[A-ZА-ЯЁ]))[ \t]+",
+    r"^([ \t]*(?:[-*+•][ \t]+)?(?:#{1,6}[ \t]+)?(?:\*\*|__)?)"
+    r"\d+(?:\.|\)+|(?=[ \t]+[A-ZА-ЯЁ]))[ \t]+",
     re.MULTILINE,
 )
 # ... or follows, inside a line, the colon or semicolon that introduces it.
@@ -63,6 +68,19 @@ _LIST_MARKER_RE = re.compile(
 # ends on a value, and the value is what this guard is for.
 _INLINE_MARKER_RE = re.compile(r"(?<=[:;][ \t])\d+\)(?=[ \t])")
 _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
+# What the author struck out, as recognition read it. Its numbers are not the
+# lecture's: record 88's «~~3.1 Строгое~~», a section number given up, was
+# dropped by the composer and seemed lost — and hid the «1)» after it from
+# the markers, which only look at the start of a line.
+_STRUCK_RE = re.compile(r"(?<!~)~~(?!~)[^\n]+?(?<!~)~~(?!~)")
+# How alike a changed formula has to be to the source's to be put back as it
+# was read: four-fifths of the characters, spaces aside. Record 89's
+# $(c-h)^2 = c^2 - 2ch + h^2 =$ against the $c-h = …$ it was read as is 0.89;
+# $I_3$ against $I_2$ is 0.67, and a formula that short has too many
+# neighbours to tell which it was.
+_RESTORE_SIMILARITY = 0.8
+# The most lines of a working the composer is taken to make one formula of.
+_MAX_JOINED = 4
 # Letters only. Digits are the numbers guard's business and punctuation is
 # markup's, so neither belongs in a count of words.
 _WORD_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
@@ -110,6 +128,9 @@ class Composition:
     demoted: int = 0
     # Main-formula marks past two in a section, taken back the same way.
     unmarked: int = 0
+    # Formulas the composer changed a number in, put back as they were read
+    # (task 82).
+    restored: int = 0
     # Whether the guards refused the first composition and a second was asked
     # for — what note_processed reports, so how often it saves a record is a
     # query.
@@ -127,9 +148,21 @@ def _inline_marker(match: re.Match) -> str:
     return ""
 
 
-def _numbers(markdown: str) -> Counter[str]:
+def _numbers(markdown: str, struck: Iterable[str] = ()) -> Counter[str]:
+    """The values a text carries: every number but an item's, and but those
+    of `struck` — the spans the source carries struck out."""
+    for span in struck:
+        markdown = markdown.replace(span, "", 1)
     unmarked = _INLINE_MARKER_RE.sub(_inline_marker, _LIST_MARKER_RE.sub(r"\1", markdown))
     return Counter(_NUMBER_RE.findall(unmarked))
+
+
+def _counts(source: str, composed: str) -> tuple[Counter[str], Counter[str]]:
+    """The numbers of the source and of the composition as the guard compares
+    them: what the author struck out left out of both, so the composer may
+    drop it (task 82). A struck span the composer adds is counted."""
+    struck = _STRUCK_RE.findall(source)
+    return _numbers(source, struck), _numbers(composed, struck)
 
 
 def _words(markdown: str) -> Counter[str]:
@@ -151,7 +184,8 @@ def _refusal(source: str, composed: str) -> str | None:
     """
     if not composed.strip():
         return "empty"
-    if _numbers(source) != _numbers(composed):
+    before, after = _counts(source, composed)
+    if before != after:
         return "numbers"
     if source.count(_UNREADABLE) != composed.count(_UNREADABLE):
         return "unreadable marks"
@@ -251,6 +285,116 @@ def _cap_marks(source: str, composed: str) -> tuple[str, int]:
     return "\n".join(lines), removed
 
 
+def _inner(match: re.Match) -> str:
+    """The LaTeX of a formula pdf draws, without its dollars."""
+    return match.group(1) if match.group(1) is not None else match.group(2)
+
+
+def _alike(a: str, b: str) -> float:
+    return difflib.SequenceMatcher(None, a, b, autojunk=False).ratio()
+
+
+def _joined(first: str, second: str) -> str:
+    """Two lines of a working as one formula. The author writes the sign that
+    breaks a line again at the start of the next — record 89's «h^2 =» over
+    «= c^2 - …» — and inside one formula it stands once."""
+    head, tail = first.rstrip(), second.lstrip()
+    if head and tail and head[-1] == tail[0] and head[-1] in "=+-<>":
+        tail = tail[1:].lstrip()
+    return f"{head} {tail}"
+
+
+def _workings(source: str) -> list[tuple[str, ...]]:
+    """What a formula of the composition may have been read as: one formula
+    of the source, or up to _MAX_JOINED of them standing one after another
+    with nothing but space between — the lines of one working, which the
+    composer makes one formula."""
+    found = list(pdf._MATH_RE.finditer(source))
+    workings = []
+    for start, first in enumerate(found):
+        run = [first]
+        workings.append((_inner(first),))
+        for later in found[start + 1 : start + _MAX_JOINED]:
+            if source[run[-1].end() : later.start()].strip():
+                break
+            run.append(later)
+            workings.append(tuple(_inner(match) for match in run))
+    return workings
+
+
+def _restore_formulas(source: str, composed: str) -> tuple[str, int]:
+    """Put back, as recognition read it, every formula the composer changed a
+    number in, and count them (task 82).
+
+    The composer corrects what does not add up: record 89 reads
+    $c-h = c^2 - 2ch + h^2 =$, where the working needs $(c-h)^2$, and its
+    compositions came back squared nine times of fourteen. The guard refused
+    them, rightly — a formula changed is the author corrected — and the
+    record lost every heading for one exponent. A repair rather than a
+    refusal, as for a heading: what the source read stands where the
+    composer set its own formula, and the guards then judge the whole as
+    before. A formula the composition carries as it was read is never
+    touched, and each one of the source is put back once.
+
+    The composer also makes one formula of a working's lines, and record
+    89's square came that way: «$c-h = … + h^2 =$» over «$= c^2 - … = 2$»,
+    made «$(c-h)^2 = … = 2$». So a changed formula is matched against runs
+    of the source's formulas as well as single ones (_workings), the closest
+    put back if four-fifths of its characters are alike — and only where
+    that brings the numbers closer to the source's. One changed without its
+    numbers — a frame, a space, a command spelled another way — is markup
+    and stays; and a working put back as one of its lines would lose the
+    others' numbers.
+    """
+    target, now = _counts(source, composed)
+
+    def distance(counts: Counter[str]) -> int:
+        return sum(((target - counts) + (counts - target)).values())
+
+    pool = Counter(_bare(_inner(match)) for match in pdf._MATH_RE.finditer(source))
+    changed = []
+    for match in pdf._MATH_RE.finditer(composed):
+        bare = _bare(_inner(match))
+        if pool[bare] > 0:
+            pool[bare] -= 1
+        else:
+            changed.append(match)
+    workings = _workings(source)
+    pieces: list[str] = []
+    end = restored = 0
+    for match in changed:
+        bare = _bare(_inner(match))
+        free = [
+            working
+            for working in workings
+            if all(
+                pool[line] >= count
+                for line, count in Counter(map(_bare, working)).items()
+            )
+        ]
+        closest = max(free, key=lambda w: _alike(bare, _bare("".join(w))), default=None)
+        if closest is None or _alike(bare, _bare("".join(closest))) < _RESTORE_SIMILARITY:
+            continue
+        read = closest[0]
+        for line in closest[1:]:
+            read = _joined(read, line)
+        after = (
+            now
+            - Counter(_NUMBER_RE.findall(_inner(match)))
+            + Counter(_NUMBER_RE.findall(read))
+        )
+        if distance(after) >= distance(now):
+            continue
+        now = after
+        pool -= Counter(map(_bare, closest))
+        group = 1 if match.group(1) is not None else 2
+        pieces += [composed[end : match.start(group)], read]
+        end = match.end(group)
+        restored += 1
+    pieces.append(composed[end:])
+    return "".join(pieces), restored
+
+
 async def _one_call(markdown: str) -> tuple[str | None, CallStats, bool]:
     """One call, and whether the failure that ended it is worth another.
 
@@ -347,14 +491,20 @@ def _checked(markdown: str, composed: str) -> Composition:
     # Before the guards, so that what they checked is what gets stored.
     composed, demoted = _demote_invented_headings(composed)
     composed, unmarked = _cap_marks(markdown, composed)
+    # Only where the numbers would refuse it: a formula the composer changed
+    # with every number kept is markup, its own business.
+    restored = 0
+    before, after = _counts(markdown, composed)
+    if before != after:
+        composed, restored = _restore_formulas(markdown, composed)
+        before, after = _counts(markdown, composed)
     refused = _refusal(markdown, composed)
     drift = _drift(markdown, composed)
     # How many numbers went and came, never which: they are the page's.
     # Record 59's refusal took two paid calls in the container to explain.
-    before, after = _numbers(markdown), _numbers(composed)
     logger.info(
         "compose: %s, %d -> %d chars, word drift %d, numbers %d lost %d gained, "
-        "%d headings demoted, %d marks taken back, model %s",
+        "%d headings demoted, %d marks taken back, %d formulas put back, model %s",
         f"refused ({refused})" if refused else "accepted",
         len(markdown),
         len(composed),
@@ -363,6 +513,7 @@ def _checked(markdown: str, composed: str) -> Composition:
         sum((after - before).values()),
         demoted,
         unmarked,
+        restored,
         settings.COMPOSE_MODEL,
     )
     return Composition(
@@ -371,6 +522,7 @@ def _checked(markdown: str, composed: str) -> Composition:
         drift=drift,
         demoted=demoted,
         unmarked=unmarked,
+        restored=restored,
     )
 
 
