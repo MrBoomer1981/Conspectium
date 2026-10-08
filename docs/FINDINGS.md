@@ -1841,3 +1841,27 @@ Railway, squared and made one formula, is accepted with
 
 What it cost to find: nineteen calls on Railway, $0.16, in `ai_calls`
 under record 88's and 89's owner.
+
+**What the CEO's reading found in how they were set out** (task 83). The
+CEO read both study versions against the photographs and wrote down
+sixteen points: ten in the lecture, six in its setting out. A record whose
+composition was refused is drawn line by line as the notebook has it, and
+a box stood under the line its anchor was in — five times in record 88
+inside a sentence or a working: «Существует элемент 1 ∈ ℝ, 1 ≠ 0», a box,
+«такой, что x·1 = x»; «Существует число c ∈ ℝ, разделяющее», a box, «мн-ва
+∃c…». One box, «Корректность определения через пересечение», stood under
+the proof about √2, pages from the definition of ℕ it explains: its anchor,
+«Множеством / натуральных чисел называется», ran over two lines of the
+notebook and was found on neither, and an unanchored box goes to the end
+of the text. With the lines of a sentence one place for its boxes, record
+88's study version drawn again set every box after its sentence, the one
+about ℕ under ℕ's definition, and came to eleven pages from twelve.
+
+Of the ten points in the lecture, two are equalities that do not hold —
+«(−x)(−x) = x», «c − h = c² − 2ch + h²» — which code can prove (task 84).
+«x·0 = x·0 + 0·x» holds as values, both sides nought: its fault is the
+step's reason, distributivity, which gives x·0 + x·0. The other seven are
+meaning: what a proof leaves unsaid, what «(+ обратное)» means, an axiom
+the definition lacks. No code finds those, and the model that would is
+the verification pass this project gave up — it finds errors that are not
+there, and the reader cannot tell.

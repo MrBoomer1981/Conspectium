@@ -1011,7 +1011,8 @@ def test_a_remark_is_set_directly_under_the_line_it_belongs_to(monkeypatch):
     story = _story(
         monkeypatch,
         "Графы",
-        "первая строка\nвторая строка про щуку\nтретья строка",
+        # Three sentences: a box waits for the end of its own (task 83).
+        "Первая строка.\nВторая строка про щуку.\nТретья строка.",
         remarks=[pdf.Remark("щуку", "Проверка вычислений", ["не сходится"])],
     )
     flat = [f for f in _flat(story) if type(f).__name__ != "Spacer"]
@@ -1019,7 +1020,7 @@ def test_a_remark_is_set_directly_under_the_line_it_belongs_to(monkeypatch):
 
     assert anchor > 0
     assert type(flat[anchor + 1]).__name__ == "Table"
-    assert _where(flat, "третья") > anchor + 1
+    assert _where(flat, "Третья") > anchor + 1
 
 
 def test_a_remark_is_kept_on_the_page_of_its_line(monkeypatch):
@@ -1168,7 +1169,7 @@ def test_a_finding_finds_its_formula_however_composition_set_it(monkeypatch):
     story = _story(
         monkeypatch,
         "Т",
-        "первая строка\n**Итак**, $2 + 2 = 4 = 5$ — и дальше\nтретья строка",
+        "Первая строка.\n**Итак**, $2 + 2 = 4 = 5$ — и дальше.\nТретья строка.",
         remarks=[pdf.Remark("2+2 = 4=5", "Проверка вычислений", ["не сходится"])],
     )
     flat = [f for f in _flat(story) if type(f).__name__ != "Spacer"]
@@ -1963,7 +1964,7 @@ def _explained(anchor: str) -> pdf.Explanation:
 
 def test_an_explanation_is_set_under_the_line_it_quotes(monkeypatch):
     story = _story(
-        monkeypatch, "Т", "первая строка\nвторая строка про поворот\nтретья",
+        monkeypatch, "Т", "Первая строка.\nВторая строка про поворот.\nТретья.",
         explanations=[_explained("строка про поворот")],
     )
     group = _group_of(story, "про поворот")

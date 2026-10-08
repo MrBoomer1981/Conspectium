@@ -588,9 +588,10 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   is drawn (`corpus._explanations`).
 - **Stored apart, printed as the bot's**: `notes.explanations` (with the
   sources) and `notes.summary`, never mixed into `markdown`. An explanation
-  stands under the line it quotes or the formula it numbers, after that line's
-  findings; the summary opens the document as "Суть". At most eight; an
-  anchor found nowhere puts its box at the end. Limits come before the call
+  stands under the sentence it quotes or the formula it numbers, after that
+  sentence's findings (task 83, "The document"); the summary opens the
+  document as "Суть". At most eight; an anchor found nowhere puts its box at
+  the end. Limits come before the call
   (`pages=0`); each search is billed per query (`GROUNDING_USD_PER_QUERY`),
   inside the cap. Off, refused or failed, the record goes out as without it;
   `.docx` skips it.
@@ -612,8 +613,8 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   — mathcheck itself compares chains of two "=" only); one that judges the
   record goes, as an explanation would. Dropped ones are counted
   (`elements_dropped`). Stored in `notes.explanations` beside the explanations,
-  each naming its `kind`; an idea is set before the line it is anchored to, the
-  others under it. At most twelve. → "The teacher's boxes"
+  each naming its `kind`; an idea is set before the sentence it is anchored
+  in, the others after it. At most twelve. → "The teacher's boxes"
 
 ### Drawings cut out of the page
 
@@ -1026,12 +1027,24 @@ why each is what it is. What a change must not break:
   written in characters elsewhere: record 86 carried «\sqrt{2}» in all
   three (task 78).
 - **Markup never prints as its source**: `$$` blocks, `$$…$$` inside a line,
-  emphasis across a formula, `~~…~~` struck through, a line of `~~~` a
-  separator as `---` is; a finding's quoted LaTeX through `pdf.as_formula`.
-  «[зачёркнуто]», what recognition writes where the author crossed something
-  out, is not printed, nor a line that held only it (`pdf._unstruck`): what
-  the author struck out is not the lecture. Nor is «~~[неразборчиво]~~», a
-  crossing-out the reading could not see through (task 78).
+  emphasis across a formula, a line of `~~~` a separator as `---` is; a
+  finding's quoted LaTeX through `pdf.as_formula`. «[зачёркнуто]», what
+  recognition writes where the author crossed something out, is not printed,
+  nor a line that held only it (`pdf._unstruck`): what the author struck out
+  is not the lecture. Nor is «~~[неразборчиво]~~», a crossing-out the reading
+  could not see through (task 78), nor struck words the reading could read,
+  `~~…~~` (task 83) — unless they are all the line has but its number:
+  «1.3. ~~Мн-ва Аксиома полноты~~» stays struck, since the reading may strike
+  more than the author did.
+- **The notebook's line is not the document's** (task 83, the CEO's reading
+  of records 88 and 89): a word carried over with a hyphen is whole at the
+  end of the first line (`pdf._unhyphenated`, three letters on either side,
+  so «мн-ва» stays); a short formula a sentence ends on — «$X_i$» — is set in
+  its line, never one of a column (`pdf._tail_formulas`); a sign the author
+  ringed, «[схема: ?! в кружке]», is framed in its line (`pdf._ringed`);
+  ⩽ and ⩾ are drawn as ≤ and ≥, one sign through the document. One pipeline
+  reads a record for render and for the formulas it numbers (`pdf._parsed`),
+  so the study version's numbers stay the record's.
 
 → "The document as the group got it", "Record 74, a lecture on trees",
 "Record 86, √2"
@@ -1104,8 +1117,18 @@ the reading"
 `mathcheck` and `graphcheck` find is a `vision.Finding`: the `Issue` and the
 text it is about, taken when the page is checked and stored in `notes.issues`
 as `anchor` — a line number would not survive composition. `render` sets it
-under the unit holding its anchor, compared without spaces, dollars and bold
-(`pdf._anchored`); one that anchors nowhere goes to the end. A record stored
+after the sentence holding its anchor, compared without spaces, dollars and
+bold, across the sentence's lines (`pdf._anchored`); one that anchors nowhere
+goes to the end. **A box never stands inside a sentence** (task 83): a record
+whose composition was refused is set line by line as the notebook has it,
+and a box under its line cut «Существует элемент 1 ∈ ℝ, 1 ≠ 0» from «такой,
+что x·1 = x». The lines of a sentence, as code tells them — a line in lower
+case goes on from the one before, a formula or a sign from a line that does
+not end a sentence, a line that does not end one into the list it opens,
+ten lines at most (`pdf._sentence_end`) — are one place: a finding, an
+explanation, a teacher's box after the last, an idea before the first, and
+an anchor found across them, which record 88's «Множеством / натуральных
+чисел называется» was not, and went pages on. A record stored
 before anchors is checked again when rendered. graphcheck's unread cell is not
 an error in the work and is not printed (`graphcheck.UNREAD_CELLS`).
 

@@ -347,6 +347,30 @@ _STRUCK_RE = re.compile(
     r"[ \t]*(?:\[\s*зач[её]ркнут[^\[\]\n]*\]|~~\s*\[\s*неразборчиво\s*\]\s*~~)",
     re.IGNORECASE,
 )
+# What the author struck out and the reading could read: «~~3.1 Строгое~~»,
+# a section number given up, printed struck in record 88 — and not the
+# lecture either (task 83, the CEO's reading).
+_STRUCK_WORDS_RE = re.compile(r"[ \t]*(?<!~)~~(?!~)[^~\n]+?(?<!~)~~(?!~)")
+# What a line has besides a number: a letter, or a formula.
+_WORDED_RE = re.compile(r"[^\W\d_]|\$")
+# A word the author carried over to the next line with a hyphen: «множес-»
+# over «твом», «предполо-» over «жению» (task 83). Three letters on either
+# side at least, so that «мн-ва» and «док-во» stay as written.
+_CARRIED_HEAD_RE = re.compile(r"(?<![^\W\d_])(?P<head>[^\W\d_]{3,})-[ \t]*$")
+_CARRIED_TAIL_RE = re.compile(
+    r"^[ \t]*(?P<tail>[^\W\d_A-ZА-ЯЁ][^\W\d_]{2,}[,.;:!?)]*)[ \t]*"
+)
+# Halves of words written with a hyphen rather than carried over with one,
+# three letters long or more: «кое-что», «какой-либо», «кто-нибудь». The
+# shorter — «во-первых», «из-за», «кто-то» — the three letters leave alone.
+_HYPHENED_HEADS = frozenset({"кое"})
+_HYPHENED_TAILS = frozenset({"либо", "нибудь", "таки"})
+# A sign the author ringed, which the reading wrote as a drawing:
+# «[схема: ?! в кружке]», printed as a line of words in record 88.
+_RINGED_RE = re.compile(
+    r"\[\s*схема\s*:\s*(?P<sign>[^\s\[\]]{1,4})\s+(?:в|во)\s+(?:кружк|круг|кольц)\w*\s*\]",
+    re.IGNORECASE,
+)
 _FRAME_OPEN_RE = re.compile(r"^\[\s*(?:в\s+)?рамк\w*\s*:?\s*(.*)$", re.IGNORECASE)
 # The author's frame round a sign or a word inside a line: record 86's «?!»,
 # ringed twice in a proof, printed as "[рамка: ?!]" — only a line that is
@@ -761,14 +785,56 @@ def parse_graph(spec: str) -> tuple[list[str], list[tuple[str, str]], bool] | No
 def _unstruck(markdown: str) -> str:
     """The record without the marks of what the author crossed out, for the
     document only. A line that held nothing else goes with its mark: left
-    blank, it would open a paragraph the page does not have."""
+    blank, it would open a paragraph the page does not have.
+
+    Struck words go too (task 83) — unless they are all the line has but its
+    number. Record 88's «1.3. ~~Мн-ва Аксиома полноты~~» was struck, by the
+    CEO's reading of the photograph, in «Мн-ва» only: the reading can strike
+    more than the author did, and a heading left a number would lose the
+    words it had. Such a line keeps them, struck as read."""
     out: list[str] = []
     for line in markdown.splitlines():
         cleaned = _STRUCK_RE.sub("", line)
         if line.strip() and not cleaned.strip():
             continue
+        unworded = _STRUCK_WORDS_RE.sub("", cleaned)
+        if unworded != cleaned and _WORDED_RE.search(unworded):
+            cleaned = unworded.strip()
         out.append(cleaned)
     return "\n".join(out)
+
+
+def _unhyphenated(markdown: str) -> str:
+    """Every word the author carried over to the next line with a hyphen made
+    whole again at the end of the first (task 83), the rest of the second
+    line left where it was — and the second line gone, when the word was all
+    of it."""
+    lines = markdown.split("\n")
+    index = 0
+    while index < len(lines) - 1:
+        head = _CARRIED_HEAD_RE.search(lines[index])
+        tail = _CARRIED_TAIL_RE.match(lines[index + 1])
+        if (
+            head is not None
+            and tail is not None
+            and head.group("head").lower() not in _HYPHENED_HEADS
+            and tail.group("tail").rstrip(",.;:!?)").lower() not in _HYPHENED_TAILS
+        ):
+            lines[index] = lines[index][: head.end("head")] + tail.group("tail")
+            rest = lines[index + 1][tail.end() :]
+            if rest.strip():
+                lines[index + 1] = rest
+            else:
+                del lines[index + 1]
+        index += 1
+    return "\n".join(lines)
+
+
+def _ringed(markdown: str) -> str:
+    """A sign the author ringed, written as a drawing by the reading, made the
+    frame it is: «[схема: ?! в кружке]» drawn as «[рамка: ?!]» is, round the
+    sign in its line (task 83)."""
+    return _RINGED_RE.sub(lambda found: f"[рамка: {found.group('sign')}]", markdown)
 
 
 def _lift_drawings(markdown: str) -> str:
@@ -868,6 +934,114 @@ def _framed_inline(found: re.Match) -> str:
                 return found.group(1)
             parts.append(rf"\text{{{value}}}")
     return f"${_BOXED}{''.join(parts)}}}$" if parts else ""
+
+
+def _parsed(markdown: str) -> list[Block]:
+    """The record as the document reads it: what the author struck out gone,
+    a word carried over joined, a ringed sign framed, every drawing on a line
+    of its own, a column of formulas on one ground, a sentence's short last
+    formula in its line. One pipeline for render and for what counts the
+    formulas it numbers (numbered_formulas), so the two never disagree."""
+    return _tail_formulas(
+        _formula_columns(
+            blocks(_lift_drawings(_ringed(_unhyphenated(_unstruck(markdown)))))
+        )
+    )
+
+
+# A formula short enough to be a sentence's last word carried to the next
+# line rather than a formula set apart: record 88's «$X_i$» under «…
+# принадлежат каждому множеству», alone on a formula's ground (task 83).
+_TAIL_FORMULA_CHARS = 8
+_SENTENCE_END_RE = re.compile(r"[.!?…][\s*_]*$")
+# What a line that goes on from the one before begins with: a formula or a
+# sign. A line in lower case goes on as well, whatever ended the one before:
+# a period there is an abbreviation's, «Т.к $X$ явл.», since a sentence
+# begins with a capital.
+_GOES_ON_RE = re.compile(r"^[$,;:—–)=<>+\\]")
+_LOWER_RE = re.compile(r"^[^\W\d_A-ZА-ЯЁ]")
+_PROSE = ("text", "math", "bullet")
+# The most lines a box set under its sentence waits past its own: a
+# notebook's lines can go on in lower case for a whole working.
+_SENTENCE_LINES = 10
+
+
+def _ends_sentence(block: Block) -> bool:
+    return block.kind != "math" and bool(_SENTENCE_END_RE.search(block.text))
+
+
+def _tail_formulas(parsed: list[Block]) -> list[Block]:
+    """A short formula alone on its line set at the end of the line before it
+    when that line runs on into it: «$X_i$», «$P(k+1)$». Never a main
+    formula, never one of a column — the block after it is no formula — and
+    never after a line that ended its sentence."""
+    out: list[Block] = []
+    for index, block in enumerate(parsed):
+        before = out[-1] if out else None
+        following = parsed[index + 1] if index + 1 < len(parsed) else None
+        if (
+            block.kind == "math"
+            and not block.main
+            and len(re.sub(r"\s+", "", block.text)) <= _TAIL_FORMULA_CHARS
+            and before is not None
+            and before.kind in ("text", "bullet")
+            and not _ends_sentence(before)
+            and (following is None or following.kind != "math")
+        ):
+            before.text = f"{before.text} ${block.text}$"
+            continue
+        out.append(block)
+    return out
+
+
+def _sentence_end(parsed: list[Block], index: int) -> int:
+    """Where the sentence that begins at `index` ends: the index after its
+    last line (task 83).
+
+    A box stood under the line its anchor is in, and a record set line by
+    line as the notebook has it — every record whose composition is refused
+    — went out with «Существует элемент 1 ∈ ℝ, 1 ≠ 0», a box, «такой, что
+    x·1 = x». So the lines of one sentence, as code can tell them, are one
+    place for the boxes: a line in lower case goes on from the one before; a
+    formula or a sign goes on from a line that does not end a sentence; and
+    a line that does not end one goes on into the list it opens — but a list
+    item does not run into the next item. A heading, a gap, a table, a
+    drawing, a main formula, a definition's lines end it, and so does
+    _SENTENCE_LINES."""
+    first = parsed[index]
+    if first.kind not in _PROSE or first.main:
+        return index + 1
+    end, listing = index + 1, False
+    while end < len(parsed) and end - index < _SENTENCE_LINES:
+        if (
+            listing
+            and parsed[end].kind == "gap"
+            and end + 1 < len(parsed)
+            and parsed[end + 1].kind == "bullet"
+        ):
+            # A list goes on over a blank line between its items: record 88's
+            # «Операции с бесконечностями» had one between «1)» and «2)».
+            end += 1
+            continue
+        before, line = parsed[end - 1], parsed[end]
+        if (
+            line.kind not in _PROSE
+            or line.main
+            or _is_name(line)
+            or _definition_end(parsed, end) is not None
+        ):
+            break
+        if line.kind == "bullet":
+            if not (listing or (first.kind != "bullet" and not _ends_sentence(before))):
+                break
+            listing = True
+        elif line.kind == "math" or _GOES_ON_RE.match(line.text):
+            if _ends_sentence(before):
+                break
+        elif not _LOWER_RE.match(line.text):
+            break
+        end += 1
+    return end
 
 
 def _inline_frames(line: str) -> str:
@@ -1041,7 +1215,7 @@ def numbered_formulas(markdown: str) -> int:
     counts in each unit to keep the record's numbers (task 80). None inside
     a passage from another notebook, as render numbers none there."""
     count, inside = 0, False
-    for block in _formula_columns(blocks(_lift_drawings(_unstruck(markdown)))):
+    for block in _parsed(markdown):
         if block.kind in ("inserted", "inserted_end"):
             inside = block.kind == "inserted"
         elif _is_numbered(block) and not inside:
@@ -1504,6 +1678,11 @@ _QUOTE_RE = re.compile(r'(\\text\{[^{}]*\})|"')
 _SYNONYMS = {
     "le": "leq",
     "ge": "geq",
+    # One sign through the document (task 83): the reading writes \leqslant
+    # where the hand gave ⩽ and \le where it gave ≤, both in one record, and
+    # record 88 set ⩽ beside ≤ as though they were two relations.
+    "leqslant": "leq",
+    "geqslant": "geq",
     "gets": "leftarrow",
     "land": "wedge",
     "lor": "vee",
@@ -2980,17 +3159,22 @@ _NUMBER_ANCHOR_RE = re.compile(r"\(?\s*(\d{1,3})\s*\)?")
 
 
 def _squash(text: str) -> str:
-    # Without the struck-out marks too: the document drops them from its
-    # lines, and an anchor quoted before it did still has to find its line.
-    return _SQUASH_RE.sub("", _STRUCK_RE.sub("", text)).lower()
+    # Without the struck-out marks and words too: the document drops them
+    # from its lines, and an anchor quoted before it did still has to find
+    # its line.
+    return _SQUASH_RE.sub(
+        "", _STRUCK_WORDS_RE.sub("", _STRUCK_RE.sub("", text))
+    ).lower()
 
 
 def _reading(member: Block) -> str:
     """A block as its text: a table's rows written the way markdown writes
-    them, since a table holds its text in its cells."""
+    them, since a table holds its text in its cells, and a list item with
+    its number, which an anchor quotes with it."""
     if member.kind == "table":
         return "\n".join("|" + "|".join(row) + "|" for row in member.rows)
-    return member.quoted or member.text
+    text = member.quoted or member.text
+    return f"{member.marker} {text}" if member.marker else text
 
 
 def _anchored(anchor: str, members: list[Block], numbers: set[int]) -> bool:
@@ -3003,14 +3187,19 @@ def _anchored(anchor: str, members: list[Block], numbers: set[int]) -> bool:
     found = _NUMBER_ANCHOR_RE.fullmatch(anchor.strip())
     if found:
         return int(found.group(1)) in numbers
-    wanted = _squash(anchor)
+    # A word the record carried over is whole in the document (task 83), and
+    # the anchor may quote either half.
+    wanted = _squash(_unhyphenated(anchor)).rstrip("-")
     if len(wanted) < 3:
         return False
-    return any(
-        wanted == _squash(member.text)
-        if member.kind == "graph"
-        else wanted in _squash(_reading(member))
-        for member in members
+    if any(
+        member.kind == "graph" and wanted == _squash(member.text) for member in members
+    ):
+        return True
+    # Across the lines of a sentence too: record 88's «Множеством / натуральных
+    # чисел называется» was found on neither line, and its box went pages on.
+    return wanted in _squash(
+        "".join(_reading(member) for member in members if member.kind != "graph")
     )
 
 
@@ -3902,7 +4091,7 @@ def render(
     wanted = title.strip().casefold()
     parsed = [
         block
-        for block in _formula_columns(blocks(_lift_drawings(_unstruck(markdown))))
+        for block in _parsed(markdown)
         if not (block.kind == "heading" and block.text.strip().casefold() == wanted)
     ]
     for block in parsed:
@@ -3985,6 +4174,13 @@ def render(
         def mark(flowable):
             return _Inserted(flowable) if inserting else flowable
 
+        # The sentence being set (task 83): where it ends, and the boxes found
+        # anywhere in it, kept for after its last line — findings first, then
+        # what the bot adds, as under one line.
+        sentence_end = 0
+        findings_after: list = []
+        explained_after: list = []
+
         index = 0
         while index < len(parsed):
             if parsed[index].kind == "gap":
@@ -4038,6 +4234,7 @@ def render(
                 index += 1
                 continue
 
+            start = index
             members, index, flowables, kind = _unit(
                 parsed, index, formulas, styles, top_level,
                 unnumbered if inserting else numbers,
@@ -4046,33 +4243,45 @@ def render(
             space = _space_before(previous, kind, paragraph_break)
             paragraph_break = False
 
-            unit_numbers = {numbered[id(m)] for m in members if id(m) in numbered}
-            attached = [
-                remark
-                for remark in pending
-                if _anchored(remark.anchor, members, unit_numbers)
-            ]
+            lead: list = []
+            if start >= sentence_end:
+                # A sentence begins here: the boxes anchored anywhere in it are
+                # found now, the one set before goes before its first line and
+                # the rest after its last (_sentence_end, task 83). A unit of
+                # several blocks — a definition, a matrix and its name — is a
+                # sentence of its own.
+                sentence_end = (
+                    _sentence_end(parsed, start) if index == start + 1 else index
+                )
+                scope = parsed[start:sentence_end]
+                scope_numbers = {numbered[id(m)] for m in scope if id(m) in numbered}
+                for remark in [
+                    remark for remark in pending
+                    if _anchored(remark.anchor, scope, scope_numbers)
+                ]:
+                    pending.remove(remark)
+                    findings_after += [Spacer(1, 4), _remark(remark, formulas, styles)]
+                for item in [
+                    item for item in unexplained
+                    if _anchored(item.anchor, scope, scope_numbers)
+                ]:
+                    unexplained.remove(item)
+                    if item.before:
+                        lead += [_explanation(item, formulas, styles), Spacer(1, 6)]
+                    else:
+                        explained_after += [
+                            Spacer(1, 6), _explanation(item, formulas, styles)
+                        ]
             group, whole = _opened(flowables)
-            for remark in attached:
+            boxed = False
+            if index >= sentence_end and (findings_after or explained_after):
                 # A finding stays with the line it is about: never the first
                 # thing on a page whose line was the last on the one before.
-                pending.remove(remark)
-                group += [Spacer(1, 4), _remark(remark, formulas, styles)]
-            explained = [
-                item for item in unexplained
-                if _anchored(item.anchor, members, unit_numbers)
-            ]
-            lead: list = []
-            for item in explained:
-                unexplained.remove(item)
-                if item.before:
-                    lead += [_explanation(item, formulas, styles), Spacer(1, 6)]
-                    continue
-                # After the findings: first what is wrong with the line, then
-                # what the bot has to add to it.
-                group += [Spacer(1, 6), _explanation(item, formulas, styles)]
+                # After the findings, what the bot has to add.
+                group += findings_after + explained_after
+                findings_after, explained_after = [], []
+                boxed = True
             group = [mark(flowable) for flowable in lead + group]
-            attached = attached + explained
 
             if held:
                 group = held + ([mark(Spacer(1, space))] if space else []) + group
@@ -4080,7 +4289,8 @@ def render(
             elif space:
                 story.append(mark(Spacer(1, space)))
 
-            previous = "box" if attached else kind
+            # A box set before the line is not what the next line follows.
+            previous = "box" if boxed else kind
             if kind == "heading":
                 held = group
                 continue
@@ -4093,6 +4303,9 @@ def render(
 
         # A heading with nothing after it has nothing to be kept with.
         story.extend(held)
+        # A sentence ends where the record does, and its boxes with it; set
+        # here, should the last line not have taken them.
+        story.extend(findings_after + explained_after)
 
         _set_unplaced(story, pending, unexplained, formulas, styles)
 
