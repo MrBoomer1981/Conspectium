@@ -306,6 +306,9 @@ included. "Where this is going, decided 2026-10-02" says why.
       the author's frame inside a line, «1))» refusing a composition, and
       a teacher's example that was the lecture's working with another
       number — the CEO's. Taken on 2026-10-08 from a reader's «Плохо»
+- [ ] 79. Record 86 sent again: a theorem's parts numbered «1 Существование»
+      read as numbers the composer lost, and three cases in a column begun
+      on a line of text — the CEO's. Taken on 2026-10-08 from record 87
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -394,7 +397,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -465,6 +468,7 @@ since 2026-10-01.
 | 2026-10-07 | the CEO, with Claude Code | Task 76 taken, from a week of production read on 2026-10-07 — the deploy logs, Railway's metrics, `ai_calls` — and three audits of the code. A recognition call that thinks past 90 s is repeated once at 180 s instead of twice at 90, the run's worst case unchanged; one document drawn at a time, after two drawn at once broke each other's formulas; `check_limits` stops writing the day's rollover and `consume` counts the day in one statement, after a person's first record of the day held their row for minutes; image work on two threads and `MALLOC_ARENA_MAX=2` on Railway, after every album left 50–100 MB the process kept; the SDK's automatic function calling off. "Known risks" → the quota race keeps only its soft half. The model calls, the database and the infrastructure are the CPO's area; "Scale debt" changes with it | the CEO's own, by the rule of 2026-10-01 |
 | 2026-10-07 | the CEO, with Claude Code | Task 77 taken: five formulas in two records went out as their source — `\cancel{…}`, which mathtext does not know, and `\xrightarrow` with its condition in brackets, which the rewrite did not match. A struck term is drawn struck, as `~~…~~` is in a line: dropping the command would have made «\cancel{56}^{48}», 56 crossed out and 48 written over it, read as 56 to the 48th. `docs/BRAND.md` v1.6 | the CEO's own |
 | 2026-10-08 | the CEO, with Claude Code | Task 78 taken, from a reader's «Плохо» on record 86, the first album after task 76's deploy. Not task 76: the request Gemini receives is the same byte for byte, and the four pages agreed above the week's mean. What the reader saw was a title's formula printed as its source, the author's frame inside a line printed as «[рамка: ?!]», a composition refused twice for «1))» tidied to «1)», and a teacher's example that was the lecture's construction for √3. Two of its items are the CPO's, taken on the CEO's word: the numbers guard counts «1))» opening a line as an item's marker, and `prompts-explain-v3.md` says an example is not the lecture's working with another number — production switches to it on the CEO's word. `docs/BRAND.md` v1.7 | the CEO's own |
+| 2026-10-08 | the CEO, with Claude Code | Task 79 taken, from record 87 — record 86's album sent again, its composition refused twice as 86's was. Run twice more on Railway on the CEO's word, the composer lost the same two numbers, and neither was a value: the theorem's parts «1 Существование» and «2 Число…», made the list they are. The numbers guard, the CPO's, counts a number opening a line before a capitalised word as an item's; «1))», task 78's likely cause, was not record 87's. And three cases begun on a line of text are set on one ground | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4668,6 +4672,59 @@ What the reader saw:
   attempt lost is not known, and a number lost for real is what the guard
   is for.
 - Nothing about the «[неразборчиво]» until the photographs are compared.
+
+---
+
+# Task 79. Record 86 sent again
+
+**Owner: the CEO.** Taken on 2026-10-08, from record 87 — record 86's album
+sent again by the CEO after task 78's deploy. The document is the CEO's
+area; the numbers guard is the CPO's, taken on the CEO's word.
+
+## Why
+
+Record 87 went out uncomposed as record 86 had: refused twice, two numbers
+lost each time. Run twice more on Railway over record 87's text, on the
+CEO's word ($0.017, two rows in `ai_calls`), the composer lost the same two
+numbers both times, and neither was a value. The author numbered the
+theorem's two parts «1 Существование» and «2 Число не является
+рациональным», with no dot after the number; the composer made them the
+list they are, «1.» and «2.», and the guard — which counts a number opening
+a line unless a dot or a bracket follows it — read both as lost. «1))»,
+which task 78 named the likely cause on record 86, was not it on record 87.
+Everything else the composition kept.
+
+And 1.4 again: the author set three cases in a column begun on the line
+that introduces them — «Возможно 3 случая: c² < 2», with c² > 2 and c² = 2
+under it. Read as written, the first stands in the line and the other two
+alone on theirs, so the document set two on the kraft ground and left the
+first in the text — «в рамке только 2 из 3», the CEO wrote.
+
+## Do
+
+1. **A number opening a line before a capitalised word is an item's
+   number** to the numbers guard, as «1.» and «1)» are: «1 Существование».
+   Before a lower-case word it is still a value — «2 мн-ва» spelled out as
+   «два множества» is still refused.
+2. **A column of formulas begun on the line that introduces it is set as
+   one** (`pdf.py`): a line ending in a colon and one formula, followed by
+   a formula alone on its line with the same left side — c² < 2 over
+   c² > 2 — gives its formula to the ground the others stand on. Stored
+   records included.
+3. `CLAUDE.md` → "Stage two", "The document"; `FINDINGS.md` → "Record 86,
+   √2", corrected on what refused its composition.
+
+## Acceptance criterion
+
+- Record 87 drawn again by «#матан»: the three cases of 1.4 on one ground.
+- The suite is green.
+
+## Don't do
+
+- The guard learns no other shape. A value opening a line before a
+  capitalised word — «10 Ом» — goes uncounted, and that is the price.
+- No formula moves without a relation to compare: «Пусть дано: $f(x)$»
+  over a formula of another left side stays as written.
 
 ---
 
