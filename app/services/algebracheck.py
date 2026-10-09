@@ -15,8 +15,12 @@ confident wrong finding costs more than silence:
   purpose, «1 = 0», carry different letters, or none;
 - «h = …», a letter alone on the left, is a definition and is never checked:
   what the lecture defined is put in its place in the formulas after it
-  («положим h = b/3c»), the latest definition of a letter the one used. Not
-  «x = y», a conclusion, nor what a line solving an equation finds;
+  («положим h = b/3c»), the latest definition of a letter the one used, up
+  to the next heading. Not «x = y», a conclusion, nor what a line solving
+  an equation finds, nor a letter at the head of a working's chain — record
+  97's «y = b + (−a) = x», the end of a proof of uniqueness, defined y two
+  pages on (task 96);
+- what the author struck out, «~~…~~» or «[зачёркнуто: …]», is not checked;
 - a line that solves, supposes or argues the contrary is left alone, and so
   is a lecture on logic, where «x + x = x» holds;
 - whatever the code does not read — a set, a sum, a limit, a vector, a
@@ -32,7 +36,10 @@ confident wrong finding costs more than silence:
 Measured over every record in the database on 2026-10-08, the CEO's word
 given to read them: 30 equalities found before these last three rules —
 complex numbers, ideals, a transpose, arg z, a limit — and 7 after, every
-one an equality that does not hold as the record reads it.
+one an equality that does not hold as the record reads it. Record 97, the
+next day, had three that held — a working's chain read as a definition, a
+formula struck out — and its author read them as the bot saying the lecture
+is wrong where it is not.
 
 Pure code: no model, no library this project did not have, no database.
 """
@@ -49,7 +56,11 @@ from fractions import Fraction
 _FORMULA_RE = re.compile(
     r"(?<!\\)\$\$([^$\n]+?)(?<!\\)\$\$|(?<!\\)\$([^$\n]+?)(?<!\\)\$"
 )
-_STRUCK_RE = re.compile(r"(?<!~)~~(?!~)[^~\n]+?(?<!~)~~(?!~)")
+_STRUCK_RE = re.compile(
+    r"(?<!~)~~(?!~)[^~\n]+?(?<!~)~~(?!~)|\[\s*зач[её]ркнут[^\[\]\n]*\]", re.IGNORECASE
+)
+# A heading opens the lecture's next statement, which uses its letters afresh.
+_HEADING_RE = re.compile(r"^\s*#{1,6}\s")
 
 _TOKEN_RE = re.compile(
     r"(?P<number>\d+(?:[.,]\d+)?)"
@@ -527,11 +538,15 @@ def _example(left, right, definitions: dict, letters: list[str]):
     return None
 
 
-def _formulas(markdown: str) -> list[tuple[str, str]]:
-    """Every formula of the record with the line it stands on, in order — a
-    working broken over two lines, «… + h^2 =» over «= c^2 - …», joined."""
-    found: list[tuple[str, str]] = []
+def _formulas(markdown: str) -> list[tuple[str, str, int]]:
+    """Every formula of the record with the line it stands on and the number
+    of headings before it, in order — a working broken over two lines, «… +
+    h^2 =» over «= c^2 - …», joined."""
+    found: list[tuple[str, str, int]] = []
+    section = 0
     for line in markdown.splitlines():
+        if _HEADING_RE.match(line):
+            section += 1
         line = _STRUCK_RE.sub("", line)
         for match in _FORMULA_RE.finditer(line):
             latex = (match.group(1) or match.group(2) or "").strip()
@@ -542,9 +557,10 @@ def _formulas(markdown: str) -> list[tuple[str, str]]:
                 and found[-1][0].endswith("=")
                 and latex.startswith("=")
             ):
-                found[-1] = (found[-1][0] + " " + latex[1:].lstrip(), found[-1][1] + " " + line)
+                last, joined, where = found[-1]
+                found[-1] = (last + " " + latex[1:].lstrip(), joined + " " + line, where)
                 continue
-            found.append((latex, line))
+            found.append((latex, line, section))
     return found
 
 
@@ -578,7 +594,10 @@ def failures(markdown: str) -> list[Failure]:
     out: list[Failure] = []
     previous_line = ""
     limits = bool(_LIMITS_RE.search(markdown.lower()))
-    for latex, line in _formulas(markdown):
+    current = 0
+    for latex, line, section in _formulas(markdown):
+        if section != current:
+            definitions, current = {}, section
         quiet = bool(_CONTEXT_RE.search((previous_line + " " + line).lower()))
         previous_line = line
         tokens = _tokens(latex)
@@ -597,9 +616,11 @@ def failures(markdown: str) -> list[Failure]:
                 if left is not None and left[0] == "sym" and right is not None:
                     # A letter alone on the left is defined, never checked —
                     # but not by itself, by another letter alone, «то x = y»,
-                    # or by the solution a quiet line finds.
+                    # by the solution a quiet line finds, or at the head of a
+                    # working's chain, «y = b + (−a) = x» (task 96).
                     if (
                         not quiet
+                        and len(sides) == 2
                         and right[0] != "sym"
                         and left[1] not in _letters(right, {})
                     ):

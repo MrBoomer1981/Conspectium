@@ -709,15 +709,20 @@ it has it too; no model, no library. The one class of the lecture's errors
 code can prove — the CEO found two in records 88 and 89 by reading them
 against the photographs. **It stays quiet when the page does not settle it**:
 only sides with the same letters, after what the lecture defined («положим
-h = b/3c», a letter alone on the left) is put in; never a capital letter — a
-set, a matrix, an ideal — nor i or j, the imaginary unit; never a formula
-with \lim, \to, \infty, a sum or an integral, nor in a lecture on limits an
-«=» that holds as the letters grow; never a line that solves, supposes or
-argues the contrary, nor a lecture on logic; and whatever it does not read —
-f(x), arg z, a set, an absolute value — is left alone. Over every record in
-the database it found 30 before the last of those rules and 7 after, each an
-equality that does not hold as the record reads it. → "An equality that
-does not hold"
+h = b/3c», a letter alone on the left, in a statement of two sides — never
+the head of a working's chain — and up to the next heading) is put in;
+never what the author struck out, «~~…~~» or «[зачёркнуто: …]»; never a
+capital letter — a set, a matrix, an ideal — nor i or j, the imaginary
+unit; never a formula with \lim, \to, \infty, a sum or an integral, nor in
+a lecture on limits an «=» that holds as the letters grow; never a line
+that solves, supposes or argues the contrary, nor a lecture on logic; and
+whatever it does not read — f(x), arg z, a set, an absolute value — is left
+alone. Over every record in the database it found 30 before the last of
+those rules and 7 after, each an equality that does not hold as the record
+reads it; record 97 brought three that held — «y = b + (−a) = x», the end
+of a proof, taken for a definition of y two pages on, and a formula the
+author struck out — and the rules of task 96 took them away and nothing
+else, over 97 records. → "An equality that does not hold", "Record 97"
 
 ---
 
