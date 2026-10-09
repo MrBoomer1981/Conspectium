@@ -419,7 +419,8 @@ it — the CEO's, not yet scheduled:
       formula, a number line with its points and sets, a mapping of two
       sets with its arrows — the CEO's, measured on an album sent again
 - [ ] 95. A formula or a drawing with no word about it gets the bot's
-      caption — the CEO's, measured first
+      caption — the CEO's, measured first. Taken on 2026-10-09, measured
+      on records 88 to 97 before production switches to it
 - [ ] 96. Three equalities that hold, found not to: a definition read off
       a working, and a formula the author struck out — the CEO's,
       measured over the database before it ships. Taken on 2026-10-09
@@ -473,7 +474,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 92, 96, 97, 93, 90's check of the photographs; next: 95 and 94, 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 92, 96, 97, 93, 95, 90's check of the photographs; next: 94, 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -558,6 +559,7 @@ since 2026-10-01.
 | 2026-10-09 | the CEO, with Claude Code | `MAX_ALBUM_PAGES` 20 and a person's day 30 on Railway since 09:35 Moscow time, the CEO's — task 85's acceptance says so | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | The CEO's answers in the morning: 85 to 87 pushed, and 88 once measured; the CEO's word to read records 90 to 92; `MAX_ALBUM_PAGES` stays 15 on Railway, so a send of more than fifteen pages is several records by design — task 85's acceptance says so; 89 and 91 not taken, «лекцию можно поправлять» — a box of the bot's may correct the lecture, and the CEO reads them; 90 the CEO's own check of the photographs. Task 88 measured on records 91 and 92: the numbers it was made for no longer lost, 16 to 2 and 3 to 1, and both still refused — a number spelled out, a definition's number dropped, a lone item, a formula changed. It ships as an improvement, with what the measurement found taken in, and its acceptance criterion is changed to what it can do | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Task 93 taken, the CEO's word, and its design settled on record 97's text: the model names the units about the course's organisation, and code leaves out of each its paragraphs before the first that holds the subject — a guard over whole units would have kept the organisation for the set equality cut into the same unit. More than a fifth of the record named, and nothing goes. A kept study version built by another prompt is built again, so record 97 comes back without its organisation; a box anchored only in what is left out is not printed. Measured on record 97 before it ships | the CEO's own |
+| 2026-10-09 | the CEO, with Claude Code | Task 95 taken, the CEO's word, with every record read for its measurement. A caption is the explaining stage's, `prompts-explain-v4.md`, in a list of its own beside the teacher's boxes — records 90 to 92 filled the twelve those may hold — anchored on a formula set apart or a drawing, checked as an idea is, and set before what it names under «Что это · от бота». `note_processed` gains `captions` and `captions_dropped` ("Contracts"). Measured on records 88 to 97 before production switches; a record made before the switch keeps its boxes | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -5649,7 +5651,8 @@ its edges (`[граф: 1-2, 2-3]`) and was never a picture of the model's.
 
 # Task 95. A formula or a drawing with no word about it
 
-**Owner: the CEO.** Specified on 2026-10-09, from record 97.
+**Owner: the CEO.** Specified on 2026-10-09, from record 97. Taken the same
+day, the CEO's word, with every record read for its measurement.
 
 ## Why
 
@@ -5658,14 +5661,46 @@ B, B ⊂ A» with not a word on what it is — the notebook has none — and its
 author asked for one. The explaining stage explains the hard places and
 adds a teacher's boxes; a block with no caption is neither.
 
-## Do — a proposal
+## Do
 
-1. `prompts-explain-v4.md`: to a formula or a drawing the record gives no
-   word about, one sentence on what it shows — «Равенство множеств: …» —
-   in a box of the bot's, checked as an idea is (no number the record
-   does not carry).
-2. Measured on records 88 to 97 — what it adds, read by the CEO — before
-   production switches to it.
+1. **`prompts-explain-v4.md`, v3 with captions**: to a formula or a
+   drawing the record says not a word about — no heading over it, no
+   phrase leading into it — what it is, in two to five words, and one
+   sentence on what it shows, anchored on the formula itself, a quote of
+   it or its number, or on the drawing's description. A step of a
+   working, a formula with words, a place an explanation already stands
+   at get none. In `captions` of the answer, apart from the teacher's
+   boxes: records 90 to 92 filled the twelve those may hold.
+2. **Checked by code as an idea is** — no number the record does not
+   carry, nothing that judges the record — **and standing at a formula
+   set apart or a drawing**, where the document finds it
+   (`pdf.on_formula_or_drawing`): at a line of words a caption would be
+   an explanation printed without a source. Six a record at most.
+3. **Printed as the bot's, before what it names**: «Что это · от бота»,
+   before the first line of the sentence its anchor is in — over the
+   first of a column of formulas, whichever one it quotes. Never at the
+   end of the text: a caption that found no formula names nothing. Kept
+   in `notes.explanations` as `kind: "caption"`, so the record's
+   document, its study version and its lecture's carry it.
+4. Counted: `captions` and `captions_dropped` in `note_processed`
+   ("Contracts") and the log line; the startup log says whether the
+   prompt asks for them.
+5. **Measured on records 88 to 97 before production switches**, on the
+   CEO's word to read them: the stage's first call under v4, with no
+   searches — each caption, where it stands and what it says, read by
+   the CEO, and the other boxes counted against what v3 stored.
+   Production switches by `EXPLAIN_PROMPT_FILE` on Railway, on the CEO's
+   word, once the code that reads captions is deployed: a prompt named
+   before its file ships kills the process at startup.
+6. A record made before the switch keeps its boxes: the stage runs once,
+   when a record is made.
+7. `CLAUDE.md` → "Stage three"; `BRAND.md` v1.12; `FINDINGS.md`.
+
+## Don't do
+
+- No caption in the author's text: the box is the bot's, marked so.
+- No search for a caption: it names what the lecture writes, as an
+  idea's plan does.
 
 ---
 
@@ -5899,6 +5934,7 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `compose_retried` | the guards refused the first composition and a second was asked for | the same, over the record | — |
 | `compose_restored` | formulas the composer changed a number in, put back as read before the guards (task 82) | the same, over the record | — |
 | `elements`, `elements_dropped` | the teacher's boxes kept, and those a check of code threw away (task 56) | over the record | — |
+| `captions`, `captions_dropped` | the bot's captions to a formula or a drawing the record says nothing about, kept, and those a check of code threw away (task 95) | over the record | — |
 | `lecture_head_cut`, `lecture_tail_cut` | — | lines cut off the first page and off the last (task 64) | — |
 | `lecture_id`, `lecture_joined` | the lecture the record was filed into, and whether it had a notebook already — `None`, `false` with no subject (task 63) | the same | the same |
 | `explain_skipped` | stage three not asked: the record joined a lecture whose base is fuller (task 63) | the same | `false` |
