@@ -358,6 +358,14 @@ _STRUCK_ACROSS_RE = re.compile(
 )
 # What a line has besides a number: a letter, or a formula.
 _WORDED_RE = re.compile(r"[^\W\d_]|\$")
+# Which half of a photograph a text was on: «[Левая страница]», «[Правая
+# страница]», as recognition marked the halves of record 97's spreads. A
+# note about the photograph, not the lecture, and not printed (task 92).
+_PAGE_HALF_RE = re.compile(
+    r"^\s*\[\s*(?:разворот\w*\s*[:,—–-]?\s*)?(?:лев|прав)(?:ая|ой|ую)\s+"
+    r"(?:страниц|част|половин)\w*(?:\s+(?:разворота|листа|фото\w*))?\s*\]\s*$",
+    re.IGNORECASE,
+)
 # A word the author carried over to the next line with a hyphen: «множес-»
 # over «твом», «предполо-» over «жению» (task 83). Three letters on either
 # side at least, so that «мн-ва» and «док-во» stay as written.
@@ -511,6 +519,11 @@ class Block:
     # a formula moved down to its column (_formula_columns): what an anchor
     # quoting the line is looked for in.
     quoted: str = field(default="", compare=False, repr=False)
+    # A frame read across a blank line (_frame_lines, task 97): set apart and
+    # never numbered. Such a frame printed as its brackets before, and a
+    # number given it now would move every main formula after it, under
+    # explanations stored with «(4)».
+    loose: bool = False
 
 
 def _latex(match: re.Match) -> str:
@@ -522,13 +535,18 @@ def boxed_contents(text: str) -> list[str]:
 
     A regular expression cannot match nested braces, and a framed formula is
     usually a fraction or a sum — braces inside braces. An unclosed \\boxed is
-    not a box and is skipped rather than guessed at.
+    not a box and is skipped rather than guessed at. An escaped brace is a
+    character: record 97's frame closed on the «\\}» of «\\right\\}» and
+    printed as its source (task 97).
     """
     found: list[str] = []
     start = text.find(_BOXED)
     while start != -1:
         depth, position = 1, start + len(_BOXED)
         while position < len(text) and depth:
+            if text[position] == "\\":
+                position += 2
+                continue
             depth += {"{": 1, "}": -1}.get(text[position], 0)
             position += 1
         if depth == 0:
@@ -563,22 +581,28 @@ def _frame_lines(lines: list[str], start: int) -> tuple[Block, int] | None:
         ]
 
     Read line by line it printed as "[в рамке:", the formulas, and a lone "]".
-    None when `start` does not open such a frame, or it is never closed.
+    None when `start` does not open such a frame, or it is never closed. A
+    blank line inside is the frame's own: record 97's steps of induction,
+    four with a blank line between two, printed their brackets (task 97).
     """
     opened = _FRAME_OPEN_RE.match(lines[start].strip())
     if opened is None or lines[start].strip().endswith("]"):
         return None
     inner = [opened.group(1).strip()]
+    loose = False
     for end in range(start + 1, min(len(lines), start + 1 + _MAX_FRAME_LINES)):
         line = lines[end].strip()
         if not line:
-            return None
-        if line.endswith("]"):
+            loose = True
+            continue
+        # «[схема: …]» or a line ending on «[неразборчиво]» closes a bracket
+        # of its own, not the frame's.
+        if line.endswith("]") and line.count("]") > line.count("["):
             inner.append(line[:-1].strip())
             content = [part for part in inner if part]
             if not content:
                 return None
-            return Block("framed", "\n".join(content)), end + 1
+            return Block("framed", "\n".join(content), loose=loose), end + 1
         inner.append(line)
     return None
 
@@ -821,6 +845,14 @@ def _unstruck(markdown: str) -> str:
     return "\n".join(out)
 
 
+def _unlabelled(markdown: str) -> str:
+    """The record without the lines that only say which half of a
+    photograph its text was on (task 92)."""
+    return "\n".join(
+        line for line in markdown.split("\n") if not _PAGE_HALF_RE.match(line)
+    )
+
+
 def _struck_by_line(found: re.Match) -> str:
     """A passage struck over several lines as one struck span on each."""
     return "\n".join(
@@ -965,13 +997,16 @@ def _framed_inline(found: re.Match) -> str:
 
 def _parsed(markdown: str) -> list[Block]:
     """The record as the document reads it: what the author struck out gone,
-    a word carried over joined, a ringed sign framed, every drawing on a line
-    of its own, a column of formulas on one ground, a sentence's short last
-    formula in its line. One pipeline for render and for what counts the
-    formulas it numbers (numbered_formulas), so the two never disagree."""
+    the photograph's halves unlabelled, a word carried over joined, a ringed
+    sign framed, every drawing on a line of its own, a column of formulas on
+    one ground, a sentence's short last formula in its line. One pipeline
+    for render and for what counts the formulas it numbers
+    (numbered_formulas), so the two never disagree."""
     return _tail_formulas(
         _formula_columns(
-            blocks(_lift_drawings(_ringed(_unhyphenated(_unstruck(markdown)))))
+            blocks(
+                _lift_drawings(_ringed(_unhyphenated(_unlabelled(_unstruck(markdown)))))
+            )
         )
     )
 
@@ -999,7 +1034,9 @@ def _ends_sentence(block: Block) -> bool:
 
 def _set_apart(block: Block) -> bool:
     """A formula on a line of its own: displayed, or framed by the author."""
-    return block.kind == "math" or (block.kind == "framed" and "$" in block.text)
+    return block.kind == "math" or (
+        block.kind == "framed" and "$" in block.text and not block.loose
+    )
 
 
 def _first_item(block: Block) -> bool:
@@ -1209,14 +1246,16 @@ def blocks(markdown: str) -> list[Block]:
 
         bullet = _BULLET_RE.match(line)
         if bullet:
-            out.append(Block("bullet", bullet.group(1).strip()))
+            out.append(_unpiped(Block("bullet", bullet.group(1).strip())))
             index += 1
             continue
 
         numbered = _NUMBERED_RE.match(line)
         if numbered:
             out.append(
-                Block("bullet", numbered.group(2).strip(), marker=numbered.group(1))
+                _unpiped(
+                    Block("bullet", numbered.group(2).strip(), marker=numbered.group(1))
+                )
             )
             index += 1
             continue
@@ -1245,7 +1284,7 @@ def blocks(markdown: str) -> list[Block]:
             index += 1
             continue
 
-        out.append(Block("text", stripped))
+        out.append(_unpiped(Block("text", stripped)))
         index += 1
 
     while out and out[-1].kind == "gap":
@@ -1253,11 +1292,29 @@ def blocks(markdown: str) -> list[Block]:
     return out
 
 
+# An item's number with the bar the reading put after it, two columns of
+# the notebook read as one line: record 97's field axioms, «1.1. | $(x + y)
+# + z = …$», «2.1 | Для каждого …» (task 97). A number of an item only —
+# «2 | 4» stays as written.
+_ITEM_PIPE_RE = re.compile(r"^(\d+\.\d+(?:\.\d+)*\.?|\d+[.)])?[ \t]*\|[ \t]+(?=\S)")
+
+
+def _unpiped(block: Block) -> Block:
+    """A line or an item without the bar after its number; what it quoted,
+    bar and all, kept for an anchor that quotes it."""
+    found = _ITEM_PIPE_RE.match(block.text)
+    if found is None or not (found.group(1) or block.marker):
+        return block
+    block.quoted = block.text
+    block.text = f"{found.group(1)} {block.text[found.end():]}" if found.group(1) else block.text[found.end():]
+    return block
+
+
 def _is_numbered(block: Block) -> bool:
     """Whether render gives this block a number: a main formula, or a frame
     round a formula."""
     return (block.kind == "math" and block.main) or (
-        block.kind == "framed" and "$" in block.text
+        block.kind == "framed" and "$" in block.text and not block.loose
     )
 
 
@@ -3687,7 +3744,7 @@ def _flowables(
         return _main_formula(block, formulas, styles, next(numbers))
 
     if block.kind == "framed":
-        holds_formula = "$" in block.text
+        holds_formula = "$" in block.text and not block.loose
         return _framed(block, formulas, styles, next(numbers) if holds_formula else None)
     if block.kind == "rule":
         # The seam between two pages of an album. A short thin line says "the
@@ -3895,7 +3952,7 @@ def _unit(
     if block.kind == "math" and block.main:
         kind = "main"
     elif block.kind == "framed":
-        kind = "main" if "$" in block.text else "frame"
+        kind = "main" if "$" in block.text and not block.loose else "frame"
     elif block.kind == "picture":
         kind = "figure" if block.image is not None else "note"
     else:

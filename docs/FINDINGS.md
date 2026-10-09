@@ -1989,3 +1989,45 @@ struck over two lines printed struck; «4 · 16 · 17 · 8 · 2 · 19 · 2» und
 a title, every page's margin number; boxes titled in lower case; and an
 ε lost from a key notion. The title keeps the reading's «мат.анализ» and
 «веществ.» while the composed body spells them out.
+
+## Record 97
+
+**A notebook of lectures and a practice session, read by its author.** Ten
+pages sent on 2026-10-09 at 06:23 UTC, composed, explained, studied in five
+topics. The CEO asked the notebook's author what was wrong in the study
+version, and got five things: the course's organisation on the first page,
+set out crookedly; set equality with no word on what it is; formulas where
+pictures would explain, and many; «Левая страница», «Правая страница»,
+useful to the author to see where the bot errs and a distraction to anyone
+studying; a drawing the bot «tried to turn into a diagram and could not».
+
+**Read against the record's text** (the CEO's word, 2026-10-09):
+
+- **The page labels are the reading's.** The album held photographs of two
+  pages each, and recognition marked the halves «[Левая страница]» and
+  «[Правая страница]», which no prompt asks for (task 92).
+- **The organisation** — the teacher's contacts, the points for each grade,
+  a test, a colloquium, the exam — was written in two columns the reading
+  flattened into «лекции | практика», and the study version made one topic
+  of it and of injective maps (task 93).
+- **The drawings** printed as their descriptions, «схема: график параболы
+  $y = x^2$ …», since drawings cut out of the page sleep (task 54); a
+  parabola, a number line with X, Y and c, and arrows from A to B are data
+  code can draw (task 94).
+- **All three equality findings were false.** «$y = b + (-a) = x
+  \Rightarrow x = y$», the end of a proof that a solution is unique, was
+  taken for a definition of y, and two pages on the author's
+  «$xy \cdot (-1) \cdot (-1) = xy \cdot (-1) \cdot a$», with a = −1 meant,
+  was counted with y = b − a: two findings. The third checked «[зачёркнуто:
+  $-x = (-1) \cdot x + x$]», struck out by the author, and anchored on a
+  line the document does not print, so it stood at the end of the text.
+  Run over every record in the database with a definition only from a
+  statement of two sides, up to the next heading, and the struck form
+  skipped: the seven true findings of task 84 kept, these three gone,
+  nothing new (task 96).
+- **The axiom of completeness printed as its source**: the record has
+  «\right\}», correct, and the frame round it took the escaped brace for
+  its own closing one. A frame round the four steps of induction, with a
+  blank line between two, printed «[рамка:» and «]». The field axioms
+  printed «1.1. |». The record was titled «Лекция», what the reading called
+  its first page (task 97).

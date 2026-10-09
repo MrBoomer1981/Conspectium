@@ -1099,7 +1099,23 @@ why each is what it is. What a change must not break:
   «[?!]» as the reading writes it, is framed in its line (`pdf._ringed`);
   ⩽ and ⩾ are drawn as ≤ and ≥, one sign through the document. One pipeline
   reads a record for render and for the formulas it numbers (`pdf._parsed`),
-  so the study version's numbers stay the record's.
+  so the study version's numbers stay the record's. Two columns the reading
+  made one line, «1.1. | $(x+y)+z = …$», print without the bar after the
+  item's number, the anchor still finding the line as read (`pdf._unpiped`,
+  task 97).
+- **A frame is the author's, braces and blank lines and all** (task 97):
+  an escaped brace inside `\boxed{…}` is a character, where record 97's
+  axiom of completeness closed on «\right\}» and printed as its source; a
+  frame round several lines may hold a blank line, and is drawn then as a
+  frame with no number (`Block.loose`) — such a frame printed its brackets
+  before, and a number given it now would move every main formula after it
+  under explanations stored with «(4)».
+- **A title that names nothing gives way in the document** (task 97):
+  «Лекция», «Матан. Практика» — what the reading called a page of the
+  course's organisation — to the record's first heading that names
+  something, in the head of every page and the file's name
+  (`corpus._document_title`); the record keeps its title, which a "#word"
+  lists.
 
 → "The document as the group got it", "Record 74, a lecture on trees",
 "Record 86, √2"
@@ -1165,8 +1181,10 @@ reading that could have been another, no numbers the runs read differently, no
 page read without a second opinion, no "нужна проверка". The columns behind
 them — `uncertain`, `numeric_divergences`, `unverified_pages`, `status` — are
 still written: the instrument's, not the reader's. Nor does the chat get them;
-only the pages an album went out without are named there. → "Remarks about
-the reading"
+only the pages an album went out without are named there. Nor which half of
+a photograph a text was on: «[Левая страница]», «[Правая страница]», as the
+reading marked record 97's spreads, are not printed (`pdf._unlabelled`, task
+92). → "Remarks about the reading", "Record 97"
 
 **A remark is an error the code found in the work, set where it is.** What
 `mathcheck` and `graphcheck` find is a `vision.Finding`: the `Issue` and the

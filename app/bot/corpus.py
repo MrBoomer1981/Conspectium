@@ -368,6 +368,31 @@ _FILENAME_KEEP = re.compile(r"[^\w\s-]", re.UNICODE)
 _FILENAME_GAPS = re.compile(r"[\s_]+")
 
 
+# A title that names nothing: what the reading called a page that opens on
+# the course's organisation — record 97's «Лекция» — or a subject's name
+# with it, «Матанализ. Лекция», «Матан. Практика» (task 97).
+_NAMELESS_TITLE_RE = re.compile(
+    r"^(?:[^\W\d_]+(?:[ .-]+[^\W\d_]+)?\.?[ \t]+)?"
+    r"(?:лекция|практика|семинар|конспект|занятие|пара)(?:[ \t]*(?:№[ \t]*)?\d+)?\.?$",
+    re.IGNORECASE,
+)
+_TITLE_HEADING_RE = re.compile(r"^#{1,2}[ \t]+(.+?)[ \t]*$", re.MULTILINE)
+
+
+def _document_title(title: str, markdown: str) -> str:
+    """The title a document carries: the record's, unless it names nothing,
+    and then the record's first heading that does — record 97 headed every
+    page «Лекция» over «Глава 1. Введение в мат. анализ». The record keeps
+    its title: it is what a "#word" lists."""
+    if not _NAMELESS_TITLE_RE.match(title.strip()):
+        return title
+    for heading in _TITLE_HEADING_RE.finditer(markdown):
+        text = heading.group(1).strip()
+        if not _NAMELESS_TITLE_RE.match(text):
+            return text[:60]
+    return title
+
+
 def pdf_filename(note_id: int, title: str, word: str = "") -> str:
     """A file name a phone will not choke on, still recognisable in a
     downloads folder, and carrying the record number — and `word` after it,
@@ -482,6 +507,7 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
     record is never worth losing over its presentation."""
     source = await _source(session, note)
     base = source.base
+    title = _document_title(base.title, source.markdown)
     page = _page(
         base, await _bot_username(message), source.lecture.given_on if source.lecture else None
     )
@@ -490,7 +516,7 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
         # Drawing formulas is CPU-bound; the webhook must not stall on it.
         data = await asyncio.to_thread(
             pdf.render,
-            base.title,
+            title,
             source.markdown,
             callouts=_callouts(base),
             byline=texts.byline(base.margin_notes),
@@ -508,7 +534,7 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
     if source.notebooks > 1:
         caption = texts.lecture_caption(caption, source.notebooks)
     await message.answer_document(
-        BufferedInputFile(data, filename=pdf_filename(base.id, base.title)),
+        BufferedInputFile(data, filename=pdf_filename(base.id, title)),
         caption=caption,
         # «Хорошо» and «Плохо» on the document itself (task 70), and the
         # study version to ask for: the record goes out only when it could
@@ -539,6 +565,7 @@ async def send_study_pdf(
     study version's own boxes where it put them. False if it could not be
     drawn."""
     base = source.base
+    title = _document_title(base.title, source.markdown)
     arranged = study.layout(source.markdown, version)
     page = _page(
         base, await _bot_username(message), source.lecture.given_on if source.lecture else None
@@ -547,7 +574,7 @@ async def send_study_pdf(
     try:
         data = await asyncio.to_thread(
             pdf.render,
-            base.title,
+            title,
             arranged.markdown,
             subtitle=texts.STUDY_SUBTITLE,
             callouts=_callouts(base),
@@ -568,7 +595,7 @@ async def send_study_pdf(
         caption = texts.lecture_caption(caption, source.notebooks)
     await message.answer_document(
         BufferedInputFile(
-            data, filename=pdf_filename(base.id, base.title, texts.STUDY_FILE_WORD)
+            data, filename=pdf_filename(base.id, title, texts.STUDY_FILE_WORD)
         ),
         caption=caption,
         reply_markup=feedback.keyboard(base.id),
