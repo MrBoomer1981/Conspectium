@@ -192,6 +192,15 @@ async def lifespan(app: FastAPI):
         "asked for" if explain.PROMPT_ASKS_ELEMENTS else "not asked for",
         settings.SOURCE_THINKING_LEVEL,
     )
+    # The captions' call beside the stage's first (task 95), its prompt read
+    # by name like the searches'.
+    logger.info(
+        "Captions: %s, %s, %d words, thinking %s",
+        "on" if settings.EXPLAIN_ENABLED else "off, with the explaining stage",
+        explain.CAPTION_PROMPT_FILE,
+        explain.CAPTION_PROMPT_WORDS,
+        explain.CAPTION_THINKING,
+    )
     # What a chat gets for a record (task 80): its study version where the
     # explaining stage is on, on that stage's model, its prompt read by name
     # like the source searches'; the record's own document where it is off.

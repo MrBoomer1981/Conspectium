@@ -179,8 +179,9 @@ def _explanations(note: Note) -> list[pdf.Explanation]:
         if explain.judges_the_record(str(item.get("title", "")), str(item.get("text", ""))):
             continue
         kind = item.get("kind")
-        if kind in explain.ELEMENT_KINDS:
-            # A teacher's box: the bot's reasoning, with no source to show.
+        if kind in explain.ELEMENT_KINDS or kind == explain.CAPTION:
+            # A teacher's box or a caption (task 95): the bot's reasoning,
+            # with no source to show. A caption heads what it names.
             boxes.append(
                 pdf.Explanation(
                     anchor=str(item.get("anchor", "")),
@@ -192,6 +193,7 @@ def _explanations(note: Note) -> list[pdf.Explanation]:
                     ],
                     sources=[],
                     before=kind == "idea",
+                    heads=kind == explain.CAPTION,
                 )
             )
             continue

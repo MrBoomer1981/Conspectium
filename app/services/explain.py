@@ -28,6 +28,13 @@ What may be printed is held by two guards, both in code:
   not carry: a new number there would be the model inventing inside the one
   box that claims to say what the lecture said.
 
+A formula or a drawing the record says not a word about gets the bot's
+caption (task 95): what it is and what it states or shows, written by a call
+of its own beside the first, at the same time, and kept only where it stands
+at a formula set apart or a drawing — at a line of words it would be an
+explanation with no source. Asked in the first call, the model wrote the
+captions right and fewer teacher's boxes.
+
 Failed, refused or off, the record goes out without the stage: its worst case
 is the document it would have been anyway.
 """
@@ -80,6 +87,18 @@ _KIND_NAMES = {
 # at every new notion — the reference notebook's density, sixteen remarks in
 # fourteen pages; this is the ceiling, not the aim.
 _MAX_ELEMENTS = 12
+# A caption to a formula or a drawing the record says nothing about (task 95):
+# what it is, in one sentence. A call of its own beside the first: asked there
+# (prompts-explain-v4.md), the model wrote the captions right and 57, 39 and 51
+# teacher's boxes over seven lectures where v3 wrote 59 twice, the ideas of
+# proofs most. The work is small — find what has no word, name it — and
+# thinks `low`. Read by name, as the searches' prompt is.
+CAPTION = "caption"
+CAPTION_PROMPT_FILE = "prompts-explain-captions-v1.md"
+CAPTION_PROMPT = vision.load_prompt(CAPTION_PROMPT_FILE)
+CAPTION_PROMPT_WORDS = len(CAPTION_PROMPT.split())
+CAPTION_THINKING = "low"
+_MAX_CAPTIONS = 6
 # Three links under an explanation say where it is from; more is a list.
 _MAX_SOURCES = 3
 # One search over one short claim. The whole-record ceiling would let a hung
@@ -205,7 +224,7 @@ class Explanation:
 
 @dataclass
 class Element:
-    kind: str  # one of ELEMENT_KINDS
+    kind: str  # one of ELEMENT_KINDS, or CAPTION
     anchor: str
     title: str
     text: str
@@ -228,6 +247,9 @@ class Explaining:
     # The teacher's boxes kept, and those a check of code threw away.
     elements: list[Element] = field(default_factory=list)
     elements_dropped: int = 0
+    # The captions kept, and those a check of code threw away (task 95).
+    captions: list[Element] = field(default_factory=list)
+    captions_dropped: int = 0
     stats: list[CallStats] = field(default_factory=list)
 
 
@@ -295,6 +317,34 @@ def elements_of(text: str) -> list[dict]:
     return found
 
 
+def captions_of(text: str) -> list[dict]:
+    """The captions the captions' call answered with, each with a place and a
+    text. Never raises."""
+    data = _answer(text)
+    items = data.get("captions") if data is not None else None
+    if not isinstance(items, list):
+        return []
+    found: list[dict] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        # A drawing is quoted whole, «[схема: …]», and the document finds the
+        # line by what stands inside its brackets: record 92's three captions
+        # were all quoted so, and found nowhere.
+        anchor = str(item.get("anchor", "")).strip()
+        if anchor.startswith("[") and anchor.endswith("]"):
+            anchor = anchor[1:-1].strip()
+        box = {
+            "kind": CAPTION,
+            "anchor": anchor,
+            "title": str(item.get("title", "")).strip(),
+            "text": str(item.get("text", "")).strip(),
+        }
+        if box["anchor"] and box["text"]:
+            found.append(box)
+    return found
+
+
 # A formula inside an explanation's text, between its dollars.
 _FORMULA_RE = re.compile(r"\$\$(.+?)\$\$|\$(.+?)\$", re.DOTALL)
 
@@ -340,6 +390,21 @@ def _element_refused(box: dict, carried: set[str]) -> str | None:
         return None
     if not set(_NUMBER_RE.findall(box["text"])) <= carried:
         return "numbers"
+    return None
+
+
+def _caption_refused(box: dict, carried: set[str], markdown: str) -> str | None:
+    """Why a caption may not be printed, or None. Checked as an idea is — it
+    names what the record writes, so it may state no number the record does
+    not carry, its title included — and it has to stand at a formula set
+    apart or a drawing, as the document finds its anchor: at a line of words
+    it would be an explanation printed without a source."""
+    if judges_the_record(box["title"], box["text"]):
+        return "judged"
+    if not set(_NUMBER_RE.findall(f"{box['title']} {box['text']}")) <= carried:
+        return "numbers"
+    if not pdf.on_formula_or_drawing(markdown, box["anchor"]):
+        return "not at a formula or a drawing"
     return None
 
 
@@ -411,20 +476,25 @@ def _stats(
     )
 
 
-async def _write(text: str) -> tuple[object | None, CallStats, bool]:
-    """The first call: the explanations and the summary, as strict JSON, with
-    no tool — the model does not search in a call like this one anyway."""
+async def _write(
+    text: str, prompt: str | None = None, kind: str = "explain", thinking: str = "unset"
+) -> tuple[object | None, CallStats, bool]:
+    """A call over the whole record answered as strict JSON, with no tool —
+    the model does not search in a call like this one anyway. The first
+    call by default: the explanations, the teacher's boxes and the summary,
+    at the model's own thinking; or the captions' (task 95)."""
     started = time.monotonic()
     try:
         async with vision._API_SLOTS:
             response = await asyncio.wait_for(
                 vision._client.aio.models.generate_content(
                     model=settings.EXPLAIN_MODEL,
-                    contents=[EXPLAIN_PROMPT, text],
+                    contents=[prompt or EXPLAIN_PROMPT, text],
                     config=types.GenerateContentConfig(
                         temperature=1.0,
                         max_output_tokens=vision.MAX_OUTPUT_TOKENS,
                         response_mime_type="application/json",
+                        thinking_config=vision.thinking_config(thinking),
                         automatic_function_calling=vision.NO_AFC,
                     ),
                 ),
@@ -432,8 +502,65 @@ async def _write(text: str) -> tuple[object | None, CallStats, bool]:
             )
     except Exception as exc:
         retryable = vision._should_retry(exc) and not isinstance(exc, TimeoutError)
-        return None, _stats("explain", None, started, exc), retryable
-    return response, _stats("explain", response, started), False
+        return None, _stats(kind, None, started, exc), retryable
+    return response, _stats(kind, response, started), False
+
+
+async def _asked(
+    text: str, prompt: str | None = None, kind: str = "explain", thinking: str = "unset"
+) -> tuple[object | None, list[CallStats]]:
+    """_write, asked once more for a 429, a 503 or a dropped connection and
+    never for a timeout; the answer, or None, and every attempt's stats."""
+    all_stats: list[CallStats] = []
+    response = None
+    for attempt in range(_ATTEMPTS):
+        response, stats, retryable = await _write(text, prompt, kind, thinking)
+        all_stats.append(stats)  # rule 4: a call that failed was still a call
+        if response is not None:
+            break
+        last = attempt == _ATTEMPTS - 1
+        logger.warning(
+            "%s attempt %d/%d failed, %s: %s",
+            kind,
+            attempt + 1,
+            _ATTEMPTS,
+            "retrying" if retryable and not last else "no retry",
+            stats.error,
+        )
+        if last or not retryable:
+            break
+        await asyncio.sleep(_RETRY_PAUSE_S)
+    return response, all_stats
+
+
+async def _captioned(text: str, markdown: str) -> tuple[list[Element], int, list[CallStats]]:
+    """The captions' own call (task 95), and what code keeps of its answer:
+    the captions, how many it threw away, every attempt's stats. Failed, or
+    its answer not the JSON asked for, and there are none — the rest of the
+    stage is as it would have been."""
+    response, stats = await _asked(text, CAPTION_PROMPT, CAPTION, CAPTION_THINKING)
+    if response is None:
+        return [], 0, stats
+    answer = vision._response_text(response)
+    if _answer(answer) is None:
+        logger.warning("explain: the captions' answer did not parse as the JSON asked for")
+    carried = set(_NUMBER_RE.findall(markdown))
+    captions: list[Element] = []
+    dropped = 0
+    try:
+        for box in captions_of(answer)[:_MAX_CAPTIONS]:
+            refused = _caption_refused(box, carried, markdown)
+            if refused:
+                dropped += 1
+                logger.info("explain: a caption dropped, %s", refused)
+                continue
+            captions.append(Element(**box))
+    except Exception:
+        # A caption is never worth the record: whatever went wrong in the
+        # check, the stage goes out as it would have without the captions.
+        logger.exception("explain: the captions could not be checked")
+        return [], 0, stats
+    return captions, dropped, stats
 
 
 async def _search(item: dict) -> tuple[list[Source], list[CallStats]]:
@@ -487,33 +614,28 @@ async def explain(markdown: str) -> Explaining:
     # The record as the reader will see it numbered, so "(3)" in an answer
     # is the "(3)" on the page.
     text = pdf.numbered_for_reading(markdown)
-    all_stats: list[CallStats] = []
-    response = None
-    for attempt in range(_ATTEMPTS):
-        response, stats, retryable = await _write(text)
-        all_stats.append(stats)  # rule 4: a call that failed was still a call
-        if response is not None:
-            break
-        last = attempt == _ATTEMPTS - 1
-        logger.warning(
-            "explain attempt %d/%d failed, %s: %s",
-            attempt + 1,
-            _ATTEMPTS,
-            "retrying" if retryable and not last else "no retry",
-            stats.error,
-        )
-        if last or not retryable:
-            break
-        await asyncio.sleep(_RETRY_PAUSE_S)
+    # The captions' call beside the first, at the same time: the record waits
+    # for the slower of the two, not for both. Its captions stand whatever
+    # becomes of the first.
+    (response, all_stats), (captions, captions_dropped, caption_stats) = await asyncio.gather(
+        _asked(text), _captioned(text, markdown)
+    )
+    all_stats.extend(caption_stats)
 
     if response is None:
-        return Explaining(refused="call failed", stats=all_stats)
+        return Explaining(
+            refused="call failed", captions=captions,
+            captions_dropped=captions_dropped, stats=all_stats,
+        )
 
     answer = vision._response_text(response)
     parsed = parse(answer)
     if parsed is None:
         logger.warning("explain: the answer did not parse as the JSON asked for")
-        return Explaining(refused="unparseable", stats=all_stats)
+        return Explaining(
+            refused="unparseable", captions=captions,
+            captions_dropped=captions_dropped, stats=all_stats,
+        )
 
     items, summary = parsed
     items = items[:_MAX_EXPLANATIONS]
@@ -554,12 +676,14 @@ async def explain(markdown: str) -> Explaining:
     logger.info(
         "explain: %d explanations kept, %d without a source dropped, "
         "%d judging the record dropped, %d teacher's boxes kept, %d dropped, "
-        "summary %s, model %s",
+        "%d captions kept, %d dropped, summary %s, model %s",
         len(explanations),
         unsourced,
         judged,
         len(elements),
         elements_dropped,
+        len(captions),
+        captions_dropped,
         "refused" if summary_refused else ("kept" if summary else "absent"),
         settings.EXPLAIN_MODEL,
     )
@@ -571,5 +695,7 @@ async def explain(markdown: str) -> Explaining:
         summary_refused=summary_refused,
         elements=elements,
         elements_dropped=elements_dropped,
+        captions=captions,
+        captions_dropped=captions_dropped,
         stats=all_stats,
     )

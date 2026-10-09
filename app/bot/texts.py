@@ -90,6 +90,8 @@ ELEMENT_LABELS = {
     "idea": "Идея · от бота",
     "condition": "Зачем условие · от бота",
     "example": "Пример · от бота",
+    # A formula or a drawing the record says nothing about, named (task 95).
+    "caption": "Что это · от бота",
 }
 # The record summed up, first in the document as the guide's "Суть": its name,
 # then whose words these are.

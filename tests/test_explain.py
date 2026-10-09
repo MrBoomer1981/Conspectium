@@ -234,7 +234,8 @@ def test_properly_escaped_latex_is_left_as_it_is():
 async def test_an_unparseable_answer_costs_the_stage_not_the_record(monkeypatch):
     result = await _run(monkeypatch, _written("не JSON"))
     assert result.refused == "unparseable"
-    assert result.explanations == [] and len(result.stats) == 1
+    # The first call and the captions' beside it (task 95), both billed.
+    assert result.explanations == [] and [s.kind for s in result.stats] == ["explain", "caption"]
 
 
 # ── the bill, and the attempt after the first ────────────────────────────────
@@ -242,9 +243,11 @@ async def test_an_unparseable_answer_costs_the_stage_not_the_record(monkeypatch)
 
 async def test_every_call_is_billed_and_a_search_is_billed_for_its_search(monkeypatch):
     result = await _run(monkeypatch, _written(_answer(), tokens=(1000, 1000)))
-    writing, searching = result.stats
-    assert writing.kind == "explain" and searching.kind == "source"
+    writing, captioning, searching = result.stats
+    assert writing.kind == "explain" and captioning.kind == "caption" and searching.kind == "source"
     assert writing.cost_usd == pytest.approx(vision._cost_usd("gemini-3.8-flash", 1000, 1000, None))
+    # The fake answers the captions' call (task 95) as it answers the first.
+    assert captioning.cost_usd == pytest.approx(vision._cost_usd("gemini-3.8-flash", 1000, 1000, None))
     # One query ran (the fake's grounding metadata lists one).
     assert searching.cost_usd == pytest.approx(
         vision._cost_usd("gemini-3.8-flash", 40, 20, None) + GROUNDING_USD_PER_QUERY
@@ -260,21 +263,23 @@ async def test_a_failed_call_is_billed_and_gives_nothing(monkeypatch):
     result = await explain.explain(RECORD)
 
     assert result.refused == "call failed"
-    assert [s.success for s in result.stats] == [False]
+    assert [(s.kind, s.success) for s in result.stats] == [("explain", False), ("caption", False)]
 
 
 async def test_a_timeout_is_not_waited_out_twice(monkeypatch):
     calls: list[int] = []
 
     async def hanging(**kwargs):
-        calls.append(1)
+        calls.append(kwargs["contents"][0])
         raise TimeoutError()
 
     monkeypatch.setattr(explain.settings, "EXPLAIN_ENABLED", True)
     monkeypatch.setattr(vision, "_client", SimpleNamespace(aio=SimpleNamespace(models=SimpleNamespace(generate_content=hanging))))
     result = await explain.explain(RECORD)
 
-    assert len(calls) == 1 and result.refused == "call failed"
+    # Each call once: the first, and the captions' beside it (task 95).
+    assert sorted(calls) == sorted([explain.EXPLAIN_PROMPT, explain.CAPTION_PROMPT])
+    assert result.refused == "call failed"
 
 
 async def test_a_search_that_fails_costs_that_explanation_only(monkeypatch):
@@ -296,7 +301,8 @@ async def test_a_search_that_fails_costs_that_explanation_only(monkeypatch):
 
     assert [item.title for item in result.explanations] == ["Раз"]
     assert result.unsourced == 1
-    assert [s.success for s in result.stats] == [True, True, False]
+    # The first call, the captions' (task 95), and the two searches.
+    assert [s.success for s in result.stats] == [True, True, True, False]
 
 
 def test_both_prompts_ship_and_are_loaded():
@@ -412,13 +418,15 @@ def test_a_call_that_did_not_search_pays_nothing_for_it():
 async def test_a_search_thinks_low_and_the_writing_call_at_the_models_default(monkeypatch):
     seen: list[dict] = []
     await _run(monkeypatch, _written(_answer()), seen=seen)
-    writing = [kw for kw in seen if not kw["config"].tools]
+    writing = [kw for kw in seen if kw["contents"][0] == explain.EXPLAIN_PROMPT]
+    captioning = [kw for kw in seen if kw["contents"][0] == explain.CAPTION_PROMPT]
     searching = [kw for kw in seen if kw["config"].tools]
-    assert writing and searching
+    assert writing and captioning and searching
     assert all(kw["config"].thinking_config is None for kw in writing)
+    # The captions' call (task 95) thinks low, as the searches do.
     assert all(
         kw["config"].thinking_config.thinking_level == types.ThinkingLevel.LOW
-        for kw in searching
+        for kw in captioning + searching
     )
 
 
@@ -445,7 +453,7 @@ async def test_a_low_search_that_did_not_look_is_made_again_at_the_default(monke
     assert result.unsourced == 0
     searches = [kw for kw in seen if kw["config"].tools]
     assert [kw["config"].thinking_config is None for kw in searches] == [False, True]
-    assert [s.kind for s in result.stats] == ["explain", "source", "source"]
+    assert [s.kind for s in result.stats] == ["explain", "caption", "source", "source"]
 
 
 async def test_a_search_at_the_default_that_found_nothing_is_not_made_twice(monkeypatch):

@@ -2059,3 +2059,74 @@ studying; a drawing the bot «tried to turn into a diagram and could not».
   наз-ся полным, если …», «Сумма двух натуральных чисел — натуральное
   число»: the headings right above the subject stay with it, and the
   words are read as the notebook writes them.
+
+## Captions
+
+**What was asked for** (record 97's author, through the CEO, 2026-10-09):
+the record's second page opens on four formulas, «A = B ⇔ a ∈ A ⇒ a ∈ B,
+b ∈ B ⇒ b ∈ A, A ⊂ B, B ⊂ A», with not a word on what they are. Task 95
+gives a formula or a drawing the record says nothing about the bot's
+caption. Measured in the production container on 2026-10-09, on the CEO's
+word to read every record: lectures 88 to 92, 97 and 99, and 94, a
+screenshot of a table, and 98, code, which are not lectures. Records 93,
+95, 96 and 100 — screenshots, someone's private chat, homework in English
+— hold nothing a caption could name and were left out. 46 calls, $0.80 in
+all, every one in `ai_calls`.
+
+**In the explaining stage's first call** (`prompts-explain-v4.md`, v3 with
+captions), three runs, the first call alone, no searches — then v3 beside
+v4 in the same hour. The teacher's boxes kept, at most twelve a record,
+over the seven lectures:
+
+| arm | 97 | 88 | 89 | 90 | 91 | 92 | 99 | all | ideas |
+|---|---|---|---|---|---|---|---|---|---|
+| v3, as stored | 7 | 6 | 4 | 12 | 12 | 12 | 6 | 59 | 31 |
+| v3, beside v4 | 12 | 5 | 5 | 11 | 12 | 8 | 6 | 59 | 32 |
+| v4, first run | 12 | 9 | 3 | 10 | 11 | 8 | 4 | 57 | 27 |
+| v4, second run | 4 | 4 | 4 | 7 | 7 | 6 | 7 | 39 | 20 |
+| v4, beside v3 | 8 | 5 | 4 | 10 | 7 | 11 | 6 | 51 | 24 |
+
+How long the model thinks moves the count — record 97's v4 call thought
+7 433 tokens in one run and 242 in another, for twelve boxes and four —
+and it moves for v3 as well; but v3 wrote 59 both times and v4 less every
+time, the ideas of proofs most. The captions themselves were right: record
+97's set equality, record 88's diagram of the number sets and two of
+record 92's drawings in all three runs, the criteria of a supremum and an
+infimum in record 90 once. So the captions have a call of their own, and
+v3 stays as it is — the CEO's choice.
+
+**The captions' own call** (`prompts-explain-captions-v1.md`, thinking
+`low`), twice over the seven lectures and once over the two that are not:
+the same places both times — record 97's set equality, «Равенство множеств.
+Два множества равны тогда и только тогда, когда каждый элемент первого
+принадлежит второму и каждый элемент второго принадлежит первому…», and
+its inverse function; record 88's sum of a geometric progression and its
+diagram; record 90's two criteria, framed with no word after the
+definitions; record 91's drawing of a ball inside a ball; record 92's grid
+beside Bolzano–Weierstrass; record 99's «$x_n = \frac{\sin n}{\sqrt{n}}$»,
+an example with no «Пример» over it. Nothing for 89, 94 or 98. Sixteen
+calls, $0.052, two to five seconds each — beside a first call of half a
+minute to two minutes.
+
+**What the measurement found in the code** before it shipped:
+
+- The model quotes a drawing whole, brackets and all, «[схема: …]», and a
+  column of formulas whole, «$$A = B …$$» to «$$B \subset A$$»; the
+  document found neither, and every drawing's caption of record 92's was
+  dropped. Both are found now as the document finds them.
+- A table let a caption through, over record 94's «[график]» — a chart in
+  a screenshot the reading saw only as a word; the caption described its
+  time axis. A table is not what a caption stands at.
+- Set before the first line of the sentence code reads, record 90's
+  criterion of a supremum stood over the definition of an infimum: the
+  definition does not end on a full stop, so code reads it and the framed
+  formula under it as one sentence. A caption stands over what it names
+  and the formulas right above it, never over words.
+- Record 88's sum of an arithmetic progression ends its line on a stray
+  «середин»: a line of words to the guard, and its caption goes. A
+  formula with no word before it but a word after is the one such loss
+  seen.
+- Asked for what a formula does, the first prompt's captions said it —
+  «Формула выражает необходимое и достаточное условие совпадения двух
+  множеств через их взаимное включение»; asked for what it states, in
+  words, they say that.

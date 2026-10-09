@@ -463,6 +463,11 @@ class Explanation:
     # Set before what it is anchored to rather than under it: the idea of a
     # proof is read before the proof (task 56).
     before: bool = False
+    # Set over the formula or the drawing its anchor is in, and over the
+    # formulas right above it in one column, whichever of them it quotes: a
+    # caption says what they are (task 95). Never over the words before
+    # them, which say something else.
+    heads: bool = False
 
 
 @dataclass
@@ -3335,6 +3340,43 @@ def _anchored(anchor: str, members: list[Block], numbers: set[int]) -> bool:
     )
 
 
+# A drawing the reading described in words, «[схема: …]» — what a caption may
+# stand at besides a formula (task 95). Any other note is the reading's.
+_DRAWING_NOTE_RE = re.compile(r"схема\s*:", re.IGNORECASE)
+
+
+def _formula_or_drawing(block: Block) -> bool:
+    return (
+        _set_apart(block)
+        or block.kind in ("graph", "picture")
+        or (block.kind == "note" and bool(_DRAWING_NOTE_RE.match(block.text)))
+    )
+
+
+def on_formula_or_drawing(markdown: str, anchor: str) -> bool:
+    """Whether an anchor names formulas set apart or a drawing of the
+    record, where the document will find it: a main formula's number, or a
+    quote whose lines in the record, as render reads them, are all such —
+    the first place it is found, and the fewest lines that hold it, since a
+    column of formulas is quoted whole: record 97's four, «$$A = B …$$» to
+    «$$B \\subset A$$» (task 95). The bot's caption stands only there — at a
+    line of words it would be an explanation printed without a source. Not
+    at a table: record 94, a screenshot, got one over a chart the reading
+    saw only as «[график]»."""
+    found = _NUMBER_ANCHOR_RE.fullmatch(anchor.strip())
+    if found:
+        return 1 <= int(found.group(1)) <= numbered_formulas(markdown)
+    lines = [block for block in _parsed(markdown) if block.kind != "gap"]
+    for start in range(len(lines)):
+        for end in range(start + 1, min(len(lines), start + _SENTENCE_LINES) + 1):
+            if not _anchored(anchor, lines[start:end], set()):
+                continue
+            if end - start > 1 and _anchored(anchor, lines[start + 1 : end], set()):
+                break  # it begins on a later line
+            return all(_formula_or_drawing(block) for block in lines[start:end])
+    return False
+
+
 def _anchor_line(anchor: str, scope: list[Block], numbers_in) -> int:
     """Which line of a sentence an anchor begins in, by its place in `scope`
     — the last from which the rest of the sentence still holds it — moved
@@ -3354,6 +3396,29 @@ def _anchor_line(anchor: str, scope: list[Block], numbers_in) -> int:
         and scope[at - 1].kind != "gap"
     ):
         at -= 1
+    return at
+
+
+def _headed_line(anchor: str, scope: list[Block], numbers_in) -> int:
+    """Which line of a sentence a caption stands over (task 95): the one its
+    anchor begins in, moved up over the formulas and drawings right above
+    it — a column is captioned whole — and never over a line of words. Set
+    before the sentence's first line, record 90's criterion of a supremum
+    stood over the definition of an infimum, which the sentence began with.
+    0 for the first."""
+    at = 0
+    for position in range(len(scope) - 1, 0, -1):
+        rest = scope[position:]
+        if scope[position].kind != "gap" and _anchored(anchor, rest, numbers_in(rest)):
+            at = position
+            break
+    while at > 0:
+        above = at - 1
+        while above > 0 and scope[above].kind == "gap":
+            above -= 1
+        if not _formula_or_drawing(scope[above]):
+            break
+        at = above
     return at
 
 
@@ -3968,12 +4033,15 @@ def _set_unplaced(
     styles: dict[str, ParagraphStyle],
 ) -> None:
     """A finding whose anchor was never found is still worth reading; it goes
-    at the end of the text rather than nowhere. So does an explanation. Both
-    lists are emptied: what is set is set once."""
+    at the end of the text rather than nowhere. So does an explanation — but
+    not a caption, which names what it stands over and at the end would name
+    nothing (task 95). Both lists are emptied: what is set is set once."""
     for remark in pending:
         story.append(Spacer(1, _SET_APART_GAP))
         story.append(_remark(remark, formulas, styles))
     for item in unexplained:
+        if item.heads:
+            continue
         story.append(Spacer(1, _SET_APART_GAP))
         story.append(_explanation(item, formulas, styles))
     pending.clear()
@@ -4426,7 +4494,7 @@ def render(
                     if _anchored(item.anchor, scope, scope_numbers)
                 ]:
                     unexplained.remove(item)
-                    if not item.before:
+                    if not item.before and not item.heads:
                         explained_after += [
                             Spacer(1, 6), _explanation(item, formulas, styles)
                         ]
@@ -4435,8 +4503,10 @@ def render(
                     # before that line, not ten lines up at the first of a
                     # sentence that code could not end (task 86). A unit of
                     # several blocks is set whole, and the idea before it.
+                    # A caption goes over what it names (task 95).
+                    placing = _headed_line if item.heads else _anchor_line
                     at = (
-                        _anchor_line(item.anchor, scope, numbers_in)
+                        placing(item.anchor, scope, numbers_in)
                         if index == start + 1
                         else 0
                     )

@@ -631,6 +631,29 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   (`elements_dropped`). Stored in `notes.explanations` beside the explanations,
   each naming its `kind`; an idea is set before the sentence it is anchored
   in, the others after it. At most twelve. → "The teacher's boxes"
+- **A formula or a drawing the record says not a word about gets a
+  caption** (task 95, the CEO's, 2026-10-09): what it is, in two to five
+  words, and one sentence on what it states or shows — record 97 opened a
+  page on «A = B ⇔ …» with nothing to say it is the equality of sets, and
+  its author asked what it was. **A call of its own**,
+  `prompts-explain-captions-v1.md` at thinking `low`, made beside the first
+  call, at the same time, over the same numbered record: asked in the
+  first call (`prompts-explain-v4.md`), the model wrote the captions right
+  and fewer teacher's boxes — 57, 39 and 51 over seven lectures where v3
+  wrote 59 twice, the ideas of proofs most. About $0.003 and a few seconds
+  a record, its row `kind="caption"`; failed, it costs the captions alone.
+  Checked as an idea is, and kept only where its anchor stands at a
+  formula set apart or a drawing, as the document finds it
+  (`pdf.on_formula_or_drawing`) — a drawing quoted with its brackets and a
+  column of formulas quoted whole: at a line of words it would be an
+  explanation printed without a source. At most six, counted `captions`
+  and `captions_dropped`. Printed under «Что это · от бота» over what it
+  names and the formulas right above it in one column, never over the
+  words before them (`pdf._headed_line`): set before the sentence code
+  reads, record 90's criterion of a supremum stood over the definition of
+  an infimum. Never at the end of the text; stored as `kind: "caption"`.
+  The stage runs once, when a record is made: a record made before keeps
+  its boxes. → "Captions"
 
 ### Drawings cut out of the page
 
@@ -1264,6 +1287,7 @@ number never leaves another quietly cutting the work short:
 | `_SOURCE_TIMEOUT_S` | `services/explain.py` | 90 s — one search; up to eight at once, each on a slot |
 | compose's slot | `services/compose.py` | one of the `API_SLOTS`, held for the whole call; after `process_batch`, outside `_ALBUM_TIMEOUT_S` |
 | the study version's call | `services/study.py` | one of the `API_SLOTS`, on a press, `EXPLAIN_CALL_TIMEOUT_S` — a call over the whole record, as the explaining one is |
+| the captions' call | `services/explain.py` | one of the `API_SLOTS`, beside the explaining stage's first call, `EXPLAIN_CALL_TIMEOUT_S`; thinks `low` and answers in seconds (task 95) |
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)`, every attempt timing out — 93 s at the default |
 | `_AFTER_TIMEOUT` | `services/vision.py` | `2` — a first attempt that timed out is followed by one twice as long, and that is the last: 90 s then 180 s in production, 271 s, inside `RUN_WORST_CASE_S` |
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s, a wave of runs; a page that reads further waits for two |
@@ -1439,12 +1463,15 @@ lecture begins, measured and asleep (task 64); composing
 `prompts-compose-v1.md` to `v4`, v3 framing a section's main formula, v4
 (production since 2026-10-06) v3 with the author's shorthand spelled out
 (task 69);
-explaining `prompts-explain-v1.md` to `v3`, v2 (production 2026-10-03 to
+explaining `prompts-explain-v1.md` to `v4`, v2 (production 2026-10-03 to
 10-08) adding the teacher's boxes, v3 (production since 2026-10-08) v2 with
 an example that is not the lecture's working with another number (task 78),
-kept on the CEO's word while the next records' examples are read; with
+kept on the CEO's word while the next records' examples are read, v4 v3
+with a caption to a formula or a drawing the record says nothing about,
+measured and set aside for the teacher's boxes it cost (task 95); with
 `prompts-explain-source-v2.md` for the searches — `v1` before it, kept as
-the records made with it were; the study version `prompts-study-v1.md`
+the records made with it were — and `prompts-explain-captions-v1.md` for
+the captions' call (task 95); the study version `prompts-study-v1.md`
 (task 80) and `v2`, v1 naming the course's organisation (task 93), read by
 name as the searches' prompt is. Every
 prompt stays in `prompts/` once used: a record does not say which made it.
@@ -1550,7 +1577,8 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
 - **The startup log is the instrument's label**: `Recognition: <model>, N
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
   numbers, whether drawings are cut out and lectures marked, the image
-  compression, both stages, the study version's prompt, the call knobs, the
+  compression, both stages, the captions' prompt, the study version's
+  prompt, the call knobs, the
   five timeouts and the repeat after one, the pages of one send and the day's limits, where a reader's «Плохо» is sent, when a
   group's week is summed up, and whether the bot sees a group's photos. What
   a **record** does not say is which prompt made it —
