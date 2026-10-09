@@ -409,7 +409,8 @@ Specified on 2026-10-09, from record 97 and what its author found wrong in
 it — the CEO's, not yet scheduled:
 
 - [ ] 92. What the reading writes about the photograph is not printed:
-      «[Левая страница]», «[Правая страница]» — the CEO's
+      «[Левая страница]», «[Правая страница]» — the CEO's. Taken on
+      2026-10-09
 - [ ] 93. What does not belong to the subject is left out: the course's
       organisation — contacts, points, dates of tests — out of the study
       version, chosen by its model and guarded by code — the CEO's
@@ -420,10 +421,10 @@ it — the CEO's, not yet scheduled:
       caption — the CEO's, measured first
 - [ ] 96. Three equalities that hold, found not to: a definition read off
       a working, and a formula the author struck out — the CEO's,
-      measured over the database before it ships
+      measured over the database before it ships. Taken on 2026-10-09
 - [ ] 97. What record 97 showed in the document: a frame closed by «\}»,
-      a frame with a blank line inside, a lone ℕ numbered, two columns
-      written «a | b», a record titled «Лекция» — the CEO's
+      a frame with a blank line inside, an item's «|», a record titled
+      «Лекция» — the CEO's. Taken on 2026-10-09 with 92 and 96
 
 ### Why the design comes before the explaining stage
 
@@ -552,6 +553,7 @@ since 2026-10-01.
 | 2026-10-09 | the CEO, with Claude Code | Tasks 85–88 taken and 89–91 specified, from thirty-two pages the CEO sent at once on the evening of 2026-10-08 and the thirty-eight errors another model listed over the three documents that came back. The CEO asked for the list to be checked and a plan made, and went to sleep: the four are made overnight without a push, and wait for the CEO's word. 85: the albums of the send came 19 s apart, the window was 15 s — an album of ten waits a minute. 86: the document's share of what was found, all code. 87: record 91's study version did not parse and was asked for only by a press of its button. 88: records 91 and 92 went out uncomposed for numbered items in lower case, the guard the CPO's — measured on them, on the CEO's word, before it ships. 89–91 are decisions: the bot's reasoning that assumed what the lecture proves, the photographs against the reading, a definition the lecture relies on and does not give. Checked against the documents, most of the list is the lecture as the notebook has it or one stroke of the reading from it; three points are not there; one is the bot's own. `FINDINGS.md` → "Records 90, 91 and 92" | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Task 88 widened while it was made: what the author struck out leaves the count of `[неразборчиво]` and the length as it leaves the numbers — record 91's struck passage held a mark — and an item may stand inside a line, «верно 3) …» | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Tasks 92–97 specified from record 97, ten pages of a notebook with lectures and a practice session, and what its author, asked by the CEO, found wrong in its study version: the course's organisation on the first page, set out crookedly; set equality with no word on what it is; formulas where pictures would explain; «Левая страница» and «Правая страница» printed; a drawing described rather than shown. Read against the record's text, on the CEO's word: the page labels are the reading's, written for a photograph of two pages; all three of its equality findings are false — a solution read as a definition two pages on, and a formula the author struck out; a frame of the record's own was closed by «\}» and printed as its source. The CEO's answers: what does not belong to the subject is to be told apart and left out, and the drawings start with what code can draw from data | the CEO's own |
+| 2026-10-09 | the CEO, with Claude Code | Tasks 92, 96 and 97 taken, the CEO's word, with the database read for 96 as for 84. Task 97 loses one item: ℕ framed alone keeps its number, since unnumbered it would renumber the main formulas after it under explanations stored with «(4)» | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | The CEO's answers in the morning: 85 to 87 pushed, and 88 once measured; the CEO's word to read records 90 to 92; `MAX_ALBUM_PAGES` stays 15 on Railway, so a send of more than fifteen pages is several records by design — task 85's acceptance says so; 89 and 91 not taken, «лекцию можно поправлять» — a box of the bot's may correct the lecture, and the CEO reads them; 90 the CEO's own check of the photographs. Task 88 measured on records 91 and 92: the numbers it was made for no longer lost, 16 to 2 and 3 to 1, and both still refused — a number spelled out, a definition's number dropped, a lone item, a formula changed. It ships as an improvement, with what the measurement found taken in, and its acceptance criterion is changed to what it can do | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
@@ -5690,12 +5692,19 @@ bot's own mark: the one error this check must not make.
 
 1. `pdf.boxed_contents` passes over «\{» and «\}».
 2. A frame may hold a blank line (`pdf._frame_lines`).
-3. A frame round one symbol is drawn framed, not numbered.
-4. An item's «|» after its number is not printed.
-5. A title that names nothing — «Лекция», «Практика», «Конспект», a
-   subject's name with one of them — gives way, in the document, to the
-   record's first heading that does.
-6. `CLAUDE.md` → "The document"; `BRAND.md`.
+3. An item's «|» after its number is not printed; an anchor quoting the
+   line as read still finds it.
+4. A title that names nothing — «Лекция», «Практика», «Конспект», a
+   subject's name with one of them — gives way, in the document and its
+   file's name, to the record's first heading that does. The record keeps
+   its title.
+5. `CLAUDE.md` → "The document"; `BRAND.md`.
+
+## Don't do
+
+- ℕ framed alone keeps its number: unnumbered, it would renumber every main
+  formula after it, and an explanation stored with «(4)» would stand under
+  another formula — records 90 and 97 carry such anchors.
 
 ---
 
