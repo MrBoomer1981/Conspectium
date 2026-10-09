@@ -554,6 +554,7 @@ since 2026-10-01.
 | 2026-10-09 | the CEO, with Claude Code | Task 88 widened while it was made: what the author struck out leaves the count of `[неразборчиво]` and the length as it leaves the numbers — record 91's struck passage held a mark — and an item may stand inside a line, «верно 3) …» | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Tasks 92–97 specified from record 97, ten pages of a notebook with lectures and a practice session, and what its author, asked by the CEO, found wrong in its study version: the course's organisation on the first page, set out crookedly; set equality with no word on what it is; formulas where pictures would explain; «Левая страница» and «Правая страница» printed; a drawing described rather than shown. Read against the record's text, on the CEO's word: the page labels are the reading's, written for a photograph of two pages; all three of its equality findings are false — a solution read as a definition two pages on, and a formula the author struck out; a frame of the record's own was closed by «\}» and printed as its source. The CEO's answers: what does not belong to the subject is to be told apart and left out, and the drawings start with what code can draw from data | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Tasks 92, 96 and 97 taken, the CEO's word, with the database read for 96 as for 84. Task 97 loses one item: ℕ framed alone keeps its number, since unnumbered it would renumber the main formulas after it under explanations stored with «(4)» | the CEO's own |
+| 2026-10-09 | the CEO, with Claude Code | `MAX_ALBUM_PAGES` 20 and a person's day 30 on Railway since 09:35 Moscow time, the CEO's — task 85's acceptance says so | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | The CEO's answers in the morning: 85 to 87 pushed, and 88 once measured; the CEO's word to read records 90 to 92; `MAX_ALBUM_PAGES` stays 15 on Railway, so a send of more than fifteen pages is several records by design — task 85's acceptance says so; 89 and 91 not taken, «лекцию можно поправлять» — a box of the bot's may correct the lecture, and the CEO reads them; 90 the CEO's own check of the photographs. Task 88 measured on records 91 and 92: the numbers it was made for no longer lost, 16 to 2 and 3 to 1, and both still refused — a number spelled out, a definition's number dropped, a lone item, a formula changed. It ships as an improvement, with what the measurement found taken in, and its acceptance criterion is changed to what it can do | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
@@ -5209,10 +5210,12 @@ nested segments and metric spaces.
 
 ## Acceptance criterion
 
-- A send of eleven to fifteen pages whose last album comes slowly: one
-  record. `MAX_ALBUM_PAGES` stays 15 on Railway, the CEO's word of
-  2026-10-09, so a send of more than fifteen pages is several records by
-  design — the thirty-two pages of records 90 to 92 included.
+- A send of eleven to twenty pages whose last album comes slowly: one
+  record. `MAX_ALBUM_PAGES` was kept at 15 on Railway on the CEO's word of
+  2026-10-09, and set to 20 the same morning, with a person's day at 30
+  (the deploy of 09:35 Moscow time): a send of more than twenty pages is
+  several records by design — the thirty-two pages of records 90 to 92
+  included.
 - Ten pages sent alone: «Обрабатываю» about a minute after the last page.
 - The suite is green.
 
