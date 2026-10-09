@@ -395,13 +395,15 @@ their errors — the CEO's, not yet scheduled:
 
 - [ ] 89. The bot's reasoning that leans on what the lecture proves: an
       explanation or a teacher's box may not assume the statement it
-      stands under — the CEO's, measured first
+      stands under — the CEO's. Not taken, the CEO's word of 2026-10-09:
+      «лекцию можно поправлять» — a box of the bot's may correct the
+      lecture, and the CEO reads them
 - [ ] 90. The reading against the photographs: the places in records 90,
       91 and 92 where a stroke decides between the author's text and a
-      misreading, checked by the CEO — the CEO's, no code
+      misreading — the CEO's own check, no code, said on 2026-10-09
 - [ ] 91. What the lecture uses without defining: whether the bot recalls,
       under its own label, a definition the lecture relies on and does
-      not give — the CEO's, a decision first
+      not give — not needed, the CEO's word of 2026-10-09
 
 ### Why the design comes before the explaining stage
 
@@ -449,7 +451,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88; next: 89, 90 and 91 once decided, 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -529,6 +531,7 @@ since 2026-10-01.
 | 2026-10-08 | the CEO, with Claude Code | Tasks 83 and 84 taken, in that order, from the CEO's reading of records 88 and 89 against the photographs — sixteen points, ten in the lecture and six in how it was set out. The CEO asked whether to check them with algorithms rather than a model. 83 is the document's share, all code: a box set after the sentence it is anchored in, found across the lines of one, a word carried over with a hyphen joined, struck words not printed, ≤ for ⩽, a short formula ending a sentence set in its line, a ringed sign framed. 84 is the one class of the lecture's errors code can prove — an equality that does not hold, «(−x)(−x) = x», «c − h = c² − 2ch + h²» — a finding under its line, never the author corrected; measured over every record in the database before it is on, the CEO's word given to read them. The rest of the sixteen is meaning, no code's to find | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Tasks 85–88 taken and 89–91 specified, from thirty-two pages the CEO sent at once on the evening of 2026-10-08 and the thirty-eight errors another model listed over the three documents that came back. The CEO asked for the list to be checked and a plan made, and went to sleep: the four are made overnight without a push, and wait for the CEO's word. 85: the albums of the send came 19 s apart, the window was 15 s — an album of ten waits a minute. 86: the document's share of what was found, all code. 87: record 91's study version did not parse and was asked for only by a press of its button. 88: records 91 and 92 went out uncomposed for numbered items in lower case, the guard the CPO's — measured on them, on the CEO's word, before it ships. 89–91 are decisions: the bot's reasoning that assumed what the lecture proves, the photographs against the reading, a definition the lecture relies on and does not give. Checked against the documents, most of the list is the lecture as the notebook has it or one stroke of the reading from it; three points are not there; one is the bot's own. `FINDINGS.md` → "Records 90, 91 and 92" | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Task 88 widened while it was made: what the author struck out leaves the count of `[неразборчиво]` and the length as it leaves the numbers — record 91's struck passage held a mark — and an item may stand inside a line, «верно 3) …» | the CEO's own |
+| 2026-10-09 | the CEO, with Claude Code | The CEO's answers in the morning: 85 to 87 pushed, and 88 once measured; the CEO's word to read records 90 to 92; `MAX_ALBUM_PAGES` stays 15 on Railway, so a send of more than fifteen pages is several records by design — task 85's acceptance says so; 89 and 91 not taken, «лекцию можно поправлять» — a box of the bot's may correct the lecture, and the CEO reads them; 90 the CEO's own check of the photographs. Task 88 measured on records 91 and 92: the numbers it was made for no longer lost, 16 to 2 and 3 to 1, and both still refused — a number spelled out, a definition's number dropped, a lone item, a formula changed. It ships as an improvement, with what the measurement found taken in, and its acceptance criterion is changed to what it can do | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -5183,10 +5186,10 @@ nested segments and metric spaces.
 
 ## Acceptance criterion
 
-- The same thirty-two pages sent again: one record of thirty-two pages —
-  with `MAX_ALBUM_PAGES` at 32 or more on Railway. It is 15 there since
-  00:09 Moscow time on 2026-10-09, and at 15 a send of more than fifteen
-  pages is several records by design.
+- A send of eleven to fifteen pages whose last album comes slowly: one
+  record. `MAX_ALBUM_PAGES` stays 15 on Railway, the CEO's word of
+  2026-10-09, so a send of more than fifteen pages is several records by
+  design — the thirty-two pages of records 90 to 92 included.
 - Ten pages sent alone: «Обрабатываю» about a minute after the last page.
 - The suite is green.
 
@@ -5361,8 +5364,32 @@ abbreviation (rule 10, the CEO's) and has no heading: that is how 91 and
 
 ## Acceptance criterion
 
-- Records 91 and 92 composed again under the new guard: accepted.
+- Records 91 and 92 composed again under the new guard: the numbers it
+  was made for no longer lost — measured below.
 - The suite is green.
+
+## Measured, 2026-10-09
+
+Records 91 and 92 composed again on Railway, on the CEO's word to read
+them ($0.13, six rows in `ai_calls`), each composition judged by the
+deployed guard and by this one. Record 91 lost 16 numbers twice under
+the old guard and 2 under the new; record 92, 3 and 3 under the old, 1
+and 1 under the new, one of its compositions also gaining 2. Neither was
+accepted: what is left is not a numbered item —
+- «Для 3х метрик» written «трёх метрик»: a number spelled out, which the
+  guard refuses by design;
+- «Определение 7:» made a heading, «### Определение», its 7 dropped;
+- «1 $A \subset X$ — ограниченное мн-во», a lone item made «1.»;
+- a formula changed: $\varepsilon_k$ written $\varepsilon_1$, the marks
+  under an inequality made a clause «где …» that repeats $x_{j_0}$.
+
+So it ships as what it is, and the rest is a question of its own: the
+composer told to keep a label's number, «3х» and a formula as written, or
+code putting a dropped label's number back as task 82 puts back a formula.
+Found while measuring, and taken in: the item's number is read alike
+however the composer sets it — «**1.** …», «### 1. …», «(1) …» — an
+interval «[1; 2)» is no item, and what `\phantom{…}` only measures is no
+value.
 
 ## Don't do
 
@@ -5399,6 +5426,13 @@ the reader trusts the mark.
 - No model checking the boxes: a verification call does not work
   (`CLAUDE.md` → "What the model is not trusted with").
 
+## The CEO's word, 2026-10-09
+
+«Лекцию можно поправлять»: a box of the bot's may correct the lecture —
+«для всех векторов X, а не только для ℝ», «подразумевается бесконечное
+множество» — and the CEO reads them. Not taken; the author's text itself
+is still never rewritten.
+
 ---
 
 # Task 90. The reading against the photographs
@@ -5422,7 +5456,8 @@ the first was written by the reading model — the fluent retelling
 
 ## Do
 
-1. The CEO checks those places against the photographs.
+1. The CEO checks those places against the photographs — the CEO's own
+   check, said on 2026-10-09.
 2. What the photographs say decides what follows: misreadings are a
    question for recognition, the CPO's, asked with data — the prompt, the
    model, the runs; the author's text is kept as it is.
@@ -5449,6 +5484,8 @@ lecture relies on and does not give — a fourth teacher's box beside
 «Идея», «Зачем условие» and «Пример», written by the same call, its
 numbers checked as theirs are. A gap in a proof stays the lecture's: the
 bot does not fill it.
+
+Not needed, the CEO's word of 2026-10-09.
 
 ---
 
