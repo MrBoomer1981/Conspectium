@@ -2031,3 +2031,31 @@ studying; a drawing the bot «tried to turn into a diagram and could not».
   blank line between two, printed «[рамка:» and «]». The field axioms
   printed «1.1. |». The record was titled «Лекция», what the reading called
   its first page (task 97).
+
+**The organisation, left out of the study version** (task 93, measured on
+2026-10-09 in the container, on the CEO's word, before it shipped):
+
+- **Cut into the study version's units, the organisation is three of
+  them** — the contacts under «# Лекция», the table of points for each
+  grade, and the two columns of tests and dates — and the third carries
+  the set equality «$A = B$ ⇔ …» under it, with no line between: a formula
+  set apart goes with the text before it. A guard over whole units would
+  have kept that unit for its formula, and the organisation with it; the
+  guard is over paragraphs, and a unit named loses only those before the
+  first that holds the subject.
+- **`prompts-study-v2.md` named units 1, 2 and 3**, and put the third in
+  its first topic as well; code left out the first two whole and the
+  third's two columns, and the set equality opens the first topic,
+  «Виды отображений и построение обратной функции». No title, «о чём» or
+  question speaks of the organisation; v1's first topic was «Организация
+  курса и виды отображений множеств», and its «о чём» opened on
+  «организационные правила оценивания курса». Every main formula keeps
+  the record's number. One call: 6 419 tokens in, 1 308 out, 7 908 of
+  thinking, $0.039, 68 s.
+- **What the guard would let go whatever the model named**, over records
+  88 to 92 and 97, 255 units: record 97's three, and nothing else. Its
+  earlier drafts also let go a heading over its definition,
+  «## Супремум и инфимум», and statements the notebook shortens, «Мн-во
+  наз-ся полным, если …», «Сумма двух натуральных чисел — натуральное
+  число»: the headings right above the subject stay with it, and the
+  words are read as the notebook writes them.

@@ -912,6 +912,22 @@ else, over 97 records. → "An equality that does not hold", "Record 97"
   before it, and past a quarter left out the version is refused. What the
   bot writes states no number the record does not carry, and an answer's
   working is checked as a teacher's example is; what fails goes.
+- **What is not the lecture's subject is left out, never a line of the
+  subject** (task 93, the CEO's, 2026-10-09): the model names the units
+  about the course's organisation — contacts, points, admission, dates of
+  tests, the schedule — and code leaves out of each its paragraphs before
+  the first that holds the subject: a formula, a drawing, a word of what a
+  lecture states or is about, as the notebook shortens it too
+  (`study._SUBJECT_RE`), the headings right above it staying with it
+  (`study.trimmed`). Record 97's points and test dates were one unit with
+  the set equality under them. What is left stands where the unit stood;
+  a unit that opens on the subject loses nothing; past a fifth of the
+  record named so, nothing goes. A formula never goes, so no number
+  moves, and a box anchored only in what went is not printed
+  (`corpus._only_left_out`). The record keeps every line, and its own
+  document. Over records 88 to 92 and 97, the only paragraphs code would
+  let go whatever the model named were record 97's organisation. →
+  "Record 97"
 - **Drawn as the record is** (`corpus.send_study_pdf`), with its summary,
   missing pages, findings and boxes, which follow their units; each topic
   a numbered section with «О чём тема · от бота» under it and its key
@@ -925,8 +941,9 @@ else, over 97 records. → "An equality that does not hold", "Record 97"
   is studied whole: its base with what the others add, each passage moved
   whole.
 - **Built once, kept on the base** (`notes.study`), with a fingerprint of
-  the text it was built from: drawn again it pays nothing, and a notebook
-  joining the lecture builds it anew. One call on the explaining stage's
+  the text it was built from and the prompt that arranged it: drawn again
+  it pays nothing, and a notebook joining the lecture builds it anew, as
+  does the next prompt when the record is next delivered (task 93). One call on the explaining stage's
   model, where that stage is on, inside the day's cost cap (`pages=0`),
   paid by whoever it is delivered to, its `ai_calls` row of
   `kind="study"`. An answer that does not parse is asked for once more, as
@@ -934,8 +951,8 @@ else, over 97 records. → "An equality that does not hold", "Record 97"
   (task 87): record 91's did not, and the record's document went out
   until its button was pressed. While it runs, a second delivery of the record gets the
   record's document — a set in this process ("Scale debt"). Events
-  `study_sent` (`via` delivery or button), `study_requested`,
-  `study_failed`.
+  `study_sent` (`via` delivery or button; `off_topic`, the units left out
+  whole or in part), `study_requested`, `study_failed`.
 
 ### A group's week
 
@@ -1428,7 +1445,8 @@ an example that is not the lecture's working with another number (task 78),
 kept on the CEO's word while the next records' examples are read; with
 `prompts-explain-source-v2.md` for the searches — `v1` before it, kept as
 the records made with it were; the study version `prompts-study-v1.md`
-(task 80), read by name as the searches' prompt is. Every
+(task 80) and `v2`, v1 naming the course's organisation (task 93), read by
+name as the searches' prompt is. Every
 prompt stays in `prompts/` once used: a record does not say which made it.
 `vision.load_prompt` reads a prompt from `prompts/` by file name at
 **import**: the file has to ship with the deploy or the process dies at

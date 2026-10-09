@@ -13,6 +13,10 @@ not a word of the author's can change, and every unit stands once. What the
 bot writes may state no number the record does not carry, the summary's
 guard, and an answer's working is checked as a teacher's example is. Like
 the stages before it, this never touches the database.
+
+What is not the lecture's subject — the course's organisation, the CEO's of
+2026-10-09 (task 93) — the model names and code leaves out, never a line
+that holds the subject: the record keeps every line, and its own document.
 """
 
 from __future__ import annotations
@@ -32,7 +36,7 @@ from app.services.vision import CallStats
 
 logger = logging.getLogger(__name__)
 
-STUDY_PROMPT_FILE = "prompts-study-v1.md"
+STUDY_PROMPT_FILE = "prompts-study-v2.md"
 STUDY_PROMPT = vision.load_prompt(STUDY_PROMPT_FILE)
 STUDY_PROMPT_WORDS = len(STUDY_PROMPT.split())
 
@@ -44,6 +48,9 @@ _MAX_QUESTIONS = 5
 # of the author's is lost; past a quarter of the record left out, what came
 # back is not an arrangement of it.
 _MAX_MISSING_SHARE = 0.25
+# The course's organisation is a few lines of a lecture: past a fifth of the
+# record named so, the model took the lecture for it, and nothing goes.
+_MAX_OFF_TOPIC_SHARE = 0.2
 # The explaining call's policy, for its reasons: a call over the whole
 # record, where a timeout means it was working.
 _ATTEMPTS = 2
@@ -65,6 +72,21 @@ _LABEL_RE = re.compile(
 )
 _MAX_NOTIONS = 8
 _MAX_NOTION_WORDS = 6
+# What makes a paragraph the lecture's whatever the model says of it (task
+# 93): a formula — its dollars, a command, a sign — a drawing, or a word of
+# what a lecture states or is about, as the notebook shortens it too, a
+# problem and homework included. A paragraph of the organisation that has
+# one stays: kept, it costs a line; left out, a line of the lecture would go
+# — record 92's «Мн-во наз-ся полным, если …» has no formula.
+_SUBJECT_RE = re.compile(
+    r"[$\\∀∃∈∉⊂⊃⊆⊇∪∩⇒⇐⇔→←↦≤≥≠≈≡∞∑∏∫√±×÷∅ℕℤℚℝℂα-ωΑ-Ω]"
+    r"|\[(?:схема|рисунок|граф)"
+    r"|определ|теорем|лемм|доказ|док-в|аксиом|следстви|утвержд|свойств|замечани"
+    r"|пример(?!н)|наз(?:ыва|-)|пусть|положим|верн"
+    r"|множеств|мн-|функци|отображ|чис(?:л|ел)|последовательн|пос-ть|пространств|пр-в|точк"
+    r"|задач|упражнен|домашн|\bдз\b|№|§",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -87,9 +109,15 @@ class Study:
     source: str = ""
     # Why nothing usable came back: None when it did.
     refused: str | None = None
-    # Units the model left out and code put back, and units it named twice.
+    # The units it leaves out as the course's organisation, whole or their
+    # paragraphs before the subject begins (`trimmed`): kept, so it is drawn
+    # again the same way.
+    off_topic: list[int] = field(default_factory=list)
+    # Units the model left out and code put back, units it named twice, and
+    # units it named as the organisation that code kept whole.
     missing: int = 0
     repeated: int = 0
+    off_topic_kept: int = 0
     # The bot's texts a check of code threw away.
     abouts_dropped: int = 0
     questions_dropped: int = 0
@@ -100,6 +128,7 @@ class Study:
         return {
             "topics": [asdict(topic) for topic in self.topics],
             "questions": list(self.questions),
+            "off_topic": list(self.off_topic),
             "source": self.source,
         }
 
@@ -123,21 +152,31 @@ def from_stored(data: object) -> Study | None:
         for q in data.get("questions") or []
         if isinstance(q, dict)
     ]
+    off_topic = [
+        unit
+        for unit in data.get("off_topic") or []
+        if isinstance(unit, int) and not isinstance(unit, bool)
+    ]
     source = data.get("source")
     if not topics or not isinstance(source, str):
         return None
-    return Study(topics=topics, questions=questions, source=source)
+    return Study(topics=topics, questions=questions, source=source, off_topic=off_topic)
 
 
 # What a fingerprint is taken of besides the text: the rule of cutting it.
-# Raised when units() cuts differently, so every kept version is built again.
+# Raised when units() or trimmed() cuts differently, so every kept version is
+# built again.
 _CUT_VERSION = "1"
 
 
 def fingerprint(markdown: str) -> str:
-    """The text a study version is built from, and the way it is cut, in
-    sixteen characters."""
-    return hashlib.sha1(f"{_CUT_VERSION}\n{markdown}".encode()).hexdigest()[:16]
+    """The text a study version is built from, the way it is cut and the
+    prompt that arranged it, in sixteen characters: a version kept from an
+    earlier prompt is built again by the next (task 93), so a record brought
+    back is set out as a new one is."""
+    return hashlib.sha1(
+        f"{_CUT_VERSION}\n{STUDY_PROMPT_FILE}\n{markdown}".encode()
+    ).hexdigest()[:16]
 
 
 def units(markdown: str) -> list[str]:
@@ -211,6 +250,41 @@ def _closed(text: str) -> bool:
     )
 
 
+def _paragraphs(piece: str) -> list[str]:
+    """A unit's paragraphs, as units() joined them: a formula never cut."""
+    out: list[str] = []
+    carried: list[str] = []
+    for paragraph in piece.split("\n\n"):
+        carried.append(paragraph)
+        text = "\n\n".join(carried)
+        if _closed(text):
+            out.append(text)
+            carried = []
+    if carried:
+        out.append("\n\n".join(carried))
+    return out
+
+
+def trimmed(piece: str) -> tuple[str, str]:
+    """A unit named as the course's organisation, cut where the subject
+    begins: what goes — its paragraphs before the first that holds the
+    subject (`_SUBJECT_RE`) — and what stays. Record 97's points and test
+    dates stood in one unit with the set equality under them, which a
+    formula set apart goes with (task 93)."""
+    paragraphs = _paragraphs(piece)
+    first = next(
+        (index for index, paragraph in enumerate(paragraphs) if _SUBJECT_RE.search(paragraph)),
+        len(paragraphs),
+    )
+    # The headings right above the subject head it, and stay with it: record
+    # 90's «## Супремум и инфимум» over its definition.
+    while 0 < first < len(paragraphs) and all(
+        _HEADING_RE.match(line.strip()) for line in paragraphs[first - 1].splitlines()
+    ):
+        first -= 1
+    return "\n\n".join(paragraphs[:first]), "\n\n".join(paragraphs[first:])
+
+
 def _for_reading(pieces: list[str]) -> str:
     """The units as the model reads them: numbered, each main formula with
     the number the document gives it, so "(3)" in an answer is "(3)" on the
@@ -261,10 +335,18 @@ async def _call(text: str) -> tuple[object | None, CallStats, bool]:
     ), False
 
 
-def _arranged(topics: list[dict], count: int) -> tuple[list[Topic], int, int] | None:
+def _arranged(
+    topics: list[dict], count: int, named: list[int], aside: dict[int, str]
+) -> tuple[list[Topic], int, int] | None:
     """The topics with every unit placed once — a unit named twice keeps its
     first place, one left out goes back after the unit before it — and how
-    many were left out and repeated. None when too much was left out."""
+    many were left out and repeated. None when too much was left out.
+
+    `named` are the units the model named as the course's organisation, and
+    `aside` those code leaves out, each with what is left of it: that stands
+    where the model put the unit, else goes back as a unit left out does, and
+    so does a unit named that code keeps whole; a unit with nothing left
+    stands nowhere."""
     seen: set[int] = set()
     arranged: list[Topic] = []
     repeated = 0
@@ -275,22 +357,62 @@ def _arranged(topics: list[dict], count: int) -> tuple[list[Topic], int, int] | 
                 repeated += 1
                 continue
             seen.add(unit)
+            if unit in aside and not aside[unit]:
+                continue
             placed.append(unit)
         if placed:
             arranged.append(Topic(item["title"], placed, item["about"]))
-    missing = [unit for unit in range(1, count + 1) if unit not in seen]
+    missing = [unit for unit in range(1, count + 1) if unit not in seen and unit not in named]
     if not arranged or len(missing) > count * _MAX_MISSING_SHARE:
         return None
-    for unit in missing:
-        # After the unit that stood before it on the page, wherever that went;
-        # the first unit of all goes first.
-        for topic in arranged:
-            if unit - 1 in topic.units:
-                topic.units.insert(topic.units.index(unit - 1) + 1, unit)
+    back = {unit for unit in named if unit not in seen and (unit not in aside or aside[unit])}
+    for unit in sorted(back.union(missing)):
+        # After the unit nearest before it on the page that stands somewhere,
+        # wherever that went — the one just before may be the organisation,
+        # gone; with none, first.
+        for before in range(unit - 1, 0, -1):
+            topic = next((topic for topic in arranged if before in topic.units), None)
+            if topic is not None:
+                topic.units.insert(topic.units.index(before) + 1, unit)
                 break
         else:
             arranged[0].units.insert(0, unit)
     return arranged, len(missing), repeated
+
+
+def _named_aside(data: dict, count: int) -> list[int]:
+    """The units the answer names as the course's organisation. Never raises."""
+    named = data.get("organization")
+    if not isinstance(named, list):
+        return []
+    return list(
+        dict.fromkeys(
+            unit
+            for unit in named
+            if isinstance(unit, int) and not isinstance(unit, bool) and 1 <= unit <= count
+        )
+    )
+
+
+def _aside(pieces: list[str], named: list[int]) -> tuple[dict[int, str], int]:
+    """The units left out as the organisation, each with what is left of it,
+    and how many of those named are kept whole: a unit that opens on the
+    subject loses nothing, and past a fifth of the record nothing goes."""
+    aside: dict[int, str] = {}
+    gone = 0
+    for unit in named:
+        cut, kept = trimmed(pieces[unit - 1])
+        if cut:
+            aside[unit] = kept
+            gone += len(cut)
+    if gone > sum(len(piece) for piece in pieces) * _MAX_OFF_TOPIC_SHARE:
+        logger.warning(
+            "study: %d units named as the course's organisation hold more than a "
+            "fifth of the record; none is left out",
+            len(aside),
+        )
+        return {}, len(named)
+    return aside, len(named) - len(aside)
 
 
 def _topics_of(data: dict, count: int) -> list[dict]:
@@ -371,7 +493,9 @@ async def build(markdown: str) -> Study:
         return Study(
             refused="call failed" if response is None else "unparseable", stats=all_stats
         )
-    arranged = _arranged(_topics_of(data, len(pieces)), len(pieces))
+    named = _named_aside(data, len(pieces))
+    aside, off_topic_kept = _aside(pieces, named)
+    arranged = _arranged(_topics_of(data, len(pieces)), len(pieces), named, aside)
     if arranged is None:
         logger.warning("study: the answer left out too much of the record")
         return Study(refused="units missing", stats=all_stats)
@@ -406,16 +530,19 @@ async def build(markdown: str) -> Study:
 
     logger.info(
         "study: %d topics over %d units, %d left out and put back, %d repeated, "
+        "%d the course's organisation left out, %d named so and kept whole, "
         "%d abouts dropped, %d questions kept, %d dropped, model %s",
-        len(topics), len(pieces), missing, repeated, abouts_dropped,
-        len(questions), questions_dropped, settings.EXPLAIN_MODEL,
+        len(topics), len(pieces), missing, repeated, len(aside), off_topic_kept,
+        abouts_dropped, len(questions), questions_dropped, settings.EXPLAIN_MODEL,
     )
     return Study(
         topics=topics,
         questions=questions,
         source=fingerprint(markdown),
+        off_topic=sorted(aside),
         missing=missing,
         repeated=repeated,
+        off_topic_kept=off_topic_kept,
         abouts_dropped=abouts_dropped,
         questions_dropped=questions_dropped,
         stats=all_stats,
@@ -446,11 +573,13 @@ class Layout:
     """A study version as render takes it: the arranged record with a line
     where each of the bot's boxes stands, the boxes in that order — each a
     kind and what it holds — and the numbers the record's formulas carry, in
-    the order they stand now."""
+    the order they stand now; and what it leaves out as the course's
+    organisation, where a box anchored there would stand."""
 
     markdown: str
     boxes: list[dict]
     formula_numbers: list[int]
+    left_out: str = ""
 
 
 def _demoted(piece: str) -> str:
@@ -473,6 +602,12 @@ def layout(markdown: str, version: Study) -> Layout:
     # order — kept, so an explanation's "(3)" still names its formula.
     counts = [pdf.numbered_formulas(piece) for piece in pieces]
     starts = [sum(counts[:index]) + 1 for index in range(len(pieces))]
+    # What is left of the units the version leaves out as the organisation;
+    # a formula is never left out, so no number moves.
+    aside = {
+        unit: trimmed(pieces[unit - 1]) for unit in version.off_topic if 0 < unit <= len(pieces)
+    }
+    drawn = [aside[unit][1] if unit in aside else piece for unit, piece in enumerate(pieces, 1)]
 
     lines: list[str] = []
     boxes: list[dict] = []
@@ -480,20 +615,22 @@ def layout(markdown: str, version: Study) -> Layout:
     for topic in version.topics:
         lines += [f"# {topic.title}", ""]
         held = notions(
-            "\n\n".join(pieces[unit - 1] for unit in topic.units if 0 < unit <= len(pieces))
+            "\n\n".join(drawn[unit - 1] for unit in topic.units if 0 < unit <= len(pieces))
         )
         if topic.about or held:
             lines += [pdf.placed_mark(len(boxes)), ""]
             boxes.append({"kind": "about", "text": topic.about, "notions": held})
         for unit in topic.units:
-            if not 0 < unit <= len(pieces):
+            if not 0 < unit <= len(pieces) or not drawn[unit - 1]:
                 continue
-            lines += [_demoted(pieces[unit - 1]), ""]
-            numbers += range(starts[unit - 1], starts[unit - 1] + counts[unit - 1])
+            lines += [_demoted(drawn[unit - 1]), ""]
+            count = pdf.numbered_formulas(drawn[unit - 1]) if unit in aside else counts[unit - 1]
+            numbers += range(starts[unit - 1], starts[unit - 1] + count)
     lines += [pdf.TEXT_END, ""]
     if version.questions:
         lines += [pdf.placed_mark(len(boxes)), ""]
         boxes.append({"kind": "questions", "items": [q["question"] for q in version.questions]})
         lines += [pdf.PAGE_BREAK, pdf.placed_mark(len(boxes)), ""]
         boxes.append({"kind": "answers", "items": [q["answer"] for q in version.questions]})
-    return Layout("\n".join(lines).rstrip() + "\n", boxes, numbers)
+    left_out = "\n\n".join(cut for cut, _ in aside.values())
+    return Layout("\n".join(lines).rstrip() + "\n", boxes, numbers, left_out)

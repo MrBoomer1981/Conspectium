@@ -453,6 +453,23 @@ def _squash(text: str) -> str:
     return _SQUASH_RE.sub("", text).lower()
 
 
+_FORMULA_NUMBER_RE = re.compile(r"\(?\s*\d{1,3}\s*\)?")
+
+
+def _only_left_out(anchor: str, arranged: study.Layout) -> bool:
+    """Whether a box's anchor stands only in what a study version leaves out
+    as the course's organisation (task 93): such a box is not printed in it,
+    rather than at the end of the text. A formula's number never is — a
+    formula is never left out."""
+    wanted = _squash(anchor)
+    return (
+        len(wanted) >= 3
+        and not _FORMULA_NUMBER_RE.fullmatch(anchor.strip())
+        and wanted in _squash(arranged.left_out)
+        and wanted not in _squash(arranged.markdown)
+    )
+
+
 async def _lecture(session: AsyncSession, note: Note) -> tuple[Lecture | None, list[Note]]:
     """The lecture a record is filed into, and its notebooks — the record
     alone when it has no lecture."""
@@ -567,6 +584,10 @@ async def send_study_pdf(
     base = source.base
     title = _document_title(base.title, source.markdown)
     arranged = study.layout(source.markdown, version)
+    remarks = [box for box in source.remarks if not _only_left_out(box.anchor, arranged)]
+    explanations = [
+        box for box in _explanations(base) if not _only_left_out(box.anchor, arranged)
+    ]
     page = _page(
         base, await _bot_username(message), source.lecture.given_on if source.lecture else None
     )
@@ -579,8 +600,8 @@ async def send_study_pdf(
             subtitle=texts.STUDY_SUBTITLE,
             callouts=_callouts(base),
             byline=texts.byline(base.margin_notes),
-            remarks=source.remarks,
-            explanations=_explanations(base),
+            remarks=remarks,
+            explanations=explanations,
             summary=_summary(base),
             page=page,
             figures=drawings,
@@ -661,6 +682,8 @@ async def study_sent(
             "units": sum(len(topic.units) for topic in version.topics),
             "missing": version.missing,
             "repeated": version.repeated,
+            "off_topic": len(version.off_topic),
+            "off_topic_kept": version.off_topic_kept,
             "abouts_dropped": version.abouts_dropped,
             "questions": len(version.questions),
             "questions_dropped": version.questions_dropped,
