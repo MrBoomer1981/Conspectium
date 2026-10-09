@@ -436,6 +436,14 @@ the CEO's:
       lines under it, «↑» over «ℕ», and a brace made tall by a
       «\vphantom» — the CEO's. Taken on 2026-10-09
 
+Specified on 2026-10-09, from record 102, a lecture on determinants — the
+CEO's:
+
+- [ ] 99. Formulas drawn by MathJax 4, mathtext behind it: matrices with
+      their columns, a long formula broken to the column, nothing printed
+      as its source — and three faults of the layout record 102 showed —
+      the CEO's. Taken on 2026-10-09
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -482,7 +490,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 92, 96, 97, 93, 95, 98, 90's check of the photographs; next: 94, 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 92, 96, 97, 93, 95, 98, 99, 90's check of the photographs; next: 94, 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -570,6 +578,7 @@ since 2026-10-01.
 | 2026-10-09 | the CEO, with Claude Code | Task 95 taken, the CEO's word, with every record read for its measurement. A caption is the explaining stage's, `prompts-explain-v4.md`, in a list of its own beside the teacher's boxes — records 90 to 92 filled the twelve those may hold — anchored on a formula set apart or a drawing, checked as an idea is, and set before what it names under «Что это · от бота». `note_processed` gains `captions` and `captions_dropped` ("Contracts"). Measured on records 88 to 97 before production switches; a record made before the switch keeps its boxes | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Task 95 changed while measured. In the explaining stage's first call, `prompts-explain-v4.md`, the captions were right — record 97's set equality all three times — and the teacher's boxes fell from v3's 59, twice, to 57, 39 and 51 over seven lectures, the ideas of proofs most. The CEO's choice: the captions by a call of their own beside the first, `prompts-explain-captions-v1.md`, thinking `low`, one call more a record; v3 stays as it is, and v4 is kept as measured. The call is read by name and goes to production with its deploy, once measured and read | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Task 98 taken, the CEO's word: record 101 — record 97's album sent again — printed two formulas as their source, a brace with two lines under it and a brace made tall by a `\vphantom`. Two rows under or over a formula are stacked, and `\vphantom` and `\hphantom` are drawn as `\phantom`; checked over every record in the database | the CEO's own |
+| 2026-10-09 | the CEO, with Claude Code | Task 99 taken, the CEO's word, from record 102, whose last pages the CEO found terrible again and asked to have fixed once and for all: formulas are drawn by MathJax 4 inside the process — V8 by `mini-racer`, its SVG rasterised by `resvg-py`, the bundle vendored — with mathtext behind it, and the source printed only when both refuse; a display formula wider than the column is broken to it rather than shrunk. Besides, three faults of the layout: an image that opens a wrapped line is counted in the line's height, a dash a struck part leaves is no list marker, and a whole line in single tildes is struck. Measured over every formula of the database. "Dependencies" gains the two wheels, and reportlab and matplotlib, which it had left out | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -1169,9 +1178,19 @@ pydantic-settings
 google-genai
 httpx
 pillow
+reportlab
+matplotlib
 numpy
 python-docx
+mini-racer
+resvg-py
 ```
+
+`reportlab` draws the document and `matplotlib` its graphs and, behind
+MathJax, its formulas. `mini-racer` is V8 inside the process, which runs
+MathJax 4 — vendored as one script in `app/assets/mathjax/`, built once by
+esbuild, so no Node at build or run time — and `resvg-py` rasterises the
+SVG it draws (task 99).
 
 `requirements-dev.txt` — local only:
 
@@ -5834,6 +5853,94 @@ printed two formulas as their source.
 
 - No change to what recognition writes: the reading wrote the author's
   brace as LaTeX writes it, and the document draws what it can of it.
+
+---
+
+# Task 99. Formulas drawn by MathJax 4
+
+**Owner: the CEO.** Specified and taken on 2026-10-09, the CEO's word, from
+record 102, a lecture on determinants, whose last pages the CEO found
+terrible again — fixed, the CEO asked, once and for all.
+
+## Why
+
+- **mathtext has no matrix.** `pdf.for_mathtext` stacks an environment's
+  rows by `\substack`, each a centred string, and every determinant of
+  record 102 printed with its columns apart and its dots between the
+  entries. Over the database, 196 distinct formulas hold a matrix, a
+  system or an aligned chain, in 26 records.
+- **Every record brings the next command mathtext lacks.** Record 102's
+  labels under its determinants, spaced by `\hspace{5.5cm}`, printed as
+  their source, as record 101's brace did (task 98), record 86's frame
+  (task 78) and the crossings-out (task 77). Three formulas of the
+  database print as their source today: record 50's `\textcircled`, an
+  aligned chain of record 52's, and record 102's labels.
+- **A display formula wider than the column is shrunk to it**: record
+  102's Laplace expansion of a 5 × 5 determinant came out at a fraction of
+  the text's size.
+- **MathJax 4 is the engine the model's LaTeX is written for.** Over the
+  3 118 distinct formulas of the database it drew every one the document
+  hands an engine — the long divisions are drawn as tables before — in
+  about 3 ms each against mathtext's 13, and broke the 5 × 5 expansion
+  into two rows at the column's width. It runs inside the process: V8 by
+  `mini-racer`, its SVG rasterised by `resvg-py`, both pip wheels, no
+  Node at build or run time. About 80–110 MB more memory, where the
+  container uses 430 MB of the 8 GB it may.
+- **Three faults of the layout besides, none of them the engine's**:
+  - reportlab 5.0.1 never counts an image that a wrapped line begins with
+    in that line's height — the line keeps the one before's — and record
+    102's 4 × 4 matrix, in a teacher's example, rose over the box's label;
+  - «[зачёркнуто: …] - фикс индексов»: the struck formula left out, the
+    dash that joined it to the author's note opened the line, and the note
+    printed as a list item;
+  - records 101 and 102 were read with lines struck by one tilde,
+    «~обратные~», where record 97, the same album, was read with two, and
+    the document printed the tildes.
+
+## Do
+
+1. **`app/assets/mathjax/`**: `tex2svg.js`, MathJax 4.1.3 bundled by
+   esbuild from `entry.js` beside it — the TeX packages but those that
+   redefine standard commands or want a font of their own, `\textcircled`
+   as a circle round its argument, the New Computer Modern font with the
+   ranges of it the database uses and those beside them (Cyrillic,
+   calligraphic, fraktur, script, double-struck, arrows, shapes, symbols),
+   a display formula broken at the width it is given, an inline one never.
+   MathJax's licence with it.
+2. **`services/mathjax.py`**: the bundle in V8, one context for the
+   process; a formula's SVG rasterised at the DPI mathtext's is, with its
+   width, height and depth in points, its baseline always inside the
+   picture, the quarter-point stroke mathtext's formulas get, in the
+   colour asked. A formula MathJax refuses, or one with a character the
+   bundled font lacks, raises.
+3. **`pdf._formula_png` asks MathJax first**, giving a display formula the
+   width it has, and mathtext as now when MathJax refuses; the source only
+   when both do. MathJax is given the formula with the rewrites that are
+   the document's decisions rather than mathtext's needs: one sign ≤ and ≥
+   and one arrow ⇒, «\pmod 13» one modulus, Russian words as text, a
+   `\cline` dropped. An aligned chain is drawn whole, its columns aligned.
+   The startup log names the engine.
+4. **The three faults**: a paragraph's line counts every image in it; a
+   dash a struck part left opening a line goes with it; a whole line
+   between single tildes is struck — in the document and in
+   `algebracheck`, which does not check what the author struck out.
+5. Checked over every formula of the database; records 102, 101, 97, 45,
+   74, 86, 88 and 90 to 92 drawn before and after; the two wheels and the
+   bundle tried in the production container before the push.
+6. `CLAUDE.md` — the stack, "The document", the structure, the startup
+   log — `docs/BRAND.md` v1.13 and `docs/FINDINGS.md`.
+
+## Don't do
+
+- No change to what recognition writes. Record 102's labels written as a
+  line spaced by `\hspace` under the determinants they name, and
+  «матричные» alone, are the reading's: a label under a part of a formula
+  belongs in an `\underbrace`, a rule for the recognition prompt to be
+  measured on record 102's album sent again — not this task.
+- mathtext and its rewrites stay: they draw what MathJax refuses, and a
+  deploy that lost the two wheels draws as before, saying so at startup.
+- No Node.js on Railway: the bundle is built once, on a developer's
+  machine, and vendored.
 
 ---
 
