@@ -405,6 +405,26 @@ their errors — the CEO's, not yet scheduled:
       under its own label, a definition the lecture relies on and does
       not give — not needed, the CEO's word of 2026-10-09
 
+Specified on 2026-10-09, from record 97 and what its author found wrong in
+it — the CEO's, not yet scheduled:
+
+- [ ] 92. What the reading writes about the photograph is not printed:
+      «[Левая страница]», «[Правая страница]» — the CEO's
+- [ ] 93. What does not belong to the subject is left out: the course's
+      organisation — contacts, points, dates of tests — out of the study
+      version, chosen by its model and guarded by code — the CEO's
+- [ ] 94. A drawing that is data, drawn by code: a function's graph by its
+      formula, a number line with its points and sets, a mapping of two
+      sets with its arrows — the CEO's, measured on an album sent again
+- [ ] 95. A formula or a drawing with no word about it gets the bot's
+      caption — the CEO's, measured first
+- [ ] 96. Three equalities that hold, found not to: a definition read off
+      a working, and a formula the author struck out — the CEO's,
+      measured over the database before it ships
+- [ ] 97. What record 97 showed in the document: a frame closed by «\}»,
+      a frame with a blank line inside, a lone ℕ numbered, two columns
+      written «a | b», a record titled «Лекция» — the CEO's
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -451,7 +471,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 90's check of the photographs; next: 92, 96 and 97, then 93, 95 and 94, 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -531,6 +551,7 @@ since 2026-10-01.
 | 2026-10-08 | the CEO, with Claude Code | Tasks 83 and 84 taken, in that order, from the CEO's reading of records 88 and 89 against the photographs — sixteen points, ten in the lecture and six in how it was set out. The CEO asked whether to check them with algorithms rather than a model. 83 is the document's share, all code: a box set after the sentence it is anchored in, found across the lines of one, a word carried over with a hyphen joined, struck words not printed, ≤ for ⩽, a short formula ending a sentence set in its line, a ringed sign framed. 84 is the one class of the lecture's errors code can prove — an equality that does not hold, «(−x)(−x) = x», «c − h = c² − 2ch + h²» — a finding under its line, never the author corrected; measured over every record in the database before it is on, the CEO's word given to read them. The rest of the sixteen is meaning, no code's to find | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Tasks 85–88 taken and 89–91 specified, from thirty-two pages the CEO sent at once on the evening of 2026-10-08 and the thirty-eight errors another model listed over the three documents that came back. The CEO asked for the list to be checked and a plan made, and went to sleep: the four are made overnight without a push, and wait for the CEO's word. 85: the albums of the send came 19 s apart, the window was 15 s — an album of ten waits a minute. 86: the document's share of what was found, all code. 87: record 91's study version did not parse and was asked for only by a press of its button. 88: records 91 and 92 went out uncomposed for numbered items in lower case, the guard the CPO's — measured on them, on the CEO's word, before it ships. 89–91 are decisions: the bot's reasoning that assumed what the lecture proves, the photographs against the reading, a definition the lecture relies on and does not give. Checked against the documents, most of the list is the lecture as the notebook has it or one stroke of the reading from it; three points are not there; one is the bot's own. `FINDINGS.md` → "Records 90, 91 and 92" | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Task 88 widened while it was made: what the author struck out leaves the count of `[неразборчиво]` and the length as it leaves the numbers — record 91's struck passage held a mark — and an item may stand inside a line, «верно 3) …» | the CEO's own |
+| 2026-10-09 | the CEO, with Claude Code | Tasks 92–97 specified from record 97, ten pages of a notebook with lectures and a practice session, and what its author, asked by the CEO, found wrong in its study version: the course's organisation on the first page, set out crookedly; set equality with no word on what it is; formulas where pictures would explain; «Левая страница» and «Правая страница» printed; a drawing described rather than shown. Read against the record's text, on the CEO's word: the page labels are the reading's, written for a photograph of two pages; all three of its equality findings are false — a solution read as a definition two pages on, and a formula the author struck out; a frame of the record's own was closed by «\}» and printed as its source. The CEO's answers: what does not belong to the subject is to be told apart and left out, and the drawings start with what code can draw from data | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | The CEO's answers in the morning: 85 to 87 pushed, and 88 once measured; the CEO's word to read records 90 to 92; `MAX_ALBUM_PAGES` stays 15 on Railway, so a send of more than fifteen pages is several records by design — task 85's acceptance says so; 89 and 91 not taken, «лекцию можно поправлять» — a box of the bot's may correct the lecture, and the CEO reads them; 90 the CEO's own check of the photographs. Task 88 measured on records 91 and 92: the numbers it was made for no longer lost, 16 to 2 and 3 to 1, and both still refused — a number spelled out, a definition's number dropped, a lone item, a formula changed. It ships as an improvement, with what the measurement found taken in, and its acceptance criterion is changed to what it can do | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
@@ -5486,6 +5507,195 @@ numbers checked as theirs are. A gap in a proof stays the lecture's: the
 bot does not fill it.
 
 Not needed, the CEO's word of 2026-10-09.
+
+---
+
+# Task 92. What the reading writes about the photograph
+
+**Owner: the CEO.** Specified on 2026-10-09, from record 97.
+
+## Why
+
+Record 97's album held photographs of two pages each, and recognition
+marked their halves, «[Левая страница]», «[Правая страница]». The document
+printed them as notes in the grey of a drawing's description. Its author:
+useful to them, to see where the bot errs, and to a student studying from
+it a distraction. The document never talks about how a page was read
+(`CLAUDE.md` → "The document").
+
+## Do
+
+1. A note that only says which half of a photograph a text was on —
+   «[Левая страница]», «[Правая страница]», «[левая часть разворота]» —
+   is not printed (`pdf.blocks`), in a record stored before too.
+2. `CLAUDE.md` → "The document"; `BRAND.md`.
+
+## Don't do
+
+- The recognition prompt does not change here: a prompt is measured, and
+  a line of code ends the fault for every record already made.
+
+---
+
+# Task 93. What does not belong to the subject
+
+**Owner: the CEO.** Specified on 2026-10-09, from record 97; the CEO's
+word: «нам нужно решить, как отделять то, что не относится к предмету и
+выкидывать».
+
+## Why
+
+Record 97 opens on the course's organisation — the teacher's contacts,
+the points for each grade, a test, a colloquium, the exam in January —
+written in two columns that the reading flattened into «лекции |
+практика», «40 б. - допуск | 60 б.». The study version made one topic of
+it and of injective maps, «Организация курса и виды отображений
+множеств». Its author: either leave it out or set it out properly; the
+CEO: tell it apart and leave it out.
+
+## Do — a proposal
+
+1. **The study version's model names the units that are not the lecture's
+   subject** — the course's organisation: contacts, points and grades,
+   dates of tests, admission, the schedule — in a field of its answer;
+   `prompts-study-v2.md`. Homework and a practice session's problems are
+   the subject's, and stay.
+2. **Code leaves them out of the study version, guarded**: never a unit
+   with a formula, a definition, a theorem or a proof; at most a fifth of
+   the record. The record itself keeps them — what a "#word" finds, what
+   notebooks merge into — and its own document too.
+3. Counted, `study_off_topic` in `study_sent`; the log line says how
+   many.
+4. Measured on record 97 (the CEO's word to read it) before production
+   switches to the new prompt.
+
+## Don't do
+
+- No model removes a line from the record: the record stays what the
+  group trusts.
+
+---
+
+# Task 94. A drawing that is data, drawn by code
+
+**Owner: the CEO.** Specified on 2026-10-09, from record 97; the CEO's
+choice of the three ways to the drawings it asked for.
+
+## Why
+
+Record 97 printed «схема: график параболы $y = x^2$ …», «схема: числовая
+прямая … множествами X, Y и точкой c» and «схема: отображение множества A в
+B со стрелками» — what its author read as the bot failing to draw their
+drawing. Drawings cut out of the page sleep since record 60 (task 54). But
+much of what a lecture draws is data — a graph by its formula, a number
+line, a mapping — and data is drawn by code, the way a graph is drawn from
+its edges (`[граф: 1-2, 2-3]`) and was never a picture of the model's.
+
+## Do — a proposal
+
+1. **Recognition writes such a drawing as data**, `prompts-v10.md` (v6
+   with it): `[график: y = x^2; x от -2 до 2]`, `[ось: …]` with its points
+   and intervals, `[отображение: A → B; a1 → b1, …]`. A drawing that is
+   not data stays `[схема: …]`.
+2. **`pdf.py` draws them** in the document's ink on its paper, as it draws
+   a graph: matplotlib, already a dependency.
+3. **Measured on an album sent again** — record 97's — with the prompt set
+   by `PROMPT_FILE` on Railway, against the photographs: production
+   switches only if the drawings are right and the reading did not get
+   worse (the two agreements, `docs/PLAN.md` → "Where the quality work
+   stands").
+4. The contract between the prompt and `pdf.py` changes — what is shared;
+   the CEO's word is enough, the CPO told.
+
+## Don't do
+
+- No drawing redrawn from the model's description: what is drawn is what
+  the data says.
+
+---
+
+# Task 95. A formula or a drawing with no word about it
+
+**Owner: the CEO.** Specified on 2026-10-09, from record 97.
+
+## Why
+
+Record 97's second page opens on «A = B ⇔ a ∈ A ⇒ a ∈ B, b ∈ B ⇒ b ∈ A, A ⊂
+B, B ⊂ A» with not a word on what it is — the notebook has none — and its
+author asked for one. The explaining stage explains the hard places and
+adds a teacher's boxes; a block with no caption is neither.
+
+## Do — a proposal
+
+1. `prompts-explain-v4.md`: to a formula or a drawing the record gives no
+   word about, one sentence on what it shows — «Равенство множеств: …» —
+   in a box of the bot's, checked as an idea is (no number the record
+   does not carry).
+2. Measured on records 88 to 97 — what it adds, read by the CEO — before
+   production switches to it.
+
+---
+
+# Task 96. Equalities that hold, found not to
+
+**Owner: the CEO.** Specified on 2026-10-09, from record 97. The check is
+task 84's.
+
+## Why
+
+All three of record 97's equality findings are false:
+
+- «$y = b + (-a) = x \Rightarrow x = y$», the end of a proof that a
+  solution is unique, was taken for a definition of y, and two pages on
+  «$xy \cdot (-1) \cdot (-1) = xy \cdot (-1) \cdot a$», where the author
+  meant a = −1, was counted with y = b − a: two findings.
+- «[зачёркнуто: $-x = (-1) \cdot x + x$]», which the author struck out,
+  was checked — the check knows a struck span as `~~…~~` only — and its
+  finding, anchored on a line the document does not print, went to the
+  end of the text.
+
+A false finding says the lecture is wrong where it is not, under the
+bot's own mark: the one error this check must not make.
+
+## Do
+
+1. **A definition is a statement of two sides**, a letter and what it
+   stands for — «положим h = b/3c» — never a chain of a working.
+2. **A definition holds to the next heading**: a lecture's next statement
+   uses its letters afresh.
+3. **What the author struck out is not checked**, «[зачёркнуто: …]» too.
+4. Measured over every record in the database, as task 84 was, on the
+   CEO's word: the seven true findings kept, record 97's three gone.
+5. `CLAUDE.md` → "An equality that does not hold"; `FINDINGS.md`.
+
+---
+
+# Task 97. What record 97 showed in the document
+
+**Owner: the CEO.** Specified on 2026-10-09, from record 97.
+
+## Why
+
+- The axiom of completeness, framed by the author, printed as its source:
+  «$$\boxed{\left.\begin{aligned} … \end{aligned}\right\} \exists c …}$$»
+  — the frame took the escaped «\}» for its own closing brace.
+- A frame round four lines with a blank line between them printed as
+  «[рамка:», the lines, and «]».
+- ℕ, framed alone, became main formula (3).
+- The field axioms, written «1.1. | $(x+y)+z = …$», printed their «|».
+- The record is titled «Лекция», what the reading called its first page,
+  where the lecture begins «Глава 1. Введение в мат. анализ».
+
+## Do
+
+1. `pdf.boxed_contents` passes over «\{» and «\}».
+2. A frame may hold a blank line (`pdf._frame_lines`).
+3. A frame round one symbol is drawn framed, not numbered.
+4. An item's «|» after its number is not printed.
+5. A title that names nothing — «Лекция», «Практика», «Конспект», a
+   subject's name with one of them — gives way, in the document, to the
+   record's first heading that does.
+6. `CLAUDE.md` → "The document"; `BRAND.md`.
 
 ---
 
