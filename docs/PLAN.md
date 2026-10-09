@@ -429,6 +429,13 @@ it — the CEO's, not yet scheduled:
       a frame with a blank line inside, an item's «|», a record titled
       «Лекция» — the CEO's. Taken on 2026-10-09 with 92 and 96
 
+Specified on 2026-10-09, from record 101, record 97's album sent again —
+the CEO's:
+
+- [ ] 98. Two formulas record 101 printed as their source: a brace with two
+      lines under it, «↑» over «ℕ», and a brace made tall by a
+      «\vphantom» — the CEO's. Taken on 2026-10-09
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -475,7 +482,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 92, 96, 97, 93, 95, 90's check of the photographs; next: 94, 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 92, 96, 97, 93, 95, 98, 90's check of the photographs; next: 94, 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -562,6 +569,7 @@ since 2026-10-01.
 | 2026-10-09 | the CEO, with Claude Code | Task 93 taken, the CEO's word, and its design settled on record 97's text: the model names the units about the course's organisation, and code leaves out of each its paragraphs before the first that holds the subject — a guard over whole units would have kept the organisation for the set equality cut into the same unit. More than a fifth of the record named, and nothing goes. A kept study version built by another prompt is built again, so record 97 comes back without its organisation; a box anchored only in what is left out is not printed. Measured on record 97 before it ships | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Task 95 taken, the CEO's word, with every record read for its measurement. A caption is the explaining stage's, `prompts-explain-v4.md`, in a list of its own beside the teacher's boxes — records 90 to 92 filled the twelve those may hold — anchored on a formula set apart or a drawing, checked as an idea is, and set before what it names under «Что это · от бота». `note_processed` gains `captions` and `captions_dropped` ("Contracts"). Measured on records 88 to 97 before production switches; a record made before the switch keeps its boxes | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Task 95 changed while measured. In the explaining stage's first call, `prompts-explain-v4.md`, the captions were right — record 97's set equality all three times — and the teacher's boxes fell from v3's 59, twice, to 57, 39 and 51 over seven lectures, the ideas of proofs most. The CEO's choice: the captions by a call of their own beside the first, `prompts-explain-captions-v1.md`, thinking `low`, one call more a record; v3 stays as it is, and v4 is kept as measured. The call is read by name and goes to production with its deploy, once measured and read | the CEO's own |
+| 2026-10-09 | the CEO, with Claude Code | Task 98 taken, the CEO's word: record 101 — record 97's album sent again — printed two formulas as their source, a brace with two lines under it and a brace made tall by a `\vphantom`. Two rows under or over a formula are stacked, and `\vphantom` and `\hphantom` are drawn as `\phantom`; checked over every record in the database | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -5789,6 +5797,43 @@ bot's own mark: the one error this check must not make.
 - ℕ framed alone keeps its number: unnumbered, it would renumber every main
   formula after it, and an explanation stored with «(4)» would stand under
   another formula — records 90 and 97 carry such anchors.
+
+---
+
+# Task 98. Two formulas record 101 printed as their source
+
+**Owner: the CEO.** Specified and taken on 2026-10-09, the CEO's word, from
+the log of record 101 — record 97's album sent again — whose study version
+printed two formulas as their source.
+
+## Why
+
+- «$\underbrace{m + 2}_{\uparrow \\ \mathbb{N}}$», in a line of an
+  induction: the author drew an arrow up from ℕ under «m + 2». A brace's
+  words become an `\underset` (`pdf._brace_words`), and mathtext's
+  `\underset` takes one row: «Expected \underset{annotation}{body}».
+- «$$\left. \vphantom{\begin{aligned} x \ge y \\ x \ge y
+  \end{aligned}} \right\} \text{По аксиоме полноты}$$»: a brace two lines
+  tall with the author's note beside it. mathtext has no `\vphantom`.
+
+## Do
+
+1. **Two rows under or over a formula are stacked**: an `\underset`'s or
+   an `\overset`'s index holding a row break becomes a `\substack`, which
+   mathtext stacks.
+2. **`\vphantom` and `\hphantom` are drawn as `\phantom`**, the one of them
+   mathtext knows: the brace as tall as what it holds, and as wide as well
+   — space before the brace, where the formula printed as its own source.
+   Dropped, the brace was a line's height and read as stray.
+3. Checked over every record in the database, on the CEO's word to read
+   them: which formulas the rewrite changes, that each draws, and that
+   none drew before and does not now; record 101 drawn before and after.
+4. `CLAUDE.md` → "mathtext is not LaTeX".
+
+## Don't do
+
+- No change to what recognition writes: the reading wrote the author's
+  brace as LaTeX writes it, and the document draws what it can of it.
 
 ---
 
