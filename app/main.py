@@ -288,9 +288,10 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("could not publish the command menu")
 
-    # matplotlib builds a font cache on first use and reportlab registers its
-    # fonts once — several seconds nobody should pay inside their first photo.
-    # Off the startup path too: a slow warm-up must not delay serving.
+    # matplotlib builds a font cache on first use, reportlab registers its
+    # fonts once and MathJax's V8 context is made — several seconds nobody
+    # should pay inside their first photo. Off the startup path too: a slow
+    # warm-up must not delay serving. It names the formulas' engine.
     warm_up = asyncio.create_task(asyncio.to_thread(pdf.warm_up))
     # A group's week, summed up in its chat every Saturday (task 73): the one
     # timer the process runs. A deploy cancels it with everything else, and

@@ -59,6 +59,9 @@ _FORMULA_RE = re.compile(
 _STRUCK_RE = re.compile(
     r"(?<!~)~~(?!~)[^~\n]+?(?<!~)~~(?!~)|\[\s*зач[её]ркнут[^\[\]\n]*\]", re.IGNORECASE
 )
+# A whole line struck with one tilde a side, «~$y = x^2$~», as records 101
+# and 102 were read (task 99, pdf._STRUCK_LINE_RE).
+_STRUCK_LINE_RE = re.compile(r"^[ \t]*~[^\s~](?:[^~\n]*[^\s~])?~[ \t]*$")
 # A heading opens the lecture's next statement, which uses its letters afresh.
 _HEADING_RE = re.compile(r"^\s*#{1,6}\s")
 
@@ -547,7 +550,7 @@ def _formulas(markdown: str) -> list[tuple[str, str, int]]:
     for line in markdown.splitlines():
         if _HEADING_RE.match(line):
             section += 1
-        line = _STRUCK_RE.sub("", line)
+        line = _STRUCK_RE.sub("", _STRUCK_LINE_RE.sub("", line))
         for match in _FORMULA_RE.finditer(line):
             latex = (match.group(1) or match.group(2) or "").strip()
             if not latex:

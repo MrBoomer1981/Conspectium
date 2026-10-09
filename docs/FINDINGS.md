@@ -2146,3 +2146,30 @@ minute to two minutes.
   «Формула выражает необходимое и достаточное условие совпадения двух
   множеств через их взаимное включение»; asked for what it states, in
   words, they say that.
+
+## Record 102, the formulas' engine
+
+Task 99, 2026-10-09. Record 102, a lecture on determinants, printed every
+matrix with its columns apart — mathtext has no matrix, and `for_mathtext`
+stacks rows by `\substack` — its labels under the determinants, spaced by
+`\hspace{5.5cm}`, as their source, and its 5 × 5 Laplace expansion shrunk to a
+fraction of the text. Over the database: 6 782 formulas, 3 115 distinct, 27
+long divisions drawn as tables; 196 formulas with a matrix, a system or an
+aligned chain in 26 records; mathtext printed 3 as their source (records 50,
+52, 102). MathJax 4.1.3 with the New Computer Modern font drew all 3 088 the
+document hands an engine, mathtext was needed for none, at 3.8 ms a formula
+against mathtext's 13. Two of MathJax's own were wrong for us and are left out
+of the bundle: `bboldx` drew \mathbb{R} as an upright R, `physics` makes
+`\div` a divergence; inline line breaks returned one picture a piece. Ink
+weighed the same with mathtext's quarter-point stroke. The bundle with every
+font range was 11.8 MB and 150 MB of memory; with the 13 ranges kept, 3.6 MB
+and about 80–110 MB. In the production container record 102's study version
+drew in 1.6 s, the process at 405 MB.
+
+Three faults besides: reportlab 5.0.1 leaves a wrapped line that begins with
+an image the height of the line before (`breakLines` measures a new line's
+first word only when it is text), and the 4 × 4 matrix of a teacher's example
+rose over the box's label; a struck formula left out left the dash before the
+author's note opening the line, printed as a list item; records 101 and 102
+were read with lines struck by one tilde where record 97, the same album, had
+two, and the tildes printed.

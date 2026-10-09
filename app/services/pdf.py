@@ -1,13 +1,14 @@
 """A record rendered as a PDF, formulas included.
 
 Recognised lecture notes are full of LaTeX — `$\\sum_{i=1}^{p} \\rho(v_i) = 2q$`
-reads as noise until it is drawn. Formulas go through matplotlib's mathtext,
-the surrounding text through reportlab.
+reads as noise until it is drawn. Formulas are drawn by MathJax 4
+(services/mathjax.py), and by matplotlib's mathtext when MathJax refuses
+one (task 99); the surrounding text goes through reportlab.
 
 Two halves on purpose. `blocks()` is a pure parser with no rendering in it, so
 the reading of a page can be pinned down exactly by tests; `render()` turns
 those blocks into a document. Neither ever raises on bad input: a formula
-mathtext cannot read stays on the page as its own source, the same way
+neither engine can read stays on the page as its own source, the same way
 parse_response returns None rather than exploding.
 
 The document is what the group receives, so its look is decided here rather
@@ -59,13 +60,14 @@ from reportlab.platypus import (  # noqa: E402
     Image,
     KeepTogether,
     PageBreak,
-    Paragraph,
     SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
 )
 from reportlab.platypus import paragraph as _rl_paragraph  # noqa: E402
+
+from app.services import mathjax  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +96,38 @@ def _one_at_a_time(draw):
 # it holds, as autoLeading already makes the lines after it do; an ordinary
 # line of text moves by a fraction of a point.
 _rl_paragraph.paraFontSizeHeightOffset = 0
+
+
+class Paragraph(_rl_paragraph.Paragraph):
+    """reportlab's paragraph, every line as tall as what it holds.
+
+    reportlab 5.0.1 never counts an image that a wrapped line begins with:
+    breakLines measures a new line's first word only when it is text, so the
+    line keeps the height of the line before it, and a tall formula opening
+    it rose into that line — record 102's 4 × 4 matrix, in a teacher's
+    example, over the box's label (task 99). Each line's ascent and descent
+    are taken again from everything on it, as reportlab takes them for the
+    words after the first."""
+
+    def breakLines(self, width):  # noqa: N802 — reportlab's name
+        lines = super().breakLines(width)
+        if lines.kind != 1:
+            return lines
+        for line in lines.lines:
+            top = bottom = 0.0
+            for frag in line.words:
+                image = getattr(frag, "cbDefn", None)
+                if image is not None and getattr(image, "kind", None) == "img":
+                    low, high = _rl_paragraph.imgVRange(
+                        _rl_paragraph.imgNormV(image.height, frag.fontSize),
+                        image.valign,
+                        frag.fontSize,
+                    )
+                else:
+                    high, low = pdfmetrics.getAscentDescent(frag.fontName, frag.fontSize)
+                top, bottom = max(top, high), min(bottom, low)
+            line.ascent, line.descent = top, bottom
+        return lines
 
 # Rendered at this DPI, then scaled to points. High enough that a formula
 # stays sharp when the PDF is zoomed on a phone.
@@ -356,6 +390,18 @@ _STRUCK_WORDS_RE = re.compile(r"[ \t]*(?<!~)~~(?!~)[^~\n]+?(?<!~)~~(?!~)")
 _STRUCK_ACROSS_RE = re.compile(
     r"(?<!~)~~(?!~)((?:[^~\n]+\n){1,2}[^~\n]+?)(?<!~)~~(?!~)"
 )
+# A whole line struck with one tilde a side, «~обратные~», «~$y = x^2$~»:
+# records 101 and 102 were read so where record 97, the same album, was read
+# with two, and the document printed the tildes (task 99). A whole line only:
+# inside a line a tilde is as often «≈» or a relation as a stroke.
+_STRUCK_LINE_RE = re.compile(
+    r"^([ \t]*)~([^\s~](?:[^~\n]*[^\s~])?)~([ \t]*)$", re.MULTILINE
+)
+# The dash that joined what the author struck out to the words after it:
+# «[зачёркнуто: …] - фикс индексов», the struck formula left out, opened its
+# line with the dash, and the author's note printed as a list item (task 99).
+_JOINING_DASH_RE = re.compile(r"^[ \t]*[-–—][ \t]+")
+_OPENS_STRUCK_RE = re.compile(r"^[ \t]*(?:\[\s*зач[её]ркнут|~~)", re.IGNORECASE)
 # What a line has besides a number: a letter, or a formula.
 _WORDED_RE = re.compile(r"[^\W\d_]|\$")
 # Which half of a photograph a text was on: «[Левая страница]», «[Правая
@@ -834,7 +880,10 @@ def _unstruck(markdown: str) -> str:
     words it had. Such a line keeps them, struck as read. A line struck
     whole goes, and so does a passage struck over two lines, read as one
     struck span a line (task 86): record 91 printed «~~Но действительно … С
-    другой~~» struck, over two."""
+    другой~~» struck, over two. A line struck with one tilde a side is
+    struck as one with two, and the dash that joined a struck part opening a
+    line to the words after it goes with it (task 99)."""
+    markdown = _STRUCK_LINE_RE.sub(r"\1~~\2~~\3", markdown)
     out: list[str] = []
     for line in _STRUCK_ACROSS_RE.sub(_struck_by_line, markdown).splitlines():
         cleaned = _STRUCK_RE.sub("", line)
@@ -846,6 +895,12 @@ def _unstruck(markdown: str) -> str:
                 continue
             if _WORDED_RE.search(unworded):
                 cleaned = unworded.strip()
+        if (
+            cleaned != line
+            and _OPENS_STRUCK_RE.match(line)
+            and not _JOINING_DASH_RE.match(line)
+        ):
+            cleaned = _JOINING_DASH_RE.sub("", cleaned, count=1)
         out.append(cleaned)
     return "\n".join(out)
 
@@ -1536,14 +1591,20 @@ def _mono_glyphs() -> frozenset[int]:
 def warm_up() -> None:
     """Build matplotlib's font cache and register the fonts ahead of the first
     request. Both are one-off costs of a few seconds; paying them at startup
-    keeps them out of someone's first photo."""
+    keeps them out of someone's first photo. MathJax's V8 context is made
+    here too, and mathtext is drawn by once, being what draws a formula
+    MathJax refuses."""
     try:
         _register_fonts()
         _text_glyphs()
         _mono_glyphs()
         _formula_png("x^2", _DISPLAY_PT)
+        _formula_drawn("x^2", _DISPLAY_PT, _INK)
     except Exception:
         logger.exception("PDF warm-up failed; first render will be slower")
+    # What a deploy draws its formulas by, said once as its models are: a
+    # deploy that lost a wheel draws by mathtext alone, and says so here.
+    logger.info("Formulas: %s", mathjax.describe())
 
 
 # mathtext is not LaTeX, and the model writes LaTeX. These commands are the
@@ -1943,6 +2004,44 @@ def _environment(found: re.Match) -> str:
     return rf"\left{left}{stacked}\right{right}"
 
 
+# What MathJax is given (task 99). MathJax reads the LaTeX the model writes,
+# so most of for_mathtext is not for it: those rewrites are what mathtext
+# needs, and MathJax draws the original better — a brace with its words
+# under it, an arrow that stretches under its condition, a matrix with its
+# columns. These are the document's own decisions, made whatever draws it:
+# one sign for ≤ and ≥ (task 83), one arrow ⇒ — the reading writes
+# \implies where the hand gave the arrow it gives \Rightarrow for —
+# «\pmod 13» one modulus, Russian words as words, a quote mark as the text's.
+_ONE_SIGN = {
+    "leqslant": "leq",
+    "geqslant": "geq",
+    "implies": "Rightarrow",
+    "impliedby": "Leftarrow",
+    "iff": "Leftrightarrow",
+}
+_ONE_SIGN_RE = re.compile(
+    r"\\(" + "|".join(sorted(_ONE_SIGN, key=len, reverse=True)) + rf"){_COMMAND_END}"
+)
+# An array barred at both ends and ruled by \hline is the author's frame,
+# which render draws round the block (_math_block): drawn by MathJax too, it
+# would be framed twice.
+_FRAME_SPEC_RE = re.compile(r"(\\begin\{array\}\{)\|([^{}]*)\|(\})")
+
+
+def for_mathjax(latex: str) -> str:
+    """LaTeX as MathJax is given it: as written, but for the document's own
+    decisions and a \\cline, which MathJax 4 refuses — a long division,
+    where the line matters, is drawn as a table before (ruled_arrays)."""
+    latex = _CLINE_RE.sub("", latex)
+    if _FRAMED_ARRAY_RE.search(latex) and "\\hline" in latex:
+        latex = _FRAME_SPEC_RE.sub(r"\1\2\3", latex)
+        latex = re.sub(rf"\\hline{_COMMAND_END}", "", latex)
+    latex = _PMOD_RE.sub(_pmod, latex)
+    latex = _ONE_SIGN_RE.sub(lambda found: "\\" + _ONE_SIGN[found.group(1)], latex)
+    latex = _cyrillic_as_text(latex)
+    return _QUOTE_RE.sub(lambda found: found.group(1) or r'\text{"}', latex)
+
+
 def for_mathtext(latex: str) -> str:
     """LaTeX as close to it as matplotlib's mathtext will accept."""
     latex = _unmarked(latex)
@@ -2064,11 +2163,18 @@ _GROUND_INNER_PT = _TEXT_WIDTH_PT - 2 * _GROUND_PAD_X
 
 
 def _formula_png(
-    latex: str, size_pt: float, color: str = _INK
+    latex: str,
+    size_pt: float,
+    color: str = _INK,
+    display: bool = False,
+    width_pt: float | None = None,
+    mathtext: bool = True,
 ) -> tuple[bytes, float, float, float]:
     """One formula as a transparent PNG, with its width, height and depth in
-    points. Raises when mathtext cannot read the LaTeX — callers fall back to
-    the source text.
+    points. Drawn by MathJax (task 99) — set apart when `display`, and broken
+    to `width_pt` when wider — and by mathtext when MathJax refuses it, unless
+    `mathtext` is off. Raises when neither can read the LaTeX — callers fall
+    back to the source text.
 
     The depth is how far below the bottom of the picture the formula's
     baseline sits above it. A formula set inside a line is lowered by exactly
@@ -2077,8 +2183,38 @@ def _formula_png(
 
     `color` is the ink's everywhere but on the one dark block, "Суть", where
     a formula in ink would be ink on ink. A term the author struck out is
-    drawn struck, and one the author framed framed (_mark).
+    drawn struck, and one the author framed framed: by MathJax itself, by
+    mathtext through _mark.
     """
+    try:
+        return mathjax.png(
+            for_mathjax(latex), size_pt, color, display, width_pt,
+            _DPI, _MATH_STROKE_PT, _FORMULA_PAD_PT,
+        )
+    except mathjax.Refused as refusal:
+        if not mathtext:
+            raise
+        refused_by = refusal
+    try:
+        drawn = _mathtext_png(latex, size_pt, color)
+    except Exception as exc:
+        detail = str(exc).strip().splitlines()
+        raise ValueError(
+            f"MathJax: {refused_by}; mathtext: "
+            f"{detail[-1] if detail else type(exc).__name__}"
+        ) from exc
+    # What MathJax could not draw and mathtext could: where the bundle falls
+    # short, found in the log rather than by a reader. Not when MathJax cannot
+    # run here at all, which the startup log said once.
+    if not isinstance(refused_by, mathjax.Unavailable):
+        logger.info("MathJax refused %r, mathtext drew it: %s", latex, refused_by)
+    return drawn
+
+
+def _mathtext_png(
+    latex: str, size_pt: float, color: str
+) -> tuple[bytes, float, float, float]:
+    """The formula as mathtext draws it, its struck and framed terms marked."""
     marks = _marks(latex, nested=True)
     data, width, height, depth = _formula_drawn(latex, size_pt, color)
     if marks:
@@ -2694,7 +2830,7 @@ class _Formulas:
         self._refused_seen.add(latex)
         detail = str(exc).strip().splitlines()
         logger.warning(
-            "mathtext refused %r: %s",
+            "formula refused %r: %s",
             latex,
             detail[-1] if detail else type(exc).__name__,
         )
@@ -2724,12 +2860,23 @@ class _Formulas:
         )
 
     def display(
-        self, latex: str, size_pt: float, max_width: float = _GROUND_INNER_PT
+        self,
+        latex: str,
+        size_pt: float,
+        max_width: float = _GROUND_INNER_PT,
+        mathtext: bool = True,
     ) -> Image | None:
+        """A formula set apart, broken to `max_width` where MathJax draws it
+        and shrunk to it where it is still wider. With `mathtext` off, None
+        when MathJax refuses it, and nothing logged: the caller has another
+        way to draw it."""
         try:
-            data, width, height, _ = _formula_png(latex, size_pt)
+            data, width, height, _ = _formula_png(
+                latex, size_pt, display=True, width_pt=max_width, mathtext=mathtext
+            )
         except Exception as exc:
-            self._refused(latex, exc)
+            if mathtext:
+                self._refused(latex, exc)
             return None
         if width > max_width:
             height *= max_width / width
@@ -3879,6 +4026,13 @@ def _flowables(
             return [_ruled_row(arrays, formulas, styles)]
         rows = aligned_rows(block.text)
         if rows is not None:
+            # MathJax draws the chain whole, its rows lined up where the
+            # author lined them up; mathtext, which would set them touching,
+            # is given it a row at a time.
+            whole = formulas.display(block.text, _DISPLAY_PT, mathtext=False)
+            if whole is not None:
+                whole.hAlign = "CENTER"
+                return [whole]
             drawn = [formulas.display(row, _DISPLAY_PT) for row in rows]
             if None not in drawn:
                 stacked: list = []

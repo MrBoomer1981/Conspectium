@@ -152,7 +152,8 @@ In a session:
   through its Google Search tool. The model is a setting, not a fact about the
   stack: it has changed twice, and the startup log names it
 - Pillow and numpy — images
-- reportlab and matplotlib — a record as a PDF, formulas drawn by mathtext
+- reportlab and matplotlib — a record as a PDF; formulas drawn by MathJax 4
+  in V8 (mini-racer), rasterised by resvg-py, with mathtext behind it (task 99)
 - Railway — hosting
 
 No dependency without an explicit need. Redis, queues, workers, Docker and CI
@@ -1160,6 +1161,23 @@ why each is what it is. What a change must not break:
 → "The document as the group got it", "Record 74, a lecture on trees",
 "Record 86, √2"
 
+**Formulas are drawn by MathJax 4, inside the process** (task 99, the CEO's,
+2026-10-09): `services/mathjax.py` runs the vendored bundle
+`app/assets/mathjax/tex2svg.js` — built once from `entry.js` beside it, no
+Node at build or run time — in V8 through mini-racer, and resvg-py
+rasterises its SVG at mathtext's DPI and stroke. mathtext had no matrix: record
+102's determinants printed with their columns apart, and every record brought
+the next command it lacked. Over the database MathJax drew all 3 088 formulas
+the document hands an engine. `pdf.for_mathjax` keeps only the document's own
+decisions — one ≤ and ≥, one ⇒, «\pmod 13» one modulus, Russian words as
+text. A display formula wider than its column is broken to it; an aligned
+chain is drawn whole. What MathJax refuses — or a glyph outside its bundled
+font — goes to mathtext, logged at INFO; the source only when both refuse, a
+warning. The warm-up says which: `Formulas: MathJax 4.1.3 in V8, mathtext
+behind it`, or mathtext only with why. A paragraph's line counts every image
+on it (`pdf.Paragraph`): reportlab 5.0.1 never counted the one a wrapped line
+begins with. → "Record 102, the formulas' engine"
+
 **mathtext is not LaTeX, and a formula it refuses prints as its own source.**
 `pdf.for_mathtext` rewrites what the model writes into what mathtext draws:
 it drops what does nothing to the layout (`\limits`, `\displaystyle`, the
@@ -1436,6 +1454,7 @@ app/
     explain.py        stage three: hard places explained with sources, a summary
     study.py          a lecture's study version: the record in units, arranged by topic
     pdf.py            a record as a PDF
+    mathjax.py        formulas drawn by MathJax 4 in V8, mathtext behind it
     figures.py        drawings cut out of the page, placed back after composing
     lectures.py       where a lecture begins on a page; one lecture a record
     merge.py          one lecture from several notebooks: which is one, what each adds
@@ -1446,6 +1465,7 @@ app/
     algebracheck.py   an equality of letters that does not hold, counted at random numbers
     photoguard.py, consensus.py, mathcheck.py    ready-made
   assets/fonts/       Onest, Unbounded, JetBrains Mono, and their OFL licences
+  assets/mathjax/     MathJax 4 bundled as one script, its source and licence
   db/                 models.py, session.py, migrations/
   core/               config.py — settings and prices; events.py — event logging
 tests/
@@ -1581,7 +1601,7 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
   numbers, whether drawings are cut out and lectures marked, the image
   compression, both stages, the captions' prompt, the study version's
-  prompt, the call knobs, the
+  prompt, the call knobs, the formulas' engine (from the warm-up), the
   five timeouts and the repeat after one, the pages of one send and the day's limits, where a reader's «Плохо» is sent, when a
   group's week is summed up, and whether the bot sees a group's photos. What
   a **record** does not say is which prompt made it —

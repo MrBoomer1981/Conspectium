@@ -1383,20 +1383,23 @@ def test_every_swept_rewrite_is_one_mathtext_actually_draws():
 # ── a formula that still cannot be drawn says so out loud ────────────────────
 
 
-def test_a_refused_formula_is_logged_with_what_mathtext_said(caplog):
+def test_a_refused_formula_is_logged_with_what_both_engines_said(caplog):
     """It was a debug line and LOG_LEVEL is INFO, so it never appeared: three
-    rounds of "the PDF has broken symbols" were found by eye instead."""
+    rounds of "the PDF has broken symbols" were found by eye instead. A
+    formula goes out as its source only when MathJax and mathtext both refuse
+    it (task 99), and the line says why each did."""
     import logging
     import tempfile
 
     with tempfile.TemporaryDirectory() as directory:
         formulas = pdf._Formulas(directory)
         with caplog.at_level(logging.WARNING, logger="app.services.pdf"):
-            assert formulas.display(r"\ce{H2O}", 10.0) is None
+            assert formulas.display(r"\nosuchcommand{H2O}", 10.0) is None
 
     line = next(r.getMessage() for r in caplog.records if "refused" in r.getMessage())
-    assert r"\ce{H2O}" in line
-    assert "Unknown symbol" in line  # mathtext names the command itself
+    assert r"\nosuchcommand{H2O}" in line
+    assert "Undefined control sequence" in line  # MathJax names the command
+    assert "Unknown symbol" in line  # and so does mathtext
 
 
 def test_the_diagnosis_survives_the_blank_first_line(caplog):
@@ -1408,10 +1411,9 @@ def test_the_diagnosis_survives_the_blank_first_line(caplog):
     with tempfile.TemporaryDirectory() as directory:
         formulas = pdf._Formulas(directory)
         with caplog.at_level(logging.WARNING, logger="app.services.pdf"):
-            # mhchem is a language of its own, not a command, and it is what
-            # is left of the set nothing can rescue now that the environments
-            # go through \substack.
-            formulas.display(r"\ce{H2O + NaCl}", 10.0)
+            # A command neither engine knows: MathJax draws mhchem's \ce now,
+            # which was what nothing could rescue while mathtext drew alone.
+            formulas.display(r"\nosuchcommand{H2O + NaCl}", 10.0)
 
     line = next(r.getMessage() for r in caplog.records if "refused" in r.getMessage())
     assert not line.rstrip().endswith(":")  # a diagnosis follows the colon
@@ -1426,8 +1428,8 @@ def test_the_same_broken_formula_is_reported_once_per_document(caplog):
         formulas = pdf._Formulas(directory)
         with caplog.at_level(logging.WARNING, logger="app.services.pdf"):
             for _ in range(5):
-                formulas.display(r"\ce{H2O}", 10.0)
-                formulas.inline(r"\ce{H2O}", 10.0)
+                formulas.display(r"\nosuchcommand{H2O}", 10.0)
+                formulas.inline(r"\nosuchcommand{H2O}", 10.0)
 
     refusals = [r for r in caplog.records if "refused" in r.getMessage()]
     assert len(refusals) == 1
@@ -1440,8 +1442,8 @@ def test_two_different_broken_formulas_are_both_reported(caplog):
     with tempfile.TemporaryDirectory() as directory:
         formulas = pdf._Formulas(directory)
         with caplog.at_level(logging.WARNING, logger="app.services.pdf"):
-            formulas.display(r"\ce{H2O}", 10.0)
-            formulas.display(r"\ce{CO2}", 10.0)
+            formulas.display(r"\nosuchcommand{H2O}", 10.0)
+            formulas.display(r"\nosuchcommand{CO2}", 10.0)
 
     refusals = [r for r in caplog.records if "refused" in r.getMessage()]
     assert len(refusals) == 2
@@ -1623,8 +1625,10 @@ def test_formulas_are_set_in_computer_modern(monkeypatch):
         return original(self, *args, **kwargs)
 
     monkeypatch.setattr(matplotlib.figure.Figure, "text", spy)
-    pdf._formula_png("x^2", 10.0)
-    # KaTeX in the reference draws Computer Modern.
+    # KaTeX in the reference draws Computer Modern. MathJax draws in New
+    # Computer Modern, the one font its bundle carries; mathtext, behind it,
+    # is asked for Computer Modern by name.
+    pdf._mathtext_png("x^2", 10.0, pdf._INK)
     assert seen == ["cm"]
 
 
@@ -1927,7 +1931,10 @@ def test_a_main_formula_is_drawn_larger_than_an_ordinary_one(monkeypatch):
     sizes: list[float] = []
     original = pdf._formula_png
     monkeypatch.setattr(
-        pdf, "_formula_png", lambda latex, size: sizes.append(size) or original(latex, size)
+        pdf,
+        "_formula_png",
+        lambda latex, size, *args, **kwargs: sizes.append(size)
+        or original(latex, size, *args, **kwargs),
     )
     pdf.render("Т", "$$a = 1$$\n\n$$\\boxed{b = 2}$$")
     assert sizes[-1] > sizes[0]
