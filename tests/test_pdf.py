@@ -333,6 +333,9 @@ def test_every_translation_in_the_table_is_one_mathtext_draws():
         "stackrel": r"\stackrel{t}{\to}",
         "overbrace": r"\overbrace{abc}",
         "underbrace": r"\underbrace{abc}",
+        # Record 101's brace two lines tall (task 98).
+        "vphantom": r"\left. \vphantom{\frac{a}{b}} \right\} c",
+        "hphantom": r"a \hphantom{bb} c",
     }
 
     with tempfile.TemporaryDirectory() as directory:

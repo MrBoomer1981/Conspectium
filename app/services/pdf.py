@@ -1812,6 +1812,12 @@ _SYNONYMS = {
     # The brace is lost and the grouping survives, which is the better half.
     "overbrace": "overline",
     "underbrace": "underline",
+    # mathtext has \phantom and neither of these (task 98): record 101's
+    # brace two lines tall, «\left. \vphantom{…} \right\}», went out as its
+    # source. As \phantom the brace is as tall as what it holds and as wide
+    # as well — space before it, where it was the whole formula.
+    "vphantom": "phantom",
+    "hphantom": "phantom",
 }
 _SYNONYM_RE = re.compile(
     r"\\(" + "|".join(sorted(_SYNONYMS, key=len, reverse=True)) + rf"){_COMMAND_END}"
@@ -1836,6 +1842,19 @@ def _brace_words(found: re.Match) -> str:
         return found.group(0)
     line = "underline" if side == "under" else "overline"
     return f"\\{side}set{{{words}}}{{\\{line}{{{body}}}}}"
+
+
+# Two rows under or over a formula — record 101's «↑» over «ℕ» under
+# «m + 2», a brace's words (task 98): mathtext's \underset and \overset take
+# one row and refused the whole line, and \substack stacks them.
+_SET_INDEX_RE = re.compile(r"\\(under|over)set" + _COMMAND_END + r"\s*" + _GROUP)
+
+
+def _stacked_index(found: re.Match) -> str:
+    index = found.group(2)
+    if "\\\\" not in index or index.lstrip().startswith("\\substack"):
+        return found.group(0)
+    return f"\\{found.group(1)}set{{\\substack{{{index}}}}}"
 
 
 # The environments mathtext refuses outright. It has no \begin at all — but it
@@ -1937,6 +1956,7 @@ def for_mathtext(latex: str) -> str:
     latex = _UNSUPPORTED_RE.sub("", latex)
     latex = _BRACE_WORDS_RE.sub(_brace_words, latex)
     latex = _SYNONYM_RE.sub(lambda found: "\\" + _SYNONYMS[found.group(1)], latex)
+    latex = _SET_INDEX_RE.sub(_stacked_index, latex)
     latex = _SCRIPT_OPERATOR_RE.sub(r"\1{\2}", latex)
     latex = _cyrillic_as_text(latex)
     latex = _outside_words(latex, lambda part: _RANGE_RE.sub(r"\\text{..}", part))

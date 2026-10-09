@@ -1164,7 +1164,9 @@ why each is what it is. What a change must not break:
 `pdf.for_mathtext` rewrites what the model writes into what mathtext draws:
 it drops what does nothing to the layout (`\limits`, `\displaystyle`, the
 `\big` family), maps LaTeX's second spellings (`pdf._SYNONYMS`: `\le`,
-`\mbox`, `\textrm`, `\tfrac`, `\stackrel`, `\overbrace`…), turns environments
+`\mbox`, `\textrm`, `\tfrac`, `\stackrel`, `\overbrace`…; `\vphantom` and
+`\hphantom` as `\phantom`, as wide as what they hold — record 101's brace two
+lines tall printed as its source, task 98), turns environments
 into `\left…\substack{…}\right…` — losing column alignment, which is why a
 matrix is asked for as a markdown table — and handles `\xrightarrow`, its
 condition under the arrow in brackets included (`\underset`, task 77),
@@ -1174,7 +1176,8 @@ unbraced, mathtext spaces it as an operation, and record 74 printed
 «ρ ⁻ (v)» and «(i *, j *)» — and a range «1..p», whose dots it spaced as
 punctuation. A brace with words under or over it
 becomes `\underset` or `\overset` over its line — the brace lost, its words
-where the author wrote them — and an aligned chain alone in a display formula
+where the author wrote them, two rows of them stacked (`pdf._stacked_index`,
+task 98: record 101's «↑» over «ℕ») — and an aligned chain alone in a display formula
 is drawn a row at a time (`pdf.aligned_rows`), since `\substack` sets its rows
 touching. **A term the author struck out is drawn struck** (task 77):
 `\cancel{…}` with a stroke rising across it, `\bcancel` falling, `\xcancel`

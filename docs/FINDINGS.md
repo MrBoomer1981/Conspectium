@@ -433,6 +433,22 @@ in a line and on the kraft ground. The arrow does not stretch under a long
 condition as LaTeX's does: mathtext has no arrow that stretches, so «→ 0»
 stands over «k → +∞» a little to the left of where LaTeX would set it.
 
+**Record 101, two more** (task 98, 2026-10-09) — record 97's album sent
+again. Its study version printed two formulas as their source:
+«\underbrace{m + 2}_{\uparrow \\ \mathbb{N}}», an arrow the author drew up
+from ℕ under «m + 2», and «\left. \vphantom{\begin{aligned} … \end{aligned}}
+\right\} \text{По аксиоме полноты}», a brace two lines tall. mathtext's
+`\underset` takes one row, and it has `\phantom` but no `\vphantom`. Two
+rows under or over a formula are stacked by `\substack`, which it takes,
+and `\vphantom` is drawn as `\phantom` — the brace as tall as the two lines,
+with their width as space before it; dropped, the brace was a line's height
+and read as stray. Over every record in the database, 5 280 formulas and
+2 511 different ones, the two rewrites change these two and nothing else,
+and both draw. Drawn one at a time, three more refuse: record 47's two
+columns of working in a `tabular`, which the document draws as a table; and
+record 50's `\textcircled` and an aligned chain of record 52's, which go out
+as their source as they did.
+
 ## Why reading and composing are two calls
 
 Sort the failures of the first model into the ones where it *misread*
