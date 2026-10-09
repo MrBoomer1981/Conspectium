@@ -413,7 +413,8 @@ it — the CEO's, not yet scheduled:
       2026-10-09
 - [ ] 93. What does not belong to the subject is left out: the course's
       organisation — contacts, points, dates of tests — out of the study
-      version, chosen by its model and guarded by code — the CEO's
+      version, chosen by its model and guarded by code — the CEO's. Taken
+      on 2026-10-09, measured on record 97 before it ships
 - [ ] 94. A drawing that is data, drawn by code: a function's graph by its
       formula, a number line with its points and sets, a mapping of two
       sets with its arrows — the CEO's, measured on an album sent again
@@ -472,7 +473,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 90's check of the photographs; next: 92, 96 and 97, then 93, 95 and 94, 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 92, 96, 97, 93, 90's check of the photographs; next: 95 and 94, 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: 48
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
 ```
@@ -556,6 +557,7 @@ since 2026-10-01.
 | 2026-10-09 | the CEO, with Claude Code | Tasks 92, 96 and 97 taken, the CEO's word, with the database read for 96 as for 84. Task 97 loses one item: ℕ framed alone keeps its number, since unnumbered it would renumber the main formulas after it under explanations stored with «(4)» | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | `MAX_ALBUM_PAGES` 20 and a person's day 30 on Railway since 09:35 Moscow time, the CEO's — task 85's acceptance says so | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | The CEO's answers in the morning: 85 to 87 pushed, and 88 once measured; the CEO's word to read records 90 to 92; `MAX_ALBUM_PAGES` stays 15 on Railway, so a send of more than fifteen pages is several records by design — task 85's acceptance says so; 89 and 91 not taken, «лекцию можно поправлять» — a box of the bot's may correct the lecture, and the CEO reads them; 90 the CEO's own check of the photographs. Task 88 measured on records 91 and 92: the numbers it was made for no longer lost, 16 to 2 and 3 to 1, and both still refused — a number spelled out, a definition's number dropped, a lone item, a formula changed. It ships as an improvement, with what the measurement found taken in, and its acceptance criterion is changed to what it can do | the CEO's own |
+| 2026-10-09 | the CEO, with Claude Code | Task 93 taken, the CEO's word, and its design settled on record 97's text: the model names the units about the course's organisation, and code leaves out of each its paragraphs before the first that holds the subject — a guard over whole units would have kept the organisation for the set equality cut into the same unit. More than a fifth of the record named, and nothing goes. A kept study version built by another prompt is built again, so record 97 comes back without its organisation; a box anchored only in what is left out is not printed. Measured on record 97 before it ships | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -5546,7 +5548,7 @@ it a distraction. The document never talks about how a page was read
 
 **Owner: the CEO.** Specified on 2026-10-09, from record 97; the CEO's
 word: «нам нужно решить, как отделять то, что не относится к предмету и
-выкидывать».
+выкидывать». Taken the same day.
 
 ## Why
 
@@ -5558,26 +5560,52 @@ it and of injective maps, «Организация курса и виды ото
 множеств». Its author: either leave it out or set it out properly; the
 CEO: tell it apart and leave it out.
 
-## Do — a proposal
+Cut into the study version's units, the organisation is three of them,
+and the third carries more than the organisation: the set equality
+«$A = B$ ⇔ …» stands under it with no line between, and a formula set
+apart goes with the text before it (`study.units`). A guard over whole
+units would keep that unit for its formula, and the organisation with
+it.
 
-1. **The study version's model names the units that are not the lecture's
-   subject** — the course's organisation: contacts, points and grades,
-   dates of tests, admission, the schedule — in a field of its answer;
-   `prompts-study-v2.md`. Homework and a practice session's problems are
-   the subject's, and stay.
-2. **Code leaves them out of the study version, guarded**: never a unit
-   with a formula, a definition, a theorem or a proof; at most a fifth of
-   the record. The record itself keeps them — what a "#word" finds, what
-   notebooks merge into — and its own document too.
-3. Counted, `study_off_topic` in `study_sent`; the log line says how
-   many.
-4. Measured on record 97 (the CEO's word to read it) before production
-   switches to the new prompt.
+## Do
+
+1. **The study version's model names the units about the course's
+   organisation** — contacts, points and grades, admission, dates of
+   tests and exams, the schedule — in `organization` of its answer, and
+   puts them in no topic; `prompts-study-v2.md`, v1 with that. A unit
+   where the organisation stands with the lecture is named too. Homework,
+   a practice session's problems, a remark on history are the lecture's.
+   Its topics' «о чём» and its questions are about the subject alone.
+2. **Code leaves out, of each unit named, its paragraphs before the
+   first that holds the subject** — a formula, a drawing, or a word of
+   what a lecture states: a definition, a theorem, a proof, an axiom, an
+   example, «называется», «пусть», a problem, homework (`study._SUBJECT_RE`).
+   What is left stands where the model put the unit, or else after the
+   unit nearest before it that stands somewhere; a unit with nothing left
+   is not in the study version. A unit opening on the subject loses
+   nothing. More than a fifth of the record named so, and nothing is left
+   out. A formula is never left out, so no main formula's number moves.
+3. **The record keeps every line** — what a "#word" finds, what notebooks
+   merge into, its own document. A box of the bot's or a finding whose
+   anchor stands only in what the study version left out is not printed
+   in it, rather than at the end of the text.
+4. **A kept study version built by another prompt is built again** when
+   the record is next delivered: the prompt's name is in the fingerprint
+   (`study.fingerprint`), so record 97, brought back by «#матан», comes
+   without its organisation. One call a record, paid as a first build is.
+5. Counted: `off_topic` — units left out whole or in part — and
+   `off_topic_kept` — named and kept whole — in `study_sent`, and in the
+   log line.
+6. Measured on record 97 (the CEO's word to read it) before it ships: the
+   organisation gone, the set equality kept, nothing of the lecture lost.
+7. `CLAUDE.md` → "A lecture's study version"; `FINDINGS.md` → "Record 97".
 
 ## Don't do
 
 - No model removes a line from the record: the record stays what the
   group trusts.
+- No check of the bot's own texts for words of the organisation: the
+  prompt asks, and the measurement reads them.
 
 ---
 
