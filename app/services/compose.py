@@ -67,12 +67,36 @@ _LIST_MARKER_RE = re.compile(
 # start, so a number seemed to vanish. Inside a line only "1)": "Ответ: 2."
 # ends on a value, and the value is what this guard is for.
 _INLINE_MARKER_RE = re.compile(r"(?<=[:;][ \t])\d+\)(?=[ \t])")
+# ... and a run of numbers in order, 1, 2, 3, each opening a line — or the
+# first after the colon that introduces them — is a list whatever follows
+# each (task 88). Records 91 and 92 numbered a metric's axioms «1
+# тождественность», «2 симметричность», a corollary's parts «Следствие 2: 1
+# …» and «2 …» on the next line: values to the rule above, and gone once the
+# composer made the list they are — sixteen numbers of record 91, four of
+# 92, and both went out uncomposed. A number alone stays a value: «2 мн-ва».
+# Seen the same way on both sides, however the composer sets the item —
+# «**1.** Тождественность», «### 2. …», «(3) …» — so that a list read as one
+# in the source is read as one in the composition.
+_ITEM_NUMBER_RE = re.compile(
+    r"^[ \t]*(?:[-*+•][ \t]+)?(?:#{1,6}[ \t]+)?(?:\*\*|__)?\(?(?P<opening>\d+)"
+    r"(?:\.|\)+)?(?:\*\*|__)?(?=[ \t]+\S)"
+    r"|(?<=[:;][ \t])(?P<first>1)(?=[ \t]+\S)"
+    r"|(?<=[ \t])(?P<inline>\d+)\)(?=[ \t]+\S)",
+    re.MULTILINE,
+)
+# Space set by \phantom{…} draws nothing: record 92 kept a column aligned with
+# «\phantom{\forall \varepsilon > 0 …}», and its 0 was no value to lose.
+_PHANTOM_RE = re.compile(r"\\[hv]?phantom\{(?:[^{}]|\{[^{}]*\})*\}")
+# How far one item's number may stand from the next: a line of its own each,
+# or a formula of their own between them.
+_ITEM_REACH = 6
 _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
 # What the author struck out, as recognition read it. Its numbers are not the
 # lecture's: record 88's «~~3.1 Строгое~~», a section number given up, was
 # dropped by the composer and seemed lost — and hid the «1)» after it from
-# the markers, which only look at the start of a line.
-_STRUCK_RE = re.compile(r"(?<!~)~~(?!~)[^\n]+?(?<!~)~~(?!~)")
+# the markers, which only look at the start of a line. Over two or three
+# lines too (task 88).
+_STRUCK_RE = re.compile(r"(?<!~)~~(?!~)(?:[^~\n]+\n){0,2}[^~\n]+?(?<!~)~~(?!~)")
 # How alike a changed formula has to be to the source's to be put back as it
 # was read: four-fifths of the characters, spaces aside. Record 89's
 # $(c-h)^2 = c^2 - 2ch + h^2 =$ against the $c-h = …$ it was read as is 0.89;
@@ -148,12 +172,64 @@ def _inline_marker(match: re.Match) -> str:
     return ""
 
 
+def _items(markdown: str) -> str:
+    """The text without the numbers of its numbered runs: 1, 2, 3 in order,
+    each within _ITEM_REACH lines of the one before, two numbers at least
+    (task 88). An item opens a line; the first may follow a colon inside
+    its line, and a later one may stand inside a line as «3)» — «верно 3)
+    …», record 91 — unless its bracket closes one opened before it, as
+    «(0; 1)» and «[1; 2)» do."""
+    found: list[tuple[int, int, str, re.Match]] = []
+    for match in _ITEM_NUMBER_RE.finditer(markdown):
+        kind = match.lastgroup
+        line_start = markdown.rfind("\n", 0, match.start()) + 1
+        before = markdown[line_start : match.start()]
+        # «(0; 1)» and «[1; 2)» are intervals, their numbers values.
+        opened = before.count("(") + before.count("[")
+        if kind == "inline" and opened > before.count(")") + before.count("]"):
+            continue
+        found.append(
+            (markdown.count("\n", 0, match.start()), int(match.group(kind)), kind, match)
+        )
+    items: set[int] = set()
+    for position, (_, number, _, _) in enumerate(found):
+        if number != 1:
+            continue
+        run = [position]
+        for later in range(position + 1, len(found)):
+            last_line, last_number, _, _ = found[run[-1]]
+            next_line, next_number, kind, _ = found[later]
+            if next_line - last_line > _ITEM_REACH:
+                break
+            if next_number == last_number + 1 and (
+                next_line > last_line or kind == "inline"
+            ):
+                run.append(later)
+        if len(run) > 1:
+            items.update(run)
+    out, last = [], 0
+    for position in sorted(items):
+        _, _, kind, match = found[position]
+        out.append(markdown[last : match.start(kind)])
+        last = match.end(kind)
+    return "".join(out) + markdown[last:]
+
+
+def _unstruck(markdown: str, struck: Iterable[str]) -> str:
+    """`markdown` without the spans the source carries struck out, and
+    without what \\phantom only measures (task 88)."""
+    for span in struck:
+        markdown = markdown.replace(span, "", 1)
+    return _PHANTOM_RE.sub("", markdown)
+
+
 def _numbers(markdown: str, struck: Iterable[str] = ()) -> Counter[str]:
     """The values a text carries: every number but an item's, and but those
     of `struck` — the spans the source carries struck out."""
-    for span in struck:
-        markdown = markdown.replace(span, "", 1)
-    unmarked = _INLINE_MARKER_RE.sub(_inline_marker, _LIST_MARKER_RE.sub(r"\1", markdown))
+    markdown = _unstruck(markdown, struck)
+    unmarked = _INLINE_MARKER_RE.sub(
+        _inline_marker, _LIST_MARKER_RE.sub(r"\1", _items(markdown))
+    )
     return Counter(_NUMBER_RE.findall(unmarked))
 
 
@@ -187,9 +263,14 @@ def _refusal(source: str, composed: str) -> str | None:
     before, after = _counts(source, composed)
     if before != after:
         return "numbers"
-    if source.count(_UNREADABLE) != composed.count(_UNREADABLE):
+    # What the author struck out may go, its marks and its length with it:
+    # record 91's struck passage held one mark (task 88).
+    struck = _STRUCK_RE.findall(source)
+    if _unstruck(source, struck).count(_UNREADABLE) != _unstruck(
+        composed, struck
+    ).count(_UNREADABLE):
         return "unreadable marks"
-    if len(composed) < len(source) * _MIN_LENGTH_RATIO:
+    if len(composed) < len(_unstruck(source, struck)) * _MIN_LENGTH_RATIO:
         return "too short"
     return None
 

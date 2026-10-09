@@ -1961,6 +1961,21 @@ the photographs were not at hand:
   whole sentences, the second in the notebook's shorthand; if the page has
   only the second, the reading wrote the first.
 
+**The numbers guard, measured on records 91 and 92** (task 88, the CEO's
+word to read them, 2026-10-09). Composed again on Railway, six times in
+all, $0.13, each composition judged by the deployed guard and the new
+one. Record 91 lost 16 numbers twice under the old and 2 under the new;
+record 92 lost 3 under the old and 1 under the new, one composition also
+gaining 2. None was accepted, and nothing left was a numbered item: «Для
+3х метрик» written «трёх метрик», a number spelled out the guard refuses
+by design; «Определение 7:» made «### Определение», its 7 dropped; «1 $A
+\subset X$ — ограниченное мн-во», a lone item made «1.»; and formulas the
+composer changed — $\varepsilon_k$ written $\varepsilon_1$, the marks
+under an inequality made a clause «где …» repeating $x_{j_0}$. The first
+version of the rule took the «2)» of «[1; 2)» for an item, and would have
+read «**1.** …» as a value in a composition while reading its source as
+a list; both corrected before it shipped.
+
 The model rewrote the lecture to correct it — «дописал доказательство»,
 «исправлено на стандартное», «удалено» — which is what the bot exists not
 to do: the author's text is kept, and what is added is marked.

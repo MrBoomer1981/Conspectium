@@ -514,10 +514,23 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   `~~…~~` of the source, on both sides. Record 59 lost its composition to
   "Примеры: 1) …" made into a list, records 86 and 87 to a theorem's parts
   numbered «1 Существование», «2 Число…», made «1.» and «2.» (task 79), and
-  record 88 to «* 2) …» and to «~~3.1 Строгое~~» dropped (task 82). Before a
-  lower-case word a number is a value: «2 мн-ва» written «два множества» is
-  refused. The log line says how many numbers went and came, never which. →
-  "The composition record 59 lost", "Record 86, √2", "Records 88 and 89"
+  record 88 to «* 2) …» and to «~~3.1 Строгое~~» dropped (task 82). A run of
+  numbers in order, 1, 2, 3, each opening a line — the first may follow a
+  colon, a later one stand inside a line as «верно 3)» — is a list whatever
+  follows each (`compose._items`, task 88): records 91 and 92 numbered a
+  metric's axioms «1 тождественность», «2 симметричность» and lost every
+  heading for sixteen numbers and four; read alike however the composer
+  sets the item, «**1.** …», «### 1. …», «(1) …», and never inside an
+  interval, «[1; 2)». Alone before a lower-case word a number is a value:
+  «2 мн-ва» written «два множества» is refused. What the author struck out,
+  over two or three lines too, leaves the count of `[неразборчиво]` and the
+  length as it leaves the numbers, and what `\phantom{…}` only measures
+  is no value. Measured on 91 and 92, both were still refused, for a
+  number spelled out («3х» as «трёх»), a definition's number dropped, a
+  lone item and a changed formula — no item's number among them. The log line
+  says how many numbers went and came, never which. →
+  "The composition record 59 lost", "Record 86, √2", "Records 88 and 89",
+  "Records 90, 91 and 92"
 - **A refused composition is asked for once more** (`compose_retried`,
   2026-10-03): the composer is sampled, and a refusal is one sample's.
   Record 66's, refused in production for three numbers it gained, was
