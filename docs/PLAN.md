@@ -6212,7 +6212,11 @@ came out faint, the grid over a light hand's strokes, and read as worse.
    smoothed where not. Whole strokes judged: one straight on a grid line no
    darker than the grid is the grid, a lone dash along the axes shorter than
    a square too, a small mark at the frame's edge touching nothing is the
-   text round it.
+   text round it. A dashed line stays dashed: a path is cut where its own
+   ink is gone, a gap closed only over ink, three short pieces on one line
+   a dashed line. The grid is found with every stroke clipped to a grid
+   line's darkness and must show across the window, so a drawing's own
+   parallel lines are never taken for it.
 3. **Labels set in type where the handwriting stood**: the letters inside a
    label's box go — never a stroke passing through it — and the label is set
    as a chart's name, in the formulas' face, on a patch of paper. Never

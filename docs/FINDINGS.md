@@ -2370,6 +2370,26 @@ barely touched the paper. A whole letter «о» of the line above, closed on
 itself, ran past the length a stray mark was allowed; marks up to 2.2
 letters at the frame's edge, touching nothing long, go.
 
+**Dashed lines, and a drawing's own parallels.** Sketches of analysis draw
+levels, asymptotes and projections dashed — the ε-strip of record 105 is
+one — and a synthetic one, a sequence between three dashed levels, broke the
+way twice. The oriented filter sums a line along itself and so ran each
+dashed level into a solid one, and closing gaps joined what it missed: a
+path is now cut where its own ink falls below a third of what the stroke
+carries, a gap closed only where ink is, and three or more short pieces on
+one line a few lengths apart are a dashed line — kept, and no loose pieces
+to the gate. And the three dark levels forty pixels apart outweighed a
+faint grid of twenty-two in the spectrum, and were taken for the grid; on
+plain paper, with the axis, they made a grid of their own that took the
+axis away. The grid is found now with every stroke clipped to a grid line's
+darkness, 0.2, and must show along 0.45 of the places its comb puts its
+lines — record 106's showed along 0.6 to 0.9; a drawing's parallels along
+few. Measured at the darkest crest in reach on the comb's word and at the
+nearest crest once the lines' order is fitted: nearest from the start let
+record 106's plane past the gate, and darkest throughout let a dashed level
+four pixels off a grid line pull the line onto itself. Record 106's six and
+both sets of frames: as before.
+
 ## Moved from CLAUDE.md, 2026-10-10
 
 When `CLAUDE.md` was cut back to its rules a second time, its records'

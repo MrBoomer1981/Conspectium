@@ -85,6 +85,16 @@ _MIN_PERIOD, _MAX_PERIOD = 12.0, 45.0
 # plain paper — has none, and nothing is taken away.
 _GRID_PEAK = 6.0
 _GRID_SHARP = 3.0
+# Darker than this share of the paper's light is no grid line's darkness —
+# record 106's grid measured 0.1 to 0.3 against its paper, a light hand's
+# ink 0.3 to 0.6: the grid is found with every stroke clipped to it.
+_GRID_CLIP = 0.2
+# A grid shows along at least this share of the places its comb puts its
+# lines: record 106's, under its drawings and words, 0.6 to 0.9.
+_GRID_COVERS = 0.45
+# A grid line keeps to the place its order gives it within this share of a
+# square; one further off was measured on a stroke lying beside it.
+_GRID_STRAY = 0.33
 # Along a line, its darkness is measured in pieces this long, to follow the
 # photograph's perspective; a piece where the line does not show — under
 # the drawing — leaves the line where the comb puts it.
@@ -121,6 +131,12 @@ _DARKER_THAN_GRID = 1.5
 # nothing long, is the text round the drawing: a letter «о» of the line
 # above, closed on itself, ran 1.8.
 _EDGE_MARK_LETTERS = 2.2
+# Ink along a line: at least this share of the drawing's darkest stroke, and
+# above the paper's grain.
+_INK_SHARE = 0.1
+# A stretch of a stroke with less than this share of the stroke's own ink is
+# a gap in it.
+_OWN_INK = 0.33
 # A turn sharper than this, about 55 degrees, is a corner a stroke is cut at
 # before it is judged.
 _CORNER_COS = 0.57
@@ -283,6 +299,10 @@ def _grid_lines(darkness: np.ndarray) -> tuple[list[np.ndarray], float]:
     h, w = darkness.shape
     if h < 2 * _MIN_PERIOD or w < 2 * _MIN_PERIOD:
         return [], 0.0
+    # every stroke as dark as a grid line at most: three dark dashed levels
+    # forty pixels apart outweighed a faint grid of twenty-two, and were taken
+    # for it; clipped, the grid's many lines outweigh a drawing's few
+    darkness = np.minimum(darkness, _GRID_CLIP)
     windowed = (darkness - darkness.mean()) * np.outer(np.hanning(h), np.hanning(w))
     spectrum = np.abs(np.fft.fft2(windowed))
     spectrum[0, 0] = 0
@@ -330,8 +350,12 @@ def _grid_lines(darkness: np.ndarray) -> tuple[list[np.ndarray], float]:
     if len(starts) < 3:
         return [], 0.0
 
-    def measure(centre: float, line_slope: float, reach: float) -> np.ndarray | None:
-        """A line measured in pieces along it, near where it is expected."""
+    tried, shown = [0], [0]
+
+    def measure(centre: float, line_slope: float, reach: float, nearest: bool) -> np.ndarray | None:
+        """A line measured in pieces along it, near where it is expected:
+        at the darkest crest in reach while only the comb says where, at the
+        crest nearest the place once the lines' order does."""
         mx, my = [], []
         for x0 in range(0, w, _GRID_SEGMENT):
             xm = (x0 + min(w, x0 + _GRID_SEGMENT)) / 2
@@ -339,9 +363,19 @@ def _grid_lines(darkness: np.ndarray) -> tuple[list[np.ndarray], float]:
             ya, yb = int(math.floor(yp - reach)), int(math.ceil(yp + reach))
             if ya < 0 or yb >= h:
                 continue
+            tried[0] += 1
             column = smooth[ya : yb + 1, int(xm)]
-            k = int(np.argmax(column))
-            if 0 < k < len(column) - 1 and column[k] - float(np.median(column)) > _GRID_SHOWS:
+            base = float(np.median(column))
+            # the crest nearest where the line is expected, not the darkest:
+            # a stroke drawn beside a grid line, a dashed level four pixels
+            # off it, drew the darkest one to itself
+            crests = [
+                k for k in range(1, len(column) - 1)
+                if column[k] >= column[k - 1] and column[k] >= column[k + 1] and column[k] - base > _GRID_SHOWS
+            ]
+            if crests:
+                k = min(crests, key=lambda k: abs(ya + k - yp)) if nearest else max(crests, key=lambda k: column[k])
+                shown[0] += 1
                 mx.append(xm)
                 my.append(ya + k)
         if len(mx) < 3:
@@ -355,9 +389,13 @@ def _grid_lines(darkness: np.ndarray) -> tuple[list[np.ndarray], float]:
         return np.pad(coef, (3 - len(coef), 0))
 
     # first pass: each line near the comb's place, the window's own slant
-    first = [measure(c, slope, 0.35 * period) for c in starts]
+    first = [measure(c, slope, 0.35 * period, nearest=False) for c in starts]
     known = [(i, c) for i, c in enumerate(first) if c is not None]
-    if not known:
+    # a notebook's grid runs across the whole window, under the drawing
+    # too; a drawing's own parallel lines — dashed levels, an axis on plain
+    # paper — make a periodic spectrum as well, but show along few of the
+    # comb's places, and taken for a grid they took the axis with them
+    if not known or shown[0] < _GRID_COVERS * max(tried[0], 1):
         return [], 0.0
     # where the lines stand and how they slant, over their order: smooth in
     # it, as perspective is
@@ -385,15 +423,16 @@ def _grid_lines(darkness: np.ndarray) -> tuple[list[np.ndarray], float]:
         local_period = abs(float(np.polyval(np.polyder(place_fit), i))) if degree else period
         local_period = min(max(local_period, _MIN_PERIOD * 0.8), _MAX_PERIOD * 1.2)
         line_slope = float(np.polyval(slant_fit, i))
-        coef = measure(centre, line_slope, 0.3 * local_period)
+        coef = measure(centre, line_slope, 0.3 * local_period, nearest=True)
         predicted = np.array([0.0, line_slope, centre - line_slope * middle])
         if coef is None:
             lines.append(predicted)
             continue
         # a line's own fit that strays a third of a square from where its
-        # order puts it is following a stroke, not the paper
+        # order puts it is following a stroke, not the paper; less is the
+        # lens bending the paper's lines, which the fit has to follow
         probe = np.linspace(0, w - 1, 9)
-        if np.max(np.abs(np.polyval(coef, probe) - np.polyval(predicted, probe))) > 0.33 * local_period:
+        if np.max(np.abs(np.polyval(coef, probe) - np.polyval(predicted, probe))) > _GRID_STRAY * local_period:
             lines.append(predicted)
         else:
             lines.append(coef)
@@ -882,6 +921,105 @@ def _marked(mask: np.ndarray, line: np.ndarray) -> np.ndarray:
     return mask[ys, xs]
 
 
+def _ink_at(line: np.ndarray, od: np.ndarray) -> np.ndarray:
+    """The darkness at each point of a line, the most within a pixel of it."""
+    h, w = od.shape
+    points = np.round(line).astype(int)
+    best = np.zeros(len(points), np.float32)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            ys = np.clip(points[:, 0] + dy, 0, h - 1)
+            xs = np.clip(points[:, 1] + dx, 0, w - 1)
+            best = np.maximum(best, od[ys, xs])
+    return best
+
+
+def _inked_runs(paths, od: np.ndarray, floor: float):
+    """Each path cut where the ink itself is gone for more than two pixels
+    running: the oriented filter sums a line along its length, and so runs
+    a dashed line's dashes into one stroke over the paper between them.
+    Gone is below the floor, or below a third of the path's own darkness —
+    JPEG's halo round a dark dash lies over the paper between two."""
+    for path in paths:
+        if len(path) < 6:
+            yield path
+            continue
+        along = _ink_at(np.array(path, float), od)
+        inked = along >= max(floor, _OWN_INK * float(np.median(along)))
+        start, gap = 0, 0
+        cut = False
+        for i, here in enumerate(inked):
+            if here:
+                if gap > 2:
+                    if i - gap - start >= 3:
+                        yield path[start : i - gap]
+                    start = i
+                    cut = True
+                gap = 0
+            else:
+                gap += 1
+        if not cut:
+            yield path
+        elif len(path) - gap - start >= 3:
+            yield path[start : len(path) - gap]
+
+
+def _inked_share(segment: np.ndarray, od: np.ndarray, floor: float) -> float:
+    """The share of a gap's middle where there is ink — above the floor
+    and a third of the ink at the gap's two ends: a gap is closed where a
+    crossing or a faint stretch left one, never across paper."""
+    a, b = segment[0], segment[-1]
+    n = max(3, int(np.hypot(*(b - a))))
+    t = np.linspace(0.2, 0.8, n)[:, None]
+    ends = _ink_at(np.array([a, b]), od)
+    return float(np.mean(_ink_at(a + (b - a) * t, od) >= max(floor, _OWN_INK * float(ends.min()))))
+
+
+def _dashes(strokes: list[tuple[np.ndarray, bool]], letter: float) -> set[int]:
+    """The strokes that are dashes of a dashed line: three or more short
+    straight pieces on one line, a few of their own lengths apart."""
+    pieces = []
+    for i, (line, closed) in enumerate(strokes):
+        if closed:
+            continue
+        length = _length(line)
+        a, b = line[0], line[-1]
+        chord = float(np.hypot(*(b - a)))
+        if length >= letter or chord < 2:
+            continue
+        normal = np.array([-(b - a)[1], (b - a)[0]]) / chord
+        if float(np.abs((line - a) @ normal).max()) > 1.5:
+            continue
+        pieces.append((i, a, b, (b - a) / chord, chord))
+    parent = {p[0]: p[0] for p in pieces}
+
+    def find(k):
+        while parent[k] != k:
+            parent[k] = parent[parent[k]]
+            k = parent[k]
+        return k
+
+    for x in range(len(pieces)):
+        i, a, b, u, la = pieces[x]
+        for y in range(x + 1, len(pieces)):
+            j, c, d, v, lb = pieces[y]
+            if abs(float(u @ v)) < math.cos(math.radians(12)):
+                continue
+            normal = np.array([-u[1], u[0]])
+            if abs(float((c - a) @ normal)) > 2.0 or abs(float((d - a) @ normal)) > 2.0:
+                continue
+            # the gap between the two along their line
+            ta, tb = sorted([float((a - a) @ u), float((b - a) @ u)])
+            tc, td = sorted([float((c - a) @ u), float((d - a) @ u)])
+            gap = max(tc - tb, ta - td)
+            if 0 < gap <= 2.5 * max(la, lb):
+                parent[find(i)] = find(j)
+    groups: dict[int, list[int]] = {}
+    for i, _, _, _, _ in pieces:
+        groups.setdefault(find(i), []).append(i)
+    return {i for members in groups.values() if len(members) >= 3 for i in members}
+
+
 def _at_corners(line: np.ndarray, closed: bool) -> list[tuple[np.ndarray, bool]]:
     """A stroke cut where it turns sharply: a grid line's stub that met an
     arc's end was one stroke with it, and no straight one. A curve's flat
@@ -1085,8 +1223,14 @@ def _redraw(page: Page, sketch: Sketch) -> Redrawn:
     found = _ink(od)
     if found is None:
         return Redrawn(None, "mostly ink")
-    blobs, _ = found
+    blobs, level = found
     blob_labels, _ = _components(blobs)
+    # what counts as ink along a line: above the paper's own grain, and a
+    # tenth of the drawing's darkest stroke — the filter that finds a faint
+    # stroke also runs on across a dashed line's gaps, where there is none
+    paper_od = od[~np.asarray(Image.fromarray((blobs * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)), bool)]
+    grain = 1.4826 * float(np.median(np.abs(paper_od - np.median(paper_od)))) if paper_od.size else 0.0
+    ink_floor = max(3.0 * grain, _INK_SHARE * level)
     blob_pieces = list(_pieces(blob_labels).values())
 
     def local(frame, slack):
@@ -1158,7 +1302,7 @@ def _redraw(page: Page, sketch: Sketch) -> Redrawn:
     if len(paths) > _MAX_PATHS:
         return Redrawn(None, f"{len(paths)} pieces of line")
     kept: list[np.ndarray] = []
-    for path in paths:
+    for path in _inked_runs(paths, od, ink_floor):
         line = np.array(path, float)
         length = _length(line)
         first, last = branches[path[0]], branches[path[-1]]
@@ -1176,11 +1320,16 @@ def _redraw(page: Page, sketch: Sketch) -> Redrawn:
         elif not within(inner, float(line[:, 0].mean()), float(line[:, 1].mean())):
             continue
         kept.append(line)
+    bridges = [
+        bridge for bridge in _bridges(kept, branches, skeleton, _GAP_LETTERS * letter)
+        if _inked_share(bridge, od, ink_floor) >= 0.5
+    ]
     strokes = [
         piece
-        for line, closed in _strokes(kept + _bridges(kept, branches, skeleton, _GAP_LETTERS * letter))
+        for line, closed in _strokes(kept + bridges)
         for piece in _at_corners(line, closed)
     ]
+    dashed = _dashes(strokes, letter)
 
     # whole strokes judged: straight along a grid line and no darker than the
     # grid beside it is the grid; a lone straight dash along the page's axes
@@ -1193,14 +1342,14 @@ def _redraw(page: Page, sketch: Sketch) -> Redrawn:
         if _length(line) >= 2 * letter:
             _stamp(near_long, line, disc)
     judged = []
-    for line, closed in strokes:
+    for index, (line, closed) in enumerate(strokes):
         length = _length(line)
         family = None if closed else _straight_family(line)
         if family is not None:
             coefs = rows if family == "h" else cols
             if _from_grid(line, coefs, family) <= _ON_GRID_PX and _darker_than_grid(line, coefs, family, raw) < _DARKER_THAN_GRID:
                 continue
-            if period and length < period and not _touches(line, near_long):
+            if period and length < period and not _touches(line, near_long) and index not in dashed:
                 continue
             # a straight edge mostly past what every run framed: the page's
             # edge, a rule under the text — the drawing's own axes and
@@ -1212,17 +1361,25 @@ def _redraw(page: Page, sketch: Sketch) -> Redrawn:
             cy, cx = float(line[:, 0].mean()), float(line[:, 1].mean())
             if min(cy - inner[0], inner[2] - cy, cx - inner[1], inner[3] - cx) < 0.6 * letter:
                 continue
-        judged.append((line, closed))
-    strokes = _once(judged, (hr, wr))
+        judged.append((line, closed, index in dashed))
+    # a dash is known by its array: _once passes the strokes it keeps through
+    dash_ids = {id(line) for line, _, dash in judged if dash}
+    strokes = _once([(line, closed) for line, closed, _ in judged], (hr, wr))
+
+    def is_dash(line):
+        return id(line) in dash_ids
 
     total = sum(_length(line) for line, _ in strokes)
     if total < _MIN_LENGTH_LETTERS * letter:
         return Redrawn(None, "too little drawn")
-    short = sum(_length(line) for line, closed in strokes if not closed and _length(line) < letter)
+    # a dashed line's dashes are the author's pattern, not pieces
+    short = sum(
+        _length(line) for line, closed in strokes if not closed and _length(line) < letter and not is_dash(line)
+    )
     short_straight = sum(
         _length(line)
         for line, closed in strokes
-        if not closed and _length(line) < 3 * letter and _straight_family(line) is not None
+        if not closed and _length(line) < 3 * letter and _straight_family(line) is not None and not is_dash(line)
     )
     along = sum(
         _length(line)
