@@ -6223,7 +6223,7 @@ came out faint, the grid over a light hand's strokes, and read as worse.
    as a chart's name, in the formulas' face, on a patch of paper. Never
    where nothing is written. A point is a dot.
 4. **A gate, by code**: a drawing with more than 0.45 of its length in open
-   strokes shorter than a letter, more than 0.25 in short straight pieces
+   strokes shorter than a letter, more than 0.2 in short straight pieces
    along the page's axes, or half along the grid, stays its words — on
    record 106 the plane drawn along the grid, where the author's lines and
    the notebook's are one.

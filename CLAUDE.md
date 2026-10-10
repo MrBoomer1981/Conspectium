@@ -732,7 +732,7 @@ from 12a, once.
   line drawn is one the pen left. → "Sketches drawn from the page"
 - **What reads worse than its words stays its words**: a gate in code
   refuses a drawing in pieces — more than 0.45 of its length in open
-  strokes shorter than a letter, more than 0.25 in short straight pieces
+  strokes shorter than a letter, more than 0.2 in short straight pieces
   along the page's axes, half along the grid. A plane drawn along the
   grid's own lines is refused: the author's lines and the notebook's are
   one there. Set on six drawings of one hand, and watched.

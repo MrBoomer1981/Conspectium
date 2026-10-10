@@ -2354,8 +2354,13 @@ author went over twice is kept once.
 | four balls and the ball round them | 0.18–0.20 | 0.05–0.07 | drawn |
 | a set, a point outside, neighbourhoods | 0.23–0.28 | 0.03–0.04 | drawn |
 
-Hence 0.45 and 0.25. An axis is one long straight line and not counted. Six
-drawings of one hand: said so, and watched on the next albums.
+Hence 0.45 and 0.25 — then 0.2: production drew the plane once at 0.25,
+from the page as it compresses it, the «Δ ℝ²» beside it and all, its measure
+0.24. At 0.2 it is refused under every set of frames of the night, on the
+photograph and on the compressed page alike; the line covered by arcs is
+drawn in eleven of the twelve, words in the twelfth. An axis is one long
+straight line and not counted. Six drawings of one hand: said so, and
+watched on the next albums.
 
 **Production's environment, the code as it stands**: the three photographs,
 nine calls, $0.04, every one in `ai_calls`; frames alike on all six; five

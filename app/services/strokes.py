@@ -154,12 +154,13 @@ _SMOOTH_PX = 2.2
 # their photographs had at most 0.37 of their length in open strokes shorter
 # than a letter, and at most 0.14 in straight pieces along the page's axes
 # shorter than three letters; the plane drawn along the grid, 0.43 to 0.46
-# and 0.36 to 0.43 — the author's lines and the notebook's in squares no
-# code can tell apart. An axis is one long straight line and is not counted.
+# and 0.24 to 0.43 — the author's lines and the notebook's in squares no
+# code can tell apart; at 0.25 production drew it once, from the page as
+# compressed, the text beside it with it. An axis is one long straight line and is not counted.
 # Measured on six, said so, and watched on the next. A drawing half of
 # which lies along the grid is the grid's as much as the author's.
 _MAX_SHORT = 0.45
-_MAX_SHORT_STRAIGHT = 0.25
+_MAX_SHORT_STRAIGHT = 0.2
 _MAX_ALONG_GRID = 0.5
 _MIN_LENGTH_LETTERS = 3.0
 # A frame more than a quarter ink holds no line drawing; nor does one that
