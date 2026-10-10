@@ -198,17 +198,27 @@ def agreed(
                     for t, y, x in taken
                 ):
                     continue
-                readers = 1 + sum(
-                    any(
-                        _same_text(other.text) == text
-                        and abs(_centre(other.box)[0] - cy) <= _SAME_PLACE
-                        and abs(_centre(other.box)[1] - cx) <= _SAME_PLACE
+                # what each other run read at this place: the same, another
+                # label, or nothing
+                readers, rivals = 1, 0
+                for h in best:
+                    if h == g:
+                        continue
+                    here = [
+                        _same_text(other.text)
                         for other in usable[h][i]["labels"]
-                    )
-                    for h in best
-                    if h != g
-                )
-                if readers >= 2 or text in named:
+                        if abs(_centre(other.box)[0] - cy) <= _SAME_PLACE
+                        and abs(_centre(other.box)[1] - cx) <= _SAME_PLACE
+                    ]
+                    if text in here:
+                        readers += 1
+                    elif here:
+                        rivals += 1
+                # the reading most runs share at a place; one run's alone only
+                # where no other read anything else there and the drawing's
+                # words name it — record 106's left point was read q, r_q and
+                # p by three runs, all three named in the words
+                if (readers >= 2 and readers > rivals) or (readers == 1 and rivals == 0 and text in named):
                     labels.append(label)
                     taken.append((text, cy, cx))
         out.append(strokes.Sketch(frame, inner, labels))

@@ -2397,7 +2397,11 @@ label counting where two read it alike — the same label two runs place a
 little apart counted once — or where one reads it and the drawing's words,
 which every reading of the page agreed on, name it among their formulas'
 symbols: «точки $p \in K^c$ и $q \in K$» confirms p and q. Never where no
-ink is in the box.
+ink is in the box. And at one place the reading most runs share: record
+106's left point came back as q, r_q and p from three runs, all three named
+in the words, and was set three times over; the words confirm one run's
+label only where no other run read something else there, and one place
+holds one label.
 
 ## Moved from CLAUDE.md, 2026-10-10
 
