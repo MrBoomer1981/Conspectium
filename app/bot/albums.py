@@ -110,6 +110,11 @@ class PageInput:
     # 12.09" (task 63); see caption_of.
     caption: str | None = None
     file_id: str | None = None
+    # A PDF's page keeps its number in the PDF (task 100), so a blank page
+    # left out does not renumber the rest, and a message that names a page
+    # names the PDF's. None for a photograph: its place in the album is its
+    # number.
+    number: int | None = None
 
 
 def tag_of(pages: list[PageInput]) -> str | None:
@@ -459,7 +464,8 @@ def _frame_refused(page: int, frame: photoguard.PhotoVerdict, reason: str,
 
 async def refused_frames(ordered: list[PageInput]) -> list[PageResult]:
     """The pages of an album the frame check turns away, checked before any
-    page is read — numbered in the order given.
+    page is read — numbered in the order given, or by their place in their
+    PDF.
 
     A refused frame is the one reason a page is lost that only the
     photographer can fix, and at this point nothing has been spent. So the
@@ -482,7 +488,10 @@ async def refused_frames(ordered: list[PageInput]) -> list[PageResult]:
         return _frame_refused(page, frame, frame.reason, [])
 
     checked = await asyncio.gather(
-        *(check(page_input, page) for page, page_input in enumerate(ordered, 1))
+        *(
+            check(page_input, page_input.number or place)
+            for place, page_input in enumerate(ordered, 1)
+        )
     )
     return [result for result in checked if result is not None]
 
@@ -615,13 +624,16 @@ class AlbumOutcome:
 
 async def process_batch(pages: list[PageInput]) -> AlbumOutcome:
     """Run every page in parallel and combine the survivors. `pages` is already
-    sorted; a page's position + 1 is its number, used in every per-page field
-    and message. One page failing never cancels the others, and a page still
-    unfinished at the 300 s ceiling becomes a skip — asyncio.wait rather than
-    wait_for so the stats of finished pages are not lost with the cancellation."""
+    sorted; a page's position + 1 is its number — a PDF's page keeps its own —
+    used in every per-page field and message. One page failing never cancels
+    the others, and a page still unfinished at the 300 s ceiling becomes a
+    skip — asyncio.wait rather than wait_for so the stats of finished pages
+    are not lost with the cancellation."""
     tasks = {
         number: asyncio.create_task(process_page(page, number))
-        for number, page in enumerate(pages, 1)
+        for number, page in (
+            (page.number or place, page) for place, page in enumerate(pages, 1)
+        )
     }
     try:
         done, pending = await asyncio.wait(
@@ -680,7 +692,9 @@ def _assemble(
     lost in one evening over a single page each, and in a group chat a lost
     album is a course without its lecture.
     """
-    pages_ok, head_cut, tail_cut = _one_lecture(pages_ok, len(pages_ok) + len(skips))
+    pages_ok, head_cut, tail_cut = _one_lecture(
+        pages_ok, [p.page for p in pages_ok + skips]
+    )
     # A record with a hole always needs a reader's eye, whatever the pages
     # that were read scored.
     needs_review = bool(skips) or any(
@@ -739,10 +753,12 @@ def _assemble(
 
 
 def _one_lecture(
-    pages_ok: list[PageResult], pages: int
+    pages_ok: list[PageResult], numbers: list[int]
 ) -> tuple[list[PageResult], int, int]:
     """The pages with the lecture before cut off the album's first page and
     the lecture after off its last, and how many lines each cut took.
+    `numbers` are the album's pages, read or not — a PDF's by their place in
+    it, which a blank page left out leaves a gap in.
 
     Only with two pages read or more, and only on the album's own first and
     last page: a single page — a photograph, or the one page an album kept —
@@ -754,13 +770,13 @@ def _one_lecture(
     head, the title it was given may be the lecture before's: the record
     takes its title from what stays — its first heading, or the next page's.
     """
-    if pages < 2 or len(pages_ok) < 2:
+    if len(numbers) < 2 or len(pages_ok) < 2:
         return pages_ok, 0, 0
     pages_ok = list(pages_ok)
     head_cut = tail_cut = 0
 
     first = pages_ok[0]
-    if first.page == 1 and first.lecture_starts:
+    if first.page == min(numbers) and first.lecture_starts:
         kept, head_cut = lectures.without_before(
             first.transcription.markdown, first.lecture_starts
         )
@@ -781,7 +797,7 @@ def _one_lecture(
             pages_ok[0] = _trimmed(first, kept, title)
 
     last = pages_ok[-1]
-    if last.page == pages and last.lecture_starts:
+    if last.page == max(numbers) and last.lecture_starts:
         kept, tail_cut = lectures.without_after(
             last.transcription.markdown, last.lecture_starts
         )

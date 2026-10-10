@@ -205,7 +205,7 @@ class Note(Base):
     title: Mapped[str] = mapped_column(String)
     subject: Mapped[str | None] = mapped_column(String)
     markdown: Mapped[str] = mapped_column(Text)
-    source_type: Mapped[str] = mapped_column(String)  # "photo" | "docx"
+    source_type: Mapped[str] = mapped_column(String)  # "photo" | "pdf" | "docx"
     page_count: Mapped[int] = mapped_column(Integer, server_default="1")
     status: Mapped[str] = mapped_column(String)  # "ready" | "needs_review"
     # Dataclasses (Uncertain, Issue, Divergence) are turned into plain dicts

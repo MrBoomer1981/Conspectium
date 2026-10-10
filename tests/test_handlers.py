@@ -1072,12 +1072,15 @@ async def test_an_untagged_photo_in_a_group_is_never_made_a_record(session):
     assert (await session.execute(select(Note))).first() is None
 
 
-async def test_a_file_that_is_not_docx_gets_no_answer_in_a_group(session):
-    # Slides shared with "#матан" under them are for the classmates.
+async def test_a_file_that_is_not_docx_or_pdf_gets_no_answer_in_a_group(session):
+    # Slides shared with "#матан" under them are for the classmates; a PDF
+    # with one is a record since task 100.
     user = await _user(session)
     group = await _chat(session)
     message = _PhotoMessage(None, caption="#матан")
-    message.document = SimpleNamespace(file_name="лекция 5.pdf", file_size=100)
+    message.document = SimpleNamespace(
+        file_name="лекция 5.pptx", file_size=100, mime_type=None
+    )
 
     await handlers.handle_document(message, session, user, None, group)
 

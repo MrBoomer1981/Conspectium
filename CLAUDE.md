@@ -151,7 +151,9 @@ In a session:
 - Google Gemini — recognition, composition, and the explanations, sourced
   through its Google Search tool. The model is a setting, not a fact about the
   stack: it has changed twice, and the startup log names it
-- Pillow and numpy — images
+- Pillow and numpy — images; pypdfium2 — a PDF's pages drawn as pictures
+  (task 100), PDFium under its Apache and BSD licences, where PyMuPDF's is
+  the AGPL
 - reportlab and matplotlib — a record as a PDF; formulas drawn by MathJax 4
   in V8 (mini-racer), rasterised by resvg-py, with mathtext behind it (task 99)
 - Railway — hosting
@@ -215,7 +217,8 @@ Shared by both owners.
    `group_pages` keeps for seven days is Telegram's reference to a group
    album's page (`file_id`), which the bot fetches the photo by while Telegram
    keeps it — not the photo. It lets a reply call the bot on an album somebody
-   else sent (2026-09-29).
+   else sent (2026-09-29). Nor is a PDF stored (task 100): its pages, drawn
+   as pictures, exist while they are read.
 4. **Every model call is written to `ai_calls`** — model, tokens, cost,
    latency, success, error. No exceptions, a failed attempt included.
 5. **Every significant action is written to `events`.** Retention cannot be
@@ -397,15 +400,22 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
 
 ## The pipeline
 
-Three **capture paths** — a photo, an album, a `.docx` — two of them **photo
-paths** (`handlers.handle_photo`, `albums.process_page`). An image sent as a
-file (JPEG, PNG, WebP — `middlewares.page_file`) is a photo to both; in a
-group, a reply can call the bot on pages somebody else sent
-(`handlers.handle_summon`), into the same two paths. **`.docx` is never read
-by a model**: no page limit, no quota, neither stage, and it works with
-`AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies. Its delivery is the one
-call it can make — the study version, as on every path, inside the day's
-cost cap (`pages=0`); off or refused, the record's own document.
+Four **capture paths** — a photo, an album, a PDF, a `.docx` — two of them
+**photo paths** (`handlers.handle_photo`, `albums.process_page`). An image
+sent as a file (JPEG, PNG, WebP — `middlewares.page_file`) is a photo to
+both; in a group, a reply can call the bot on pages somebody else sent
+(`handlers.handle_summon`), into the same two paths. **A PDF is an album of
+its pages** (`handlers._read_pdf`, task 100): every page drawn as a picture
+(`images.pdf_pages`) and read as an album's page, whatever the PDF holds —
+its text layer is no way in, since a typed PDF's formulas come out of it
+flattened and a scanner lays a junk reading of its own over handwriting. A
+blank page is left out without a word, the others keeping their number in
+the PDF (`PageInput.number`); more pages than an album may hold refuse the
+PDF before a page is read. **`.docx` is never read by a model**: no page
+limit, no quota, neither stage, and it works with `AI_ENABLED=false`; only
+`MIN_MARKDOWN_LEN` applies. Its delivery is the one call it can make — the
+study version, as on every path, inside the day's cost cap (`pages=0`); off
+or refused, the record's own document.
 
 A photo's way, in the order the code takes it — `handlers._read_photo`
 numbers its steps, and `docs/PLAN.md` → "Final processing order for a
@@ -481,8 +491,9 @@ from 12a, once.
 - **A page the frame check refuses stops its album before anything is read**
   (`albums.refused_frames`): the reply names the page and asks for the album
   again, whole (`album_retake_requested`), with nothing spent — the one loss
-  only the photographer can fix (2026-09-25). → "Record 45, a lecture on
-  remainders"
+  only the photographer can fix (2026-09-25). A PDF's page stops its PDF the
+  same way, the CEO's choice of 2026-10-10 (`texts.pdf_retake`). → "Record
+  45, a lecture on remainders"
 - **A record names the pages it is missing**: `albums._assemble` leaves a
   marker where an unread page stood, `notes.missing_pages` holds their
   numbers, the document opens with a box naming them, and such a record is
@@ -844,7 +855,7 @@ lecture is wrong where it is not. → "An equality that does not hold",
   group becomes a supergroup, the middleware moves the row on either half of
   the migration notice, records and all.
 - **The bot takes a page in a group only with its subject** — a "#word"
-  anywhere in the caption of a photo, an album or a `.docx`
+  anywhere in the caption of a photo, an album, a PDF or a `.docx`
   (`tags.from_caption`, `albums.tag_of`) — so a group is never asked, and a
   "#word" there only searches. A course chat is mostly memes, and a record
   costs money (2026-09-25).
@@ -862,7 +873,7 @@ lecture is wrong where it is not. → "An equality that does not hold",
 - **What is not addressed to the bot never reaches it.** `middlewares.heard`
   runs before a session, and in a group lets through a command, a message
   that is one "#word" and nothing else (`tags.is_bare` — "#дз на завтра" is
-  for the classmates), a photo or image file with a tagged caption, a reply
+  for the classmates), a photo or a file with a tagged caption, a reply
   that calls or names the bot, a reply to the bot's own message
   (`middlewares.replies_to_bot` — how its question «что не так» is
   answered), every album page (judged whole in `_process_album`), and the
@@ -1342,6 +1353,11 @@ number never leaves another quietly cutting the work short:
   76) — a page compressed, its frame checked, its drawings cut — however
   many pages an album holds: fanned over the default pool, a thread a page,
   it left 50–100 MB an album the process never gave back.
+- **One PDF is drawn at a time** (`images._PDFIUM`, task 100): PDFium may
+  not be called from two threads at once, not even over two documents. A
+  PDF of more than twice an album's pages is refused before it is drawn
+  (`handlers._PDF_DRAWN_ALBUMS`), or it would hold an image thread for
+  minutes.
 - **One document is drawn at a time** (`pdf._DRAWING`, task 76) — "The
   document".
 
@@ -1431,7 +1447,7 @@ Worked around, not fixed:
 app/
   main.py             FastAPI, the webhook, /health, the startup log
   bot/
-    handlers.py       capture — a photo, an album, a .docx, a summon — and membership
+    handlers.py       capture — a photo, an album, a PDF, a .docx, a summon — and membership
     texts.py          every user-facing message, and the command list
     middlewares.py    session, user and group; group chatter dropped; what a page is
     albums.py         the album buffer and its assembly
@@ -1451,7 +1467,7 @@ app/
     figures.py        drawings cut out of the page, placed back after composing
     lectures.py       where a lecture begins on a page; one lecture a record
     merge.py          one lecture from several notebooks: which is one, what each adds
-    images.py         compression, and the two threads image work runs on
+    images.py         compression, a PDF's pages drawn, and the two threads image work runs on
     limits.py         spend limits
     docx.py           .docx → markdown, no model call
     graphcheck.py     a matrix against the graph drawn beside it

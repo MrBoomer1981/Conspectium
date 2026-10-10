@@ -148,7 +148,7 @@ def equality_lines(
 
 
 # Documents — app/bot/handlers.py handle_document.
-DOCX_ONLY = "Понимаю только файлы .docx. Другие форматы пока не умею."
+DOCX_ONLY = "Понимаю файлы .docx и PDF. Другие форматы пока не умею."
 
 FILE_TOO_BIG = "Файл больше 5 МБ. Пришли документ поменьше."
 
@@ -157,6 +157,25 @@ FILE_TOO_BIG = "Файл больше 5 МБ. Пришли документ по
 IMAGE_TOO_BIG = (
     "Картинка больше 20 МБ — такую мне не скачать. Пришлите её обычным фото."
 )
+
+# A PDF of notes, read page by page as an album — app/bot/handlers.py
+# _read_pdf (task 100). Telegram lets a bot download 20 MB at most.
+PDF_TOO_BIG = (
+    "PDF больше 20 МБ — такой мне не скачать. Пришлите страницы фотографиями."
+)
+
+PDF_UNREADABLE = "Не смог открыть PDF: файл повреждён или защищён паролем."
+
+PDF_BLANK = "В этом PDF все страницы пустые — читать нечего."
+
+
+def pdf_too_many_pages(limit: int) -> str:
+    """A PDF longer than an album may be, refused before a page is read."""
+    pages = _plural(limit, "страницы", "страниц", "страниц")
+    return (
+        f"В этом PDF больше {limit} {pages} — столько за раз не читаю. "
+        "Пришлите его частями."
+    )
 
 # Calling the bot on pages somebody else sent to a group —
 # app/bot/handlers.py handle_summon.
@@ -202,6 +221,8 @@ ALBUM_INCOMPLETE = (
 
 ALBUM_RESEND = "Переснимите эти страницы и пришлите альбом заново."
 
+PDF_RESEND = "Пришлите PDF заново, с этими страницами почётче."
+
 ALBUM_PARTIAL = (
     "Конспект сохранён без этих страниц — в документе на их месте стоит "
     "пометка, чтобы пропуск нельзя было прочитать как целую запись."
@@ -210,11 +231,12 @@ ALBUM_PARTIAL = (
 ALBUM_SEND_MISSING = "Пришлите их отдельно, и они станут отдельной записью."
 
 
-def album_incomplete(skips: list[tuple[int, str]]) -> str:
-    """Why nothing was saved, and which pages to take again."""
+def album_incomplete(skips: list[tuple[int, str]], resend: str = ALBUM_RESEND) -> str:
+    """Why nothing was saved, and which pages to take again — PDF_RESEND for
+    a PDF's, which no camera takes again."""
     lines = [ALBUM_INCOMPLETE, ""]
     lines += [page_skipped(page, reason) for page, reason in skips]
-    lines += ["", ALBUM_RESEND]
+    lines += ["", resend]
     return "\n".join(lines)
 
 
@@ -235,6 +257,31 @@ def album_retake(skips: list[tuple[int, str]]) -> str:
     ]
     lines += ["", ALBUM_RETAKE_HOW]
     return "\n".join(lines)
+
+
+# A page of a PDF the frame check turned away (task 100): the whole PDF waits,
+# as an album does since task 43 — the CEO's choice of 2026-10-10.
+PDF_RETAKE = "Этот PDF пока не читаю — страницы не прошли проверку:"
+
+PDF_RETAKE_HOW = (
+    "Пришлите PDF заново — с этими страницами почётче или без них, — "
+    "и соберу одну полную запись."
+)
+
+
+def pdf_retake(skips: list[tuple[int, str]]) -> str:
+    """Which pages of a PDF the frame check refused, before any was read: the
+    cause alone, since photoguard's advice after it — «добавьте света» — is
+    a photographer's."""
+    lines = [PDF_RETAKE, ""]
+    lines += [f"Страница {page}: {_cause(reason)}." for page, reason in skips]
+    lines += ["", PDF_RETAKE_HOW]
+    return "\n".join(lines)
+
+
+def _cause(reason: str) -> str:
+    cause = reason.split(" — ")[0].strip()
+    return cause[:1].lower() + cause[1:]
 
 
 def album_partial(skips: list[tuple[int, str]]) -> str:
@@ -598,7 +645,8 @@ HELP = "\n".join(
         "Чтобы найти запись позже — пришли тег: #физика, или название "
         "темы, например #производная.",
         "",
-        ".docx тоже приму — его распознавать не нужно.",
+        "PDF конспекта тоже приму — прочитаю каждую страницу, как фото. "
+        "И .docx — его распознавать не нужно.",
         "",
         "Добавь меня в чат своей группы: там я беру фото с тегом предмета "
         "в подписи и присылаю PDF всем.",
@@ -617,8 +665,8 @@ GROUP_HELP = "\n".join(
     [
         "Я делаю из фотографий конспекта PDF для всей группы.",
         "",
-        "Пришлите фото или альбом страниц с тегом предмета в подписи, "
-        "например #матан, — верну PDF сюда. Фото без тега не трогаю.",
+        "Пришлите фото, альбом страниц или PDF с тегом предмета в подписи, "
+        "например #матан, — верну PDF сюда. Без тега не трогаю.",
         "",
         "Если страницы уже прислали без тега, ответьте на них тегом — "
         "#матан — и я сделаю запись из них.",

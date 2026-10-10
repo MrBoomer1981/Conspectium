@@ -42,8 +42,13 @@ router = Router()
 
 # Telegram documents over this size are refused before download.
 _MAX_DOCX_BYTES = 5 * 1024 * 1024
-# An image sent as a file: the most Telegram lets a bot download.
+# An image sent as a file, or a PDF: the most Telegram lets a bot download.
 _MAX_IMAGE_BYTES = 20 * 1024 * 1024
+# A PDF of more pages than this many albums hold is refused before a page of
+# it is drawn (task 100). A scan of both sides of every sheet holds twice the
+# pages its writing fills, the blank backs left out once drawn; past that a
+# PDF is no lecture's, and drawing it would hold an image thread for minutes.
+_PDF_DRAWN_ALBUMS = 2
 
 # How long a page of a group's album can still be called on by a reply. A
 # lecture is reached for within days of it — the author's choice, 2026-09-29.
@@ -520,19 +525,23 @@ async def handle_document(
     bot: Bot,
     group: Group | None = None,
 ) -> None:
-    """.docx only. The text is already machine-readable, so there is no model
-    call: no limits are checked and no quota is spent — a Word file is
-    processed even with AI_ENABLED=false. Steps 0, 4-10, 12 and 14 are skipped;
-    step 11 (empty text) still applies."""
+    """A .docx or a PDF. A PDF is read page by page as an album (_read_pdf).
+    A .docx is already machine-readable, so there is no model call: no limits
+    are checked and no quota is spent — a Word file is processed even with
+    AI_ENABLED=false. Steps 0, 4-10, 12 and 14 are skipped; step 11 (empty
+    text) still applies."""
     tag = tags.from_caption(message.caption)
     if group is not None and tag is None:
         return  # not the bot's in a group; see handle_photo
+    if _is_pdf(message.document):
+        await _read_pdf(message, session, user, bot, group, tag)
+        return
     group_id = group.id if group is not None else None
     document = message.document
     name = document.file_name or ""
     if not name.lower().endswith(".docx"):
-        # In a group a file with a "#word" under it is slides or a textbook
-        # shared with the others, not something sent to the bot.
+        # In a group a file with a "#word" under it that is neither is slides
+        # or a textbook shared with the others, not something sent to the bot.
         if group is None:
             await message.answer(texts.DOCX_ONLY)
         return
@@ -609,6 +618,84 @@ async def handle_document(
     await session.flush()  # note.id, for the file name and the caption
     await corpus.deliver(message, session, note, user, group)
     await corpus.ask_for_tag(message, session, user, note, group, filing)
+
+
+def _is_pdf(document) -> bool:
+    """A PDF by the type Telegram gives it, or by its name: a file sent from a
+    computer may come without the type."""
+    name = (document.file_name or "").lower()
+    return document.mime_type == "application/pdf" or name.endswith(".pdf")
+
+
+async def _read_pdf(
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+    group: Group | None,
+    tag: str | None,
+) -> None:
+    """A PDF of notes (task 100): every page drawn as a picture and read as an
+    album's page, whatever the PDF holds — a typed PDF's text layer flattens
+    its formulas, and a scanner lays a junk one over handwriting. An album's
+    limits and refusals hold, a page the frame check refuses stopping the
+    whole PDF; a blank page is left out without a word. Nothing of the file
+    is kept: its pages exist while they are read (rule 3)."""
+    document = message.document
+    if (document.file_size or 0) > _MAX_IMAGE_BYTES:
+        await message.answer(texts.PDF_TOO_BIG)
+        return
+    # In a group the PDF claims itself as a photograph does (task 41).
+    source_key = corpus.source_key(message) if group is not None else None
+    async with corpus.reading(session, group, source_key) as ours:
+        if not ours:
+            return
+        data = (await bot.download(document)).read()
+        limit = settings.MAX_ALBUM_PAGES
+        try:
+            count = await images.in_worker(images.pdf_page_count, data)
+            drawn = (
+                await images.in_worker(
+                    images.pdf_pages,
+                    data,
+                    settings.IMAGE_MAX_SIDE,
+                    settings.IMAGE_QUALITY,
+                )
+                if count <= _PDF_DRAWN_ALBUMS * limit
+                else None
+            )
+        except Exception:
+            # Broken, or locked by a password: PDFium's words are in the log.
+            logger.warning("a PDF could not be opened or drawn", exc_info=True)
+            await message.answer(texts.PDF_UNREADABLE)
+            return
+        if drawn is not None and not drawn:
+            await message.answer(texts.PDF_BLANK)
+            return
+        if drawn is None or len(drawn) > limit:
+            await message.answer(texts.pdf_too_many_pages(limit))
+            return
+        logger.info("pdf: %d pages, %d blank left out", count, count - len(drawn))
+        pages = [
+            albums.PageInput(
+                data=page.image,
+                message_id=message.message_id,
+                chat_id=message.chat.id,
+                media_group_id=None,
+                bytes_before=page.drawn,
+                bytes_after=len(page.image),
+                width=page.width,
+                height=page.height,
+                tag=tag,
+                caption=message.caption,
+                number=page.number,
+            )
+            for page in drawn
+        ]
+        await _process_album(
+            message, session, user, pages, group, bot=bot, tag=tag,
+            source_key=source_key, source_type="pdf",
+        )
 
 
 async def _keep_figures(
@@ -749,6 +836,7 @@ async def _process_album(
     tag: str | None = None,
     source_key: str | None = None,
     sender: User | None = None,
+    source_type: str = "photo",
 ) -> None:
     """Assemble a buffered album into one Note. The single-photo pipeline never
     runs for album pages — this is the batch equivalent, and the per-page work
@@ -758,7 +846,10 @@ async def _process_album(
     `tag` is the subject a reply called the bot with, for an album that came
     without one (handle_summon), and `sender` whoever sent that album;
     `source_key` is what a group's record is made of. Pages still held as
-    Telegram's references are downloaded with `bot`."""
+    Telegram's references are downloaded with `bot`. A PDF's pages come
+    drawn, as `source_type` "pdf" (task 100), and the replies say PDF where
+    an album's say album."""
+    pdf = source_type == "pdf"
     # In a group an album is the bot's only when one of its pages carries a
     # "#word" in its caption, or a reply called the bot on it; without one it
     # is people sharing photos, and the bot says nothing — before the size
@@ -800,8 +891,8 @@ async def _process_album(
                 "bytes_after": page.bytes_after,
                 "width": page.width,
                 "height": page.height,
-                "source_type": "photo",
-                "page": number,
+                "source_type": source_type,
+                "page": page.number or number,
                 "media_group_id": page.media_group_id,
             },
             group_id=group_id,
@@ -821,8 +912,9 @@ async def _process_album(
             {"pages": len(ordered), "refused": _skip_payload(refused)},
             group_id=group_id,
         )
+        retake = [(p.page, p.skip_reason) for p in refused]
         await message.answer(
-            texts.album_retake([(p.page, p.skip_reason) for p in refused])
+            texts.pdf_retake(retake) if pdf else texts.album_retake(retake)
         )
         return
 
@@ -857,7 +949,8 @@ async def _process_album(
         )
         await message.answer(
             texts.album_incomplete(
-                [(p.page, p.skip_reason) for p in outcome.skips]
+                [(p.page, p.skip_reason) for p in outcome.skips],
+                texts.PDF_RESEND if pdf else texts.ALBUM_RESEND,
             )
         )
         return
@@ -908,7 +1001,7 @@ async def _process_album(
         + [asdict(item) for item in explaining.elements]
         + [asdict(item) for item in explaining.captions],
         summary=explaining.summary,
-        source_type="photo",
+        source_type=source_type,
         page_count=rec.page_count,
         status=rec.status,
         margin_notes=rec.margin_notes,
@@ -943,7 +1036,7 @@ async def _process_album(
         {
             "verdict": rec.verdict,
             "page_count": rec.page_count,
-            "source_type": "photo",
+            "source_type": source_type,
             "pages_skipped": len(outcome.skips),
             # The same four numbers as in album_incomplete, and for the same
             # reason: a page is turned away on these, and now that the record
