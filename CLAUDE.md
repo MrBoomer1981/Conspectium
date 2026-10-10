@@ -724,7 +724,7 @@ from 12a, once.
   asks the model, three runs a page that describes one, only where each
   drawing is and what its labels say (`prompts-sketch-v1.md`): a frame
   counts where two runs frame it alike, a label where two read it alike at
-  one place. `strokes.py` traces the lines off the photograph: the paper's
+  one place, or one does and the drawing's own words name it. `strokes.py` traces the lines off the photograph: the paper's
   light divided out, the notebook's grid found off the spectrum and taken
   off line by line, the strokes by an oriented filter, joined, kept once,
   straight where drawn straight; the labels set in type where the

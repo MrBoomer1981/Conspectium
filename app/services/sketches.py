@@ -131,11 +131,36 @@ def _centre(box) -> tuple[float, float]:
     return (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
 
 
-def agreed(runs: list[list[dict] | None], count: int) -> list[strokes.Sketch | None]:
+# A symbol of the formulas in a drawing's words: what stands between their
+# signs and separators, «$p \in K^c$ и $q \in K$» giving p, K^c, q, K.
+_MATH_RE = re.compile(r"\$([^$]+)\$")
+_SYMBOL_SPLIT_RE = re.compile(
+    r"\\(?:in|notin|subset|subseteq|supset|cup|cap|setminus|to|le|ge|leq|geq|ne|neq|approx|cdot|times)(?![A-Za-z])"
+    r"|[\s,;:=<>()|+\-]+"
+)
+
+
+def _symbols(words: str) -> set[str]:
+    """The symbols the formulas of a drawing's words name, compared as
+    labels are."""
+    found = set()
+    for math in _MATH_RE.findall(words or ""):
+        for token in _SYMBOL_SPLIT_RE.split(math):
+            token = _same_text(token)
+            if token:
+                found.add(token)
+    return found
+
+
+def agreed(
+    runs: list[list[dict] | None], count: int, described: list[str] | None = None
+) -> list[strokes.Sketch | None]:
     """Each drawing as the runs agree on it, or None: the largest set of
     runs whose frames overlap pairwise by half, two at least; the frame
-    every one of them reaches and the one they all hold; and the labels
-    of the first of them that another reads the same at the same place."""
+    every one of them reaches and the one they all hold; and every label
+    any of them reads that a second reads the same at the same place — or
+    that the drawing's own words, which every reading of the page agreed
+    on, name among their formulas' symbols."""
     usable = [run for run in runs if run is not None and len(run) == count]
     out: list[strokes.Sketch | None] = []
     for i in range(count):
@@ -159,20 +184,33 @@ def agreed(runs: list[list[dict] | None], count: int) -> list[strokes.Sketch | N
         if inner[2] <= inner[0] or inner[3] <= inner[1]:
             out.append(None)
             continue
-        labels = []
-        for label in usable[best[0]][i]["labels"]:
-            text, (cy, cx) = _same_text(label.text), _centre(label.box)
-            if not text:
-                continue
-            for g in best[1:]:
-                if any(
-                    _same_text(other.text) == text
-                    and abs(_centre(other.box)[0] - cy) <= _SAME_PLACE
-                    and abs(_centre(other.box)[1] - cx) <= _SAME_PLACE
-                    for other in usable[g][i]["labels"]
+        named = _symbols(described[i]) if described and i < len(described) else set()
+        labels: list[strokes.Label] = []
+        taken: list[tuple[str, float, float]] = []
+        for g in best:
+            for label in usable[g][i]["labels"]:
+                text, (cy, cx) = _same_text(label.text), _centre(label.box)
+                # one label read by two runs a little apart is one label: a
+                # third run's U₁ stood further from the first's than the two
+                # agreeing runs stood from each other
+                if not text or any(
+                    t == text and abs(y - cy) <= 2 * _SAME_PLACE and abs(x - cx) <= 2 * _SAME_PLACE
+                    for t, y, x in taken
                 ):
+                    continue
+                readers = 1 + sum(
+                    any(
+                        _same_text(other.text) == text
+                        and abs(_centre(other.box)[0] - cy) <= _SAME_PLACE
+                        and abs(_centre(other.box)[1] - cx) <= _SAME_PLACE
+                        for other in usable[h][i]["labels"]
+                    )
+                    for h in best
+                    if h != g
+                )
+                if readers >= 2 or text in named:
                     labels.append(label)
-                    break
+                    taken.append((text, cy, cx))
         out.append(strokes.Sketch(frame, inner, labels))
     return out
 
@@ -252,7 +290,7 @@ async def read(image_bytes: bytes, markdown: str) -> tuple[list[strokes.Sketch |
         else:
             runs.append(answer)
     try:
-        sketches = agreed(runs, len(described))
+        sketches = agreed(runs, len(described), described)
     except Exception:
         logger.warning("sketches: the runs could not be compared", exc_info=True)
         sketches = [None] * len(described)

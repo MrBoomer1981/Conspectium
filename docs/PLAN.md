@@ -6193,7 +6193,8 @@ came out faint, the grid over a light hand's strokes, and read as worse.
    and its «[схема: …]» lines, each drawing's frame and each label with its
    box, in thousandths of the photograph. Three runs; a frame counts where
    two frame the drawing alike (overlapping by half), a label where two read
-   it alike within two letters of each other. Asked tonight for the lines
+   it alike within two letters of each other, or where one reads it and the
+   drawing's own words name it among their formulas' symbols. Asked tonight for the lines
    themselves, the model drew circles of the wrong size where the author
    drew four balls and a full grid where he drew three lines, every run its
    own: its geometry is not to be drawn.

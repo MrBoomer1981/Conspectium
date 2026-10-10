@@ -1269,7 +1269,11 @@ def _redraw(page: Page, sketch: Sketch) -> Redrawn:
             # goes, and the label's patch of paper covers the stroke there
             letters[y0 : y1 + 1, x0 : x1 + 1] = True
         gone |= letters
-        placed.append((label.text, y0 + (gy.min() + gy.max()) / 2, x0 + (gx.min() + gx.max()) / 2))
+        anchor = (y0 + (gy.min() + gy.max()) / 2, x0 + (gx.min() + gx.max()) / 2)
+        # the same label is never set twice in one place
+        if any(text == label.text and math.hypot(y - anchor[0], x - anchor[1]) < 1.5 * letter for text, y, x in placed):
+            continue
+        placed.append((label.text, anchor[0], anchor[1]))
     gone = np.asarray(Image.fromarray((gone * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)), bool)
     crests &= ~gone
 

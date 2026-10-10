@@ -2390,6 +2390,15 @@ record 106's plane past the gate, and darkest throughout let a dashed level
 four pixels off a grid line pull the line onto itself. Record 106's six and
 both sets of frames: as before.
 
+**Labels from every run, and from the drawing's own words.** A label was
+taken only from the first of the agreeing runs and confirmed by another: one
+the second and third read alike was lost. Now every run's labels stand, a
+label counting where two read it alike — the same label two runs place a
+little apart counted once — or where one reads it and the drawing's words,
+which every reading of the page agreed on, name it among their formulas'
+symbols: «точки $p \in K^c$ и $q \in K$» confirms p and q. Never where no
+ink is in the box.
+
 ## Moved from CLAUDE.md, 2026-10-10
 
 When `CLAUDE.md` was cut back to its rules a second time, its records'
