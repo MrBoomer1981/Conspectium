@@ -424,9 +424,10 @@ it — the CEO's, not yet scheduled:
 - [ ] 94. A drawing that is data, drawn by code: a function's graph by its
       formula, a number line with its points and sets, a mapping of two
       sets with its arrows — the CEO's, measured on an album sent again.
-      Taken and built on 2026-10-10, and production switched to
-      `prompts-v10.md` the same day on the CEO's word; record 97's album
-      sent again is its check
+      Taken and built on 2026-10-10, and production switched the same
+      day on the CEO's word — to `prompts-v11.md` after record 105 showed
+      v10 writing a number line in words; record 97's album sent again is
+      its check
 - [ ] 95. A formula or a drawing with no word about it gets the bot's
       caption — the CEO's, measured first. Taken on 2026-10-09; a call of
       its own beside the explaining stage's first, measured on seven
@@ -604,6 +605,7 @@ since 2026-10-01.
 | 2026-10-10 | the CEO, with Claude Code | Task 94 taken and built, the CEO's word: «давай начнем работать над рисунками в конспектах». Read first over every record in the database: 149 drawings printed as their words, a number line the commonest of those that are data — 23 — then a sequence's graph, 13, a function's two and a mapping's four; sets, balls, neighbourhoods and planes, 48, are no data and stay words, and 40 are graphs the older records described rather than gave as edges. Recognition writes three kinds as data, `prompts-v10.md` — v6 with rule 6 widened, 328 words against v6's 249 and v4's 321: `[график: …]`, `[прямая: …]`, `[отображение: …]`, each on a line of its own; `pdf.py` draws them as the reference lecture draws its figures. A chart is drawn only when another run read the same data (`charts.agreed`, in `transcribe_consensus`), and otherwise goes into the record as the words it stands for, `[схема: …]`: an invented point is drawn as confidently as a real one. The composer never sees a chart's data, which stands in its text as a line it keeps, and a composition that loses one is refused. The checks of the work do not read it. `note_processed` gains `charts` ("Contracts"); the contract between the prompt and `pdf.py` widens, what is shared, the CEO's word enough and the CPO told. Production stays on v6 until the measurement: record 97's album sent again under v10, the drawings against the photographs, the agreements against record 101's. `merge`'s drawing pattern now takes a description whole when it holds brackets of its own | the CEO's own |
 | 2026-10-10 | the CEO, with Claude Code | Task 94 made sure of before it shipped, the CEO's word «пишем один раз и навсегда»: the runs are compared without their charts, so a chart's range moves no agreement and flags no divergence; two runs' names are alike as one expression however written; a number line's sets compared in their places; a composition that writes a chart's place twice is refused; every figure a chart draws is closed whatever happens; a graph whose values span more than a million is words. Production reads `prompts-v10.md` from the same day, the CEO's switch, record 97's album sent again its check | the CEO's own |
 | 2026-10-10 | the CEO, with Claude Code | Two rules of how work is done, the CEO's: one piece of work, one commit — its code, its lines here, the documents and README together, «всегда отправляем меньшим кол-вом коммитов» — in place of a `plan:` commit of its own and README in a `docs:` one; and code written once, to work for good, «пишем один раз и навсегда» — a change ships whole, run against what production holds and against input made to break it. `CLAUDE.md` → "Who decides", "How to work in this project" | the CEO's own |
+| 2026-10-10 | the CEO, with Claude Code | Task 94: record 105 — record 59's album sent again under v10 — came back with no chart, the CEO's «смотри и ищи». Of its ten drawings eight are sketches and one an ε-strip with no formula, words by design; the tenth, a number line, v10 wrote in words, and in the container it wrote every number line so, every run, where it wrote a parabola, a mapping and a sequence as data. `prompts-v11.md` — rule 6 asks first whether a drawing is one of the kinds, «[схема: …]» only for one that is none, a set with no ends written where it stands — wrote them all as data on every run, and production reads it from the same evening. The runs settle a chart at its place: one the chosen run described in words is drawn as two other runs read it alike. The log says every page's charts by run. `FINDINGS.md` → "Record 105, and the prompt that wrote no chart" | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -5714,14 +5716,19 @@ are what drawings cut out of the page would be for.
 ## Do, as built
 
 1. **Recognition writes such a drawing as data**, each on a line of its
-   own — `prompts-v10.md`, v6 with rule 6 widened, 328 words:
+   own — `prompts-v11.md`, v6 with rule 6 widened, 360 words: it asks
+   first whether a drawing is one of the kinds, and «[схема: …]» only for
+   one that is none — v10, 328 words, named the kinds and kept «остальные
+   схемы — [схема: …]», and wrote a number line in words, every run
+   (`FINDINGS.md` → "Record 105, and the prompt that wrote no chart"):
    - `[график: y = x^2; x от -2 до 2]` — a function's graph, its formula
      written by the drawing or just before it; a sequence, `x_n = …`, is
      drawn as its terms; a constant as a level, dashed; the range only
      where the drawing writes one;
-   - `[прямая: a, c, X = [a; c), (c; +\infty)]` — a number line: its
-     points left to right, then its intervals and rays; «множество X» for
-     a set whose ends the drawing does not name;
+   - `[прямая: a_1, a_2, b_2, b_1; I_1 = [a_1; b_1], I_2 = [a_2; b_2]]` —
+     a number line: its points left to right, then its intervals and rays;
+     «множество X» — «отрезок X» reads the same — for a set whose ends the
+     drawing does not name, where it stands among the points;
    - `[отображение: A -> B; 1 -> a, 2 -> a, 3 -> b, c]` — a mapping: its
      arrows, «c» an element no arrow comes to, «3 ->» one none goes out
      of, «•1» a dot with no name.
@@ -5736,8 +5743,12 @@ are what drawings cut out of the page would be for.
    which a reading estimates; a line by its points in order and what each
    interval spans; a mapping by its arrows. One no other run read alike,
    or read by one run alone, goes into the record as the words it stands
-   for, `[схема: график: $y = x^2$ …]`. The log says how many were written
-   and how many agreed. A name is alike written alike or as one expression
+   for, `[схема: график: $y = x^2$ …]`. Settled at its place when the
+   runs' drawings line up one for one: a drawing the chosen run described
+   in words, or read otherwise, is drawn as two other runs read it alike —
+   the chosen run was chosen for its text, not its drawings. The log says
+   on every page how many charts each run wrote, how many are drawn and
+   how many were taken from the other runs. A name is alike written alike or as one expression
    however written — «\frac{1}{2}» and «0.5», «1 − 1/n» and «1-\frac{1}{n}»
    — counted at random numbers as algebracheck counts. The runs are
    compared without their charts — the two agreements, the divergences,
@@ -5778,9 +5789,12 @@ Every record of the database parses and renders as it did: none carries a
 chart. Four thousand lines made to break it — formulas cut short, brackets
 unclosed, ranges reversed, a hundred arrows — parse, agree and draw with
 not one error, and the figures they drew are all closed; what does not
-read prints as its words. Production reads `prompts-v10.md` since
+read prints as its words. Production read `prompts-v10.md` from
 2026-10-10, the CEO's word — «пишем один раз и навсегда» — rather than a
-trial to be taken back. Record 97's album sent again is its check — the
+trial to be taken back, and `prompts-v11.md` the same evening: record 105,
+record 59's album sent again, printed its number line in words, and v10
+wrote such a line in words on every run in the container, where v11 draws
+it. Record 97's album sent again is its check — the
 album of records 97 and 101, with its parabola, its number lines and its
 mappings: the CEO compares the drawings with the photographs; the log says
 how many charts the runs wrote and agreed on; the two agreements are read

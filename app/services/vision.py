@@ -1110,13 +1110,13 @@ async def transcribe_consensus(
         only = ok_runs[0]
         # Its charts are written as the words they stand for: a drawing is
         # drawn only when a second run read the same data (task 94).
-        alone, written, _kept = charts.agreed([only.markdown], 0)
-        if written:
-            logger.info("consensus: charts %d written, none drawn from one run", written)
+        alone = charts.agreed([only.markdown], 0)
+        if PROMPT_WRITES_CHARTS or alone.by_run[0]:
+            logger.info("consensus: charts %d written by the one run, none drawn", alone.by_run[0])
         return (
             TranscriptionResult(
                 best=replace(
-                    only, uncertain=meaningful_uncertain(only.uncertain), markdown=alone
+                    only, uncertain=meaningful_uncertain(only.uncertain), markdown=alone.markdown
                 ),
                 text_agreement=None,
                 numeric_agreement=None,
@@ -1152,8 +1152,10 @@ async def transcribe_consensus(
     # stands for (task 94): an invented point or arrow is drawn as
     # confidently as a real one, and the runs' agreement is the one signal
     # that has proved reliable.
-    charted, charts_written, charts_kept = charts.agreed(markdowns, chosen_index)
-    best = replace(chosen, uncertain=meaningful_uncertain(chosen.uncertain), markdown=charted)
+    settled = charts.agreed(markdowns, chosen_index)
+    best = replace(
+        chosen, uncertain=meaningful_uncertain(chosen.uncertain), markdown=settled.markdown
+    )
 
     vouched = numbers_vouch(compared, reported)
     verdict = _verdict(text_agreement, vouched)
@@ -1191,8 +1193,16 @@ async def transcribe_consensus(
             len(chosen.lecture_starts),
             len(result.lecture_starts),
         )
-    if charts_written:
-        logger.info("consensus: charts %d written, %d agreed", charts_written, charts_kept)
+    # On every page the prompt asks for charts, a page with none included:
+    # silence could not tell a reading that wrote none from one whose chosen
+    # run did not (record 105).
+    if PROMPT_WRITES_CHARTS or any(settled.by_run):
+        logger.info(
+            "consensus: charts by run %s, %d drawn, %d of them taken from the other runs",
+            settled.by_run,
+            settled.kept,
+            settled.taken,
+        )
     logger.info(
         "consensus: %d/%d runs %s, text_agreement=%.3f, "
         "numeric_agreement=%.3f, verdict=%s%s, "

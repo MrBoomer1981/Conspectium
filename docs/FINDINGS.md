@@ -2232,6 +2232,45 @@ composer and drawn: not one error, every figure closed, and what did not
 read printed as its words. A word with «∞» in it was an empty box in
 Onest; it is set in DejaVu now.
 
+## Record 105, and the prompt that wrote no chart
+
+Task 94, the same evening. The CEO sent record 59's album again — a lecture
+on compactness, five pages — under `prompts-v10.md`, and saw no graph.
+Record 105 printed ten drawings as words: eight sketches of sets, balls
+and neighbourhoods, which are no data; a sequence in its ε-strip with no
+formula, which is none either; and «координатная ось с отмеченными
+точками $0+\frac{1}{n}$ и $1-\frac{1}{n}$» — a number line, which v10
+asked for as `[прямая: …]`. The log said nothing of charts: it spoke only
+when the chosen run wrote one.
+
+**Read again in the container, three runs a page, on pages made for it**
+— the reference lecture's nested segments and its three balls, and four
+pages drawn in a hand's manner: a parabola, a mapping, a sequence's
+points, sets X and Y with c between:
+
+- **v10 wrote charts where the drawing was plainly one**: the parabola,
+  the mapping, the sequence and X, c, Y, every run alike. **It wrote the
+  number line in words**, every run, the data all there — «отрезки
+  I₁ = [a₁, b₁] … на числовой прямой с точками a₁, a₂, a₃, b₃, b₂, b₁» —
+  under «остальные схемы — [схема: …]», the habit the rule kept.
+- **v11 asks first whether a drawing is one of the kinds, and «[схема: …]»
+  only for one that is none**: every run wrote the nested segments as
+  `[прямая: a_1, a_2, a_3, b_3, b_2, b_1; I_1 = [a_1; b_1], …]`, and the
+  page made like record 105's line as `[прямая: 0, 1/n, 1 - 1/n, 1; [1/n;
+  1 - 1/n]]`. The balls and the ε-strip with no formula stayed words, as
+  they should.
+- **Points first, then intervals, put the sets last**: v11's first draft
+  had «c; множество X, множество Y», X drawn right of c. A set with no
+  ends is written where it stands among the points now; one run of three
+  still wrote «отрезок X», which reads as «множество X».
+
+**What the runs settle, made surer**: the run a record's text comes from
+is chosen for its text, and its drawings may be the odd ones. A chart is
+now settled at its place when the runs' drawings line up one for one: the
+chosen run's stays when another read it alike, and one the chosen run
+described in words, or read otherwise, is drawn as two other runs read it
+alike. The log says on every page how many charts each run wrote.
+
 ## Moved from CLAUDE.md, 2026-10-10
 
 When `CLAUDE.md` was cut back to its rules a second time, its records'

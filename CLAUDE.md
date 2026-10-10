@@ -135,9 +135,8 @@ In a session:
 - **What production runs**, as last read off the startup log, 2026-10-08 —
   the log is the authority, and `docs/PLAN.md` → "What production says" the
   record of the first readings: recognition on `gemini-3.8-flash`, three
-  runs, `prompts-v10.md` since 2026-10-10 — v6 with a drawing that is data
-  written as data, the CEO's switch, checked on record 97's album sent
-  again — thinking at the model's default; composition on,
+  runs, `prompts-v11.md` since 2026-10-10 — v6 with a drawing that is data
+  written as data, the CEO's switch — thinking at the model's default; composition on,
   `gemini-3.8-flash`, `prompts-compose-v4.md` since 2026-10-06, thinking
   `low`; the explaining stage on,
   `gemini-3.8-flash`, its searches at `low`, `prompts-explain-v3.md` since
@@ -1258,7 +1257,10 @@ on one side, the record prints the spec. Nothing yet compares the runs' edge
 lists — `docs/PLAN.md` → Known risks. → "Record 74, a lecture on trees"
 
 **A drawing that is data is drawn from its data** (task 94, the CEO's,
-2026-10-10), from `prompts-v10.md` on: `[график: y = x^2; x от -2 до 2]` —
+2026-10-10), from `prompts-v10.md` on — `v11` asking first whether a
+drawing is one of the kinds, «[схема: …]» only for one that is none, since
+v10 wrote a number line in words (→ "Record 105, and the prompt that
+wrote no chart"): `[график: y = x^2; x от -2 до 2]` —
 a function by its formula, a sequence as its terms, a constant as a dashed
 level; `[прямая: a, c, X = [a; c), (c; +\infty)]` — a number line, its
 points left to right and its intervals, «множество X» for a set whose ends
@@ -1271,9 +1273,13 @@ ovals and their arrows — names in the formulas' face, at the size they are
 set. **A chart is drawn only when another run read the same data**
 (`charts.agreed`, in `transcribe_consensus`): a curve by the numbers it
 comes to, not its range; a line by its points and intervals; a mapping by
-its arrows. One no other run read alike, or one run's alone, goes into the
-record as its words, `[схема: …]` — an invented point is drawn as
-confidently as a real one. The runs are compared without their charts —
+its arrows; a name as one expression however written. Settled at its
+place when the runs' drawings line up: one the chosen run described in
+words, or read otherwise, is drawn as two other runs read it alike — the
+chosen run was chosen for its text. One no two runs read alike, or one
+run's alone, goes into the record as its words, `[схема: …]` — an invented
+point is drawn as confidently as a real one. The log says every page's
+charts by run. The runs are compared without their charts —
 the agreements, the divergences, the medoid — so a range one run read
 wider is no number misread. A formula with a letter its range does not
 give, «y = kx + b», is no data. The checks of the work never read a
@@ -1528,9 +1534,10 @@ CLAUDE.md, README.md  in the root, where Claude Code and GitHub read them
 extraction only, v6 (production) v5 with the author's frames written as
 `\boxed{…}`, v7 without the list of numbers, tried and rolled back, v8 v6
 with each drawing's frame, measured and asleep (task 54), v9 v6 with where a
-lecture begins, measured and asleep (task 64), v10 (production since
-2026-10-10) v6 with a drawing that is data written as data (task 94);
-composing
+lecture begins, measured and asleep (task 64), v10 v6 with a drawing
+that is data written as data (task 94), which wrote a number line in
+words, v11 (production since 2026-10-10) v10 asking first whether a
+drawing is one of the kinds; composing
 `prompts-compose-v1.md` to `v4`, v3 framing a section's main formula, v4
 (production since 2026-10-06) v3 with the author's shorthand spelled out
 (task 69);

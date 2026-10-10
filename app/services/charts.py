@@ -543,7 +543,13 @@ def _plot(spec: str) -> Plot | None:
 
 
 _INFINITY_RE = re.compile(r"^([+-]?)\s*(?:\\infty|∞)$")
-_SET_RE = re.compile(r"^(?:множество|мн-во)\s+(?P<name>\S.{0,15})$", re.IGNORECASE)
+# A set whose ends the drawing does not name, written where it stands among
+# the points: «множество X», and «отрезок X», «интервал X» as a reading may
+# put it — one run of three wrote «отрезок X, c, отрезок Y» for the others'
+# «множество X, c, множество Y».
+_SET_RE = re.compile(
+    r"^(?:множество|мн-во|отрезок|интервал|промежуток)\s+(?P<name>\S.{0,15})$", re.IGNORECASE
+)
 _INTERVAL_RE = re.compile(
     r"^(?:(?P<name>[^=:\[\]()]{1,16}?)\s*[=:]\s*)?(?P<open>[\[(])(?P<inside>.*)(?P<close>[\])])$"
 )
@@ -873,36 +879,99 @@ def alike(one: Chart, other: Chart) -> bool:
     return {(left[tail], right[head]) for tail, head in one.arrows} == set(other.arrows)
 
 
-def _read_all(markdown: str) -> list[Chart]:
+# A drawing a reading described in words, its brackets nested once — the
+# words of a chart not drawn, «[схема: числовая прямая: $X = [0; c)$]».
+_DESCRIBED_RE = re.compile(
+    r"\[\s*схема\s*:(?:[^\[\]\n]|\[[^\[\]\n]*[\])])*\]", re.IGNORECASE
+)
+
+
+@dataclass
+class _Slot:
+    """One drawing of a reading, in its order on the page: a chart with its
+    data, or a drawing described in words (`kind` None)."""
+
+    start: int
+    end: int
+    kind: str | None
+    chart: Chart | None
+    text: str
+
+
+def _slots(markdown: str) -> list[_Slot]:
     found = []
     for start, end, kind in spans(markdown):
         inside = read(markdown[start + 1 : end - 1])
         chart = parse(kind, inside[1]) if inside else None
-        if chart is not None:
-            found.append(chart)
-    return found
+        found.append(_Slot(start, end, kind, chart, markdown[start:end]))
+    for match in _DESCRIBED_RE.finditer(markdown):
+        if not any(slot.start < match.end() and match.start() < slot.end for slot in found):
+            found.append(_Slot(match.start(), match.end(), None, None, match.group(0)))
+    return sorted(found, key=lambda slot: slot.start)
 
 
-def agreed(markdowns: list[str], chosen: int) -> tuple[str, int, int]:
-    """The chosen run's text with every chart no other run read alike
-    written as the words it stands for, how many charts it wrote, and how
-    many it keeps. One run alone keeps none: nobody read it a second time."""
-    others = [_read_all(markdown) for index, markdown in enumerate(markdowns) if index != chosen]
+@dataclass
+class Agreement:
+    """What the runs' charts came to: the chosen run's text with its charts
+    settled, how many charts each run wrote, how many the text keeps, and
+    how many of those it took from the other runs."""
+
+    markdown: str
+    by_run: list[int]
+    kept: int
+    taken: int
+
+
+def agreed(markdowns: list[str], chosen: int) -> Agreement:
+    """The chosen run's text with every chart settled by the runs together.
+
+    A chart the chosen run wrote stays when another run read it alike, at
+    its place when the runs' drawings line up one for one, anywhere when
+    they do not. A drawing the chosen run described in words, or read
+    otherwise, is drawn as two other runs read it alike at its place: the
+    run the text came from was chosen for its text, not for its drawings.
+    Anything else is written as the words it stands for — one run alone
+    keeps no chart, nobody having read it a second time."""
+    slots = [_slots(markdown) for markdown in markdowns]
+    mine = slots[chosen]
+    others = [found for index, found in enumerate(slots) if index != chosen]
+    lined_up = bool(others) and all(len(found) == len(mine) for found in others)
+    elsewhere = [slot.chart for found in others for slot in found if slot.chart is not None]
     text = markdowns[chosen]
-    out, last, written, kept = [], 0, 0, 0
-    for start, end, kind in spans(text):
-        written += 1
-        inside = read(text[start + 1 : end - 1])
-        chart = parse(kind, inside[1]) if inside else None
-        out.append(text[last:start])
-        last = end
-        if chart is not None and any(alike(chart, other) for run in others for other in run):
+    out, last, kept, taken = [], 0, 0, 0
+    for place, slot in enumerate(mine):
+        out.append(text[last : slot.start])
+        last = slot.end
+        here = [found[place] for found in others] if lined_up else []
+        if slot.chart is not None and (
+            any(other.chart is not None and alike(slot.chart, other.chart) for other in here)
+            if lined_up
+            else any(alike(slot.chart, other) for other in elsewhere)
+        ):
             kept += 1
-            out.append(text[start:end])
+            out.append(slot.text)
+            continue
+        theirs = [other for other in here if other.chart is not None]
+        two = next(
+            (
+                one
+                for index, one in enumerate(theirs)
+                if any(alike(one.chart, other.chart) for other in theirs[index + 1 :])
+            ),
+            None,
+        )
+        if two is not None:
+            kept += 1
+            taken += 1
+            out.append(two.text)
+        elif slot.kind is not None:
+            inside = read(slot.text[1:-1])
+            out.append(described(slot.kind, inside[1] if inside else slot.text[1:-1]))
         else:
-            out.append(described(kind, inside[1] if inside else text[start + 1 : end - 1]))
+            out.append(slot.text)
     out.append(text[last:])
-    return "".join(out), written, kept
+    by_run = [sum(slot.kind is not None for slot in found) for found in slots]
+    return Agreement("".join(out), by_run, kept, taken)
 
 
 # ── A chart in words ────────────────────────────────────────────────────────
