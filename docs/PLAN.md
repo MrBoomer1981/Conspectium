@@ -242,7 +242,9 @@ descriptions of week 2; 41 is the one listed under phase C.
       somebody asks for it with a command — the CEO's
 - [ ] 48. A subject's materials: a PDF sent with its "#word" is kept as
       Telegram's reference and its text, its topics are read out of what is
-      in it, and a "#word" finds it the way it finds a record — the CPO's
+      in it, and a "#word" finds it the way it finds a record — the CPO's.
+      Put off on 2026-10-10, the CEO's word: a subject's materials are not
+      used yet, and a PDF sent to the bot is a record (100)
 
 Put off on 2026-09-30 — the CPO's area, not to be started without the CPO's
 word:
@@ -444,6 +446,12 @@ CEO's:
       as its source — and three faults of the layout record 102 showed —
       the CEO's. Taken on 2026-10-09
 
+Specified on 2026-10-10 — the CEO's:
+
+- [ ] 100. A PDF of notes is a record: its every page drawn as a picture
+      and read as an album's page, whatever the PDF holds — the CEO's.
+      Taken on 2026-10-10
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -490,9 +498,9 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 92, 96, 97, 93, 95, 98, 99, 90's check of the photographs; next: 94, 65 once there is data for it, 63's rest, then 60
-CPO — current: none; next: 48
-Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03
+CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 92, 96, 97, 93, 95, 98, 99, 100, 90's check of the photographs; next: 94, 65 once there is data for it, 63's rest, then 60
+CPO — current: none; next: none
+Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
 
 ## Plan changes
@@ -581,6 +589,8 @@ since 2026-10-01.
 | 2026-10-09 | the CEO, with Claude Code | Task 99 taken, the CEO's word, from record 102, whose last pages the CEO found terrible again and asked to have fixed once and for all: formulas are drawn by MathJax 4 inside the process — V8 by `mini-racer`, its SVG rasterised by `resvg-py`, the bundle vendored — with mathtext behind it, and the source printed only when both refuse; a display formula wider than the column is broken to it rather than shrunk. Besides, three faults of the layout: an image that opens a wrapped line is counted in the line's height, a dash a struck part leaves is no list marker, and a whole line in single tildes is struck. Measured over every formula of the database. "Dependencies" gains the two wheels, and reportlab and matplotlib, which it had left out | the CEO's own |
 | 2026-10-10 | the CEO, with Claude Code | `CLAUDE.md` read against the code (`/init`): every function, constant, setting and test it names is there. Two statements were wrong and are put right: a `.docx`, which no model reads, makes the study version's call when it is delivered, as every path has since task 80; and MathJax draws `\ce` and `\cancelto`, which the paragraph on mathtext called unsupported, a formula printing as its source only when both engines refuse it. "The pipeline" gains a photo's way through the modules, in the steps `handlers._read_photo` numbers. The records' stories, which `FINDINGS.md` already told, are cut from the rules, each rule keeping its reason in a sentence and its `→`; two facts with no section there went to "Moved from CLAUDE.md, 2026-10-10". No rule changed; the shared sections lose record 67's story alone | the CEO's own |
 | 2026-10-10 | the CEO, with Claude Code | "Final processing order for a photo" brought up to the code, which had outgrown it: step 0 before the download, a group's page claimed, the drawings cut out and placed back, the lecture a notebook joins, 12b — stage three with its captions — with a paragraph of its own, the record filed under its subject, step 16 delivering the study version, and step 17. The numbers stay the ones the code's comments use | the CEO's own |
+| 2026-10-10 | the CEO, with Claude Code | Task 100 specified and taken, the CEO's word: a PDF sent to the bot is a record, its every page drawn as a picture and read as an album's page — the frame check, three runs, composing, the explanations, the study version — whatever the PDF holds: a typed PDF's text layer flattens its formulas, and a scanner lays a junk one over handwriting. An album's limits and refusals, a page the frame check refuses stopping the whole PDF; a blank page left out without a word; in a group only with its "#word", and no reply's "#word" under a PDF yet. Nothing of the file is kept | the CEO's own |
+| 2026-10-10 | the CEO, with Claude Code | Task 48 put off, the CEO's word: a subject's materials are not used yet, and a PDF sent to the bot is a record (task 100). The CPO's next is none | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -5963,6 +5973,78 @@ terrible again — fixed, the CEO asked, once and for all.
   deploy that lost the two wheels draws as before, saying so at startup.
 - No Node.js on Railway: the bundle is built once, on a developer's
   machine, and vendored.
+
+---
+
+# Task 100. A PDF of notes is a record
+
+**Owner: the CEO.** Specified and taken on 2026-10-10, the CEO's word. It
+stands for task 48 for now: a subject's materials are not used yet, and a
+PDF sent to the bot is a record, as a photograph and a `.docx` are.
+
+## Why
+
+- **A notebook scanned is a PDF.** A scanner on the phone — the iPhone's
+  Notes, CamScanner, Adobe Scan — makes one file of the pages a photograph
+  would make ten of, and the bot answered it «Понимаю только файлы .docx».
+- **Every page is read as a photograph, whatever the PDF holds.** Its text
+  layer is no way in: a typed PDF's formulas come out of it as characters,
+  fractions flattened and indices on the line, and a scanner lays a
+  reading of its own over handwriting, a junk layer that says there is
+  text. Drawn as a picture and read as an album's page, a PDF gets what a
+  photograph gets — formulas in LaTeX, drawings, the checks, the bot's
+  boxes — and costs what an album costs, about $0.04 a page.
+
+## Do
+
+1. **A PDF is a record**, in a private chat, or in a group with its
+   "#word" in the caption. Without one in a private chat the record is
+   made and its subject asked after it, as for a photograph; in a group
+   the bot says nothing, and a reply's "#word" under a PDF does not call
+   it yet. A `.docx` stays as it is.
+2. **Its pages drawn** by `pypdfium2` — PDFium, Apache and BSD licensed,
+   a wheel with no system library — at a photograph's long side
+   (`IMAGE_MAX_SIDE`, rule 2), on the image threads and one PDF at a time:
+   PDFium may not be called from two threads at once. Not PyMuPDF, whose
+   licence is the AGPL.
+3. **A blank page is left out without a word** — the back of a sheet in a
+   scan, a page with nothing but its number: nothing of the lecture is on
+   it. The others keep their number in the PDF, so a message that names a
+   page names the PDF's.
+4. **Read as an album** (`handlers._process_album`): its limits — a PDF of
+   more pages than `MAX_ALBUM_PAGES` is refused with the limit named,
+   nothing read and nothing charged, and its pages count against the
+   person's day and the group's; every frame checked before any page is
+   read, a page the check refuses stopping the whole PDF, as for an album
+   since task 43 (the CEO's choice); three runs, composing, the
+   explanations, the study version. `source_type` is "pdf" in the record
+   and in its events.
+5. **A PDF the bot cannot take says why**: over 20 MB, what a bot can
+   download; broken, or locked by a password; nothing but blank pages.
+6. **Nothing of the file is kept** (rule 3): its pages exist while they
+   are read.
+7. The test that pinned a group's silence over a PDF with a "#word" moves
+   to another kind of file. No new tests (2026-09-29).
+8. `CLAUDE.md` — "The pipeline", rule 3, the stack, "Concurrency
+   ceilings"; `README.md`.
+
+## Acceptance criterion
+
+- A scanned PDF of a notebook's pages, sent in a private chat, comes back
+  as one record — its study version — and its subject is asked after it.
+- A typed PDF comes back with its formulas drawn as formulas.
+- A PDF with "#матан" in a group comes back to the group; one without
+  gets nothing.
+- A PDF over the limit, or one with a page the frame check refuses, is
+  refused with nothing charged.
+- The suite is green.
+
+## Don't do
+
+- Nothing of task 48: no materials, no topics, no full-text search.
+- No text taken from a PDF's text layer, a typed one's included, until an
+  arm measures it against the pictures on a record already read.
+- No reply's "#word" under a PDF in a group.
 
 ---
 
