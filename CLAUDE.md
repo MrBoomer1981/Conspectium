@@ -281,9 +281,8 @@ arm.
   compared by code: trust where they agree, flag where they diverge. It is the
   only uncertainty signal that has proved reliable.
 - **Two runs that stopped short do not outvote one that read the page whole**
-  (task 65, 2026-10-04): record 67, one photograph, kept the half two runs
-  read and lost the proof the third had read; the same photograph sent again
-  was read whole by all three. When a run read a block of a dozen words or
+  (task 65, 2026-10-04): a page kept the half two runs read and lost the
+  proof the third had read. When a run read a block of a dozen words or
   more that the chosen run did not, where the chosen has nothing in its stead
   (`merge.lacking`), two more runs are asked for (`vision.MORE_RUNS`), and a
   block two runs read is on the page: the comparison is then of the runs that
@@ -388,24 +387,67 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
    model-calling functions return their stats, and the handler writes.
 6. **A person's day is counted by the database** (task 76): `check_limits`
    reads it and writes nothing, and `consume` adds the record's pages in one
-   UPDATE, a day that is over starting again from them. The rollover used to
-   be written at the check; the next event flushed it, and the row stayed
-   locked for the record's minutes — the person's second album waited for
-   the first, then zeroed its pages. A refreshed name or title still does
-   this, rarely: "Scale debt".
+   UPDATE, a day that is over starting again from them. Written at the
+   check, the rollover locked the person's row for the record's minutes: their
+   second album waited for the first, then zeroed its pages. A refreshed name
+   or title still locks it, rarely: "Scale debt". → "What the bot spends its
+   time and memory on"
 
 ---
 
 ## The pipeline
 
-The step order for a photo is `docs/PLAN.md` → "Final processing order for a
-photo"; every "before or after?" is answered there. Three **capture paths** —
-a photo, an album, a `.docx` — two of them **photo paths**
-(`handlers.handle_photo`, `albums.process_page`). An image sent as a file
-(JPEG, PNG, WebP — `middlewares.page_file`) is a photo to both; in a group, a
-reply can call the bot on pages somebody else sent (`handlers.handle_summon`),
-into the same two paths. **`.docx` bypasses the model entirely**: no limits,
-no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
+Three **capture paths** — a photo, an album, a `.docx` — two of them **photo
+paths** (`handlers.handle_photo`, `albums.process_page`). An image sent as a
+file (JPEG, PNG, WebP — `middlewares.page_file`) is a photo to both; in a
+group, a reply can call the bot on pages somebody else sent
+(`handlers.handle_summon`), into the same two paths. **`.docx` is never read
+by a model**: no page limit, no quota, neither stage, and it works with
+`AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies. Its delivery is the one
+call it can make — the study version, as on every path, inside the day's
+cost cap (`pages=0`); off or refused, the record's own document.
+
+A photo's way, in the order the code takes it — `handlers._read_photo`
+numbers its steps, and `docs/PLAN.md` → "Final processing order for a
+photo" gives every exit and why each step stands where it does:
+
+```
+main.telegram_webhook        answers at once; the update runs in a task
+middlewares                  heard or dropped; a session, the user, the group
+handlers.handle_photo        an album's page: albums.announce, add_page,
+                             collect — one update owns the batch
+corpus.reading               a group's pages claimed against a second call
+images.compress              in a worker thread (images.in_worker)
+ 4   limits.check_limits     the kill switch, the cost cap, the group's day,
+                             the person's
+ 5   photoguard              the frame, before any model call
+ 6   texts.PROCESSING
+ 7   vision.transcribe_consensus   three runs compared, two more where one
+                             read further
+ 8   vision.log_ai_calls     always, in a session of its own
+ 9, 10                       nothing parsed, or too little text: the page is
+                             dropped
+     figures.cut             the drawings, while the image is here
+12   vision.findings         mathcheck and graphcheck, each with its text
+12a  compose.compose         behind check_limits(pages=0)
+     figures.place           the drawings back, after composing
+     subjects.joining        the lecture this notebook joins, if any
+12b  explain.explain         its captions beside it, behind check_limits(pages=0)
+13   Note, subjects.file
+14   limits.consume
+15   note_processed
+16   corpus.deliver          the study version, kept or built (study.build),
+                             else the record's own document; pdf.render in a
+                             thread
+17   corpus.ask_for_tag      the subject asked, or where it was filed
+```
+
+An album checks its limits before its pages are fetched
+(`handlers._fetch_pages`) and every frame before any page is read
+(`albums.refused_frames`); `albums.process_batch` reads every page at once —
+the frame, the runs, the drawings, the checks — and assembles one record
+(`albums._assemble`, `_one_lecture`), which `handlers._process_album` takes
+from 12a, once.
 
 ### Verdicts
 
@@ -477,12 +519,10 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   `MAX_ALBUM_PAGES`, past which an album begins a send of its own, and
   never across two "#words". An album of exactly ten waits `_CONTINUE_S`,
   a minute, for the rest: a phone sends each album once its photographs are
-  uploaded, and thirty-two pages came as albums 19 s apart — three records
-  at the 15 s it was (task 85). A photo its sender sends meanwhile joins as
-  an album of one page, heard in a group without its "#word"
-  (`albums.collecting`). Decided
-  when the batch closes, over every album of theirs still waiting — never
-  when a page arrives, since pages register in the order their updates
+  uploaded (task 85). A photo its sender sends meanwhile joins as an album
+  of one page, heard in a group without its "#word" (`albums.collecting`).
+  Decided when the batch closes, over every album of theirs still waiting —
+  never when a page arrives, since pages register in the order their updates
   finish their database work. The record's pages are in message order
   across the albums, its subject whichever album carries one, its source
   key in a group the first album's; `note_processed` counts `album_parts`.
@@ -507,37 +547,24 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   numbers identical, the count of `[неразборчиво]` identical, the document
   not materially shorter. Otherwise the record is the one stage one produced:
   off, refused or failed, the worst case of the stage is the pipeline without
-  it — and a refusal costs the record its headings, which is why the numbers
-  leave out what only counts items: "1)", "1))", "2." or a bare number before
-  a capitalised word opening a line, a heading, a bold label or a bulleted
-  item, and "1)" after a colon or a semicolon inside a line unless it closes
-  a bracket — "(0; 1)" is a value — and what the author struck out, a
-  `~~…~~` of the source, on both sides. Record 59 lost its composition to
-  "Примеры: 1) …" made into a list, records 86 and 87 to a theorem's parts
-  numbered «1 Существование», «2 Число…», made «1.» and «2.» (task 79), and
-  record 88 to «* 2) …» and to «~~3.1 Строгое~~» dropped (task 82). A run of
-  numbers in order, 1, 2, 3, each opening a line — the first may follow a
-  colon, a later one stand inside a line as «верно 3)» — is a list whatever
-  follows each (`compose._items`, task 88): records 91 and 92 numbered a
-  metric's axioms «1 тождественность», «2 симметричность» and lost every
-  heading for sixteen numbers and four; read alike however the composer
-  sets the item, «**1.** …», «### 1. …», «(1) …», and never inside an
-  interval, «[1; 2)». Alone before a lower-case word a number is a value:
-  «2 мн-ва» written «два множества» is refused. What the author struck out,
-  over two or three lines too, leaves the count of `[неразборчиво]` and the
-  length as it leaves the numbers, and what `\phantom{…}` only measures
-  is no value. Measured on 91 and 92, both were still refused, for a
-  number spelled out («3х» as «трёх»), a definition's number dropped, a
-  lone item and a changed formula — no item's number among them. The log line
-  says how many numbers went and came, never which. →
-  "The composition record 59 lost", "Record 86, √2", "Records 88 and 89",
-  "Records 90, 91 and 92"
+  it — and a refusal costs the record its headings, which is why the guard
+  counts values, never what only counts items: "1)", "1))", "2." or a bare
+  number before a capitalised word opening a line, a heading, a bold label
+  or a bulleted item; "1)" after a colon or a semicolon inside a line; a run
+  of numbers in order, 1, 2, 3, each opening a line, however the composer
+  sets the item (`compose._items`, task 88) — and never a number that closes
+  a bracket, «(0; 1)», «[1; 2)». Alone before a lower-case word a number is
+  a value: «2 мн-ва» written «два множества» is refused. What the author
+  struck out, a `~~…~~` of the source over up to three lines, leaves the
+  numbers, the count of `[неразборчиво]` and the length alike, and what
+  `\phantom{…}` only measures is no value. Each pattern in `compose.py` says
+  which record showed it. The log line says how many numbers went and came,
+  never which. → "The composition record 59 lost", "Record 86, √2", "Records
+  88 and 89", "Records 90, 91 and 92"
 - **A refused composition is asked for once more** (`compose_retried`,
-  2026-10-03): the composer is sampled, and a refusal is one sample's.
-  Record 66's, refused in production for three numbers it gained, was
-  accepted six times of six when asked again — one call more on about one
-  record in thirty, and the guards judge the second as they judged the
-  first. → "Record 66's composition"
+  2026-10-03): the composer is sampled, and a refusal is one sample's — one
+  call more on about one record in thirty, and the guards judge the second
+  as they judged the first. → "Record 66's composition"
 - **A heading that is not one is repaired, not refused**
   (`_demote_invented_headings`, before `_refusal`, counted as
   `compose_demoted`): the marker comes off, every word stays. → "Headings the
@@ -548,11 +575,9 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   composition the source does not carry is matched against the source's
   formulas and against runs of them one after another — a working's lines,
   which the composer makes one formula — and the closest, four-fifths alike,
-  is put back as read where that brings the numbers closer. Record 89's
-  composer squared «$c-h = c^2 - 2ch + h^2 =$», as the working needs and the
-  reading does not have, nine times of fourteen: the bot does not correct
-  the author, and the record no longer loses every heading for it. →
-  "Records 88 and 89"
+  is put back as read where that brings the numbers closer: the bot does not
+  correct the author, and a record should not lose every heading for one
+  exponent. → "Records 88 and 89"
 - **Main-formula marks are capped**: rule 9 of `prompts-compose-v3.md` frames a
   section's main formula, and `_cap_marks` keeps two of the stage's own frames
   a section (`compose_unmarked`). A frame from recognition is the author's pen
@@ -568,8 +593,8 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   whatever the composer is not sure of. A student who missed the lecture
   should not have to decode the notebook. The only rewording the stage is
   allowed, measured as drift like the rest. Production composes with v4
-  since 2026-10-06, the CEO's switch, unmeasured on record 74's album. →
-  "Record 74, a lecture on trees"
+  since 2026-10-06, the CEO's switch, unmeasured. → "Record 74, a lecture on
+  trees"
 - Its ceiling and retries are in "Concurrency ceilings".
 
 ### Stage three: what the bot adds
@@ -590,19 +615,19 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   (`explain_unsourced`); the summary may not state a number the record does
   not carry (`summary_refused`); and an explanation that judges the record —
   «опечатка», «описка», the author's mistake — is dropped before it is
-  searched for (`explain_judged`), in a stored record too. The prompt says
-  «Не исправляй автора», and record 62 wrote «В конспекте допущена
-  опечатка» over a union both readings of its page agree on: the bot cannot
-  tell what the author wrote from what was read, and neither can the reader.
+  searched for (`explain_judged`), in a stored record too: the prompt's «Не
+  исправляй автора» did not hold, and the bot cannot tell what the author
+  wrote from what was read, and neither can the reader. → "Record 62, record
+  59's album read again"
 - **Sources are ranked, and a forum is none** (`explain._TIERS`): science
   first, then encyclopedias, study sites, the rest; three a box, one link a
   site; the site read from the grounding chunk's `web.domain` or `web.title`,
   never from the link, which is Google's redirect (2026-09-25). A forum, a
-  social network or a video is dropped (`explain.not_a_source`, 2026-10-01:
-  record 59 printed reddit.com, record 62 dxdy.ru), and an explanation left
-  with no source goes
-  with it, as `explain_unsourced` — in a stored record too, when its document
-  is drawn (`corpus._explanations`).
+  social network or a video is dropped (`explain.not_a_source`, 2026-10-01),
+  and an explanation left with no source goes with it, as
+  `explain_unsourced` — in a stored record too, when its document is drawn
+  (`corpus._explanations`). → "What the model did with a search tool",
+  "Moved from CLAUDE.md, 2026-10-10"
 - **Stored apart, printed as the bot's**: `notes.explanations` (with the
   sources) and `notes.summary`, never mixed into `markdown`. An explanation
   stands under the sentence it quotes or the formula it numbers, after that
@@ -617,10 +642,9 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   and theorem with a condition — what it is for and what breaks without it,
   where no explanation stands already; «Пример» at every new notion — one
   unlike the lecture's own, and never the lecture's working with another
-  number (`prompts-explain-v3.md`, task 78): record 86's «то же для √3» under
-  the lecture's √2 was read as the lecture misread. Written by the same first
-  call, in `elements` of
-  its JSON, so they cost no call of their own. They are reasoning about the
+  number (`prompts-explain-v3.md`, task 78), which a reader takes for the
+  lecture misread. Written by the same first call, in `elements` of its
+  JSON, so they cost no call of their own. They are reasoning about the
   lecture rather than facts from books, so no search can source them: each is
   printed without a source, under a label that says whose it is
   (`texts.ELEMENT_LABELS`), and checked by code wherever there is something to
@@ -634,15 +658,14 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   in, the others after it. At most twelve. → "The teacher's boxes"
 - **A formula or a drawing the record says not a word about gets a
   caption** (task 95, the CEO's, 2026-10-09): what it is, in two to five
-  words, and one sentence on what it states or shows — record 97 opened a
-  page on «A = B ⇔ …» with nothing to say it is the equality of sets, and
-  its author asked what it was. **A call of its own**,
-  `prompts-explain-captions-v1.md` at thinking `low`, made beside the first
-  call, at the same time, over the same numbered record: asked in the
+  words, and one sentence on what it states or shows — a formula with not a
+  word about it tells a reader who was not there nothing. **A call of its
+  own**, `prompts-explain-captions-v1.md` at thinking `low`, made beside the
+  first call, at the same time, over the same numbered record: asked in the
   first call (`prompts-explain-v4.md`), the model wrote the captions right
-  and fewer teacher's boxes — 57, 39 and 51 over seven lectures where v3
-  wrote 59 twice, the ideas of proofs most. About $0.003 and a few seconds
-  a record, its row `kind="caption"`; failed, it costs the captions alone.
+  and fewer teacher's boxes, the ideas of proofs most. About $0.003 and a
+  few seconds a record, its row `kind="caption"`; failed, it costs the
+  captions alone.
   Checked as an idea is, and kept only where its anchor stands at a
   formula set apart or a drawing, as the document finds it
   (`pdf.on_formula_or_drawing`) — a drawing quoted with its brackets and a
@@ -650,18 +673,18 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
   explanation printed without a source. At most six, counted `captions`
   and `captions_dropped`. Printed under «Что это · от бота» over what it
   names and the formulas right above it in one column, never over the
-  words before them (`pdf._headed_line`): set before the sentence code
-  reads, record 90's criterion of a supremum stood over the definition of
-  an infimum. Never at the end of the text; stored as `kind: "caption"`.
+  words before them (`pdf._headed_line`): the sentence code reads may begin
+  with another definition. Never at the end of the text; stored as `kind:
+  "caption"`.
   The stage runs once, when a record is made: a record made before keeps
   its boxes. → "Captions"
 
 ### Drawings cut out of the page
 
 - **A drawing is taken from the page, not redrawn** (task 54, 2026-10-01):
-  record 59 carried its proof in nine drawings and printed nine sentences
-  about them, and a sketch redrawn from the model's words would be the
-  model's picture of the topic — the place it invents. From `prompts-v8.md`
+  a proof carried in drawings printed as sentences about them, and a sketch
+  redrawn from the model's words would be the model's picture of the topic —
+  the place it invents. From `prompts-v8.md`
   on, recognition gives each `[схема: …]` its frame on the photo in
   `drawings`, outside `markdown`, so neither agreement moves. A graph is
   still data and still drawn from its edges.
@@ -683,8 +706,8 @@ no quota, it works with `AI_ENABLED=false`; only `MIN_MARKDOWN_LEN` applies.
 ### One lecture, one record
 
 - **An album rarely begins and ends where its lecture does** (task 64,
-  2026-10-03): a notebook runs on, so record 46 opened with the end of the
-  lecture before and record 62 closed on the next one begun. Nothing in the
+  2026-10-03): a notebook runs on, and a record opens on the end of the
+  lecture before or closes on the next one begun. Nothing in the
   text says where a lecture begins; the page does — a date, «Лекция N», the
   author's line. From `prompts-v9.md` on, recognition names the first line of
   every lecture that begins on a page in `lecture_starts`, outside
@@ -729,24 +752,17 @@ an identity holds at each — and a finding under the sentence says where they
 differ, at small numbers the reader can count: «Равенство (−x)(−x) = x не
 выполняется. При x = 2 левая часть равна 4, правая — 2». Found when the
 document is drawn (`corpus._remarks`), never stored, so a record made before
-it has it too; no model, no library. The one class of the lecture's errors
-code can prove — the CEO found two in records 88 and 89 by reading them
-against the photographs. **It stays quiet when the page does not settle it**:
+it has it too; no model, no library. It is the one class of the lecture's
+errors code can prove. **It stays quiet when the page does not settle it**:
 only sides with the same letters, after what the lecture defined («положим
-h = b/3c», a letter alone on the left, in a statement of two sides — never
-the head of a working's chain — and up to the next heading) is put in;
-never what the author struck out, «~~…~~» or «[зачёркнуто: …]»; never a
-capital letter — a set, a matrix, an ideal — nor i or j, the imaginary
-unit; never a formula with \lim, \to, \infty, a sum or an integral, nor in
-a lecture on limits an «=» that holds as the letters grow; never a line
-that solves, supposes or argues the contrary, nor a lecture on logic; and
-whatever it does not read — f(x), arg z, a set, an absolute value — is left
-alone. Over every record in the database it found 30 before the last of
-those rules and 7 after, each an equality that does not hold as the record
-reads it; record 97 brought three that held — «y = b + (−a) = x», the end
-of a proof, taken for a definition of y two pages on, and a formula the
-author struck out — and the rules of task 96 took them away and nothing
-else, over 97 records. → "An equality that does not hold", "Record 97"
+h = b/3c») is put in; never what the author struck out, a capital letter, i
+or j, a formula with \lim, \to or \infty, an «=» that holds as the letters
+grow in a lecture on limits, a line that solves, supposes or argues the
+contrary, a lecture on logic, or what it does not read — f(x), arg z, a set,
+an absolute value. The module's docstring gives each case with the record
+that taught it: an equality reported that holds tells the reader the
+lecture is wrong where it is not. → "An equality that does not hold",
+"Record 97"
 
 ---
 
@@ -788,10 +804,10 @@ else, over 97 records. → "An equality that does not hold", "Record 97"
   day the pages came; a later notebook that knows it better moves it. The head
   of the document carries it, and a "#word" lists lectures in its order. A
   margin's day after the day the pages came — a day's grace for the timezone
-  — dates nothing: a lecture cannot have been given after its notebook was
-  photographed, and taken for last year's, record 79's «10 ноября» headed its
-  document 10.11.2025 (task 71). Last year's notebook is dated by its
-  caption, which keeps its year. → "Record 79, dated a year back"
+  — dates nothing (task 71): a lecture cannot have been given after its
+  notebook was photographed, and taken for last year's it heads the
+  document a year back. Last year's notebook is dated by its caption, which
+  keeps its year. → "Record 79, dated a year back"
 - **Two notebooks of one lecture are one lecture, decided by code**
   (`merge.same_lecture`): the same subject, a day within a week — never two
   different days both written down — and half of one text found in the
@@ -943,15 +959,12 @@ else, over 97 records. → "An equality that does not hold", "Record 97"
   the first that holds the subject: a formula, a drawing, a word of what a
   lecture states or is about, as the notebook shortens it too
   (`study._SUBJECT_RE`), the headings right above it staying with it
-  (`study.trimmed`). Record 97's points and test dates were one unit with
-  the set equality under them. What is left stands where the unit stood;
-  a unit that opens on the subject loses nothing; past a fifth of the
-  record named so, nothing goes. A formula never goes, so no number
-  moves, and a box anchored only in what went is not printed
-  (`corpus._only_left_out`). The record keeps every line, and its own
-  document. Over records 88 to 92 and 97, the only paragraphs code would
-  let go whatever the model named were record 97's organisation. →
-  "Record 97"
+  (`study.trimmed`): one unit can hold the organisation and the subject
+  under it. What is left stands where the unit stood; a unit that opens on
+  the subject loses nothing; past a fifth of the record named so, nothing
+  goes. A formula never goes, so no number moves, and a box anchored only
+  in what went is not printed (`corpus._only_left_out`). The record keeps
+  every line, and its own document. → "Record 97"
 - **Drawn as the record is** (`corpus.send_study_pdf`), with its summary,
   missing pages, findings and boxes, which follow their units; each topic
   a numbered section with «О чём тема · от бота» under it and its key
@@ -972,8 +985,7 @@ else, over 97 records. → "An equality that does not hold", "Record 97"
   paid by whoever it is delivered to, its `ai_calls` row of
   `kind="study"`. An answer that does not parse is asked for once more, as
   recognition's is, and its row names the finish reason and the shape
-  (task 87): record 91's did not, and the record's document went out
-  until its button was pressed. While it runs, a second delivery of the record gets the
+  (task 87). While it runs, a second delivery of the record gets the
   record's document — a set in this process ("Scale debt"). Events
   `study_sent` (`via` delivery or button; `off_topic`, the units left out
   whole or in part), `study_requested`, `study_failed`.
@@ -1042,17 +1054,15 @@ to draw — `Callout`, `Remark`, `Explanation`, `Summary`, `Page`, built by
 
 **One document is drawn at a time** (`pdf._DRAWING`, around `render` and
 `warm_up`, task 76): matplotlib lays every formula out with one parser for
-the whole process, and pyplot numbers its figures from state it shares. Two
-documents drawn at once in two threads broke each other's formulas — half of
-them printed as their source with two threads, nearly all with four, some
-drawn wrong without a word. A second document waits the first one's seconds.
-→ "What the bot spends its time and memory on"
+the whole process, and pyplot numbers its figures from state it shares, so
+two documents drawn at once broke each other's formulas. A second document
+waits the first one's seconds. → "What the bot spends its time and memory
+on"
 
 **Its look follows `docs/BRAND.md`**, the CEO's guide (2026-09-30, v1.1 the
-next day), which replaced the look task 36 copied from the author's
-`матан 24.09.2026.pdf`. A change to the look changes both files, in one
-commit; the values are named constants in `pdf.py`, and its docstrings say
-why each is what it is. What a change must not break:
+next day). A change to the look changes both files, in one commit; the
+values are named constants in `pdf.py`, and its docstrings say why each is
+what it is. What a change must not break:
 
 - **Paper, ink and the guide's colours; its three faces; formulas in Computer
   Modern** — never white, never a sixth colour or a fourth face. In the
@@ -1060,33 +1070,32 @@ why each is what it is. What a change must not break:
   `∀ ∈ ⇒ ► ℝ`, Greek, the zero-width space — `pdf._text` sets in DejaVu;
   reportlab has no fallback and prints an empty box. Russian words between
   the parts of a formula in a line are set in Onest, as the text they are
-  (`pdf._words_as_text`) — record 74's «∀ узел достижим из корня» stood in
-  Computer Modern; words in braces or in an environment stay the formula's.
+  (`pdf._words_as_text`); words in braces or in an environment stay the
+  formula's.
 - **A formula is a picture made to sit like text**: lowered by its measured
   depth, a quarter-point stroke to darken Computer Modern, shrunk to the
   column; on the kraft ground when displayed (`pdf._grounded`). A column of
   formulas the author began on the line that introduces it stands on one
   ground: a formula ending a line after a colon goes down to the formulas
   under it when they state a relation of the same left side
-  (`pdf._formula_columns`, task 79) — record 86 set c² > 2 and c² = 2 on the
-  ground and left c² < 2 in «Возможно 3 случая:». The line keeps what it
-  quoted for an anchor (`Block.quoted`): cut short, it sent record 87's idea
-  of the proof to the end of the document. A zero-width
-  space after an inline formula is the only place reportlab breaks a line
-  after an image — and it breaks before one too, so the comma, the period,
-  the bracket written against a formula are drawn with it, as `\text{…}`
-  for mathtext's own space after a comma (`pdf._inline`, task 86): record
-  90 opened a line with «, то есть». A tall one makes room in its line, a paragraph's first line
-  included: reportlab set that line a font size below the paragraph's top
-  whatever it held, and record 62's column vector rose over the line above
-  (`paraFontSizeHeightOffset`, off since 2026-10-02).
+  (`pdf._formula_columns`, task 79). The line keeps what it quoted for an
+  anchor (`Block.quoted`), or a box anchored on it goes to the end of the
+  document. A zero-width space after an inline formula is the only place
+  reportlab breaks a line after an image — and it breaks before one too, so
+  the comma, the period, the bracket written against a formula are drawn
+  with it, as `\text{…}` for mathtext's own space after a comma
+  (`pdf._inline`, task 86), or a line opens on «, то есть». A tall one makes
+  room in its line, a paragraph's first line included: reportlab set that
+  line a font size below the paragraph's top whatever it held, and a column
+  vector rose over the line above (`paraFontSizeHeightOffset`, off since
+  2026-10-02).
 - **Groups are built by hand and flat** — a heading with what it heads, a
   finding with its line, a table whole. reportlab's `keepWithNext` nests one
   `KeepTogether` in another and the inner reports an effectively infinite
   height; a unit that keeps itself whole, a long division, is opened into its
   group (`pdf._opened`). The space between two units is `_space_before`'s,
   which knows what both of them are. The last line of a paragraph never goes
-  over a page alone (`allowWidows=0`): record 74 ended on a page of one word.
+  over a page alone (`allowWidows=0`): allowed, it left a page of one word.
 - **Every box has one anatomy** — a bar, a label in spaced capitals
   (`pdf._Label`), lines at the text's size, the bot's title in bold and
   opening with a capital (`texts.explanation_line`, task 86) — **and its tone is its meaning**:
@@ -1101,14 +1110,14 @@ why each is what it is. What a change must not break:
   interpretation, capped by `compose._cap_marks`. A frame inside a line —
   «[рамка: ?!]» in a sentence, a `\boxed` in a formula set in a line — is
   drawn where it stands, round what it frames, and is no main formula
-  (`pdf._inline_frames`, task 78): record 86 printed «[рамка: ?!]» twice.
+  (`pdf._inline_frames`, task 78).
 - **Under the title stands a name, a date or a page, or nothing**
-  (`texts.byline`): what the margin said of whose lecture, which day, which
-  page — the notebook's print, a doodle described and stray letters are not
-  that, and record 59 printed «фор · 21:27 (0, 1)» there. Each once, and a
-  page only when one page gave its number: record 90 printed «4 · 16 · 17 ·
-  8 · 2 · 19 · 2», every page's (task 86). Chosen when the document is
-  drawn, so a record stored before the rule is drawn by it too.
+  (`texts.byline`, task 55): what the margin said of whose lecture, which
+  day, which page — the notebook's print, a doodle described and stray
+  letters are not that, though the reading puts them among the margin's
+  notes. Each once, and a page only when one page gave its number, never
+  every page's (task 86). Chosen when the document is drawn, so a record
+  stored before the rule is drawn by it too.
 - **Every page carries a head and the signature** (`pdf.Page`, built by
   `corpus._page`): the subject as its "#word", the day and "стр. 2/5" — never
   "с. 2", which inside a record means a photographed page; no number on a
@@ -1118,8 +1127,7 @@ why each is what it is. What a change must not break:
   chat listing — `pdf.plain` writes it in characters: "2¹⁰⁰¹", never
   "$2^{1001}$". A title's formula written without its dollars is found the
   way a quoted fragment's is (`pdf.as_formula`), drawn in the title and
-  written in characters elsewhere: record 86 carried «\sqrt{2}» in all
-  three (task 78).
+  written in characters elsewhere (task 78).
 - **Markup never prints as its source**: `$$` blocks, `$$…$$` inside a line,
   emphasis across a formula, a line of `~~~` a separator as `---` is; a
   finding's quoted LaTeX through `pdf.as_formula`. «[зачёркнуто]», what
@@ -1130,7 +1138,7 @@ why each is what it is. What a change must not break:
   `~~…~~` (task 83) — unless they are all the line has but its number:
   «1.3. ~~Мн-ва Аксиома полноты~~» stays struck, since the reading may strike
   more than the author did. A line struck whole goes, and so does a passage
-  struck over two or three lines (task 86): record 91 printed one struck.
+  struck over two or three lines (task 86).
 - **The notebook's line is not the document's** (task 83, the CEO's reading
   of records 88 and 89): a word carried over with a hyphen is whole at the
   end of the first line (`pdf._unhyphenated`, three letters on either side,
@@ -1145,12 +1153,10 @@ why each is what it is. What a change must not break:
   item's number, the anchor still finding the line as read (`pdf._unpiped`,
   task 97).
 - **A frame is the author's, braces and blank lines and all** (task 97):
-  an escaped brace inside `\boxed{…}` is a character, where record 97's
-  axiom of completeness closed on «\right\}» and printed as its source; a
-  frame round several lines may hold a blank line, and is drawn then as a
-  frame with no number (`Block.loose`) — such a frame printed its brackets
-  before, and a number given it now would move every main formula after it
-  under explanations stored with «(4)».
+  an escaped brace inside `\boxed{…}` is a character, not the frame's end;
+  a frame round several lines may hold a blank line, and is drawn then as a
+  frame with no number (`Block.loose`) — a number given it would move every
+  main formula after it under explanations stored with their numbers.
 - **A title that names nothing gives way in the document** (task 97):
   «Лекция», «Матан. Практика» — what the reading called a page of the
   course's organisation — to the record's first heading that names
@@ -1158,59 +1164,50 @@ why each is what it is. What a change must not break:
   (`corpus._document_title`); the record keeps its title, which a "#word"
   lists.
 
-→ "The document as the group got it", "Record 74, a lecture on trees",
-"Record 86, √2"
+→ "The document as the group got it", "Record 62, record 59's album read
+again", "Record 74, a lecture on trees", "Record 86, √2", "Records 88 and
+89", "Records 90, 91 and 92", "Record 97", "Moved from CLAUDE.md, 2026-10-10"
 
 **Formulas are drawn by MathJax 4, inside the process** (task 99, the CEO's,
 2026-10-09): `services/mathjax.py` runs the vendored bundle
 `app/assets/mathjax/tex2svg.js` — built once from `entry.js` beside it, no
 Node at build or run time — in V8 through mini-racer, and resvg-py
-rasterises its SVG at mathtext's DPI and stroke. mathtext had no matrix: record
-102's determinants printed with their columns apart, and every record brought
-the next command it lacked. Over the database MathJax drew all 3 088 formulas
-the document hands an engine. `pdf.for_mathjax` keeps only the document's own
-decisions — one ≤ and ≥, one ⇒, «\pmod 13» one modulus, Russian words as
-text. A display formula wider than its column is broken to it; an aligned
-chain is drawn whole. What MathJax refuses — or a glyph outside its bundled
-font — goes to mathtext, logged at INFO; the source only when both refuse, a
-warning. The warm-up says which: `Formulas: MathJax 4.1.3 in V8, mathtext
-behind it`, or mathtext only with why. A paragraph's line counts every image
-on it (`pdf.Paragraph`): reportlab 5.0.1 never counted the one a wrapped line
-begins with. → "Record 102, the formulas' engine"
+rasterises its SVG at mathtext's DPI and stroke. mathtext had no matrix, and
+every record brought the next command it lacked. `pdf.for_mathjax` keeps
+only the document's own decisions — one ≤ and ≥, one ⇒, «\pmod 13» one
+modulus, Russian words as text. A display formula wider than its column is
+broken to it; an aligned chain is drawn whole. What MathJax refuses — or a
+glyph outside its bundled font — goes to mathtext, logged at INFO; the
+source only when both refuse, a warning. The warm-up says which: `Formulas:
+MathJax 4.1.3 in V8, mathtext behind it`, or mathtext only with why. A
+paragraph's line counts every image on it (`pdf.Paragraph`): reportlab
+5.0.1 never counted the one a wrapped line begins with. → "Record 102, the
+formulas' engine"
 
-**mathtext is not LaTeX, and a formula it refuses prints as its own source.**
-`pdf.for_mathtext` rewrites what the model writes into what mathtext draws:
-it drops what does nothing to the layout (`\limits`, `\displaystyle`, the
-`\big` family), maps LaTeX's second spellings (`pdf._SYNONYMS`: `\le`,
-`\mbox`, `\textrm`, `\tfrac`, `\stackrel`, `\overbrace`…; `\vphantom` and
-`\hphantom` as `\phantom`, as wide as what they hold — record 101's brace two
-lines tall printed as its source, task 98), turns environments
-into `\left…\substack{…}\right…` — losing column alignment, which is why a
-matrix is asked for as a markdown table — and handles `\xrightarrow`, its
-condition under the arrow in brackets included (`\underset`, task 77),
-`\pmod` (a run of digits one modulus), bold words inside `\text`, quotes,
-Russian words outside `\text`, `\cline`, an operator alone in an index —
-unbraced, mathtext spaces it as an operation, and record 74 printed
-«ρ ⁻ (v)» and «(i *, j *)» — and a range «1..p», whose dots it spaced as
-punctuation. A brace with words under or over it
-becomes `\underset` or `\overset` over its line — the brace lost, its words
-where the author wrote them, two rows of them stacked (`pdf._stacked_index`,
-task 98: record 101's «↑» over «ℕ») — and an aligned chain alone in a display formula
-is drawn a row at a time (`pdf.aligned_rows`), since `\substack` sets its rows
-touching. **A term the author struck out is drawn struck** (task 77):
-`\cancel{…}` with a stroke rising across it, `\bcancel` falling, `\xcancel`
-both; **a term framed inside a line is drawn framed** (task 78). mathtext
-has neither, so the formula is drawn a second time with the term's place
-left empty, and the stroke or the frame goes round what the two pictures
-differ by (`pdf._mark`) — under a power, in a fraction, round a matrix. One
-that cannot be placed sends the formula out as its source, never without its
-mark: «\cancel{56}^{48}», 56 crossed out and 48 written over it, would read
-as 56 to the 48th. A command ends where its letters end, `(?![A-Za-z])`.
-`\ce{…}` and `\cancelto` stay unsupported. `test_pdf.py` proves each rewrite made before 2026-09-29 both
-rewrites and draws — those after it were checked by drawing the record that
-showed them, under the decision to add no tests — and a refusal is a warning
-in the log with mathtext's own diagnosis, once per formula per document. → "mathtext, one
-record at a time", "Record 74, a lecture on trees"
+**mathtext is not LaTeX, and stands behind MathJax.** `pdf.for_mathtext`
+rewrites what the model writes into what mathtext draws — dropping what does
+nothing to the layout, mapping LaTeX's second spellings (`pdf._SYNONYMS`),
+setting a brace's words under or over its line, bracing an operator alone
+in an index, which mathtext would space as an operation — each rewrite at
+its pattern in `pdf.py`. Environments become `\left…\substack{…}\right…`,
+losing column alignment, which is why a matrix is asked for as a markdown
+table, and an aligned chain alone in a display formula is drawn a row at a
+time (`pdf.aligned_rows`), since `\substack` sets its rows touching. **A
+term the author struck out is drawn struck** (task 77) — `\cancel` rising,
+`\bcancel` falling, `\xcancel` both — and **a term framed inside a line is
+drawn framed** (task 78): by MathJax itself, and by mathtext, which has
+neither, through the formula drawn a second time with the term's place left
+empty, the stroke or the frame going round what the two pictures differ by
+(`pdf._mark`). One that cannot be placed sends the formula out as its
+source, never without its mark: «\cancel{56}^{48}», 56 crossed out and 48
+written over it, would read as 56 to the 48th. A command ends where its
+letters end, `(?![A-Za-z])`. mathtext draws neither `\ce{…}` nor
+`\cancelto`; MathJax draws both. `test_pdf.py` proves each rewrite made
+before 2026-09-29 both rewrites and draws — those after it were checked by
+drawing the record that showed them, under the decision to add no tests —
+and a refusal is a warning in the log with both engines' diagnoses, once
+per formula per document. → "mathtext, one record at a time", "Record 74, a
+lecture on trees"
 
 **An array ruled inside is drawn as a table** (`pdf.ruled_arrays`) — a long
 division "уголком", cells as formulas in their column's alignment, rules under
@@ -1229,8 +1226,8 @@ document's ink on its paper, at about its size on the page, with no caption;
 a `[схема: …]` with no cut-out as the line it always was. A graph goes round
 a circle, the same every time; **a tree that branches is drawn as a tree**
 (`pdf._tree_positions`) — its root on top, children under their parent in
-the order read — since on the circle record 74's binary tree was six
-crossing chords. A path, a cycle, a loop and an edge read twice keep the
+the order read — since on the circle a tree is chords crossing one
+another. A path, a cycle, a loop and an edge read twice keep the
 circle. A drawing written inside a line of text is lifted onto its own
 (`pdf._lift_drawings`), for the document only. That syntax — like the
 composing stage's "### Определение" — is one contract in two files: changed
@@ -1244,7 +1241,7 @@ them — `uncertain`, `numeric_divergences`, `unverified_pages`, `status` — ar
 still written: the instrument's, not the reader's. Nor does the chat get them;
 only the pages an album went out without are named there. Nor which half of
 a photograph a text was on: «[Левая страница]», «[Правая страница]», as the
-reading marked record 97's spreads, are not printed (`pdf._unlabelled`, task
+reading marks a spread's halves, are not printed (`pdf._unlabelled`, task
 92). → "Remarks about the reading", "Record 97"
 
 **A remark is an error the code found in the work, set where it is.** What
@@ -1254,24 +1251,22 @@ as `anchor` — a line number would not survive composition. `render` sets it
 after the sentence holding its anchor, compared without spaces, dollars and
 bold, across the sentence's lines (`pdf._anchored`); one that anchors nowhere
 goes to the end. An equality of letters that does not hold is one too
-(`algebracheck`, task 84, "An equality that does not hold"). **A box never stands inside a sentence** (task 83): a record
-whose composition was refused is set line by line as the notebook has it,
-and a box under its line cut «Существует элемент 1 ∈ ℝ, 1 ≠ 0» from «такой,
-что x·1 = x». The lines of a sentence, as code tells them — a line in lower
-case goes on from the one before, a formula or a sign from a line that does
-not end a sentence, a blank line before a formula set apart and a main
-formula included (task 86), a line that does not end one into the list it
-opens at its first item, ten lines at most (`pdf._sentence_end`) — are one
-place: a finding, an explanation, a teacher's box after the last, and an
-anchor found across them, which record 88's «Множеством / натуральных
-чисел называется» was not, and went pages on. An idea stands before the
-line its anchor begins in — the line its proof begins on — moved up only
-over lines that go on in lower case (`pdf._anchor_line`): set before a
-sentence of ten lines, record 92's idea of a proof stood above its
-theorem. Record 90 had «Зачем условие» between «такое, что:» and the
-formula it led to. A record stored
-before anchors is checked again when rendered. graphcheck's unread cell is not
-an error in the work and is not printed (`graphcheck.UNREAD_CELLS`).
+(`algebracheck`, task 84, "An equality that does not hold"). **A box never
+stands inside a sentence** (task 83): a record whose composition was refused
+is set line by line as the notebook has it, and a box under its line would
+cut a sentence in two. The lines of a sentence, as code tells them — a line
+in lower case goes on from the one before, a formula or a sign from a line
+that does not end a sentence, a blank line before a formula set apart and a
+main formula included (task 86), a line that does not end one into the list
+it opens at its first item, ten lines at most (`pdf._sentence_end`) — are
+one place: a finding, an explanation, a teacher's box after the last, and an
+anchor found across them. An idea stands before the line its anchor begins
+in — the line its proof begins on — moved up only over lines that go on in
+lower case (`pdf._anchor_line`), not to the start of its sentence, which may
+be the theorem above the proof. A record stored before anchors is checked
+again when rendered. graphcheck's unread cell is not an error in the work
+and is not printed (`graphcheck.UNREAD_CELLS`). → "Records 88 and 89",
+"Records 90, 91 and 92"
 
 **Adding is not forbidden; adding unmarked is.** That is stage three: a
 separate call over the trusted text, stored apart, printed as the bot's —
@@ -1312,21 +1307,20 @@ number never leaves another quietly cutting the work short:
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)`, every attempt timing out — 93 s at the default |
 | `_AFTER_TIMEOUT` | `services/vision.py` | `2` — a first attempt that timed out is followed by one twice as long, and that is the last: 90 s then 180 s in production, 271 s, inside `RUN_WORST_CASE_S` |
 | `_CONSENSUS_TIMEOUT_S` | `services/vision.py` | `RUN_WORST_CASE_S × TIMEOUT_MARGIN` — 120 s, a wave of runs; a page that reads further waits for two |
-| `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × (`VISION_RUNS` + `MORE_RUNS`) ÷ `API_SLOTS`⌉ — 1813 s, 604 until a send of thirty pages was one album (task 81), 362 until a page could read further (task 65); 5323 s at production's 90 s call; raising it is allowed, lowering it is not |
+| `_ALBUM_TIMEOUT_S` | `bot/albums.py` | `waves × RUN_WORST_CASE_S × TIMEOUT_MARGIN`, waves = ⌈`MAX_ALBUM_PAGES` × (`VISION_RUNS` + `MORE_RUNS`) ÷ `API_SLOTS`⌉ — 1813 s, 5323 s at production's 90 s call; raising it is allowed, lowering it is not |
 | `_QUIET_SECONDS` | `bot/albums.py` | 3 s of silence since the last `announce` closes an album, once every announced page is in |
-| `_CONTINUE_S` | `bot/albums.py` | 60 s of silence closes a send that ends on an album of exactly ten, which the rest of the send may follow (task 81) — three times the 19 s a phone took to upload the next album of thirty-two pages, 15 s until it split them into three records (task 85) |
-| `_COLLECT_MAX_S` | `bot/albums.py` | (⌈`MAX_ALBUM_PAGES` ÷ 10⌉ + 1) × `_CONTINUE_S` from the send's first page — 240 s at thirty pages, 60 s until task 85 — so a stream that never goes quiet is not waited on for ever, and a send that keeps coming is not cut |
+| `_CONTINUE_S` | `bot/albums.py` | 60 s of silence closes a send that ends on an album of exactly ten, which the rest of the send may follow (task 81) — three times the 19 s a phone took to upload the next album of a send (task 85) |
+| `_COLLECT_MAX_S` | `bot/albums.py` | (⌈`MAX_ALBUM_PAGES` ÷ 10⌉ + 1) × `_CONTINUE_S` from the send's first page — 240 s at thirty pages — so a stream that never goes quiet is not waited on for ever, and a send that keeps coming is not cut |
 | `max_overflow` | `db/session.py` | 15 — every page of an album arrives at once with a session, the winner holding a connection for the whole album; the others commit before they wait (task 81) |
 
 - `TIMEOUT_MARGIN = 1.3` is the ratio the old hand-written 120 s held to 93 s.
   The startup log prints all five timeouts and the repeat after a timeout:
   two are computed, and a deploy has to say what it runs on.
 - **A recognition timeout is a page the model thinks about longer, not a line
-  that hung** (task 76): every successful call over 50 s thought 12,000 to
-  21,000 tokens for an answer of a few hundred, and the same 90 s again
-  timed out 14 times of 25, the third 7 of 14 — runs lost, pages compared on
-  two runs or one, albums waiting minutes for nothing. So the repeat gets the
-  time of the two it replaces. → "What the bot spends its time and memory on"
+  that hung** (task 76): the long calls are the ones that think, and the
+  same ceiling again timed out again — runs lost, pages compared on two runs
+  or one. So the repeat gets the time of the two it replaces. → "What the
+  bot spends its time and memory on"
 - **The two timeout settings are not interchangeable**: recognition is per
   page and the album ceilings derive from it; composition is over the whole
   record and its wait grows with the album. Three pages compose in about
@@ -1395,12 +1389,11 @@ photoguard's line height: `UNMEASURED_LINE_HEIGHT` names a height that was not
 measured, and the criterion is skipped rather than reading `0.0` as a tiny
 line; `photoguard._line_height` thresholds by Otsu and takes the pitch as the
 median distance between bands of ink, with no three-line minimum (task 35); and
-`MIN_LINE_HEIGHT_PX` went from 20 to 16 (task 43), after record 45's dense
-notebook measured 22.75 px on four legible pages and 19.75 on a fifth that 20
-cut off. The fourth: `MIN_CONTRAST` went from 28 to 20 (task 75, the CEO's),
-after a page sharp and filling its frame was refused as too dark three times,
-at 26.1 to 27.8. → "The line height photoguard could not measure", "Record
-45, a lecture on remainders", "A page refused as dark"
+`MIN_LINE_HEIGHT_PX` went from 20 to 16 (task 43), after a legible page of a
+dense notebook was cut off at 20. The fourth: `MIN_CONTRAST` went from 28 to
+20 (task 75, the CEO's), after a page sharp and filling its frame was refused
+as too dark three times. → "The line height photoguard could not measure",
+"Record 45, a lecture on remainders", "A page refused as dark"
 
 Still open in photoguard: `MIN_LINE_HEIGHT_PX` is calibrated from above only —
 the one frame measured below 16, refused at 15.0 px, may or may not have been
@@ -1409,9 +1402,9 @@ its four metrics. So is `MIN_CONTRAST`, and its measure is the spread of
 brightness across the sheet: it counts how much is written as much as the
 light, so a page of a few lines is mostly even paper and reads as dark however
 it is lit. A measure of ink against paper would not, and would need real
-pages, good and bad, to set. On that page the line height came out at the
-sheet's own height, 1161 to 1280 px — no lines found, so «Текст мелкий» could
-not fire on such a page. `_paper_box` thresholds at `0.82 × percentile99`, so
+pages, good and bad, to set. On that page the line height came out at about
+the sheet's own height — no lines found, so «Текст мелкий» could not fire on
+such a page. `_paper_box` thresholds at `0.82 × percentile99`, so
 a bright highlight shrinks the mask to the glare and `paper_fraction`
 collapses. All four thresholds apply to the compressed image, so
 `IMAGE_MAX_SIDE` silently recalibrates them.
@@ -1580,12 +1573,12 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
   default, bit for bit the call every finding was made on — and an unknown
   value is refused at startup, since a knob that silently does nothing makes
   an experiment compare a setting against itself. Media resolution is inert.
-  Recognition thinks at the default: on one album `low` (record 47) and
-  `medium` (48) read the marks on the page worse, `low` seeing a
-  strike-through and a frame that are not there — turning it down is an arm,
-  never a budget setting. Composition and the source searches think `low`
-  (`COMPOSE_THINKING_LEVEL`, `SOURCE_THINKING_LEVEL`), measured on record 45 —
-  the same result at half the price in a third of the time; a search at `low`
+  Recognition thinks at the default: `low` and `medium` read the marks on
+  the page worse, `low` seeing a strike-through and a frame that are not
+  there — turning it down is an arm, never a budget setting. Composition and
+  the source searches think `low` (`COMPOSE_THINKING_LEVEL`,
+  `SOURCE_THINKING_LEVEL`) — the same result at half the price in a third of
+  the time; a search at `low`
   that ran none is made once more at the default (`explain._search`).
   `gemini-3.8-flash` refuses `"minimal"` with a 400. → "What a record costs"
 - **`seed` is deliberately not a setting, and `temperature` stays at 1.0**:

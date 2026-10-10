@@ -579,6 +579,8 @@ since 2026-10-01.
 | 2026-10-09 | the CEO, with Claude Code | Task 95 changed while measured. In the explaining stage's first call, `prompts-explain-v4.md`, the captions were right — record 97's set equality all three times — and the teacher's boxes fell from v3's 59, twice, to 57, 39 and 51 over seven lectures, the ideas of proofs most. The CEO's choice: the captions by a call of their own beside the first, `prompts-explain-captions-v1.md`, thinking `low`, one call more a record; v3 stays as it is, and v4 is kept as measured. The call is read by name and goes to production with its deploy, once measured and read | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Task 98 taken, the CEO's word: record 101 — record 97's album sent again — printed two formulas as their source, a brace with two lines under it and a brace made tall by a `\vphantom`. Two rows under or over a formula are stacked, and `\vphantom` and `\hphantom` are drawn as `\phantom`; checked over every record in the database | the CEO's own |
 | 2026-10-09 | the CEO, with Claude Code | Task 99 taken, the CEO's word, from record 102, whose last pages the CEO found terrible again and asked to have fixed once and for all: formulas are drawn by MathJax 4 inside the process — V8 by `mini-racer`, its SVG rasterised by `resvg-py`, the bundle vendored — with mathtext behind it, and the source printed only when both refuse; a display formula wider than the column is broken to it rather than shrunk. Besides, three faults of the layout: an image that opens a wrapped line is counted in the line's height, a dash a struck part leaves is no list marker, and a whole line in single tildes is struck. Measured over every formula of the database. "Dependencies" gains the two wheels, and reportlab and matplotlib, which it had left out | the CEO's own |
+| 2026-10-10 | the CEO, with Claude Code | `CLAUDE.md` read against the code (`/init`): every function, constant, setting and test it names is there. Two statements were wrong and are put right: a `.docx`, which no model reads, makes the study version's call when it is delivered, as every path has since task 80; and MathJax draws `\ce` and `\cancelto`, which the paragraph on mathtext called unsupported, a formula printing as its source only when both engines refuse it. "The pipeline" gains a photo's way through the modules, in the steps `handlers._read_photo` numbers. The records' stories, which `FINDINGS.md` already told, are cut from the rules, each rule keeping its reason in a sentence and its `→`; two facts with no section there went to "Moved from CLAUDE.md, 2026-10-10". No rule changed; the shared sections lose record 67's story alone | the CEO's own |
+| 2026-10-10 | the CEO, with Claude Code | "Final processing order for a photo" brought up to the code, which had outgrown it: step 0 before the download, a group's page claimed, the drawings cut out and placed back, the lecture a notebook joins, 12b — stage three with its captions — with a paragraph of its own, the record filed under its subject, step 16 delivering the study version, and step 17. The numbers stay the ones the code's comments use | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -1266,33 +1268,42 @@ event is written in the main one.
 question comes up while working on a task, the answer is here.
 
 ```
- 1. take message.photo[-1]
+ 1. take the page: message.photo[-1], or an image sent as a file (middlewares.page_file)
+ 0. media_group_id set, or a photo while its sender's send is collecting
+                                                      ← into the buffer as Telegram's reference, exit (tasks 9, 81)
+ ·  in a group, claim the page (corpus.reading)      ← being read already: exit (task 41)
  2. download into memory
- 3. compress (images.compress)
- 0. media_group_id set?                              ← into the buffer, exit (task 9)
+ 3. compress (images.compress, on its own thread)
  4. check limits (limits.check_limits, pages=1)       ← rejection: exit
  5. check the frame (photoguard.check_photo_bytes)    ← rejection: exit
  6. reply with texts.PROCESSING
- 7. three recognition runs (vision.transcribe_consensus)
+ 7. three recognition runs (vision.transcribe_consensus), two more where one read further
  8. record spend (vision.log_ai_calls)                ← always, own session
  9. result is None                                    ← texts.ERROR_GENERIC, exit
  10. markdown shorter than MIN_MARKDOWN_LEN            ← texts.NO_TEXT_FOUND, exit
+ ·  cut the drawings out of the image (figures.cut)
 10a. verdict == "rejected", or one run only           ← kept, marked unverified
 12. check calculations (vision.findings: mathcheck and graphcheck, each finding with the text it is about)
 12a. limits again (pages=0), then stage two (compose.compose)  ← refused: the text from step 7
-13. save the Note
+ ·  the drawings back where their lines stand (figures.place)
+ ·  the lecture the notebook joins, if its subject has it (subjects.joining)
+12b. limits again (pages=0), then stage three (explain.explain, its captions beside it)
+                                                      ← a notebook joining a fuller one: skipped
+13. save the Note, filed under its subject and lecture (subjects.file)
 14. debit the quota (limits.consume, pages=1)
 15. log the note_processed event
-16. reply to the user
+16. deliver the record (corpus.deliver): its study version, else its own document
+17. ask its subject, or say where it was filed (corpus.ask_for_tag)
 ```
 
-Step 0 keeps the label "0" even though it runs after step 3, not before
-step 1: `PageInput` needs `bytes_before`/`bytes_after`/`width`/`height`,
-which only exist once steps 1–3 have run, so the album check can't
-physically precede them. The label stays "0" purely so every other
-cross-reference in this document (steps 4, 5, 9, 10, 11, the "order steps
-appear in code" table, the docx skip list) doesn't have to be
-renumbered.
+Step 0 runs right after step 1, before anything is downloaded: an album's
+page goes into the buffer as Telegram's reference, and the update that
+claims the batch downloads the pages once the album's tag, size and limits
+let it be read (`handlers._fetch_pages`) — so an untagged album in a group
+is never fetched. The steps marked "·" carry no number. The numbers are the
+ones the code's comments use (`handlers._read_photo`), kept so that every
+other cross-reference in this document (steps 4, 5, 9, 10, 11, the "order
+steps appear in code" table, the docx skip list) holds.
 
 **Any exit at steps 4, 5, 9, 10, 11 means the same thing:** no record is
 created, no quota is debited, `note_processed` is not written,
@@ -1311,18 +1322,29 @@ second call, and `pages=0` because the page budget belongs to the recognition.
 It runs **after** step 12, not before: `mathcheck` and `graphcheck` judge what
 was *read*, and step 12a is presentation.
 
+**Step 12b cannot fail the record either**, for the same reasons: a call over
+the text, never the photograph, behind its own `check_limits` at `pages=0`;
+off, refused or failed, the record goes out without what it adds. It runs
+after the drawings are placed, so the text explained and the text stored are
+one text, and not at all for a notebook joining a lecture whose base is
+fuller (`subjects.joining`): that lecture's document carries the base's
+explanations.
+
 **Step 15 goes strictly between `consume` and the reply to the user.** The
 event means "processing finished successfully end to end," so it can't be
 written before the record and the quota have been saved.
 
-What's sent at step 16: the record as a PDF, and nothing after it about the
-record — what the checks found stands in the document under the text it is
-about, and how the page was read is not the reader's (task 46, the author's
-decision on 2026-09-25; until then a second message listed the needs-review
-flag, the arithmetic report, the numbers the runs read differently and the
-uncertain spots). An album that went out without some of its pages says which,
-in `texts.album_partial`. The question which subject the record belongs to
-follows in a private chat.
+What's sent at step 16: the record's study version as a PDF, or the record's
+own document when there is none to be had (`corpus.deliver`, task 80), and
+nothing after it about the record — what the checks found stands in the
+document under the text it is about, and how the page was read is not the
+reader's (task 46, the author's decision on 2026-09-25; until then a second
+message listed the needs-review flag, the arithmetic report, the numbers the
+runs read differently and the uncertain spots). An album that went out without
+some of its pages says which, in `texts.album_partial`. Step 17 follows:
+where the record was filed, when its pages came with their subject — in a
+group they always do — and otherwise the question which subject it belongs
+to.
 
 ### When saving appears
 

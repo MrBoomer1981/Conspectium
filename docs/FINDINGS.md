@@ -2173,3 +2173,18 @@ rose over the box's label; a struck formula left out left the dash before the
 author's note opening the line, printed as a list item; records 101 and 102
 were read with lines struck by one tilde where record 97, the same album, had
 two, and the tildes printed.
+
+## Moved from CLAUDE.md, 2026-10-10
+
+When `CLAUDE.md` was cut back to its rules a second time, its records'
+stories went to the sections above that already told them. Two facts had no
+section here; `PLAN.md` → task 55 holds them as well.
+
+**Record 59's byline and sources** (2026-10-01). Under its title record 59
+printed «фор · 21:27 (0, 1)» — what the model put in `margin_notes`, which
+on real pages is mostly not a margin note: the notebook's print, a doodle
+described, stray letters. And among an explanation's sources it printed
+reddit.com, since the sources were ranked and never filtered. Hence a byline
+of a name, a date or a page and nothing else, and a forum that is no source
+(task 55); record 62's dxdy.ru, a day later, was a forum the first list did
+not name.
