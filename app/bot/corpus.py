@@ -44,7 +44,7 @@ from app.bot import feedback, middlewares, rating, subjects, tags, texts
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, Lecture, Note, NoteFigure, NoteTopic, User
-from app.services import algebracheck, explain, graphcheck, limits, merge, pdf, study, vision
+from app.services import algebracheck, charts, explain, graphcheck, limits, merge, pdf, study, vision
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +132,8 @@ def _remarks(note: Note) -> list[pdf.Remark]:
         )
     # An equality that does not hold (task 84): found when the document is
     # drawn rather than stored, so a record made before the check has it too.
-    failed = algebracheck.failures(note.markdown or "")
+    # Never in a chart's data, «y = x^2», which is the drawing's (task 94).
+    failed = algebracheck.failures(charts.blanked(note.markdown or ""))
     if failed:
         logger.info("note %s: %d equalities that do not hold", note.id, len(failed))
     for failure in failed:

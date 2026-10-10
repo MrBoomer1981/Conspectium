@@ -27,7 +27,7 @@ from google.genai import types
 from app.core.config import price_per_mtok, settings
 from app.db.models import AiCall
 from app.db.session import async_session_maker
-from app.services import consensus, graphcheck, lectures, mathcheck, merge, pdf
+from app.services import charts, consensus, graphcheck, lectures, mathcheck, merge, pdf
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,9 @@ PROMPT_FRAMES_DRAWINGS = '"drawings"' in TRANSCRIBE_PROMPT
 # Whether the prompt asks where a lecture begins on the page (v9 on), so the
 # lecture before and the one after can be cut off an album's edges (task 64).
 PROMPT_MARKS_LECTURES = '"lecture_starts"' in TRANSCRIBE_PROMPT
+# Whether the prompt asks for a drawing that is data as its data — a graph by
+# its formula, a number line, a mapping (v10 on, task 94) — so code draws it.
+PROMPT_WRITES_CHARTS = "[график:" in TRANSCRIBE_PROMPT
 
 # One client per process, not one per call.
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -704,6 +707,9 @@ def arithmetic_issues(markdown: str) -> list[mathcheck.Issue]:
     """mathcheck's findings on a page, without the chains it read across a
     relation that is not an equality, and without the lines its chain check
     cannot read at all."""
+    # A chart's data is the drawing's, not the lecture's arithmetic: «y = x^2,
+    # y = 2x» in one is no chain (task 94).
+    markdown = charts.blanked(markdown)
     chains = "\n".join(
         ""
         if _NOT_EQUALITY_RE.search(line) or not _survives_chain_check(line)
@@ -1102,9 +1108,16 @@ async def transcribe_consensus(
             settings.VISION_RUNS,
         )
         only = ok_runs[0]
+        # Its charts are written as the words they stand for: a drawing is
+        # drawn only when a second run read the same data (task 94).
+        alone, written, _kept = charts.agreed([only.markdown], 0)
+        if written:
+            logger.info("consensus: charts %d written, none drawn from one run", written)
         return (
             TranscriptionResult(
-                best=replace(only, uncertain=meaningful_uncertain(only.uncertain)),
+                best=replace(
+                    only, uncertain=meaningful_uncertain(only.uncertain), markdown=alone
+                ),
                 text_agreement=None,
                 numeric_agreement=None,
                 numeric_divergences=[],
@@ -1119,20 +1132,30 @@ async def transcribe_consensus(
     all_stats.extend(more_stats)
 
     markdowns = [t.markdown for t in ok_runs]
-    text_agreement = consensus.compare_text(markdowns).similarity
+    # The runs are compared without their charts (task 94): a chart's data is
+    # compared as data, by charts.agreed below, and in the text it is neither
+    # the lecture's layout nor its numbers — a range one run read wider would
+    # read as a number misread, and a page without charts moves no agreement.
+    compared = [charts.blanked(markdown) for markdown in markdowns]
+    text_agreement = consensus.compare_text(compared).similarity
     # Filtered once, here, so the handler, the album assembly and the stored
     # record all see the same signal and none of them stores the noise.
-    reported = consensus.compare(markdowns).divergences
+    reported = consensus.compare(compared).divergences
     numeric_divergences = meaningful_divergences(reported)
-    chosen_index = consensus.pick_representative(markdowns)
+    chosen_index = consensus.pick_representative(compared)
     chosen = ok_runs[chosen_index]
     # Filtered in the same place and for the same reason as the divergences,
     # so the reply, the document and the stored record all see one signal.
     # A copy rather than an assignment: the runs belong to the comparison that
     # produced them, and nothing here needs to be the one place that edits one.
-    best = replace(chosen, uncertain=meaningful_uncertain(chosen.uncertain))
+    # A chart no other run read alike goes into the record as the words it
+    # stands for (task 94): an invented point or arrow is drawn as
+    # confidently as a real one, and the runs' agreement is the one signal
+    # that has proved reliable.
+    charted, charts_written, charts_kept = charts.agreed(markdowns, chosen_index)
+    best = replace(chosen, uncertain=meaningful_uncertain(chosen.uncertain), markdown=charted)
 
-    vouched = numbers_vouch(markdowns, reported)
+    vouched = numbers_vouch(compared, reported)
     verdict = _verdict(text_agreement, vouched)
     if verdict == "clean" and numeric_divergences:
         # A kept divergence means at least two runs read one position as
@@ -1168,6 +1191,8 @@ async def transcribe_consensus(
             len(chosen.lecture_starts),
             len(result.lecture_starts),
         )
+    if charts_written:
+        logger.info("consensus: charts %d written, %d agreed", charts_written, charts_kept)
     logger.info(
         "consensus: %d/%d runs %s, text_agreement=%.3f, "
         "numeric_agreement=%.3f, verdict=%s%s, "

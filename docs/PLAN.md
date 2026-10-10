@@ -300,17 +300,20 @@ included. "Where this is going, decided 2026-10-02" says why.
       once at twice the ceiling, one document drawn at a time, the day's
       pages counted by the database, image work on two threads — the
       CEO's. Taken on 2026-10-07 from a week of production
-- [ ] 77. Two formulas the document printed as their source: a term the
+- [x] 77. Two formulas the document printed as their source: a term the
       author struck out, `\cancel{…}`, drawn struck, and an arrow with its
       condition under it, `\xrightarrow[k \to \infty]{}` — the CEO's. Taken
-      on 2026-10-07 from the production log
-- [ ] 78. What record 86 showed: a title's formula printed as its source,
+      on 2026-10-07 from the production log,
+      closed on the CEO's word on 2026-10-10
+- [x] 78. What record 86 showed: a title's formula printed as its source,
       the author's frame inside a line, «1))» refusing a composition, and
       a teacher's example that was the lecture's working with another
-      number — the CEO's. Taken on 2026-10-08 from a reader's «Плохо»
-- [ ] 79. Record 86 sent again: a theorem's parts numbered «1 Существование»
+      number — the CEO's. Taken on 2026-10-08 from a reader's «Плохо»,
+      closed on the CEO's word on 2026-10-10
+- [x] 79. Record 86 sent again: a theorem's parts numbered «1 Существование»
       read as numbers the composer lost, and three cases in a column begun
-      on a line of text — the CEO's. Taken on 2026-10-08 from record 87
+      on a line of text — the CEO's. Taken on 2026-10-08 from record 87,
+      closed on the CEO's word on 2026-10-10
 - [ ] 81. A lecture sent at once is one record: the albums of ten that
       Telegram cuts a send of more pages into are read as one album — the
       CEO's. Taken on 2026-10-08 from twelve pages that came back as two
@@ -319,10 +322,11 @@ included. "Where this is going, decided 2026-10-02" says why.
       after a bullet, a number the author struck out and a formula the
       composer corrected — the CEO's. Taken on 2026-10-08 from the two
       records of task 81's twelve pages
-- [ ] 83. What the CEO read in records 88 and 89: the bot's boxes set
+- [x] 83. What the CEO read in records 88 and 89: the bot's boxes set
       inside a sentence, a word carried over with a hyphen, struck
       words printed, ⩽ beside ≤, a short formula alone on its ground, a
-      ringed sign printed as words — the CEO's. Taken on 2026-10-08
+      ringed sign printed as words — the CEO's. Taken on 2026-10-08,
+      closed on the CEO's word on 2026-10-10
 - [ ] 84. An equality that does not hold, found by code: both sides
       counted at random numbers, with what the lecture defined — the
       CEO's. Taken on 2026-10-08, after 83
@@ -330,11 +334,11 @@ included. "Where this is going, decided 2026-10-02" says why.
       for the rest of its send, the ceiling following the send — the
       CEO's. Taken on 2026-10-09 from a lecture that came back as three
       records
-- [ ] 86. What records 90, 91 and 92 showed in the document: a box
+- [x] 86. What records 90, 91 and 92 showed in the document: a box
       between a sentence and its formula, «Идея» pages before its proof, a
       comma opening a line, a ringed sign and struck lines printed, a
       margin's page numbers under the title — the CEO's. Taken on
-      2026-10-09
+      2026-10-09, closed on the CEO's word on 2026-10-10
 - [ ] 87. A study version asked again when its answer does not parse,
       its row saying why — the CEO's. Taken on 2026-10-09 from record 91
 - [ ] 88. Numbered items in lower case: a run of numbers 1, 2, 3 opening
@@ -410,16 +414,19 @@ their errors — the CEO's, not yet scheduled:
 Specified on 2026-10-09, from record 97 and what its author found wrong in
 it — the CEO's, not yet scheduled:
 
-- [ ] 92. What the reading writes about the photograph is not printed:
+- [x] 92. What the reading writes about the photograph is not printed:
       «[Левая страница]», «[Правая страница]» — the CEO's. Taken on
-      2026-10-09
+      2026-10-09, closed on the CEO's word on 2026-10-10
 - [ ] 93. What does not belong to the subject is left out: the course's
       organisation — contacts, points, dates of tests — out of the study
       version, chosen by its model and guarded by code — the CEO's. Taken
       on 2026-10-09, measured on record 97 before it ships
 - [ ] 94. A drawing that is data, drawn by code: a function's graph by its
       formula, a number line with its points and sets, a mapping of two
-      sets with its arrows — the CEO's, measured on an album sent again
+      sets with its arrows — the CEO's, measured on an album sent again.
+      Taken and built on 2026-10-10, and production switched to
+      `prompts-v10.md` the same day on the CEO's word; record 97's album
+      sent again is its check
 - [ ] 95. A formula or a drawing with no word about it gets the bot's
       caption — the CEO's, measured first. Taken on 2026-10-09; a call of
       its own beside the explaining stage's first, measured on seven
@@ -427,24 +434,26 @@ it — the CEO's, not yet scheduled:
 - [ ] 96. Three equalities that hold, found not to: a definition read off
       a working, and a formula the author struck out — the CEO's,
       measured over the database before it ships. Taken on 2026-10-09
-- [ ] 97. What record 97 showed in the document: a frame closed by «\}»,
+- [x] 97. What record 97 showed in the document: a frame closed by «\}»,
       a frame with a blank line inside, an item's «|», a record titled
-      «Лекция» — the CEO's. Taken on 2026-10-09 with 92 and 96
+      «Лекция» — the CEO's. Taken on 2026-10-09 with 92 and 96,
+      closed on the CEO's word on 2026-10-10
 
 Specified on 2026-10-09, from record 101, record 97's album sent again —
 the CEO's:
 
-- [ ] 98. Two formulas record 101 printed as their source: a brace with two
+- [x] 98. Two formulas record 101 printed as their source: a brace with two
       lines under it, «↑» over «ℕ», and a brace made tall by a
-      «\vphantom» — the CEO's. Taken on 2026-10-09
+      «\vphantom» — the CEO's. Taken on 2026-10-09,
+      closed on the CEO's word on 2026-10-10
 
 Specified on 2026-10-09, from record 102, a lecture on determinants — the
 CEO's:
 
-- [ ] 99. Formulas drawn by MathJax 4, mathtext behind it: matrices with
+- [x] 99. Formulas drawn by MathJax 4, mathtext behind it: matrices with
       their columns, a long formula broken to the column, nothing printed
       as its source — and three faults of the layout record 102 showed —
-      the CEO's. Taken on 2026-10-09
+      the CEO's. Taken on 2026-10-09, closed on the CEO's word on 2026-10-10
 
 Specified on 2026-10-10 — the CEO's:
 
@@ -497,8 +506,8 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72
-CEO — current: 73, 71, 41, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 92, 96, 97, 93, 95, 98, 99, 100, 90's check of the photographs; next: 94, 65 once there is data for it, 63's rest, then 60
+Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72, 77-79, 83, 86, 92, 97-99
+CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: none
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -591,6 +600,10 @@ since 2026-10-01.
 | 2026-10-10 | the CEO, with Claude Code | "Final processing order for a photo" brought up to the code, which had outgrown it: step 0 before the download, a group's page claimed, the drawings cut out and placed back, the lecture a notebook joins, 12b — stage three with its captions — with a paragraph of its own, the record filed under its subject, step 16 delivering the study version, and step 17. The numbers stay the ones the code's comments use | the CEO's own |
 | 2026-10-10 | the CEO, with Claude Code | Task 100 specified and taken, the CEO's word: a PDF sent to the bot is a record, its every page drawn as a picture and read as an album's page — the frame check, three runs, composing, the explanations, the study version — whatever the PDF holds: a typed PDF's text layer flattens its formulas, and a scanner lays a junk one over handwriting. An album's limits and refusals, a page the frame check refuses stopping the whole PDF; a blank page left out without a word; in a group only with its "#word", and no reply's "#word" under a PDF yet. Nothing of the file is kept | the CEO's own |
 | 2026-10-10 | the CEO, with Claude Code | Task 48 put off, the CEO's word: a subject's materials are not used yet, and a PDF sent to the bot is a record (task 100). The CPO's next is none | the CEO's own |
+| 2026-10-10 | the CEO, with Claude Code | Tasks 77, 78, 79, 83, 86, 92, 97, 98 and 99 — the document's look — closed on the CEO's word: «с качеством оформления больше вопросов нет» | the CEO's own |
+| 2026-10-10 | the CEO, with Claude Code | Task 94 taken and built, the CEO's word: «давай начнем работать над рисунками в конспектах». Read first over every record in the database: 149 drawings printed as their words, a number line the commonest of those that are data — 23 — then a sequence's graph, 13, a function's two and a mapping's four; sets, balls, neighbourhoods and planes, 48, are no data and stay words, and 40 are graphs the older records described rather than gave as edges. Recognition writes three kinds as data, `prompts-v10.md` — v6 with rule 6 widened, 328 words against v6's 249 and v4's 321: `[график: …]`, `[прямая: …]`, `[отображение: …]`, each on a line of its own; `pdf.py` draws them as the reference lecture draws its figures. A chart is drawn only when another run read the same data (`charts.agreed`, in `transcribe_consensus`), and otherwise goes into the record as the words it stands for, `[схема: …]`: an invented point is drawn as confidently as a real one. The composer never sees a chart's data, which stands in its text as a line it keeps, and a composition that loses one is refused. The checks of the work do not read it. `note_processed` gains `charts` ("Contracts"); the contract between the prompt and `pdf.py` widens, what is shared, the CEO's word enough and the CPO told. Production stays on v6 until the measurement: record 97's album sent again under v10, the drawings against the photographs, the agreements against record 101's. `merge`'s drawing pattern now takes a description whole when it holds brackets of its own | the CEO's own |
+| 2026-10-10 | the CEO, with Claude Code | Task 94 made sure of before it shipped, the CEO's word «пишем один раз и навсегда»: the runs are compared without their charts, so a chart's range moves no agreement and flags no divergence; two runs' names are alike as one expression however written; a number line's sets compared in their places; a composition that writes a chart's place twice is refused; every figure a chart draws is closed whatever happens; a graph whose values span more than a million is words. Production reads `prompts-v10.md` from the same day, the CEO's switch, record 97's album sent again its check | the CEO's own |
+| 2026-10-10 | the CEO, with Claude Code | Two rules of how work is done, the CEO's: one piece of work, one commit — its code, its lines here, the documents and README together, «всегда отправляем меньшим кол-вом коммитов» — in place of a `plan:` commit of its own and README in a `docs:` one; and code written once, to work for good, «пишем один раз и навсегда» — a change ships whole, run against what production holds and against input made to break it. `CLAUDE.md` → "Who decides", "How to work in this project" | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -1288,6 +1301,7 @@ question comes up while working on a task, the answer is here.
  5. check the frame (photoguard.check_photo_bytes)    ← rejection: exit
  6. reply with texts.PROCESSING
  7. three recognition runs (vision.transcribe_consensus), two more where one read further
+ ·  a chart no other run read alike written as its words (charts.agreed)
  8. record spend (vision.log_ai_calls)                ← always, own session
  9. result is None                                    ← texts.ERROR_GENERIC, exit
  10. markdown shorter than MIN_MARKDOWN_LEN            ← texts.NO_TEXT_FOUND, exit
@@ -5675,7 +5689,9 @@ it.
 # Task 94. A drawing that is data, drawn by code
 
 **Owner: the CEO.** Specified on 2026-10-09, from record 97; the CEO's
-choice of the three ways to the drawings it asked for.
+choice of the three ways to the drawings it asked for. Taken and built on
+2026-10-10, the CEO's word: «давай начнем работать над рисунками в
+конспектах».
 
 ## Why
 
@@ -5687,26 +5703,104 @@ much of what a lecture draws is data — a graph by its formula, a number
 line, a mapping — and data is drawn by code, the way a graph is drawn from
 its edges (`[граф: 1-2, 2-3]`) and was never a picture of the model's.
 
-## Do — a proposal
+**What the records draw**, read on 2026-10-10 over every record in the
+database (`FINDINGS.md` → "Drawings that are data"): 149 drawings printed
+as their words. Of those that are data, a number line is the commonest —
+23, points, segments, rays, an ε-neighbourhood, nested segments — then a
+sequence's graph, 13, a function's two, a mapping's four. Sets, balls,
+neighbourhoods and planes sketched, 48, are no data: they stay words, and
+are what drawings cut out of the page would be for.
 
-1. **Recognition writes such a drawing as data**, `prompts-v10.md` (v6
-   with it): `[график: y = x^2; x от -2 до 2]`, `[ось: …]` with its points
-   and intervals, `[отображение: A → B; a1 → b1, …]`. A drawing that is
-   not data stays `[схема: …]`.
-2. **`pdf.py` draws them** in the document's ink on its paper, as it draws
-   a graph: matplotlib, already a dependency.
-3. **Measured on an album sent again** — record 97's — with the prompt set
-   by `PROMPT_FILE` on Railway, against the photographs: production
-   switches only if the drawings are right and the reading did not get
-   worse (the two agreements, `docs/PLAN.md` → "Where the quality work
-   stands").
-4. The contract between the prompt and `pdf.py` changes — what is shared;
-   the CEO's word is enough, the CPO told.
+## Do, as built
+
+1. **Recognition writes such a drawing as data**, each on a line of its
+   own — `prompts-v10.md`, v6 with rule 6 widened, 328 words:
+   - `[график: y = x^2; x от -2 до 2]` — a function's graph, its formula
+     written by the drawing or just before it; a sequence, `x_n = …`, is
+     drawn as its terms; a constant as a level, dashed; the range only
+     where the drawing writes one;
+   - `[прямая: a, c, X = [a; c), (c; +\infty)]` — a number line: its
+     points left to right, then its intervals and rays; «множество X» for
+     a set whose ends the drawing does not name;
+   - `[отображение: A -> B; 1 -> a, 2 -> a, 3 -> b, c]` — a mapping: its
+     arrows, «c» an element no arrow comes to, «3 ->» one none goes out
+     of, «•1» a dot with no name.
+   A drawing that is not data stays `[схема: …]`.
+2. **`charts.py` reads them** — never raising, a line that does not read
+   is None: a curve's formula by algebracheck's reader, with |x|, more
+   functions and «e»; a formula with a letter the range does not give,
+   «y = kx + b», is no data.
+3. **A chart is drawn only when another run read the same data**
+   (`charts.agreed`, in `transcribe_consensus`): a curve compared by the
+   numbers it comes to — x^2 and x·x are one curve — and not by its range,
+   which a reading estimates; a line by its points in order and what each
+   interval spans; a mapping by its arrows. One no other run read alike,
+   or read by one run alone, goes into the record as the words it stands
+   for, `[схема: график: $y = x^2$ …]`. The log says how many were written
+   and how many agreed. A name is alike written alike or as one expression
+   however written — «\frac{1}{2}» and «0.5», «1 − 1/n» and «1-\frac{1}{n}»
+   — counted at random numbers as algebracheck counts. The runs are
+   compared without their charts — the two agreements, the divergences,
+   the medoid — so a range one run read wider is no number misread, and a
+   page's agreements mean under v10 what they meant under v6.
+4. **The composer never sees a chart's data** (`charts.held`): a formula in
+   it is the drawing's, and the composer's rule 4 would set it apart as
+   the lecture's. It stands in the text as `[схема: рисунок данными N]`,
+   which the composer keeps as it keeps every `[схема: …]`, and goes back
+   after; a composition that loses one is refused, as one that loses a
+   number is.
+5. **The checks of the work do not read it**: mathcheck's chains and
+   constants and algebracheck's equalities run on the record with its
+   charts taken out (`charts.blanked`) — «y = x^2» is no equality of the
+   lecture.
+6. **`pdf.py` draws them** in the document's ink on its paper, as the
+   reference lecture (`матан 24.09.2026.pdf`) draws its figures, names in
+   the formulas' face, at the size they are set: a number line's axis with
+   its arrow, points named under it, every interval a bar over it with its
+   name, a nested one a level up, a dashed line down from each end, an
+   open end a ring, a closed one a stroke, a ray its arrow; a graph on
+   axes through the origin, named at their arrows, numbered with the
+   decimal comma, a pole two branches; a mapping as two ovals, their
+   elements top to bottom, an arrow from each to its image. A chart that
+   cannot be drawn prints as its words. A chart is a drawing to the bot's
+   captions (task 95), to the study version's units and to the merge of
+   notebooks.
+7. `note_processed` gains `charts`, the charts the record keeps
+   ("Contracts"); the startup log says drawings are «drawn from their data
+   where they are data» under v10.
+8. The contract between the prompt and `pdf.py` changes — what is shared;
+   the CEO's word is enough, the CPO told. `CLAUDE.md` → "The document",
+   "The pipeline", "Structure"; `BRAND.md` → how a chart looks.
+
+## How it is tried
+
+Every record of the database parses and renders as it did: none carries a
+chart. Four thousand lines made to break it — formulas cut short, brackets
+unclosed, ranges reversed, a hundred arrows — parse, agree and draw with
+not one error, and the figures they drew are all closed; what does not
+read prints as its words. Production reads `prompts-v10.md` since
+2026-10-10, the CEO's word — «пишем один раз и навсегда» — rather than a
+trial to be taken back. Record 97's album sent again is its check — the
+album of records 97 and 101, with its parabola, its number lines and its
+mappings: the CEO compares the drawings with the photographs; the log says
+how many charts the runs wrote and agreed on; the two agreements are read
+against record 101's.
+
+## Acceptance criterion
+
+- Record 97's album under v10: its parabola, its number lines and its
+  mappings drawn, each as the photograph has it, and none drawn that the
+  page does not have.
+- The two agreements no worse than record 101's, beyond the noise.
+- A record under v6 reads and renders as before.
+- The suite is green.
 
 ## Don't do
 
 - No drawing redrawn from the model's description: what is drawn is what
   the data says.
+- No chart one run alone read.
+- No sketch of sets, balls or neighbourhoods as data: those are not.
 
 ---
 
@@ -6204,6 +6298,7 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `pages_skipped` | — | number skipped | — |
 | `drawings` | the `[схема: …]` lines recognition wrote | over every page read | — |
 | `figures` | drawings cut out and placed (task 54) | over the record | — |
+| `charts` | drawings the record keeps as data, drawn by code — a graph by its formula, a number line, a mapping; a chart the runs did not read alike is words, counted in `drawings` (task 94) | over the record | — |
 | `explain_judged` | explanations dropped for judging the record (task 55) | over the record | — |
 | `compose_retried` | the guards refused the first composition and a second was asked for | the same, over the record | — |
 | `compose_restored` | formulas the composer changed a number in, put back as read before the guards (task 82) | the same, over the record | — |
@@ -6530,7 +6625,10 @@ drawn as confidently as a real one. `parse_graph` refuses text that doesn't
 read as vertices, which catches prose, not a plausible wrong edge. The fix
 is the one that already works for numbers: compare the three runs' edge
 lists and mark the record `needs_review` when they disagree. Deferred on
-purpose — its own task.
+purpose — its own task. The charts of task 94 — a graph by its formula, a
+number line, a mapping — are drawn only when another run read the same
+data, and are words otherwise (`charts.agreed`); a graph's edges are not
+held to that yet.
 
 **Closed by task 46: a remark whose anchor was a single character landed on
 the first line that contained it** — "f" found `\frac` above the word it was

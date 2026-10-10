@@ -42,7 +42,12 @@ _LAYOUT_RE = re.compile(
     r"|big|Big|bigg|Bigg|[,;!:])(?![A-Za-z])"
 )
 _UNREADABLE_RE = re.compile(r"\[неразборчиво\]")
-_DRAWING_RE = re.compile(r"\[(?:схема|рисунок|граф)[^\]]*\]", re.DOTALL)
+# A chart's brackets hold an interval's, «[прямая: 0, X = [0; c)]», closed by
+# either bracket (task 94).
+_DRAWING_RE = re.compile(
+    r"\[(?:схема|рисунок|граф|прямая|числовая|ось|отображен)(?:[^\[\]]|\[[^\[\]]*[\])])*\]",
+    re.DOTALL,
+)
 _NOISE_RE = re.compile(r"[\s$*#_`~>{}\\|\-:.,;!?\"«»()\[\]]+")
 # What a passage set in by an earlier merge carries: the lines pdf.inserted
 # writes round it.

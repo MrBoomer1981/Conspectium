@@ -26,13 +26,13 @@ import logging
 import re
 import time
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 
 from google.genai import types
 
 from app.core.config import settings
-from app.services import pdf, vision
+from app.services import charts, pdf, vision
 from app.services.vision import CallStats
 
 logger = logging.getLogger(__name__)
@@ -566,9 +566,11 @@ async def _sample(markdown: str, all_stats: list[CallStats]) -> str | None:
     return None
 
 
-def _checked(markdown: str, composed: str) -> Composition:
+def _checked(markdown: str, composed: str, held: Sequence[str] = ()) -> Composition:
     """One composition through the repairs and the guards: the composed
-    document when they accept it, the source and the reason when not."""
+    document when they accept it, the source and the reason when not. `held`
+    are the record's charts, which stood in it as lines the composer keeps
+    (charts.held) and go back in either way."""
     # Before the guards, so that what they checked is what gets stored.
     composed, demoted = _demote_invented_headings(composed)
     composed, unmarked = _cap_marks(markdown, composed)
@@ -580,6 +582,10 @@ def _checked(markdown: str, composed: str) -> Composition:
         composed, restored = _restore_formulas(markdown, composed)
         before, after = _counts(markdown, composed)
     refused = _refusal(markdown, composed)
+    if refused is None and charts.lost(composed, held):
+        # A chart's place the composer dropped or rewrote: its numbers guard
+        # caught a dropped one, not one with its number kept.
+        refused = "a chart lost"
     drift = _drift(markdown, composed)
     # How many numbers went and came, never which: they are the page's.
     # Record 59's refusal took two paid calls in the container to explain.
@@ -598,7 +604,7 @@ def _checked(markdown: str, composed: str) -> Composition:
         settings.COMPOSE_MODEL,
     )
     return Composition(
-        markdown if refused else composed,
+        charts.restored(markdown if refused else composed, held),
         refused=refused,
         drift=drift,
         demoted=demoted,
@@ -612,12 +618,15 @@ async def compose(markdown: str) -> Composition:
     if not settings.COMPOSE_ENABLED:
         return Composition(markdown)
 
+    # The composer never sees a chart's data (task 94): a formula in it is
+    # the drawing's, which rule 4 would set apart as the lecture's.
+    source, held = charts.held(markdown)
     all_stats: list[CallStats] = []
-    composed = await _sample(markdown, all_stats)
+    composed = await _sample(source, all_stats)
     if composed is None:
         return Composition(markdown, refused="call failed", stats=all_stats)
 
-    result = _checked(markdown, composed)
+    result = _checked(source, composed, held)
     if result.refused:
         # A refusal is one sample's. Record 66's composition was refused in
         # production for three numbers it gained, and asked for six times
@@ -625,9 +634,9 @@ async def compose(markdown: str) -> Composition:
         # loses its composition loses its headings. So a refused one is asked
         # for once more — one call more, on about one record in thirty — and
         # the guards judge the second as they judged the first.
-        again = await _sample(markdown, all_stats)
+        again = await _sample(source, all_stats)
         if again is not None:
-            result = _checked(markdown, again)
+            result = _checked(source, again, held)
         result.retried = True
     result.stats = all_stats
     return result

@@ -96,17 +96,21 @@ In a session:
   and the deploy stops.
 - **Every change to `docs/PLAN.md` beyond a task's checkbox and its owner's
   line in "State", and every change to a rule here, is a line in "Plan
-  changes"**, in a `plan:` commit of its own. One the CPO makes in the CEO's
-  area, or in what is shared, waits there for the CEO's word; the CEO's are
-  accepted as written.
+  changes"**, in the commit of the work it belongs to. One the CPO makes in
+  the CEO's area, or in what is shared, waits there for the CEO's word; the
+  CEO's are accepted as written.
+- **One piece of work, one commit** (the CEO, 2026-10-10: «всегда отправляем
+  меньшим кол-вом коммитов»): its code, its lines in `docs/PLAN.md`, the
+  documents and `README.md` go in together. A push carries as few commits
+  as the work it ships.
 - **Pull before pushing, and never force-push `main`**: both push to it,
   GitHub's free plan cannot protect a private repository's branch, and every
   push deploys.
 - **Every push carries `README.md` up to date** (the CEO, 2026-10-07): its
   plan of development first — the phases, what is done, what is under way
   and whose, what comes next — read off `docs/PLAN.md` → "Progress" and
-  "State". In a `docs:` commit of the same push, never a push of its own:
-  every push deploys, and a deploy cancels what is being processed.
+  "State". In the commit of the work, never a push of its own: every push
+  deploys, and a deploy cancels what is being processed.
 
 ---
 
@@ -131,7 +135,9 @@ In a session:
 - **What production runs**, as last read off the startup log, 2026-10-08 —
   the log is the authority, and `docs/PLAN.md` → "What production says" the
   record of the first readings: recognition on `gemini-3.8-flash`, three
-  runs, `prompts-v6.md`, thinking at the model's default; composition on,
+  runs, `prompts-v10.md` since 2026-10-10 — v6 with a drawing that is data
+  written as data, the CEO's switch, checked on record 97's album sent
+  again — thinking at the model's default; composition on,
   `gemini-3.8-flash`, `prompts-compose-v4.md` since 2026-10-06, thinking
   `low`; the explaining stage on,
   `gemini-3.8-flash`, its searches at `low`, `prompts-explain-v3.md` since
@@ -433,7 +439,8 @@ images.compress              in a worker thread (images.in_worker)
  5   photoguard              the frame, before any model call
  6   texts.PROCESSING
  7   vision.transcribe_consensus   three runs compared, two more where one
-                             read further
+                             read further; a chart drawn only when two read
+                             it alike (charts.agreed)
  8   vision.log_ai_calls     always, in a session of its own
  9, 10                       nothing parsed, or too little text: the page is
                              dropped
@@ -589,6 +596,11 @@ from 12a, once.
   is put back as read where that brings the numbers closer: the bot does not
   correct the author, and a record should not lose every heading for one
   exponent. → "Records 88 and 89"
+- **A chart's data never reaches the composer** (`charts.held`, task 94):
+  it stands in the text as `[схема: рисунок данными N]`, which the composer
+  keeps as it keeps every `[схема: …]`, and goes back after. A formula in a
+  chart is the drawing's, which rule 4 would set apart as the lecture's;
+  a composition that loses one is refused, as one that loses a number is.
 - **Main-formula marks are capped**: rule 9 of `prompts-compose-v3.md` frames a
   section's main formula, and `_cap_marks` keeps two of the stage's own frames
   a section (`compose_unmarked`). A frame from recognition is the author's pen
@@ -1245,6 +1257,30 @@ composing stage's "### Определение" — is one contract in two files:
 on one side, the record prints the spec. Nothing yet compares the runs' edge
 lists — `docs/PLAN.md` → Known risks. → "Record 74, a lecture on trees"
 
+**A drawing that is data is drawn from its data** (task 94, the CEO's,
+2026-10-10), from `prompts-v10.md` on: `[график: y = x^2; x от -2 до 2]` —
+a function by its formula, a sequence as its terms, a constant as a dashed
+level; `[прямая: a, c, X = [a; c), (c; +\infty)]` — a number line, its
+points left to right and its intervals, «множество X» for a set whose ends
+are not named; `[отображение: A -> B; 1 -> a, 2 -> a, 3 -> b, c]` — a
+mapping, its arrows. `charts.py` reads them, never raising; `pdf.py` draws
+them as the reference lecture draws its figures — an axis with its arrow,
+an interval a bar with a nested one a level up, an open end a ring, a
+graph on axes through the origin numbered with the decimal comma, two
+ovals and their arrows — names in the formulas' face, at the size they are
+set. **A chart is drawn only when another run read the same data**
+(`charts.agreed`, in `transcribe_consensus`): a curve by the numbers it
+comes to, not its range; a line by its points and intervals; a mapping by
+its arrows. One no other run read alike, or one run's alone, goes into the
+record as its words, `[схема: …]` — an invented point is drawn as
+confidently as a real one. The runs are compared without their charts —
+the agreements, the divergences, the medoid — so a range one run read
+wider is no number misread. A formula with a letter its range does not
+give, «y = kx + b», is no data. The checks of the work never read a
+chart (`charts.blanked`); to the captions, the study version and the merge
+of notebooks it is a drawing. Sets, balls and neighbourhoods sketched are
+no data and stay words. → "Drawings that are data"
+
 **The document says nothing about how a page was read** (2026-09-25): no
 reading that could have been another, no numbers the runs read differently, no
 page read without a second opinion, no "нужна проверка". The columns behind
@@ -1465,6 +1501,7 @@ app/
     pdf.py            a record as a PDF
     mathjax.py        formulas drawn by MathJax 4 in V8, mathtext behind it
     figures.py        drawings cut out of the page, placed back after composing
+    charts.py         a drawing that is data — a graph, a number line, a mapping: read, agreed
     lectures.py       where a lecture begins on a page; one lecture a record
     merge.py          one lecture from several notebooks: which is one, what each adds
     images.py         compression, a PDF's pages drawn, and the two threads image work runs on
@@ -1491,7 +1528,9 @@ CLAUDE.md, README.md  in the root, where Claude Code and GitHub read them
 extraction only, v6 (production) v5 with the author's frames written as
 `\boxed{…}`, v7 without the list of numbers, tried and rolled back, v8 v6
 with each drawing's frame, measured and asleep (task 54), v9 v6 with where a
-lecture begins, measured and asleep (task 64); composing
+lecture begins, measured and asleep (task 64), v10 (production since
+2026-10-10) v6 with a drawing that is data written as data (task 94);
+composing
 `prompts-compose-v1.md` to `v4`, v3 framing a section's main formula, v4
 (production since 2026-10-06) v3 with the author's shorthand spelled out
 (task 69);
@@ -1661,8 +1700,16 @@ settled.
   that is the author's — a trade-off with no clear default, a change of scope,
   a conflict with the plan or this file — and give a recommendation with the
   question.
-- **One task from `docs/PLAN.md` — one session — one commit**; a change to the
-  plan or to a rule here goes in a `plan:` commit of its own ("Who decides").
+- **Code is written once, to work for good** (the CEO, 2026-10-10: «пишем
+  один раз и навсегда»): a change ships whole — every path it touches, every
+  way its input can go wrong, what happens when it fails halfway — so that it
+  works afterwards without being come back to. Before it is pushed it is run
+  against what production holds and against input made to break it, and
+  what it leaves behind is let go whatever happens: a figure closed, a
+  file freed. No stopgap left to be fixed later; what code cannot make sure
+  of — how a model will write — is said so, and measured.
+- **One task from `docs/PLAN.md` — one session — one commit**, with its plan's
+  lines, its documents and README ("Who decides").
 - **No new tests while the project is in active development** — the author's
   decision, 2026-09-29. The suite stays green: a test that pins behaviour
   changed on purpose is changed with it.

@@ -157,9 +157,14 @@ async def lifespan(app: FastAPI):
         settings.PROMPT_FILE,
         vision.PROMPT_WORDS,
         "listed by the model" if vision.PROMPT_LISTS_NUMBERS else "read from the text",
-        # From v8 on a drawing is cut out of the page; before it, only
+        # From v8 on a drawing is cut out of the page; from v10 on one that
+        # is data is drawn from its data (task 94); before them, only
         # described — and a record does not say which prompt made it.
-        "cut out of the page" if vision.PROMPT_FRAMES_DRAWINGS else "described",
+        "cut out of the page"
+        if vision.PROMPT_FRAMES_DRAWINGS
+        else "drawn from their data where they are data"
+        if vision.PROMPT_WRITES_CHARTS
+        else "described",
         # From v9 on the lecture before and the one after are cut off an
         # album's edges (task 64); before it, an album carries them in.
         "marked and cut to one" if vision.PROMPT_MARKS_LECTURES else "not marked",

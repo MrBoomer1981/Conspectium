@@ -43,6 +43,7 @@ matplotlib.use("Agg")  # no display on a server; must precede pyplot
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib import patheffects  # noqa: E402
 from matplotlib.font_manager import FontProperties  # noqa: E402
+from matplotlib.patches import Ellipse  # noqa: E402
 import numpy as np  # noqa: E402
 from PIL import Image as PILImage  # noqa: E402
 from PIL import ImageDraw  # noqa: E402
@@ -67,7 +68,7 @@ from reportlab.platypus import (  # noqa: E402
 )
 from reportlab.platypus import paragraph as _rl_paragraph  # noqa: E402
 
-from app.services import mathjax  # noqa: E402
+from app.services import charts, mathjax  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -339,9 +340,10 @@ def placed_mark(number: int) -> str:
 # as a header rather than data.
 _ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
 _ROW_SEPARATOR_RE = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
-# "[граф: 1-2]", or "[граф Ориентированный: 1->2]" with a caption.
+# "[граф: 1-2]", or "[граф Ориентированный: 1->2]" with a caption. Never
+# «[график: …]», a chart (task 94), which is the same four letters and more.
 _GRAPH_RE = re.compile(
-    r"^(?:граф|graph)\s*([^:]{0,40}?)\s*:\s*(.*)$", re.IGNORECASE
+    r"^(?:граф|graph)(?![А-Яа-яЁёA-Za-z])\s*([^:]{0,40}?)\s*:\s*(.*)$", re.IGNORECASE
 )
 _DIRECTED_RE = re.compile(r"\s*(?:-+>|→)\s*")
 _UNDIRECTED_RE = re.compile(r"\s*[-–—]\s*")
@@ -964,23 +966,33 @@ def _lift_drawings(markdown: str) -> str:
     out: list[str] = []
     for line in markdown.splitlines():
         stripped = line.strip()
-        found = list(_INLINE_DRAWING_RE.finditer(line))
+        found = _drawings_in(line)
         if stripped.startswith("|") or not found or (
-            len(found) == 1 and found[0].group(0) == stripped
+            len(found) == 1 and line[found[0][0] : found[0][1]] == stripped
         ):
             out.append(line)
             continue
         last = 0
-        for match in found:
-            before = line[last : match.start()].strip()
+        for start, end in found:
+            before = line[last:start].strip()
             if before:
                 out.append(before)
-            out.append(match.group(0))
-            last = match.end()
+            out.append(line[start:end])
+            last = end
         after = line[last:].strip()
         if after:
             out.append(after)
     return "\n".join(out)
+
+
+def _drawings_in(line: str) -> list[tuple[int, int]]:
+    """Where the drawings of a line stand: the charts, whose brackets nest —
+    «[прямая: 0, X = [0; c)]» — and the rest, whose do not."""
+    found = [(start, end) for start, end, _kind in charts.spans(line)]
+    for match in _INLINE_DRAWING_RE.finditer(line):
+        if not any(start < match.end() and match.start() < end for start, end in found):
+            found.append((match.start(), match.end()))
+    return sorted(found)
 
 
 # A column of formulas begun on the line that introduces it: record 86's
@@ -1323,13 +1335,17 @@ def blocks(markdown: str) -> list[Block]:
         # "[схема: граф с петлёй]" — the model's note that something on the
         # page is a drawing, and all the record has of it. "[рисунок 3: …]" is
         # one cut out of the page, which the record keeps. "[граф: 1-2, 2-3]"
-        # is a drawing given as its edges, and is drawn from them.
+        # is a drawing given as its edges, and is drawn from them; a chart,
+        # "[график: y = x^2]", is one given as its data (task 94).
         if stripped.startswith("[") and stripped.endswith("]"):
             inner = stripped[1:-1].strip()
+            chart = charts.read(inner)
             picture = _PICTURE_RE.match(inner)
             drawing = _GRAPH_RE.match(inner)
             framed = _FRAME_NOTE_RE.match(inner)
-            if picture:
+            if chart is not None:
+                out.append(Block("chart", chart[1], marker=chart[0], quoted=inner))
+            elif picture:
                 out.append(
                     Block("picture", picture.group(2).strip(), marker=picture.group(1))
                 )
@@ -2572,6 +2588,483 @@ def _tree_positions(
     }
 
 
+# ── Charts: a drawing that is data (task 94) ────────────────────────────────
+# Drawn the way the reference lecture draws them (`матан 24.09.2026.pdf`, the
+# CEO's): a number line's axis with its arrow, its points named under it,
+# every segment a bar over it with its name, a nested one a level up, a
+# dashed line down from each end; a graph on axes through the origin, each
+# with its arrow; a mapping as two sets and the arrows between their
+# elements. In the document's ink on its paper, names in the formulas' face.
+# A chart is drawn at the size it is set at, every length in points, so its
+# letters are the size the text's are.
+_CHART_NAME_PT = 10.0
+_CHART_NUMBER_PT = 7.5
+_CHART_RULE_PT = 0.9
+_CHART_CURVE_PT = 1.3
+_CHART_BAR_PT = 1.6
+_CHART_GUIDE_PT = 0.5
+_CHART_ARROW = 7.0  # an arrowhead's size, as matplotlib scales one
+_CHART_TICK_PT = 2.5
+_CHART_DOT_PT = 2.2
+_CHART_OPEN_PT = 2.4
+# A number line takes most of the column — its points are read along it —
+# and no more than this between two of them, or three points float apart.
+_LINE_CHART_PT = 300.0
+_LINE_STEP_MAX_PT = 64.0
+_LINE_FIRST_PT = 9.0
+_LINE_LEVEL_PT = 9.0
+_LINE_NAMED_LEVEL_PT = 16.0
+_PLOT_CHART_PT = 200.0
+# A graph whose values span more than this is no lecture's drawing.
+_PLOT_SPAN_MAX = 1e6
+_MAPPING_CHART_PT = 190.0
+_MAPPING_ROW_PT = 18.0
+_MAPPING_SET_PT = 54.0
+
+
+def _chart_figure(width_pt: float, height_pt: float):
+    """A figure the size of the chart, one axes over all of it, in points."""
+    figure = plt.figure(figsize=(width_pt / 72.0, height_pt / 72.0))
+    axes = figure.add_axes((0, 0, 1, 1))
+    axes.axis("off")
+    axes.set_xlim(0, width_pt)
+    axes.set_ylim(0, height_pt)
+    return figure, axes
+
+
+def _chart_saved(figure) -> bytes:
+    buffer = io.BytesIO()
+    try:
+        figure.savefig(buffer, format="png", dpi=_DPI, transparent=True)
+    finally:
+        plt.close(figure)
+    return buffer.getvalue()
+
+
+def _chart_name(
+    axes, x: float, y: float, label: str, size: float, plain: bool, halo: bool = False, **place
+) -> None:
+    """A name in a chart: a formula in the formulas' face, as the text's
+    formulas are; words in the text's. `plain` writes a formula in
+    characters, for one mathtext would not draw. `halo` sets it on a patch
+    of the paper, over whatever line runs under it: a curve crossed the
+    numbers on its axes."""
+    if not label:
+        return
+    if halo:
+        place = {
+            **place,
+            "zorder": 5,
+            "bbox": {"facecolor": _PAPER, "edgecolor": "none", "pad": 0.4},
+        }
+    if _CYRILLIC_RE.search(label) or plain:
+        words = label if _CYRILLIC_RE.search(label) else _plain_formula(label)
+        # Onest when it has every character, as the text's words are set;
+        # DejaVu, which has them all, Cyrillic included, when it does not —
+        # an «∞» in Onest is an empty box.
+        face = (
+            os.path.join(_FONT_DIR, "Onest-Regular.ttf")
+            if all(ord(char) in _text_glyphs() for char in words)
+            else _mpl_font("DejaVuSans.ttf")
+        )
+        axes.text(
+            x, y, words, color=_INK, fontproperties=FontProperties(fname=face, size=size), **place
+        )
+        return
+    text = axes.text(
+        x, y, f"${for_mathtext(label)}$", fontsize=size,
+        math_fontfamily=_MATH_FONT, color=_INK, **place,
+    )
+    text.set_path_effects(
+        [patheffects.withStroke(linewidth=_MATH_STROKE_PT, foreground=_INK)]
+    )
+
+
+def _chart_arrow(axes, start, end, width: float = _CHART_RULE_PT, style: str = "-|>") -> None:
+    axes.annotate(
+        "", xy=end, xytext=start, annotation_clip=False,
+        arrowprops={
+            "arrowstyle": style, "lw": width, "color": _INK,
+            "mutation_scale": _CHART_ARROW, "shrinkA": 0, "shrinkB": 0,
+        },
+    )
+
+
+def _number_line_png(
+    line: charts.NumberLine, width_pt: float = _LINE_CHART_PT, plain: bool = False
+) -> tuple[bytes, float, float]:
+    """A number line: its axis, its points named under it, and every interval
+    a bar over it — the reference's segments, a nested one a level up, so
+    I₁ ⊃ I₂ ⊃ I₃ stand one over another as the theorem says."""
+    count = len(line.points)
+    to_left = any(interval.left is None for interval in line.intervals)
+    to_right = any(interval.right is None for interval in line.intervals)
+    # Room past the last point for a ray to run on, and for the axis' arrow.
+    left_room = 34.0 if to_left else 14.0
+    right_room = 40.0 if to_right else 26.0
+    span = width_pt - left_room - right_room
+    if line.scaled:
+        low, high = line.points[0].value, line.points[-1].value
+        xs = [left_room + (point.value - low) / (high - low) * span for point in line.points]
+    elif count == 1:
+        xs = [left_room + span / 2]
+    else:
+        step = min(span / (count - 1), _LINE_STEP_MAX_PT)
+        xs = [left_room + step * index for index in range(count)]
+        width_pt = left_room + step * (count - 1) + right_room
+
+    def reach(interval: charts.Interval) -> tuple[float, float]:
+        low = xs[interval.left] if interval.left is not None else 4.0
+        high = xs[interval.right] if interval.right is not None else width_pt - 14.0
+        return low, high
+
+    def apart(one: charts.Interval, other: charts.Interval) -> bool:
+        """Whether two intervals can share a level: they do not overlap, and
+        where they touch the point is in both or in neither — [0; 1] beside
+        (1; +∞) would draw 1 as left out of both."""
+        (low, high), (a, b) = reach(one), reach(other)
+        if high < a - 0.5 or low > b + 0.5:
+            return True
+        if abs(high - a) <= 0.5:
+            return one.closed_right == other.closed_left
+        if abs(low - b) <= 0.5:
+            return one.closed_left == other.closed_right
+        return False
+
+    # The lowest level each interval fits on, the widest first: segments that
+    # only touch share one, a nested one goes up.
+    levels: list[list[charts.Interval]] = []
+    level_of: dict[int, int] = {}
+    for index in sorted(
+        range(len(line.intervals)),
+        key=lambda number: (reach(line.intervals[number])[0], -reach(line.intervals[number])[1]),
+    ):
+        interval = line.intervals[index]
+        for number, taken in enumerate(levels):
+            if all(apart(interval, other) for other in taken):
+                taken.append(interval)
+                level_of[index] = number
+                break
+        else:
+            levels.append([interval])
+            level_of[index] = len(levels) - 1
+
+    named = any(interval.name for interval in line.intervals)
+    rise = _LINE_NAMED_LEVEL_PT if named else _LINE_LEVEL_PT
+    below = 17.0
+    above = (
+        _LINE_FIRST_PT + rise * (len(levels) - 1) + (14.0 if named else 5.0) if levels else 8.0
+    )
+    figure, axes = _chart_figure(width_pt, below + above)
+    try:
+        _draw_number_line(axes, line, xs, reach, level_of, rise, below, width_pt, plain)
+        return _chart_saved(figure), width_pt, below + above
+    finally:
+        # Closed whatever happened: pyplot keeps every figure it made until
+        # it is told, and a process draws a document a minute.
+        plt.close(figure)
+
+
+def _draw_number_line(axes, line, xs, reach, level_of, rise, axis, width_pt, plain) -> None:
+    _chart_arrow(axes, (2.0, axis), (width_pt - 2.0, axis))
+    ends = {
+        end
+        for interval in line.intervals
+        for end in (interval.left, interval.right)
+        if end is not None
+    }
+    for index, point in enumerate(line.points):
+        if not point.label:
+            continue
+        x = xs[index]
+        axes.plot([x, x], [axis - _CHART_TICK_PT, axis + _CHART_TICK_PT], lw=_CHART_RULE_PT, color=_INK)
+        _chart_name(axes, x, axis - 5.0, point.label, _CHART_NAME_PT, plain, ha="center", va="top")
+        if index not in ends:
+            # A point marked for itself, «точка c»: a dot on the line.
+            axes.add_patch(
+                plt.Circle((x, axis), _CHART_DOT_PT, facecolor=_INK, edgecolor=_INK, zorder=3)
+            )
+    for index, interval in enumerate(line.intervals):
+        y = axis + _LINE_FIRST_PT + rise * level_of[index]
+        low, high = reach(interval)
+        if interval.left is None or interval.right is None:
+            # A ray runs on: its arrow says so.
+            _chart_arrow(
+                axes,
+                (high, y) if interval.left is None else (low, y),
+                (low, y) if interval.left is None else (high, y),
+                width=_CHART_BAR_PT,
+            )
+        else:
+            axes.plot([low, high], [y, y], lw=_CHART_BAR_PT, color=_INK, solid_capstyle="butt")
+        for end, x, closed in (
+            (interval.left, low, interval.closed_left),
+            (interval.right, high, interval.closed_right),
+        ):
+            if end is None:
+                continue
+            axes.plot(
+                [x, x], [axis, y], lw=_CHART_GUIDE_PT, color=_MUTED,
+                dashes=(1.5, 1.5), zorder=1,
+            )
+            if closed:
+                axes.plot([x, x], [y - 3.0, y + 3.0], lw=_CHART_BAR_PT, color=_INK)
+            else:
+                axes.add_patch(
+                    plt.Circle(
+                        (x, y), _CHART_OPEN_PT, facecolor=_PAPER, edgecolor=_INK,
+                        lw=_CHART_RULE_PT, zorder=3,
+                    )
+                )
+        if interval.name:
+            _chart_name(
+                axes, (low + high) / 2, y + 3.0, interval.name, _CHART_NAME_PT, plain,
+                ha="center", va="bottom",
+            )
+
+
+def _nice_step(span: float, most: int = 6) -> float:
+    """A step of 1, 2 or 5 times a power of ten that puts at most `most`
+    ticks along `span`."""
+    step = 10 ** math.floor(math.log10(max(span, 1e-9) / most))
+    for factor in (1, 2, 5, 10):
+        if span / (step * factor) <= most:
+            return step * factor
+    return step * 10
+
+
+def _tick_label(value: float) -> str:
+    """A number on an axis, with the decimal comma the lecture writes."""
+    rounded = round(value, 6)
+    if rounded == int(rounded):
+        return str(int(rounded))
+    return f"{rounded:g}".replace(".", "{,}")
+
+
+def _plot_png(
+    plot: charts.Plot, width_pt: float = _PLOT_CHART_PT, plain: bool = False
+) -> tuple[bytes, float, float] | None:
+    """A function's graph by its formula, a sequence's points, a level
+    dashed — on axes through the origin when it is in sight, each named at
+    its arrow, each curve named by its formula at its end. None when there
+    is nothing to draw."""
+    if plot.terms:
+        at = np.arange(plot.low, plot.high + 1)
+    else:
+        at = np.linspace(plot.low, plot.high, 801)
+    counted = [(curve, charts.values(curve, plot.variable, at)) for curve in plot.curves]
+    finite = np.concatenate([found[np.isfinite(found)] for _, found in counted])
+    if not finite.size:
+        return None
+    low, high = float(finite.min()), float(finite.max())
+    near_low, near_high = (float(v) for v in np.percentile(finite, [5, 95]))
+    if high - low > 6 * max(near_high - near_low, 1e-9):
+        # A curve that runs off to infinity — 1/x at its pole — would flatten
+        # the rest into a line: the window is the bulk of it.
+        bulk = max(near_high - near_low, 1.0)
+        low, high = near_low - bulk / 2, near_high + bulk / 2
+    if high - low < 1e-9:
+        low, high = low - 1, high + 1
+    if high - low > _PLOT_SPAN_MAX:
+        # e^x to a hundred: no lecture draws it, and its axis would be
+        # numbers forty digits long. Its words say what it is.
+        return None
+    # Axes through the origin when it is near, as a lecture draws them — and
+    # under a sequence's terms whenever they keep one sign, which is how its
+    # limit is drawn: the points come down to a level over the axis.
+    reach = 2.0 if plot.terms else 0.6
+    if 0 < low < reach * (high - low):
+        low = 0.0
+    if 0 > high > -reach * (high - low):
+        high = 0.0
+    left, right = plot.low, plot.high
+    if plot.terms or 0 < left < 0.6 * (right - left):
+        left = min(left, 0.0)
+    if 0 > right > -0.6 * (right - left):
+        right = 0.0
+    pad_x = (right - left) * 0.04
+    pad_y = (high - low) * 0.08
+    left, right = left - pad_x, right + pad_x
+    bottom, top = low - pad_y, high + pad_y
+
+    # The axes run past the window to their arrows, which are named there.
+    beyond = 12.0
+    margin_left, margin_right, margin_bottom, margin_top = 12.0, 10.0 + beyond, 14.0, 6.0 + beyond
+    inner_width = width_pt - margin_left - margin_right
+    ratio = (top - bottom) / (right - left)
+    inner_height = min(max(inner_width * ratio, 0.45 * inner_width), 0.7 * inner_width)
+    height_pt = inner_height + margin_bottom + margin_top
+    figure = plt.figure(figsize=(width_pt / 72.0, height_pt / 72.0))
+    try:
+        axes = figure.add_axes(
+            (margin_left / width_pt, margin_bottom / height_pt,
+             inner_width / width_pt, inner_height / height_pt)
+        )
+        axes.axis("off")
+        axes.set_xlim(left, right)
+        axes.set_ylim(bottom, top)
+        _draw_plot(
+            axes, plot, at, counted, (left, right, bottom, top),
+            ((right - left) / inner_width, (top - bottom) / inner_height), beyond, plain,
+        )
+        return _chart_saved(figure), width_pt, height_pt
+    finally:
+        plt.close(figure)
+
+
+def _draw_plot(axes, plot, at, counted, window, per, beyond, plain) -> None:
+    left, right, bottom, top = window
+    per_x, per_y = per  # units a point, across and up
+
+    level = 0.0 if bottom <= 0 <= top else bottom
+    stand = 0.0 if left <= 0 <= right else left
+    _chart_arrow(axes, (left, level), (right + beyond * per_x, level))
+    _chart_arrow(axes, (stand, bottom), (stand, top + beyond * per_y))
+    _chart_name(
+        axes, right + beyond * per_x, level - 4 * per_y, plot.variable, _CHART_NAME_PT, plain,
+        ha="right", va="top",
+    )
+    drawn = [curve for curve in plot.curves if not curve.level]
+    named = drawn[0].label if len(drawn) == 1 else "y"
+    _chart_name(
+        axes, stand + 4 * per_x, top + beyond * per_y, named, _CHART_NAME_PT, plain,
+        ha="left", va="top",
+    )
+
+    step_x = max(1.0, round(_nice_step(right - left))) if plot.terms else _nice_step(right - left)
+    step_y = _nice_step(top - bottom, 5)
+    marks_y = [
+        value
+        for value in np.arange(math.ceil(bottom / step_y) * step_y, top, step_y)
+        if abs(value - level) > step_y / 2
+    ]
+    # A level's value is named on its axis, as a limit is.
+    for curve, found in counted:
+        if curve.level and np.isfinite(found).any():
+            value = float(found[np.isfinite(found)][0])
+            if bottom < value < top and all(abs(value - mark) > step_y / 2 for mark in marks_y):
+                marks_y.append(value)
+    for value in np.arange(math.ceil(left / step_x) * step_x, right, step_x):
+        if abs(value - stand) < step_x / 2:
+            continue
+        axes.plot(
+            [value, value], [level - _CHART_TICK_PT * per_y, level + _CHART_TICK_PT * per_y],
+            lw=_CHART_RULE_PT, color=_INK,
+        )
+        _chart_name(
+            axes, value, level - 4 * per_y, _tick_label(value), _CHART_NUMBER_PT, plain,
+            halo=True, ha="center", va="top",
+        )
+    for value in marks_y:
+        axes.plot(
+            [stand - _CHART_TICK_PT * per_x, stand + _CHART_TICK_PT * per_x], [value, value],
+            lw=_CHART_RULE_PT, color=_INK,
+        )
+        _chart_name(
+            axes, stand - 4 * per_x, value, _tick_label(value), _CHART_NUMBER_PT, plain,
+            halo=True, ha="right", va="center",
+        )
+    if level == 0.0 and stand == 0.0:
+        _chart_name(
+            axes, -3 * per_x, -3 * per_y, "0", _CHART_NUMBER_PT, plain, halo=True,
+            ha="right", va="top",
+        )
+
+    for curve, found in counted:
+        found = found.copy()
+        if curve.level:
+            values = found[np.isfinite(found)]
+            if values.size:
+                axes.plot(
+                    [left, right], [values[0]] * 2,
+                    lw=_CHART_RULE_PT, color=_INK, dashes=(3.0, 2.0),
+                )
+            continue
+        if plot.terms:
+            axes.plot(at, found, "o", ms=2 * _CHART_DOT_PT * 0.75, color=_INK, mec=_INK)
+        else:
+            # A line is broken where the curve leaves the window or jumps
+            # across it — 1/x at its pole is two branches, not a wall.
+            span = top - bottom
+            found[(found < bottom - span) | (found > top + span)] = np.nan
+            jumps = np.abs(np.diff(found)) > span
+            found[1:][jumps] = np.nan
+            axes.plot(at, found, lw=_CHART_CURVE_PT, color=_INK, solid_capstyle="round")
+        inside = np.isfinite(found) & (found >= bottom) & (found <= top)
+        if inside.any():
+            # Named by its formula where it ends, as the author names it.
+            last = int(np.nonzero(inside)[0][-1])
+            lift = 8 if plot.terms else 3
+            _chart_name(
+                axes, at[last] - 3 * per_x, found[last] + lift * per_y,
+                f"{curve.label} = {curve.formula}", _CHART_NUMBER_PT + 1, plain,
+                halo=True, ha="right", va="bottom",
+            )
+
+
+def _mapping_png(
+    mapping: charts.Mapping, width_pt: float = _MAPPING_CHART_PT, plain: bool = False
+) -> tuple[bytes, float, float]:
+    """A mapping: two sets as ovals, their elements top to bottom as read, an
+    arrow from each element to its image. A dot the drawing gives no name
+    stays without one."""
+    rows = max(len(mapping.left), len(mapping.right))
+    oval = _MAPPING_ROW_PT * rows + 14.0
+    head = 16.0 if (mapping.domain or mapping.codomain or mapping.name) else 2.0
+    height_pt = oval + head + 4.0
+    figure, axes = _chart_figure(width_pt, height_pt)
+    try:
+        _draw_mapping(axes, mapping, oval, width_pt, plain)
+        return _chart_saved(figure), width_pt, height_pt
+    finally:
+        plt.close(figure)
+
+
+def _draw_mapping(axes, mapping, oval, width_pt, plain) -> None:
+    middle = 2.0 + oval / 2
+    centres = (width_pt * 0.2, width_pt * 0.8)
+    places: list[list[tuple[float, float]]] = []
+    for centre, elements, side in ((centres[0], mapping.left, -1), (centres[1], mapping.right, 1)):
+        axes.add_patch(
+            Ellipse((centre, middle), _MAPPING_SET_PT, oval, fill=False, lw=_CHART_RULE_PT, edgecolor=_INK)
+        )
+        dot_x = centre - side * 9.0  # toward the arrows
+        first = middle + _MAPPING_ROW_PT * (len(elements) - 1) / 2
+        spots = []
+        for number, element in enumerate(elements):
+            y = first - _MAPPING_ROW_PT * number
+            axes.add_patch(plt.Circle((dot_x, y), _CHART_DOT_PT * 0.9, facecolor=_INK, edgecolor=_INK, zorder=3))
+            if not charts.unnamed(element):
+                _chart_name(
+                    axes, dot_x + side * 5.0, y, element, _CHART_NAME_PT, plain,
+                    ha="left" if side > 0 else "right", va="center",
+                )
+            spots.append((dot_x, y))
+        places.append(spots)
+    for tail, head_ in mapping.arrows:
+        (x1, y1), (x2, y2) = places[0][tail], places[1][head_]
+        length = math.hypot(x2 - x1, y2 - y1) or 1.0
+        gap = 4.0
+        _chart_arrow(
+            axes,
+            (x1 + (x2 - x1) / length * gap, y1 + (y2 - y1) / length * gap),
+            (x2 - (x2 - x1) / length * gap, y2 - (y2 - y1) / length * gap),
+        )
+    top = 2.0 + oval + 3.0
+    for centre, name in ((centres[0], mapping.domain), (centres[1], mapping.codomain)):
+        _chart_name(axes, centre, top, name, _CHART_NAME_PT + 1, plain, ha="center", va="bottom")
+    if mapping.name:
+        _chart_name(axes, width_pt / 2, top, mapping.name, _CHART_NAME_PT + 1, plain, ha="center", va="bottom")
+
+
+def _chart_png(chart: charts.Chart, plain: bool = False) -> tuple[bytes, float, float] | None:
+    if isinstance(chart, charts.NumberLine):
+        return _number_line_png(chart, plain=plain)
+    if isinstance(chart, charts.Plot):
+        return _plot_png(chart, plain=plain)
+    return _mapping_png(chart, plain=plain)
+
+
 def _text(value: str) -> str:
     """Plain text as reportlab markup: escaped, a <br> the composing stage
     wrote as a line break, and every run of characters Onest does not have
@@ -3500,10 +3993,18 @@ def _anchored(anchor: str, members: list[Block], numbers: set[int]) -> bool:
         member.kind == "graph" and wanted == _squash(member.text) for member in members
     ):
         return True
+    # A chart likewise, quoted with its word or without it (task 94).
+    if any(
+        member.kind == "chart" and wanted in (_squash(member.text), _squash(member.quoted))
+        for member in members
+    ):
+        return True
     # Across the lines of a sentence too: record 88's «Множеством / натуральных
     # чисел называется» was found on neither line, and its box went pages on.
     return wanted in _squash(
-        "".join(_reading(member) for member in members if member.kind != "graph")
+        "".join(
+            _reading(member) for member in members if member.kind not in ("graph", "chart")
+        )
     )
 
 
@@ -3515,7 +4016,7 @@ _DRAWING_NOTE_RE = re.compile(r"схема\s*:", re.IGNORECASE)
 def _formula_or_drawing(block: Block) -> bool:
     return (
         _set_apart(block)
-        or block.kind in ("graph", "picture")
+        or block.kind in ("graph", "picture", "chart")
         or (block.kind == "note" and bool(_DRAWING_NOTE_RE.match(block.text)))
     )
 
@@ -3805,6 +4306,35 @@ def _graph(spec: str, width_pt: float = _GRAPH_WIDTH_PT) -> Image | None:
     image = Image(io.BytesIO(data), width=width, height=height)
     image.hAlign = "CENTER"
     return image
+
+
+def _chart(
+    block: Block, formulas: _Formulas, styles: dict[str, ParagraphStyle]
+) -> tuple[list, str]:
+    """A drawing that is data, drawn from its data (task 94), and the kind
+    the rhythm knows it by. A line that does not read as one, or a chart
+    that cannot be drawn, prints as the words it stands for — «схема: …» —
+    as a drawing described always printed. A name mathtext will not draw is
+    written in characters rather than costing the drawing."""
+    chart = charts.parse(block.marker, block.text)
+    drawn = None
+    if chart is not None:
+        for plain in (False, True):
+            try:
+                drawn = _chart_png(chart, plain=plain)
+                break
+            except Exception:
+                if plain:
+                    logger.exception("could not draw the chart %r", block.quoted)
+    if drawn is None:
+        words = charts.described(block.marker, block.text)[1:-1]
+        return [Paragraph(_line_markup(words, formulas, _SMALL_PT), styles["note"])], "note"
+    data, width, height = drawn
+    if width > _TEXT_WIDTH_PT:
+        height, width = height * _TEXT_WIDTH_PT / width, _TEXT_WIDTH_PT
+    image = Image(io.BytesIO(data), width=width, height=height)
+    image.hAlign = "CENTER"
+    return [image], "figure"
 
 
 def _hairline(
@@ -4161,6 +4691,10 @@ def _unit(
                 else 0.0
             )
         return members, end, [_definition(cells, gaps)], "definition"
+
+    if block.kind == "chart":
+        flowables, kind = _chart(block, formulas, styles)
+        return [block], index + 1, flowables, kind
 
     if block.kind == "graph":
         run = [block]

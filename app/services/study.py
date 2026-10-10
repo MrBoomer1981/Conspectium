@@ -80,7 +80,7 @@ _MAX_NOTION_WORDS = 6
 # — record 92's «Мн-во наз-ся полным, если …» has no formula.
 _SUBJECT_RE = re.compile(
     r"[$\\∀∃∈∉⊂⊃⊆⊇∪∩⇒⇐⇔→←↦≤≥≠≈≡∞∑∏∫√±×÷∅ℕℤℚℝℂα-ωΑ-Ω]"
-    r"|\[(?:схема|рисунок|граф)"
+    r"|\[(?:схема|рисунок|граф|прямая|числовая|ось|отображен)"
     r"|определ|теорем|лемм|доказ|док-в|аксиом|следстви|утвержд|свойств|замечани"
     r"|пример(?!н)|наз(?:ыва|-)|пусть|положим|верн"
     r"|множеств|мн-|функци|отображ|чис(?:л|ел)|последовательн|пос-ть|пространств|пр-в|точк"
@@ -230,7 +230,7 @@ def units(markdown: str) -> list[str]:
 
 # What a unit made only of these is: a formula set apart, a drawing, a note
 # about one — never a thought of its own.
-_FIGURE_KINDS = frozenset({"math", "picture", "graph", "note", "gap"})
+_FIGURE_KINDS = frozenset({"math", "picture", "graph", "chart", "note", "gap"})
 
 
 def _figure_only(piece: str) -> bool:

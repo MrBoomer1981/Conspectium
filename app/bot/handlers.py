@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, GroupPage, Note, NoteFigure, User
 from app.services import (
+    charts,
     compose,
     docx,
     explain,
@@ -492,6 +493,7 @@ async def _read_photo(
             "summary_refused": explaining.summary_refused,
             "drawings": figures.count(result.best.markdown),
             "figures": len(placed),
+            "charts": charts.count(markdown),
             "runs_added": result.runs_added,
             "read_further": int(result.read_further),
             **_filing_payload(filing, explain_skipped),
@@ -1066,6 +1068,7 @@ async def _process_album(
             "read_further": rec.read_further,
             "album_parts": albums.parts_of(ordered),
             "figures": len(placed),
+            "charts": charts.count(markdown),
             **_filing_payload(filing, explain_skipped),
             "latency_ms": int((time.monotonic() - started) * 1000),
             "cost_usd": vision.total_cost(

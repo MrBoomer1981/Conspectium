@@ -2174,6 +2174,64 @@ author's note opening the line, printed as a list item; records 101 and 102
 were read with lines struck by one tilde where record 97, the same album, had
 two, and the tildes printed.
 
+## Drawings that are data
+
+Task 94, 2026-10-10. Before a syntax was given to the reading, every
+drawing the records printed as words was read: 149 `[схема: …]` lines over
+the 102 records then in the database, sorted by a rough reading of their
+words. Albums read more than once count once a reading — records 59, 62,
+63 and 64 are one album, 40 to 43 one, 97 and 101 one — so there are fewer
+drawings than lines.
+
+- **Graphs described rather than given as edges, 40** — records 1 to 23,
+  read before rule 6 asked for `[граф: …]`, and the classifications a
+  lecture on graphs draws, «Графы → ориентированные, смешанные…». Some
+  wrote the edges inside `[схема: …]` anyway, «1-2, 2-3, 3-1».
+- **Sets, balls, neighbourhoods and planes, 48** — a set covered by balls,
+  a point and its neighbourhood, K and its complement, a ball in three
+  metrics, the complex plane with its unit circle. No data: what the page
+  shows is a picture, and drawing it from words is the model's picture of
+  the topic. They stay words, and are what a drawing cut out of the page is
+  for (task 54).
+- **Number lines, 23, in 11 records** — the commonest drawing that is data:
+  points in order, «a₁, a₂, aₙ, bₙ, b₁», a ray hatched past ε, «лучи
+  (−∞, −ε) и (ε, +∞) заштрихованы», sets X and Y with a point c between.
+- **A sequence's graph, 13, in 12 records** — «график последовательности
+  $x_n = 1 + \frac{1}{\sqrt{n}}$, горизонтальная пунктирная линия на уровне
+  1». Data when its formula is written; «колеблется в полосе (a − ε,
+  a + ε)», with no formula, is not.
+- **A function's graph, 2, and a mapping, 4** — records 97 and 101, the
+  three drawings its author read as the bot failing to draw.
+- **Schemes of words, 8, and the rest, 11** — flowcharts of a lecture on
+  programming, a rule of triangles, a ringed sign.
+
+**What was built on it.** Three kinds of data — `[график: …]`, `[прямая:
+…]`, `[отображение: …]` — drawn as the reference lecture
+(`матан 24.09.2026.pdf`) draws its figures: its nested segments, a bar a
+level over the one it lies in, with a dashed line down to each end, are
+the number line's look. Every record of the database parses and renders
+as before, none holding a chart: `pdf._lift_drawings` gives the same text
+for all 102; `merge`'s drawing pattern, which stopped at the first «]»
+inside a description, now takes four descriptions whole.
+
+**The runs' agreement, checked on runs made up for it**: a parabola written
+`x^2` by one run and `x \cdot x` by another, over different ranges, agrees,
+and so do `\frac{1}{x}` and `x^{-1}`; a number line written with
+`\varepsilon` and «;» by one and «ε» and «,» by another agrees, and so do
+«\frac{1}{2}» and «0.5», «1 - \frac{1}{n}» and «1-1/n», counted as one
+expression; sets X and Y swapped round c do not, nor a segment closed in
+one reading and open in another; a mapping whose one arrow two runs read
+differently does not, and goes into the record as words. How often real
+runs agree is the check's to say.
+
+**Made to break it, before it shipped** (the CEO's «пишем один раз и
+навсегда»): four thousand lines of chart built at random from the pieces a
+reading writes — formulas cut short, brackets unclosed, ranges reversed,
+infinities, bullets, a hundred arrows — parsed, agreed, held from the
+composer and drawn: not one error, every figure closed, and what did not
+read printed as its words. A word with «∞» in it was an empty box in
+Onest; it is set in DejaVu now.
+
 ## Moved from CLAUDE.md, 2026-10-10
 
 When `CLAUDE.md` was cut back to its rules a second time, its records'
