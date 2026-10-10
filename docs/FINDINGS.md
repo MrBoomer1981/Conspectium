@@ -2312,7 +2312,12 @@ kept the grid. What works:
   lines under the drawings and took ink for grid; a whole page's lattice
   failed where the page bends at the spiral. A single long axis makes a
   ridge along its column of the spectrum and no peak, so the peak must
-  stand over its neighbours in the column, not only over the band.
+  stand over its neighbours in the column, not only over the band. One
+  period over a window drifted off the paper at its edge — perspective
+  shrinks the square across a wide window — and left a grid line standing
+  at the left of the four balls: where the lines stand and how they slant
+  is fitted over their order now, smoothly, and a line whose own fit
+  strays a third of a square from that place is put there.
 - **The grid taken off line by line.** Each line's own profile across and
   strength along — a running median the strokes crossing it hardly move —
   subtracted in optical density: ink over a printed line adds, so a stroke
@@ -2361,7 +2366,9 @@ squared and plain paper, shadows, frames off the photograph, labels mathtext
 cannot draw — not one error, 2.6 s at worst, no figure left open. What
 stays rough: a letter of the text above that the frame takes in, a short
 tick where a hatched edge was, the outer ellipse broken where the hand
-barely touched the paper.
+barely touched the paper. A whole letter «о» of the line above, closed on
+itself, ran past the length a stray mark was allowed; marks up to 2.2
+letters at the frame's edge, touching nothing long, go.
 
 ## Moved from CLAUDE.md, 2026-10-10
 

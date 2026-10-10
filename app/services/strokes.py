@@ -117,6 +117,10 @@ _GAP_LETTERS = 0.7
 # half as dark again as the grid lines beside it.
 _ON_GRID_PX = 1.8
 _DARKER_THAN_GRID = 1.5
+# A mark this many letters long or less, at the frame's edge and touching
+# nothing long, is the text round the drawing: a letter «о» of the line
+# above, closed on itself, ran 1.8.
+_EDGE_MARK_LETTERS = 2.2
 # A turn sharper than this, about 55 degrees, is a corner a stroke is cut at
 # before it is judged.
 _CORNER_COS = 0.57
@@ -264,13 +268,18 @@ def _smooth_along(a: np.ndarray, r: int, axis: int) -> np.ndarray:
 
 def _grid_lines(darkness: np.ndarray) -> tuple[list[np.ndarray], float]:
     """The near-horizontal lines of a squared page's grid in a window, each
-    a quadratic y(x), and their period; ([], 0) where the window has none.
+    a quadratic y(x), and their period at the window's middle; ([], 0)
+    where the window has none.
 
-    The period and slant are the spectrum's strongest peak in the band a
+    The period and slant are the spectrum's sharpest peak in the band a
     notebook's square falls in; the lines stand where a comb of that period
-    covers the most darkness; each is then measured in pieces along it and
-    fitted, so perspective bends it as it bends the paper. A line hidden
-    under the drawing keeps the comb's place, slanted as its neighbours."""
+    covers the most darkness at the window's middle. Perspective shrinks
+    the square across a wide window, so the comb's places are only a start:
+    each line is measured in pieces along it, and where lines stand and how
+    they slant is fitted over their order — the period and the slant each
+    changing smoothly from line to line, as perspective changes them. A
+    line hidden under the drawing, or one whose own fit strays towards a
+    neighbour, takes the place and slant that fit gives it."""
     h, w = darkness.shape
     if h < 2 * _MIN_PERIOD or w < 2 * _MIN_PERIOD:
         return [], 0.0
@@ -305,7 +314,8 @@ def _grid_lines(darkness: np.ndarray) -> tuple[list[np.ndarray], float]:
     slope = -fx / fy
     smooth = _smooth_along(darkness, 12, axis=1)
     xs = np.arange(w)
-    rows = np.floor(np.arange(h)[:, None] - slope * (xs[None, :] - w / 2)).astype(int)
+    middle = w / 2
+    rows = np.floor(np.arange(h)[:, None] - slope * (xs[None, :] - middle)).astype(int)
     low = int(rows.min())
     profile = np.bincount((rows - low).ravel(), weights=smooth.ravel())
     counts = np.bincount((rows - low).ravel())
@@ -316,16 +326,17 @@ def _grid_lines(darkness: np.ndarray) -> tuple[list[np.ndarray], float]:
         return float(np.interp(np.arange(phase, len(profile), period), positions, profile).mean())
 
     phase = max(np.arange(0, period, 0.25), key=comb)
-    lines: list[np.ndarray | None] = []
-    measured: list[int] = []
-    for centre in np.arange(phase, len(profile), period) + low:
-        if centre < -period or centre > h + period:
-            continue
+    starts = [c for c in np.arange(phase, len(profile), period) + low if -period <= c <= h + period]
+    if len(starts) < 3:
+        return [], 0.0
+
+    def measure(centre: float, line_slope: float, reach: float) -> np.ndarray | None:
+        """A line measured in pieces along it, near where it is expected."""
         mx, my = [], []
         for x0 in range(0, w, _GRID_SEGMENT):
             xm = (x0 + min(w, x0 + _GRID_SEGMENT)) / 2
-            yp = centre + slope * (xm - w / 2)
-            ya, yb = int(math.floor(yp - 0.35 * period)), int(math.ceil(yp + 0.35 * period))
+            yp = centre + line_slope * (xm - middle)
+            ya, yb = int(math.floor(yp - reach)), int(math.ceil(yp + reach))
             if ya < 0 or yb >= h:
                 continue
             column = smooth[ya : yb + 1, int(xm)]
@@ -333,29 +344,60 @@ def _grid_lines(darkness: np.ndarray) -> tuple[list[np.ndarray], float]:
             if 0 < k < len(column) - 1 and column[k] - float(np.median(column)) > _GRID_SHOWS:
                 mx.append(xm)
                 my.append(ya + k)
-        if len(mx) >= 3:
-            mx_, my_ = np.array(mx), np.array(my, float)
-            coef = np.polyfit(mx_, my_, 1 if len(mx_) < 6 else 2)
-            keep = np.abs(np.polyval(coef, mx_) - my_) < 2.0
-            if keep.sum() >= 3:
-                coef = np.polyfit(mx_[keep], my_[keep], 1 if keep.sum() < 6 else 2)
-            lines.append(np.pad(coef, (3 - len(coef), 0)))
-            measured.append(len(lines) - 1)
-        else:
-            lines.append(np.array([0.0, slope, centre - slope * w / 2]))
-    if not measured:
+        if len(mx) < 3:
+            return None
+        mx_, my_ = np.array(mx), np.array(my, float)
+        coef = np.polyfit(mx_, my_, 1 if len(mx_) < 6 else 2)
+        keep = np.abs(np.polyval(coef, mx_) - my_) < 2.0
+        if keep.sum() < 3:
+            return None
+        coef = np.polyfit(mx_[keep], my_[keep], 1 if keep.sum() < 6 else 2)
+        return np.pad(coef, (3 - len(coef), 0))
+
+    # first pass: each line near the comb's place, the window's own slant
+    first = [measure(c, slope, 0.35 * period) for c in starts]
+    known = [(i, c) for i, c in enumerate(first) if c is not None]
+    if not known:
         return [], 0.0
-    # a line the drawing hides takes its nearest measured neighbour's bend
-    out = []
-    for i, coef in enumerate(lines):
-        if i in measured:
-            out.append(coef)
+    # where the lines stand and how they slant, over their order: smooth in
+    # it, as perspective is
+    order = np.array([i for i, _ in known], float)
+    at_middle = np.array([np.polyval(c, middle) for _, c in known])
+    slants = np.array([c[1] + 2 * c[0] * middle for _, c in known])
+    degree = 2 if len(known) >= 6 else 1 if len(known) >= 2 else 0
+    place_fit = np.polyfit(order, at_middle, degree) if degree else np.array([period, at_middle[0] - order[0] * period])
+    if degree == 0:
+        slant_fit = np.array([slants[0]])
+    else:
+        slant_fit = np.polyfit(order, slants, 1)
+    residual = np.abs(np.polyval(place_fit, order) - at_middle)
+    if degree and np.any(residual > 0.3 * period):
+        good = residual <= 0.3 * period
+        if good.sum() >= 3:
+            place_fit = np.polyfit(order[good], at_middle[good], min(degree, 2 if good.sum() >= 6 else 1))
+            slant_fit = np.polyfit(order[good], slants[good], 1)
+    lines: list[np.ndarray] = []
+    count = len(starts)
+    for i in range(-2, count + 2):
+        centre = float(np.polyval(place_fit, i))
+        if centre < -period or centre > h + period:
             continue
-        j = min(measured, key=lambda m: abs(m - i))
-        shifted = lines[j].copy()
-        shifted[-1] += (i - j) * period
-        out.append(shifted)
-    return out, period
+        local_period = abs(float(np.polyval(np.polyder(place_fit), i))) if degree else period
+        local_period = min(max(local_period, _MIN_PERIOD * 0.8), _MAX_PERIOD * 1.2)
+        line_slope = float(np.polyval(slant_fit, i))
+        coef = measure(centre, line_slope, 0.3 * local_period)
+        predicted = np.array([0.0, line_slope, centre - line_slope * middle])
+        if coef is None:
+            lines.append(predicted)
+            continue
+        # a line's own fit that strays a third of a square from where its
+        # order puts it is following a stroke, not the paper
+        probe = np.linspace(0, w - 1, 9)
+        if np.max(np.abs(np.polyval(coef, probe) - np.polyval(predicted, probe))) > 0.33 * local_period:
+            lines.append(predicted)
+        else:
+            lines.append(coef)
+    return lines, period
 
 
 def _take_grid_off(od: np.ndarray, lines: list[np.ndarray]) -> np.ndarray:
@@ -1166,7 +1208,7 @@ def _redraw(page: Page, sketch: Sketch) -> Redrawn:
             outside = ~((line[:, 0] >= inner[0]) & (line[:, 0] <= inner[2]) & (line[:, 1] >= inner[1]) & (line[:, 1] <= inner[3]))
             if outside.mean() > 0.5:
                 continue
-        if length < 1.5 * letter and near_long.any() and not _touches(line, near_long):
+        if length < _EDGE_MARK_LETTERS * letter and near_long.any() and not _touches(line, near_long):
             cy, cx = float(line[:, 0].mean()), float(line[:, 1].mean())
             if min(cy - inner[0], inner[2] - cy, cx - inner[1], inner[3] - cx) < 0.6 * letter:
                 continue
