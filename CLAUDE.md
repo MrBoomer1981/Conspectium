@@ -140,10 +140,12 @@ In a session:
   `gemini-3.8-flash`, `prompts-compose-v4.md` since 2026-10-06, thinking
   `low`; the explaining stage on,
   `gemini-3.8-flash`, its searches at `low`, `prompts-explain-v3.md` since
-  2026-10-08, the teacher's boxes since 2026-10-03; a call's ceiling 90 s. **The
+  2026-10-08, the teacher's boxes since 2026-10-03; sketches drawn again from
+  the page since 2026-10-11, `prompts-sketch-v1.md` (task 101, the CEO's
+  switch); a call's ceiling 90 s. **The
   code's defaults are not these** — `gemini-3.5-flash-lite`, `prompts-v3.md`,
-  both stages off, 30 s — so a deploy that lost its variables reads worse, and
-  its startup log says so.
+  both stages and the sketches off, 30 s — so a deploy that lost its
+  variables reads worse, and its startup log says so.
 
 ---
 
@@ -215,10 +217,12 @@ Shared by both owners.
    photo costs several times more for no gain is evidence about a retired
    model; the numbers are settings so the claim can be measured on one album
    rather than argued, and the defaults do not drift.
-3. **The original photos are never stored**, only the recognised text — and,
-   since 2026-10-01, the drawings cut out of them (`note_figures`): each the
-   frame of one drawing reduced to the darkness of its ink, kept because the
-   document is drawn again every time a "#word" brings the record back. What
+3. **The original photos are never stored**, only the recognised text — and
+   the drawings taken from them (`note_figures`): since 2026-10-11 a sketch
+   drawn again from its page, the pen's lines traced off the photograph and
+   its labels set in type (task 101), before it the frame of one drawing
+   reduced to the darkness of its ink (task 54) — kept as darkness because
+   the document is drawn again every time a "#word" brings the record back. What
    `group_pages` keeps for seven days is Telegram's reference to a group
    album's page (`file_id`), which the bot fetches the photo by while Telegram
    keeps it — not the photo. It lets a reply call the bot on an album somebody
@@ -271,6 +275,12 @@ arm.
   that names no alternative is no ambiguity, and one whose text already
   carries `[неразборчиво]` is a mark the record itself carries. → "What
   `uncertain` came back with"
+- **Its geometry of a sketch is not drawn** (task 101, 2026-10-11). Asked
+  for a sketch's lines with coordinates, three runs drew circles of the
+  wrong size where the author drew four balls and a full grid where he drew
+  three lines, each its own. Its frames and its reading of the labels hold
+  across runs; the lines are traced off the photograph. → "Sketches drawn
+  from the page"
 - **Arithmetic is checked by code, not by the model.** The model makes
   calculation errors and silently "fixes" what does not add up; `mathcheck`
   found a wrong constant and a diverging chain it missed across four runs.
@@ -443,7 +453,10 @@ images.compress              in a worker thread (images.in_worker)
  8   vision.log_ai_calls     always, in a session of its own
  9, 10                       nothing parsed, or too little text: the page is
                              dropped
-     figures.cut             the drawings, while the image is here
+     sketches.read           where each sketch is, what its labels say:
+                             three calls a page that describes one
+     figures.redraw          its lines traced off the photo, while the
+                             image is here (v8: figures.cut)
 12   vision.findings         mathcheck and graphcheck, each with its text
 12a  compose.compose         behind check_limits(pages=0)
      figures.place           the drawings back, after composing
@@ -701,19 +714,41 @@ from 12a, once.
   The stage runs once, when a record is made: a record made before keeps
   its boxes. → "Captions"
 
-### Drawings cut out of the page
+### Drawings taken from the page
 
-- **A drawing is taken from the page, not redrawn** (task 54, 2026-10-01):
-  a proof carried in drawings printed as sentences about them, and a sketch
-  redrawn from the model's words would be the model's picture of the topic —
-  the place it invents. From `prompts-v8.md`
-  on, recognition gives each `[схема: …]` its frame on the photo in
-  `drawings`, outside `markdown`, so neither agreement moves. A graph is
-  still data and still drawn from its edges.
-- **Cut while the image is here, placed after composing** (`figures.py`): both
-  photo paths cut the best run's frames out of the compressed image right
-  after recognition, pairing frames and `[схема: …]` lines in order and
-  cutting none when the counts differ. Composition never sees a drawing;
+- **A sketch is drawn again from its page, by its own lines** (task 101,
+  the CEO's, 2026-10-11): a set, a ball, a neighbourhood, a graph with no
+  formula — no data (task 94) — and a proof carried in them printed as
+  sentences about them. Never from the model's words or its geometry —
+  the model's picture of the topic, the place it invents. `sketches.read`
+  asks the model, three runs a page that describes one, only where each
+  drawing is and what its labels say (`prompts-sketch-v1.md`): a frame
+  counts where two runs frame it alike, a label where two read it alike at
+  one place. `strokes.py` traces the lines off the photograph: the paper's
+  light divided out, the notebook's grid found off the spectrum and taken
+  off line by line, the strokes by an oriented filter, joined, kept once,
+  straight where drawn straight; the labels set in type where the
+  handwriting stood, never where nothing is written; a point a dot. Every
+  line drawn is one the pen left. → "Sketches drawn from the page"
+- **What reads worse than its words stays its words**: a gate in code
+  refuses a drawing in pieces — more than 0.45 of its length in open
+  strokes shorter than a letter, more than 0.25 in short straight pieces
+  along the page's axes, half along the grid. A plane drawn along the
+  grid's own lines is refused: the author's lines and the notebook's are
+  one there. Set on six drawings of one hand, and watched.
+- **A switch, `SKETCHES_ENABLED`**, on in production; both photo paths, the
+  calls in `ai_calls` as `kind="sketch"`, part of reading the page as task
+  65's further runs are, `note_processed` counting `sketched`. Kept in
+  `note_figures` like a cut-out, its resolution in the PNG so the document
+  sets it at its size (`pdf._picture`).
+- **A drawing cut out of the page** (task 54, 2026-10-01) is the asleep
+  way: from `prompts-v8.md` on, recognition gives each `[схема: …]` its
+  frame on the photo in `drawings`, outside `markdown`, so neither agreement
+  moves. A graph is still data and still drawn from its edges.
+- **Taken while the image is here, placed after composing** (`figures.py`):
+  both photo paths draw the sketches again, or cut the best run's frames out
+  of the compressed image, right after recognition, pairing them with the
+  `[схема: …]` lines in order and taking none when the counts differ. Composition never sees a drawing;
   afterwards `figures.place` turns the `[схема: …]` that carries a cut-out's
   words into `[рисунок N: …]`, N through the record, and a line the composer
   reworded keeps none — a drawing can go missing, never land at the wrong
@@ -1243,8 +1278,9 @@ or two dollars with an environment, row break or column between them. →
 **A drawing comes back as data, not a sentence about itself**: rule 6 of the
 recognition prompt asks for a graph as `[граф: 1-2, 2->3]` and a matrix as a
 markdown table, `[схема: …]` with its frame for the rest, and `pdf.blocks()`
-draws them — a cut-out, `[рисунок N: …]`, as the author's drawing in the
-document's ink on its paper, at about its size on the page, with no caption;
+draws them — a drawing taken from the page, `[рисунок N: …]`, drawn again
+(task 101) or cut out (task 54), as the author's drawing in the document's
+ink on its paper, at about its size on the page, with no caption;
 a `[схема: …]` with no cut-out as the line it always was. A graph goes round
 a circle, the same every time; **a tree that branches is drawn as a tree**
 (`pdf._tree_positions`) — its root on top, children under their parent in
@@ -1356,6 +1392,7 @@ number never leaves another quietly cutting the work short:
 | `_SOURCE_TIMEOUT_S` | `services/explain.py` | 90 s — one search; up to eight at once, each on a slot |
 | compose's slot | `services/compose.py` | one of the `API_SLOTS`, held for the whole call; after `process_batch`, outside `_ALBUM_TIMEOUT_S` |
 | the study version's call | `services/study.py` | one of the `API_SLOTS`, on a press, `EXPLAIN_CALL_TIMEOUT_S` — a call over the whole record, as the explaining one is |
+| the sketches' calls | `services/sketches.py` | three on `API_SLOTS` for a page that describes a sketch, after its runs, at `VISION_CALL_TIMEOUT_S`, counted in `_ALBUM_TIMEOUT_S`'s waves (task 101) |
 | the captions' call | `services/explain.py` | one of the `API_SLOTS`, beside the explaining stage's first call, `EXPLAIN_CALL_TIMEOUT_S`; thinks `low` and answers in seconds (task 95) |
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)`, every attempt timing out — 93 s at the default |
 | `_AFTER_TIMEOUT` | `services/vision.py` | `2` — a first attempt that timed out is followed by one twice as long, and that is the last: 90 s then 180 s in production, 271 s, inside `RUN_WORST_CASE_S` |
@@ -1506,7 +1543,9 @@ app/
     study.py          a lecture's study version: the record in units, arranged by topic
     pdf.py            a record as a PDF
     mathjax.py        formulas drawn by MathJax 4 in V8, mathtext behind it
-    figures.py        drawings cut out of the page, placed back after composing
+    figures.py        drawings taken from the page, placed back after composing
+    sketches.py       where each sketch is and what its labels say, read by three runs
+    strokes.py        a sketch drawn again from its page: its lines, the grid taken away
     charts.py         a drawing that is data — a graph, a number line, a mapping: read, agreed
     lectures.py       where a lecture begins on a page; one lecture a record
     merge.py          one lecture from several notebooks: which is one, what each adds
@@ -1551,7 +1590,8 @@ measured and set aside for the teacher's boxes it cost (task 95); with
 the records made with it were — and `prompts-explain-captions-v1.md` for
 the captions' call (task 95); the study version `prompts-study-v1.md`
 (task 80) and `v2`, v1 naming the course's organisation (task 93), read by
-name as the searches' prompt is. Every
+name as the searches' prompt is; the sketches' frames and labels
+`prompts-sketch-v1.md` (task 101). Every
 prompt stays in `prompts/` once used: a record does not say which made it.
 `vision.load_prompt` reads a prompt from `prompts/` by file name at
 **import**: the file has to ship with the deploy or the process dies at
@@ -1583,6 +1623,7 @@ VISION_CALL_TIMEOUT_S=30
 VISION_MEDIA_RESOLUTION=unset
 VISION_THINKING_LEVEL=unset
 PROMPT_FILE=prompts-v3.md
+SKETCHES_ENABLED=false   a sketch drawn again from its page (task 101)
 COMPOSE_ENABLED=false
 COMPOSE_MODEL=gemini-3.5-flash-lite
 COMPOSE_PROMPT_FILE=prompts-compose-v1.md
@@ -1656,7 +1697,8 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
   numbers, whether drawings are cut out and lectures marked, the image
   compression, both stages, the captions' prompt, the study version's
-  prompt, the call knobs, the formulas' engine (from the warm-up), the
+  prompt, whether a sketch is drawn again from its page, the call knobs,
+  the formulas' engine (from the warm-up), the
   five timeouts and the repeat after one, the pages of one send and the day's limits, where a reader's «Плохо» is sent, when a
   group's week is summed up, and whether the bot sees a group's photos. What
   a **record** does not say is which prompt made it —

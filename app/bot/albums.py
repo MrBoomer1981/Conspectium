@@ -21,7 +21,7 @@ from dataclasses import asdict, dataclass, field, replace
 
 from app.bot import texts
 from app.core.config import settings
-from app.services import figures, images, lectures, mathcheck, photoguard, vision
+from app.services import figures, images, lectures, mathcheck, photoguard, sketches, vision
 from app.services.vision import CallStats, Transcription
 
 logger = logging.getLogger(__name__)
@@ -81,8 +81,14 @@ def _waves(pages: int, runs: int, slots: int) -> int:
     return math.ceil(pages * runs / slots)
 
 
+# A page that describes a sketch makes sketches.RUNS calls more (task 101),
+# after its runs and on the same slots: counted where they are made.
 _WAVES = _waves(
-    settings.MAX_ALBUM_PAGES, settings.VISION_RUNS + vision.MORE_RUNS, vision.API_SLOTS
+    settings.MAX_ALBUM_PAGES,
+    settings.VISION_RUNS
+    + vision.MORE_RUNS
+    + (sketches.RUNS if settings.SKETCHES_ENABLED else 0),
+    vision.API_SLOTS,
 )
 _ALBUM_TIMEOUT_S = int(_WAVES * vision.RUN_WORST_CASE_S * vision.TIMEOUT_MARGIN)
 
@@ -390,8 +396,10 @@ class PageResult:
     photo_line_height: float | None = None
     photo_paper_fraction: float | None = None
     photo_contrast: float | None = None
-    # The page's drawings, cut out of its image before the image is let go.
+    # The page's drawings, taken from its image before the image is let go,
+    # and how many of its sketches the runs framed alike (task 101).
     cutouts: list[figures.Cutout] = field(default_factory=list)
+    sketched: int = 0
     # Where a lecture begins on the page, as every run read it (task 64).
     lecture_starts: list[str] = field(default_factory=list)
     # Runs the page asked for to read itself whole, and whether it was read
@@ -520,11 +528,22 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
     if len(result.best.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
         return refused(texts.SKIP_NO_TEXT, stats)
 
-    # The drawings recognition framed, cut out while the page's image is
-    # still here; the record places them after composing.
-    cutouts = await images.in_worker(
-        figures.cut, page_input.data, result.best.markdown, result.best.drawings
-    )
+    # The page's drawings, taken while its image is still here; the record
+    # places them after composing. A sketch is drawn again from the page
+    # (task 101) — three calls for where each is and what its labels say,
+    # part of reading the page, and every one in the page's stats — or, under
+    # a prompt that frames drawings (v8), cut out.
+    sketched: list = []
+    if settings.SKETCHES_ENABLED and figures.count(result.best.markdown):
+        sketched, sketch_stats = await sketches.read(page_input.data, result.best.markdown)
+        stats = stats + sketch_stats
+        cutouts = await images.in_worker(
+            figures.redraw, page_input.data, result.best.markdown, sketched
+        )
+    else:
+        cutouts = await images.in_worker(
+            figures.cut, page_input.data, result.best.markdown, result.best.drawings
+        )
 
     # A page is dropped for the frame, for nothing parsed, and for no text —
     # and for nothing else. Disagreement between the runs used to drop it too,
@@ -567,6 +586,7 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
         photo_paper_fraction=frame.paper_fraction,
         photo_contrast=frame.contrast,
         cutouts=cutouts,
+        sketched=sum(sketch is not None for sketch in sketched),
         lecture_starts=result.lecture_starts,
         runs_added=result.runs_added,
         read_further=result.read_further,
@@ -602,6 +622,7 @@ class AssembledRecord:
     # pages only described — the two numbers note_processed reports.
     cutouts: list[figures.Cutout] = field(default_factory=list)
     drawings: int = 0
+    sketched: int = 0
     # Lines cut off the first page — the lecture before — and off the last —
     # the lecture after (task 64); what note_processed reports.
     lecture_head_cut: int = 0
@@ -745,6 +766,7 @@ def _assemble(
         ],
         cutouts=[cutout for p in pages_ok for cutout in p.cutouts],
         drawings=sum(figures.count(p.transcription.markdown) for p in pages_ok),
+        sketched=sum(p.sketched for p in pages_ok),
         lecture_head_cut=head_cut,
         lecture_tail_cut=tail_cut,
         runs_added=sum(p.runs_added for p in pages_ok),

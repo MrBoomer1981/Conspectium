@@ -15,7 +15,7 @@ from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
 from app.core.events import log_event_standalone
-from app.services import compose, explain, pdf, study, vision
+from app.services import compose, explain, pdf, sketches, study, vision
 from app.db.models import User
 from app.db.session import async_session_maker, get_session
 
@@ -168,6 +168,16 @@ async def lifespan(app: FastAPI):
         # From v9 on the lecture before and the one after are cut off an
         # album's edges (task 64); before it, an album carries them in.
         "marked and cut to one" if vision.PROMPT_MARKS_LECTURES else "not marked",
+    )
+    # A sketch drawn again from its page (task 101) adds three calls to a page
+    # that describes a drawing and puts the bot's tracing of the author's
+    # lines into the document, so the deploy says whether it does.
+    logger.info(
+        "Sketches: %s",
+        f"drawn again from the page, frames and labels read by {sketches.RUNS} runs of "
+        f"{sketches.SKETCH_PROMPT_FILE}, {sketches.SKETCH_PROMPT_WORDS} words"
+        if settings.SKETCHES_ENABLED
+        else "off, a sketch is its words",
     )
     logger.info(
         "Images: %d px long side, quality %d",

@@ -2271,6 +2271,98 @@ chosen run's stays when another read it alike, and one the chosen run
 described in words, or read otherwise, is drawn as two other runs read it
 alike. The log says on every page how many charts each run wrote.
 
+## Sketches drawn from the page
+
+Task 101, the night of 2026-10-11. Record 106 — the compactness lecture,
+record 59's album sent a third time, under v11 — drew its number line from
+its data and printed six sketches as words. The CEO: «нужно рисовать их с
+оригинала». Its three photographs, Telegram's 960 × 1280: light blue
+ballpoint on a blue-grey squared notebook, a hand's shadow over the lower
+third of two pages.
+
+**The model's geometry is not to be drawn.** Asked for each sketch's
+elements with coordinates — closed curves as points, ellipses, lines,
+points, labels, hatching — three runs a page, nine calls, $0.12: the labels
+and their places were right; a simple drawing (a set, a point outside it,
+three neighbourhoods) came back as polygons of ten points shifted by 5 to
+10 px; the four balls came back as circles of the wrong size, a ball
+missing, the outer ellipse wrong, and the plane covered by a square came
+back covered by a full grid the author never drew — each run its own. The
+lines have to be the photograph's; the model gives what it reads.
+
+**What the model reads well: frames and labels.** Asked only for each
+drawing's frame and every label with its box, nine calls, $0.065: frames
+alike across runs, overlapping by far more than half; on the third page
+every label read the same by every run — x₁ to x₄, q, r_q, p, K, X, K^c.
+Two runs that disagree on a label (x₅ against x₁) leave it as the author
+wrote it.
+
+**The grid is the hard part, and colour does not separate it.** Divided by
+the paper's own light, ink and grid make no two clusters in darkness
+against blue chroma; the chroma itself is JPEG's 8 × 8 blocks at the
+strokes' scale. A threshold pixel by pixel lost the light hand's strokes or
+kept the grid. What works:
+
+- **The lattice from the spectrum.** A squared page's grid is the strongest
+  periodic thing on it: the spectrum's sharpest peak in the band of a
+  notebook's square gives the period (17 to 24 px) and the slant; a comb of
+  that period put where it covers the most darkness gives the lines, each
+  then fitted in pieces for perspective — under the drawings as well, in
+  10 to 30 ms a window. Tracking ridges line by line, tried first, missed
+  lines under the drawings and took ink for grid; a whole page's lattice
+  failed where the page bends at the spiral. A single long axis makes a
+  ridge along its column of the spectrum and no peak, so the peak must
+  stand over its neighbours in the column, not only over the band.
+- **The grid taken off line by line.** Each line's own profile across and
+  strength along — a running median the strokes crossing it hardly move —
+  subtracted in optical density: ink over a printed line adds, so a stroke
+  crossing the grid or drawn along it keeps what it adds itself. The
+  first try, a band cut and filled from across, broke every stroke running
+  along a line.
+- **An oriented filter for the strokes.** Sixteen directions, a ballpoint
+  wide and three times that long: a line's darkness summed along itself
+  lifts the faint outer ellipse out of the grain. Its crests, from three
+  times the paper's own spread, kept where a stretch rises above eight. On
+  paper with no grain — a page lit flat — the spread collapses and JPEG's
+  ripples stand as strokes: it is never taken below 0.003.
+- **A grid line's ridge is the grid's up to twice its neighbours'
+  strength.** Its own median was the first threshold, and an axis drawn
+  along a grid line end to end made itself the median and vanished.
+
+**Strokes out of crests.** Zhang and Suen's thinning erased a two-pixel
+stroke on a diagonal outright — the segments from x₁ were missing for
+that, not for the grid; Lü and Wang's condition keeps them. A staircase on a
+diagonal has three neighbours and two branches: counting neighbours made
+every step a fork. Judging pieces between forks threw away the flat top of
+every ellipse lying on a grid line; whole strokes are judged, cut first at
+sharp corners so a grid stub meeting an arc's end is its own. A stroke the
+author went over twice is kept once.
+
+**The gate.** On the six, with every run's frames and with production's:
+
+| drawing | short open strokes | short straight along the axes | verdict |
+|---|---|---|---|
+| plane covered by a square, drawn along the grid | 0.43–0.46 | 0.36–0.43 | words |
+| line covered by arcs | 0.19–0.26 | 0.08–0.14 | drawn |
+| nested neighbourhoods, hatched | 0.32–0.36 | 0.03–0.05 | drawn |
+| set covered by balls | 0.32–0.37 | 0.03 | drawn |
+| four balls and the ball round them | 0.18–0.20 | 0.05–0.07 | drawn |
+| a set, a point outside, neighbourhoods | 0.23–0.28 | 0.03–0.04 | drawn |
+
+Hence 0.45 and 0.25. An axis is one long straight line and not counted. Six
+drawings of one hand: said so, and watched on the next albums.
+
+**Production's environment, the code as it stands**: the three photographs,
+nine calls, $0.04, every one in `ai_calls`; frames alike on all six; five
+drawn, the plane left as words; record 106's document rendered with them
+in the document's ink at about their size on the page. Four hundred and
+twenty frames made to break it — blank, dark and noise images, lined,
+squared and plain paper, shadows, frames off the photograph, labels mathtext
+cannot draw — not one error, 2.6 s at worst, no figure left open. What
+stays rough: a letter of the text above that the frame takes in, a short
+tick where a hatched edge was, the outer ellipse broken where the hand
+barely touched the paper.
+
 ## Moved from CLAUDE.md, 2026-10-10
 
 When `CLAUDE.md` was cut back to its rules a second time, its records'

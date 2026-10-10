@@ -1,16 +1,20 @@
-"""A drawing cut out of the page it was drawn on.
+"""A drawing taken from the page it was drawn on.
 
 Recognition describes a drawing it cannot write down as data as one line,
-"[схема: …]", and from prompts-v8.md on it names the drawing's frame on the
-photograph as well. This module cuts the drawing out of the compressed image
-the model saw, keeps the darkness of its ink and nothing else of the
-photograph, and after the composing stage sets it back at the line that
-describes it. Nothing here calls a model or touches the database.
+"[схема: …]". Since task 101 a sketch is drawn again from the page
+(redraw): sketches.py reads where it is and what its labels say, and
+strokes.py traces the pen's lines off the photograph, the grid taken away,
+the labels set in type. Before it, from prompts-v8.md on, recognition named
+the drawing's frame and cut() cut the drawing out as the darkness of its
+ink (task 54) — put to sleep when the cut-outs came out faint over the
+grid; it stays for that prompt. Either way, after the composing stage
+place() sets the drawing back at the line that describes it. Nothing here
+calls a model or touches the database.
 
-Why the page and not a redrawing: a sketch redrawn from what the model says
-about it is the model's picture of the topic rather than the author's — the
-very place it invents. A graph, which is data, is still drawn from the data
-(pdf.blocks).
+Why the page and not the model's drawing: a sketch drawn from what the
+model says about it is the model's picture of the topic rather than the
+author's — the very place it invents. Every line strokes.py draws is one the
+pen left. A graph, which is data, is still drawn from the data (pdf.blocks).
 """
 
 from __future__ import annotations
@@ -22,6 +26,8 @@ from dataclasses import dataclass
 
 import numpy as np
 from PIL import Image, ImageFilter
+
+from app.services import strokes
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +116,34 @@ def cut(image_bytes: bytes, markdown: str, frames: list) -> list[Cutout]:
             png = None
         if png is not None:
             out.append(Cutout(_words(words), png))
+    return out
+
+
+def redraw(image_bytes: bytes, markdown: str, sketches: list) -> list[Cutout]:
+    """The page's sketches drawn again from it (task 101, strokes.py), each
+    paired with its "[схема: …]" line in order — sketches.read gives one
+    entry a line, None where the runs did not agree. A drawing that cannot
+    be drawn again, or comes out in pieces, stays the line that describes
+    it. Never raises."""
+    words = _SCHEME_RE.findall(markdown)
+    if not words or len(words) != len(sketches) or not any(sketches):
+        return []
+    try:
+        page = strokes.Page(image_bytes)
+    except Exception:
+        logger.warning("figures: the page could not be opened", exc_info=True)
+        return []
+    out: list[Cutout] = []
+    reasons: list[str] = []
+    for line, sketch in zip(words, sketches):
+        if sketch is None:
+            reasons.append("not framed alike")
+            continue
+        drawn = strokes.redraw(page, sketch)
+        reasons.append(drawn.reason)
+        if drawn.png is not None:
+            out.append(Cutout(_words(line), drawn.png))
+    logger.info("figures: %d of %d drawings drawn again from the page: %s", len(out), len(words), reasons)
     return out
 
 

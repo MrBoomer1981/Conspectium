@@ -2642,20 +2642,30 @@ def _chart_saved(figure) -> bytes:
 
 
 def _chart_name(
-    axes, x: float, y: float, label: str, size: float, plain: bool, halo: bool = False, **place
+    axes,
+    x: float,
+    y: float,
+    label: str,
+    size: float,
+    plain: bool,
+    halo: bool = False,
+    ink: str = _INK,
+    paper: str = _PAPER,
+    **place,
 ) -> None:
     """A name in a chart: a formula in the formulas' face, as the text's
     formulas are; words in the text's. `plain` writes a formula in
     characters, for one mathtext would not draw. `halo` sets it on a patch
     of the paper, over whatever line runs under it: a curve crossed the
-    numbers on its axes."""
+    numbers on its axes. `ink` and `paper` are the document's, but for a
+    sketch drawn as its darkness (chart_label)."""
     if not label:
         return
     if halo:
         place = {
             **place,
             "zorder": 5,
-            "bbox": {"facecolor": _PAPER, "edgecolor": "none", "pad": 0.4},
+            "bbox": {"facecolor": paper, "edgecolor": "none", "pad": 0.4},
         }
     if _CYRILLIC_RE.search(label) or plain:
         words = label if _CYRILLIC_RE.search(label) else _plain_formula(label)
@@ -2668,15 +2678,37 @@ def _chart_name(
             else _mpl_font("DejaVuSans.ttf")
         )
         axes.text(
-            x, y, words, color=_INK, fontproperties=FontProperties(fname=face, size=size), **place
+            x, y, words, color=ink, fontproperties=FontProperties(fname=face, size=size), **place
         )
         return
     text = axes.text(
         x, y, f"${for_mathtext(label)}$", fontsize=size,
-        math_fontfamily=_MATH_FONT, color=_INK, **place,
+        math_fontfamily=_MATH_FONT, color=ink, **place,
     )
     text.set_path_effects(
-        [patheffects.withStroke(linewidth=_MATH_STROKE_PT, foreground=_INK)]
+        [patheffects.withStroke(linewidth=_MATH_STROKE_PT, foreground=ink)]
+    )
+
+
+# What a label of a sketch is written in, LaTeX's wrappers aside: «$x_1$»
+# is the formula x_1, «$m\text{ штук}$» the words «m штук».
+_LABEL_TEXT_RE = re.compile(r"\\(?:text|mathrm|textit|textbf|mbox)\s*\{([^{}]*)\}")
+
+
+def chart_label(axes, x: float, y: float, label: str, size: float, plain: bool = False) -> None:
+    """A label of a sketch drawn again from its page (strokes.py), set as a
+    chart's name is and centred where the handwriting stood: in black on a
+    patch of white, since the sketch is kept as its darkness and the
+    document gives it its ink and paper. A label with Russian words in it
+    is the words; any other, the formula."""
+    text = label.strip()
+    if len(text) > 1 and text.startswith("$") and text.endswith("$"):
+        text = text[1:-1].strip()
+    if _CYRILLIC_RE.search(text):
+        text = " ".join(_LABEL_TEXT_RE.sub(r"\1", text).replace("$", " ").split())
+    _chart_name(
+        axes, x, y, text, size, plain, halo=True, ink="black", paper="white",
+        ha="center", va="center",
     )
 
 
@@ -4167,6 +4199,7 @@ def _picture(block: Block, formulas: _Formulas, styles: dict[str, ParagraphStyle
     try:
         with PILImage.open(io.BytesIO(block.image)) as stored:
             ink = stored.convert("L")
+            dpi = stored.info.get("dpi")
     except Exception:
         # A drawing the record kept and cannot open is still described.
         logger.warning("a kept drawing could not be opened", exc_info=True)
@@ -4177,7 +4210,13 @@ def _picture(block: Block, formulas: _Formulas, styles: dict[str, ParagraphStyle
     buffer = io.BytesIO()
     drawn.save(buffer, format="PNG")
     buffer.seek(0)
-    width = min(_TEXT_WIDTH_PT, ink.width * _PICTURE_PT_PER_PX)
+    # A sketch drawn again from its page (task 101) says its own resolution,
+    # drawn at the size it had there; a cut-out (task 54) is the page's
+    # pixels, set at the scale of the photograph.
+    if dpi and float(dpi[0]) > 1:
+        width = min(_TEXT_WIDTH_PT, ink.width / float(dpi[0]) * 72)
+    else:
+        width = min(_TEXT_WIDTH_PT, ink.width * _PICTURE_PT_PER_PX)
     height = width * ink.height / ink.width
     if height > _PICTURE_MAX_HEIGHT_PT:
         width, height = width * _PICTURE_MAX_HEIGHT_PT / height, _PICTURE_MAX_HEIGHT_PT

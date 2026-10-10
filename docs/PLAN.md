@@ -462,6 +462,16 @@ Specified on 2026-10-10 — the CEO's:
       and read as an album's page, whatever the PDF holds — the CEO's.
       Taken on 2026-10-10
 
+Specified on 2026-10-10, from record 106 — the CEO's: «я хочу взяться за
+отрисовку сложных графиков. нужно рисовать их с оригинала»:
+
+- [ ] 101. A sketch drawn again from its page: the pen's lines traced off
+      the photograph, the notebook's grid taken away, its labels set in
+      type — the CEO's. Built on the night of 2026-10-11 on record 106's
+      album, «продолжай искать лучшее решение для отрисовки»; production
+      switched the same night (`SKETCHES_ENABLED`), the next albums its
+      check
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -508,7 +518,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72, 77-79, 83, 86, 92, 97-99
-CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 101, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: none
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -606,6 +616,7 @@ since 2026-10-01.
 | 2026-10-10 | the CEO, with Claude Code | Task 94 made sure of before it shipped, the CEO's word «пишем один раз и навсегда»: the runs are compared without their charts, so a chart's range moves no agreement and flags no divergence; two runs' names are alike as one expression however written; a number line's sets compared in their places; a composition that writes a chart's place twice is refused; every figure a chart draws is closed whatever happens; a graph whose values span more than a million is words. Production reads `prompts-v10.md` from the same day, the CEO's switch, record 97's album sent again its check | the CEO's own |
 | 2026-10-10 | the CEO, with Claude Code | Two rules of how work is done, the CEO's: one piece of work, one commit — its code, its lines here, the documents and README together, «всегда отправляем меньшим кол-вом коммитов» — in place of a `plan:` commit of its own and README in a `docs:` one; and code written once, to work for good, «пишем один раз и навсегда» — a change ships whole, run against what production holds and against input made to break it. `CLAUDE.md` → "Who decides", "How to work in this project" | the CEO's own |
 | 2026-10-10 | the CEO, with Claude Code | Task 94: record 105 — record 59's album sent again under v10 — came back with no chart, the CEO's «смотри и ищи». Of its ten drawings eight are sketches and one an ε-strip with no formula, words by design; the tenth, a number line, v10 wrote in words, and in the container it wrote every number line so, every run, where it wrote a parabola, a mapping and a sequence as data. `prompts-v11.md` — rule 6 asks first whether a drawing is one of the kinds, «[схема: …]» only for one that is none, a set with no ends written where it stands — wrote them all as data on every run, and production reads it from the same evening. The runs settle a chart at its place: one the chosen run described in words is drawn as two other runs read it alike. The log says every page's charts by run. `FINDINGS.md` → "Record 105, and the prompt that wrote no chart" | the CEO's own |
+| 2026-10-11 | the CEO, with Claude Code | Task 101 specified, taken and built overnight, the CEO's words «нужно рисовать их с оригинала» and «продолжай искать лучшее решение для отрисовки»: a sketch — a set, a ball, a neighbourhood, a graph with no formula — drawn again from its page. The model gives only where each drawing is and what its labels say: three calls a page that describes one (`sketches.py`, `prompts-sketch-v1.md`, 147 words), a frame counted where two runs frame it alike, a label where two read it alike at one place; asked for the lines themselves it drew circles of the wrong size and a grid never drawn, each run its own. The lines are the photograph's (`strokes.py`): the paper's light divided out, the notebook's grid found off the spectrum and taken off line by line, the strokes by an oriented filter, joined, kept once, straight where drawn straight; the labels set in type where the handwriting stood. A drawing that comes out in pieces is refused by code and stays its words. Kept in `note_figures` as before, its resolution in the PNG so the document sets it at its size (`pdf._picture`); no migration. Every call in `ai_calls` as `kind="sketch"`; `note_processed` gains `sketched`; the album's ceiling counts the calls. `figures.cut` and v8's frames stay asleep. "What the model is not trusted with" gains its geometry, a rule shared, the CEO's word enough and the CPO told. Production on from the same night: `SKETCHES_ENABLED=true`. `FINDINGS.md` → "Sketches drawn from the page" | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -1307,7 +1318,9 @@ question comes up while working on a task, the answer is here.
  8. record spend (vision.log_ai_calls)                ← always, own session
  9. result is None                                    ← texts.ERROR_GENERIC, exit
  10. markdown shorter than MIN_MARKDOWN_LEN            ← texts.NO_TEXT_FOUND, exit
- ·  cut the drawings out of the image (figures.cut)
+ ·  a sketch drawn again from the page (task 101): where each is and what its labels
+    say, three calls (sketches.read, spend recorded); its lines traced off the photo
+    (figures.redraw, on its own thread) — or under v8 cut out (figures.cut)
 10a. verdict == "rejected", or one run only           ← kept, marked unverified
 12. check calculations (vision.findings: mathcheck and graphcheck, each finding with the text it is about)
 12a. limits again (pages=0), then stage two (compose.compose)  ← refused: the text from step 7
@@ -6156,6 +6169,96 @@ PDF sent to the bot is a record, as a photograph and a `.docx` are.
 
 ---
 
+# Task 101. A sketch drawn again from its page
+
+**Owner: the CEO.** Specified on 2026-10-10 from record 106, the CEO's
+words: «я хочу взяться за отрисовку сложных графиков. нужно рисовать их с
+оригинала». Built overnight on 2026-10-11: «продолжай искать лучшее
+решение для отрисовки».
+
+## Why
+
+Record 106, the compactness lecture sent a third time under v11, drew its
+one number line from its data and printed six sketches as their words: a
+bounded set covered by squares, a line covered by arcs, nested
+neighbourhoods, a set covered by balls, four balls and the ball round them,
+a set with a point outside it. Its proof is in those drawings. They are no
+data (task 94), and cut out of the photograph as they were (task 54) they
+came out faint, the grid over a light hand's strokes, and read as worse.
+
+## Do, as built
+
+1. **The model says where each drawing is and what its labels read, and
+   nothing else** — `sketches.py`, `prompts-sketch-v1.md`: given the page
+   and its «[схема: …]» lines, each drawing's frame and each label with its
+   box, in thousandths of the photograph. Three runs; a frame counts where
+   two frame the drawing alike (overlapping by half), a label where two read
+   it alike within two letters of each other. Asked tonight for the lines
+   themselves, the model drew circles of the wrong size where the author
+   drew four balls and a full grid where he drew three lines, every run its
+   own: its geometry is not to be drawn.
+2. **The lines are the photograph's** — `strokes.py`, on the image thread:
+   the paper's own light divided out, a hand's shadow included; the
+   notebook's grid found as a lattice — its period and slant off the
+   spectrum's sharpest peak, its lines where a comb of that period covers
+   the most darkness, each bent to the paper in pieces — and taken off line
+   by line, darkness adding where ink crosses a printed line; the strokes by
+   an oriented filter that sums a line along its direction, their crests
+   kept from three times the paper's own spread where a stretch rises above
+   eight; a ridge along a grid line no stronger than the lines beside it is
+   the grid. Thinned (Lü and Wang's condition: the plain one erased a
+   diagonal stroke), traced, joined across gaps along their own direction,
+   a stroke traced twice kept once, straight where it keeps to its chord,
+   smoothed where not. Whole strokes judged: one straight on a grid line no
+   darker than the grid is the grid, a lone dash along the axes shorter than
+   a square too, a small mark at the frame's edge touching nothing is the
+   text round it.
+3. **Labels set in type where the handwriting stood**: the letters inside a
+   label's box go — never a stroke passing through it — and the label is set
+   as a chart's name, in the formulas' face, on a patch of paper. Never
+   where nothing is written. A point is a dot.
+4. **A gate, by code**: a drawing with more than 0.45 of its length in open
+   strokes shorter than a letter, more than 0.25 in short straight pieces
+   along the page's axes, or half along the grid, stays its words — on
+   record 106 the plane drawn along the grid, where the author's lines and
+   the notebook's are one.
+5. **Kept and printed as cut-outs were**: `note_figures`, the darkness of
+   the drawing as a greyscale PNG, its resolution written in so the document
+   sets it at its size on the page (`pdf._picture`); `figures.place` sets it
+   at its line after composing. No migration.
+6. **Switched**: `SKETCHES_ENABLED`, off in the code, on in production; the
+   startup log's `Sketches:` line says which. Both photo paths; every call
+   in `ai_calls` as `kind="sketch"`; `note_processed` counts `sketched`;
+   the album's ceiling counts the three calls a page more.
+
+## How it is tried
+
+Record 106's three photographs, read in production's environment by the
+code as it stands, nine calls, $0.04: five of six sketches drawn, the plane
+along the grid left as words, every label the runs agreed on set where it
+was written; the record's document rendered with them. Four hundred and
+twenty frames made to break it — blank, dark, noise, lined, squared and
+plain paper, shadows, frames off the photograph — drew with not one error,
+in 2.6 s at worst, every figure closed; garbage answers parse to nothing.
+The next albums are its check: the CEO compares each drawing with its
+photograph; the log says by page how many were framed alike and why one
+was refused.
+
+## Acceptance criterion
+
+- A sketch drawn is the author's: no line the page does not have, no label
+  not written there.
+- What reads worse than its words stays its words.
+- Pages with no sketch read, cost and print as before; the suite is green.
+
+## Don't do
+
+- No line the model draws: its frames and labels only.
+- No label one run alone read.
+- No sketch drawn over the gate's refusal.
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -6311,7 +6414,8 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `source_type` | `"photo"` | `"photo"` | `"docx"` |
 | `pages_skipped` | — | number skipped | — |
 | `drawings` | the `[схема: …]` lines recognition wrote | over every page read | — |
-| `figures` | drawings cut out and placed (task 54) | over the record | — |
+| `figures` | drawings taken from the page and placed: cut out (task 54) or drawn again (task 101) | over the record | — |
+| `sketched` | the record's sketches every run but one or none framed alike — drawn again, or refused by the gate and left as words (task 101) | over the record | — |
 | `charts` | drawings the record keeps as data, drawn by code — a graph by its formula, a number line, a mapping; a chart the runs did not read alike is words, counted in `drawings` (task 94) | over the record | — |
 | `explain_judged` | explanations dropped for judging the record (task 55) | over the record | — |
 | `compose_retried` | the guards refused the first composition and a second was asked for | the same, over the record | — |

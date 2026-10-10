@@ -34,6 +34,7 @@ from app.services import (
     limits,
     mathcheck,
     photoguard,
+    sketches,
     vision,
 )
 
@@ -327,12 +328,25 @@ async def _read_photo(
         await message.answer(texts.NO_TEXT_FOUND)
         return
 
-    # The drawings recognition framed, cut out of the image it read while the
-    # image is still here — rule 3 keeps nothing else of it. In a thread:
-    # filtering pixels is CPU work, and the webhook must not stall on it.
-    cutouts = await images.in_worker(
-        figures.cut, compressed, result.best.markdown, result.best.drawings
-    )
+    # The page's drawings, taken from the image while it is still here —
+    # rule 3 keeps nothing else of it. A sketch is drawn again from the page
+    # (task 101): three calls read where each is and what its labels say,
+    # part of reading the page as task 65's further runs are, and its lines
+    # are traced off the photograph. Under a prompt that frames drawings
+    # (v8) they are cut out instead. Pixels in a thread: CPU work the
+    # webhook must not stall on.
+    sketch_stats: list = []
+    sketched: list = []
+    if settings.SKETCHES_ENABLED and figures.count(result.best.markdown):
+        sketched, sketch_stats = await sketches.read(compressed, result.best.markdown)
+        await vision.log_ai_calls(user.id, sketch_stats, group_id=group_id)
+        cutouts = await images.in_worker(
+            figures.redraw, compressed, result.best.markdown, sketched
+        )
+    else:
+        cutouts = await images.in_worker(
+            figures.cut, compressed, result.best.markdown, result.best.drawings
+        )
 
     # Disagreement between the runs used to end the photo here. It does not
     # any more: the pages behind those refusals carried legible text, and what
@@ -492,13 +506,16 @@ async def _read_photo(
             "summary": explaining.summary is not None,
             "summary_refused": explaining.summary_refused,
             "drawings": figures.count(result.best.markdown),
+            "sketched": sum(sketch is not None for sketch in sketched),
             "figures": len(placed),
             "charts": charts.count(markdown),
             "runs_added": result.runs_added,
             "read_further": int(result.read_further),
             **_filing_payload(filing, explain_skipped),
             "latency_ms": int((time.monotonic() - started) * 1000),
-            "cost_usd": vision.total_cost(stats + composition.stats + explaining.stats),
+            "cost_usd": vision.total_cost(
+                stats + sketch_stats + composition.stats + explaining.stats
+            ),
         },
         group_id=group_id,
     )
@@ -1062,6 +1079,7 @@ async def _process_album(
             "summary": explaining.summary is not None,
             "summary_refused": explaining.summary_refused,
             "drawings": rec.drawings,
+            "sketched": rec.sketched,
             "lecture_head_cut": rec.lecture_head_cut,
             "lecture_tail_cut": rec.lecture_tail_cut,
             "runs_added": rec.runs_added,

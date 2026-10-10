@@ -91,6 +91,12 @@ class Settings(BaseSettings):
     # is bit-for-bit what the call did before they existed.
     VISION_MEDIA_RESOLUTION: str = "unset"
     VISION_THINKING_LEVEL: str = "unset"
+    # A sketch drawn again from its page (task 101): three more calls on
+    # VISION_MODEL for a page that describes a drawing, reading where each
+    # is and what its labels say, and the pen's lines traced off the photo.
+    # Off by default for the reason the stages are: what goes into the
+    # group's document is a decision, not a deploy.
+    SKETCHES_ENABLED: bool = False
     # Stage two: the trusted transcription, formatted. Off by default — it is
     # an experiment behind a switch, like PROMPT_FILE, and turning it on is a
     # decision rather than something that happens on a deploy.
