@@ -258,11 +258,13 @@ def test_a_blank_page_is_still_unmeasured():
 
 def test_text_too_small_to_read_is_still_refused():
     """The rewrite must not cost the check its job: this is the page the whole
-    module exists for, photographed from too far away."""
+    module exists for, photographed from too far away. A pitch of 12, under
+    the 14 px the threshold went to in task 102 — at 13 px a page of record
+    106 kept only its sense."""
     # Darker ink than the other pages here, so that contrast — which is
     # checked first — passes and the line-height rule is the one deciding.
     verdict = photoguard._check(
-        _written_page(pitch=15, lines=90, ink=10, paper=250)
+        _written_page(pitch=12, lines=90, ink=10, paper=250)
     )
 
     assert verdict.line_height_px < photoguard.MIN_LINE_HEIGHT_PX

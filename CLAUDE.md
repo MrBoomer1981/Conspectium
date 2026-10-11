@@ -1479,7 +1479,7 @@ survives.
 written and tested before this repository. **Import and call them; don't
 rewrite or "improve" them.** Found a bug — report it, don't fix it silently.
 
-Four exceptions, each made after the failure was reproduced. Three are in
+Five exceptions, four made after the failure was reproduced. Three are in
 photoguard's line height: `UNMEASURED_LINE_HEIGHT` names a height that was not
 measured, and the criterion is skipped rather than reading `0.0` as a tiny
 line; `photoguard._line_height` thresholds by Otsu and takes the pitch as the
@@ -1487,19 +1487,27 @@ median distance between bands of ink, with no three-line minimum (task 35); and
 `MIN_LINE_HEIGHT_PX` went from 20 to 16 (task 43), after a legible page of a
 dense notebook was cut off at 20. The fourth: `MIN_CONTRAST` went from 28 to
 20 (task 75, the CEO's), after a page sharp and filling its frame was refused
-as too dark three times. → "The line height photoguard could not measure",
-"Record 45, a lecture on remainders", "A page refused as dark"
+as too dark three times. The fifth, the CEO's word with no page refused
+(task 102, 2026-10-11): every threshold lowered — sharpness 90 → 15,
+contrast 20 → 10, the sheet's share of the frame 0.18 → 0.14, the line's
+pitch 16 → 14 px — each where record 106's pages, made worse on purpose,
+still read, with a margin before a formula's indices are guessed rather than
+read: the old ones refused pages that read whole. → "The line height
+photoguard could not measure", "Record 45, a lecture on remainders", "A page
+refused as dark", "The frame check against what can be read"
 
-Still open in photoguard: `MIN_LINE_HEIGHT_PX` is calibrated from above only —
-the one frame measured below 16, refused at 15.0 px, may or may not have been
-legible, and the module's CLI over real pages would settle it; every skip logs
-its four metrics. So is `MIN_CONTRAST`, and its measure is the spread of
-brightness across the sheet: it counts how much is written as much as the
-light, so a page of a few lines is mostly even paper and reads as dark however
-it is lit. A measure of ink against paper would not, and would need real
-pages, good and bad, to set. On that page the line height came out at about
-the sheet's own height — no lines found, so «Текст мелкий» could not fire on
-such a page. `_paper_box` thresholds at `0.82 × percentile99`, so
+Still open in photoguard: the thresholds are set on one hand's three pages
+read by eye, never by the model, and every skip logs its four metrics to
+check them by. The line height measures nothing on squared paper — the
+grid's rows read as ink, one band the sheet's height, 1141–1256 px on record
+106 — so «Текст мелкий» never fires there, and a small hand from afar is
+caught by the sheet's share alone. A shake along the lines leaves the grid
+sharp: 17 px of it passed the sharpness check, old and new, with nothing
+legible. `MIN_CONTRAST`'s measure is the spread of brightness across the
+sheet: it counts how much is written as much as the light, so a page of a
+few lines is mostly even paper and reads as dark however it is lit. A
+measure of ink against paper would not, and would need real pages, good and
+bad, to set. `_paper_box` thresholds at `0.82 × percentile99`, so
 a bright highlight shrinks the mask to the glare and `paper_fraction`
 collapses. All four thresholds apply to the compressed image, so
 `IMAGE_MAX_SIDE` silently recalibrates them.

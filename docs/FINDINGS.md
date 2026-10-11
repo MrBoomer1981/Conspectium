@@ -1555,6 +1555,69 @@ the page was refused, but «Текст мелкий» could not have fired on it
 Squared paper's grid read as ink on every row, or a shadow across the
 sheet, would do it; the numbers do not say which.
 
+## The frame check against what can be read
+
+**On 2026-10-11 the CEO asked for every threshold lowered** before sending
+albums of sketches (task 102). None had been set against what can be read,
+so it was measured: record 106's three photographs, 960×1280 as Telegram
+sends them, made worse on purpose and put through `photoguard` after
+production's compression, and at every step a crop of the third page's last
+five lines — formulas with indices, «Заметим, что U_{r_q/4}(p) ∩ … = ∅» —
+read by eye at the resolution the model is sent. Read by eye, not by the
+model. Untouched, the pages measured sharpness 1096 to 2632, contrast 37.2
+to 45.7, the sheet 89 to 98% of the frame — and line height 1141 to 1256
+px: on squared paper the grid's rows read as ink, one band the sheet's
+height, so the line height is never measured there (as on task 75's page).
+
+**Defocus**, a Gaussian of σ pixels:
+
+| σ | 1.0 | 1.5 | 2.0 | 2.5 | 3.0 |
+|---|---|---|---|---|---|
+| Sharpness, three pages | 66–103 | 15–21 | 7.1–9.5 | 4.5–5.6 | 3.4–4.1 |
+| What reads | all | all, the indices soft | words; indices guessed | words guessed | the sense |
+
+90 refused one page at σ 1 and let another through at 92; all three read
+whole. 15 refuses from σ 1.5–1.6: the third page measured 14.98 at σ 1.5,
+just under it, the other two 18.6 and 21.1.
+
+**Light**, the page dimmed, or washed out towards white:
+
+| | ½ light | ¼ | 0.18 | ink at ½ its depth | 40% | 30% | 20% |
+|---|---|---|---|---|---|---|---|
+| Contrast, three pages | 18.6–22.6 | 10.0–13.3 | 6.7–8.4 | 19.4–27.3 | 15.7–22.4 | 11.9–17.4 | 7.7–11.4 |
+| What reads | all | all | all, dark | all | all | all, pale | pale; indices hard |
+
+20 refused two of the three pages at half the light. 10 refuses at about a
+fifth of it. The measure still counts how much is written, as on task 75's
+page: a page of one sketch reads lower than a page of text in the same
+light.
+
+**Distance**, the sheet shrunk on a brown table in the same frame:
+
+| Sheet's width | 50% | 42% | 36% | 30% | 28% | 25% | 23% |
+|---|---|---|---|---|---|---|---|
+| Sheet's share of the frame | 0.24 | 0.17 | 0.13 | 0.09 | 0.08 | 0.06 | 0.05 |
+| Line pitch of this hand, px | 29 | 24 | 21 | 17 | 16 | 14 | 13 |
+| What reads | all | all | words; indices going | words; indices lost | words; indices lost | words hard | the sense |
+
+The hand is large: a small one loses its indices sooner, and on squared
+paper nothing but the sheet's share stands between it and the model. So the
+share went least, 0.18 → 0.14, refusing from about 37% of the frame's width;
+and the line's pitch, measured on plain and lined paper only, 16 → 14 px:
+at 16 the indices are already gone.
+
+**What no threshold here sees.** A shake along the lines — 5, 9, 13 and 17
+px — kept sharpness at 342, 285, 271 and 252: the grid's lines run with the
+shake and stay sharp. At 9 px the words barely read and the indices are
+gone; at 17 nothing reads. The old threshold let it through as the new one
+does.
+
+**What was not read for this**: the frame metrics production keeps — four
+numbers on every photo's `photo_accepted` or `photo_rejected`, every refused
+page's in `album_retake_requested`, the album's worst page on `notes`. They
+are the check of these thresholds: a page refused from now on is in the log
+against them.
+
 ## What the bot spends its time and memory on
 
 **Read on 2026-10-07**, at the CEO's request to find what takes the bot's

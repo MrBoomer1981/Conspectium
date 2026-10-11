@@ -471,6 +471,11 @@ Specified on 2026-10-10, from record 106 — the CEO's: «я хочу взять
       album, «продолжай искать лучшее решение для отрисовки»; production
       switched the same night (`SKETCHES_ENABLED`), the next albums its
       check
+- [ ] 102. Every frame threshold lowered before the next albums: sharpness
+      90 → 15, contrast 20 → 10, the sheet's share of the frame 0.18 →
+      0.14, the line's pitch 16 → 14 px — the CEO's, «уменьши порог
+      качества фото на всех параметрах». Taken and built on 2026-10-11 on
+      record 106's pages made worse on purpose; the next albums its check
 
 ### Why the design comes before the explaining stage
 
@@ -518,7 +523,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72, 77-79, 83, 86, 92, 97-99
-CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 101, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 101, 102, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: none
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -617,6 +622,7 @@ since 2026-10-01.
 | 2026-10-10 | the CEO, with Claude Code | Two rules of how work is done, the CEO's: one piece of work, one commit — its code, its lines here, the documents and README together, «всегда отправляем меньшим кол-вом коммитов» — in place of a `plan:` commit of its own and README in a `docs:` one; and code written once, to work for good, «пишем один раз и навсегда» — a change ships whole, run against what production holds and against input made to break it. `CLAUDE.md` → "Who decides", "How to work in this project" | the CEO's own |
 | 2026-10-10 | the CEO, with Claude Code | Task 94: record 105 — record 59's album sent again under v10 — came back with no chart, the CEO's «смотри и ищи». Of its ten drawings eight are sketches and one an ε-strip with no formula, words by design; the tenth, a number line, v10 wrote in words, and in the container it wrote every number line so, every run, where it wrote a parabola, a mapping and a sequence as data. `prompts-v11.md` — rule 6 asks first whether a drawing is one of the kinds, «[схема: …]» only for one that is none, a set with no ends written where it stands — wrote them all as data on every run, and production reads it from the same evening. The runs settle a chart at its place: one the chosen run described in words is drawn as two other runs read it alike. The log says every page's charts by run. `FINDINGS.md` → "Record 105, and the prompt that wrote no chart" | the CEO's own |
 | 2026-10-11 | the CEO, with Claude Code | Task 101 specified, taken and built overnight, the CEO's words «нужно рисовать их с оригинала» and «продолжай искать лучшее решение для отрисовки»: a sketch — a set, a ball, a neighbourhood, a graph with no formula — drawn again from its page. The model gives only where each drawing is and what its labels say: three calls a page that describes one (`sketches.py`, `prompts-sketch-v1.md`, 147 words), a frame counted where two runs frame it alike, a label where two read it alike at one place; asked for the lines themselves it drew circles of the wrong size and a grid never drawn, each run its own. The lines are the photograph's (`strokes.py`): the paper's light divided out, the notebook's grid found off the spectrum and taken off line by line, the strokes by an oriented filter, joined, kept once, straight where drawn straight; the labels set in type where the handwriting stood. A drawing that comes out in pieces is refused by code and stays its words. Kept in `note_figures` as before, its resolution in the PNG so the document sets it at its size (`pdf._picture`); no migration. Every call in `ai_calls` as `kind="sketch"`; `note_processed` gains `sketched`; the album's ceiling counts the calls. `figures.cut` and v8's frames stay asleep. "What the model is not trusted with" gains its geometry, a rule shared, the CEO's word enough and the CPO told. Production on from the same night: `SKETCHES_ENABLED=true`. `FINDINGS.md` → "Sketches drawn from the page" | the CEO's own |
+| 2026-10-11 | the CEO, with Claude Code | Task 102 specified, taken and built, the CEO's words «перед тем как я отправлю новые листы, уменьши порог качества фото на всех параметрах»: every threshold of `photoguard` lowered — sharpness 90 → 15, contrast 20 → 10, the sheet's share of the frame 0.18 → 0.14, the line's pitch 16 → 14 px — each where record 106's three pages, defocused, dimmed, washed out and taken from further away on purpose, still read by eye, with a margin before a formula's indices are guessed rather than read; the old thresholds refused pages that read whole. The fifth edit to the ready-made `photoguard`, the first on the CEO's word with no page refused; `CLAUDE.md` → "Ready-made modules" says so, and what the thresholds still cannot see; "Known risks" on the line height brought up to it. The frame check is the CPO's area | the CEO's own, by the rule of 2026-10-01 |
 
 ## Where this is going, decided 2026-10-02
 
@@ -6264,6 +6270,55 @@ was refused.
 
 ---
 
+# Task 102. Every frame threshold lowered
+
+**Owner: the CEO.** Taken and built on 2026-10-11, the CEO's words: «перед
+тем как я отправлю новые листы, уменьши порог качества фото на всех
+параметрах». The frame check is the CPO's area, open to the CEO;
+`photoguard` is a ready-made module, and this is its fifth edit — the first
+on the CEO's word rather than on a page refused.
+
+## Why
+
+The next albums are sketches, from other hands and notebooks, and a page of
+one drawing carries little ink: the spread of brightness that photoguard
+calls contrast reads it lower than a page of text in the same light, as on
+task 75's page. And no threshold had been set against what can be read: two
+were the module's starting values, two had moved once each on one page
+refused (tasks 43 and 75).
+
+## Do, as built
+
+1. Record 106's three photographs, 960×1280 as Telegram sends them, made
+   worse on purpose — defocused, dimmed, washed out, the sheet shrunk on a
+   table as if taken from further away — and measured at every step, a
+   crop of the third page's text read by eye: `FINDINGS.md` → "The frame
+   check against what can be read".
+2. Every threshold set where the text still reads, with a margin before the
+   step where a formula's indices are guessed rather than read — the step
+   where the model writes them itself: `MIN_SHARPNESS` 90 → 15,
+   `MIN_CONTRAST` 20 → 10, `MIN_PAPER_FRACTION` 0.18 → 0.14,
+   `MIN_LINE_HEIGHT_PX` 16 → 14. The last two moved least: there the edge
+   is near — at a 16 px pitch a large hand's words read and its indices are
+   gone.
+3. The test that pinned a 15 px pitch as refused takes 12.
+
+## Acceptance criterion
+
+- The next albums go through the frame check; a page still refused is in
+  the log with its four numbers against the new thresholds.
+- The suite is green.
+
+## Don't do
+
+- No new measure. What the thresholds cannot see stays open: a shake along
+  the lines leaves squared paper's grid sharp and passed the old sharpness
+  threshold as it passes the new, and the line height measures nothing on
+  squared paper.
+- The messages a refusal sends stay as they were.
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -6613,12 +6668,14 @@ rank, and no three-line minimum. It is checked against pages whose pitch is
 known by construction and lands within 5% from 28 px to 220 px, with a drawing
 on the page, on pale ink and on a dark photograph.
 
-`MIN_LINE_HEIGHT_PX` did **not** move, and that part of the paragraph still
-stands: 20 px is defensible reasoning rather than evidence, and settling it
-needs a folder of real pages through `photoguard`'s own CLI. The bench that
-replaced the measurement cannot replace that — a synthetic page says what the
-estimator measures, not what a student's handwriting looks like at arm's
-length.
+`MIN_LINE_HEIGHT_PX` moved twice since: 20 → 16 on the page record 45 lost
+(task 43), 16 → 14 on the CEO's word (task 102), set against record 106's
+pages shrunk on purpose and read by eye. That part of the paragraph still
+stands in its other half: one hand read by eye is not a folder of real pages
+read by the model, and a synthetic page says what the estimator measures, not
+what a student's handwriting looks like at arm's length. And on squared paper
+it measures nothing: the grid's rows read as ink, one band the sheet's
+height.
 
 **A recognition run is sometimes lost to an answer that will not parse, and it
 is not our ceiling.** (Task 30 changed the second half of this: such a call is
