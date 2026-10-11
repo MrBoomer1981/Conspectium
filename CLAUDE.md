@@ -141,8 +141,8 @@ In a session:
   `low`; the explaining stage on,
   `gemini-3.8-flash`, its searches at `low`, `prompts-explain-v3.md` since
   2026-10-08, the teacher's boxes since 2026-10-03; sketches drawn again from
-  the page since 2026-10-11, `prompts-sketch-v1.md` (task 101, the CEO's
-  switch); a call's ceiling 90 s. **The
+  the page the night of 2026-10-11 and off since its morning, the CEO's
+  word after record 107 (task 101); a call's ceiling 90 s. **The
   code's defaults are not these** — `gemini-3.5-flash-lite`, `prompts-v3.md`,
   both stages and the sketches off, 30 s — so a deploy that lost its
   variables reads worse, and its startup log says so.
@@ -736,7 +736,10 @@ from 12a, once.
   along the page's axes, half along the grid. A plane drawn along the
   grid's own lines is refused: the author's lines and the notebook's are
   one there. Set on six drawings of one hand, and watched.
-- **A switch, `SKETCHES_ENABLED`**, on in production; both photo paths, the
+- **A switch, `SKETCHES_ENABLED`**, off in production since the morning
+  of 2026-10-11, the CEO's word after record 107: its five sketches drawn
+  came out broken, with strokes the author never drew — the grid's stubs, a
+  hatch made a tangle — and the gate passed them all. On, both photo paths, the
   calls in `ai_calls` as `kind="sketch"`, part of reading the page as task
   65's further runs are, `note_processed` counting `sketched`. Kept in
   `note_figures` like a cut-out, its resolution in the PNG so the document

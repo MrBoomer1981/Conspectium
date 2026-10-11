@@ -469,8 +469,9 @@ Specified on 2026-10-10, from record 106 — the CEO's: «я хочу взять
       the photograph, the notebook's grid taken away, its labels set in
       type — the CEO's. Built on the night of 2026-10-11 on record 106's
       album, «продолжай искать лучшее решение для отрисовки»; production
-      switched the same night (`SKETCHES_ENABLED`), the next albums its
-      check
+      switched on the same night (`SKETCHES_ENABLED`) and off the next
+      morning after record 107, the CEO's: «есть [проблемы] с рисунками.
+      давай пока уберем их из прода и еще подумаем, как можно улучшить»
 - [ ] 102. Every frame threshold lowered before the next albums: sharpness
       90 → 15, contrast 20 → 10, the sheet's share of the frame 0.18 →
       0.14, the line's pitch 16 → 14 px — the CEO's, «уменьши порог
@@ -623,6 +624,7 @@ since 2026-10-01.
 | 2026-10-10 | the CEO, with Claude Code | Task 94: record 105 — record 59's album sent again under v10 — came back with no chart, the CEO's «смотри и ищи». Of its ten drawings eight are sketches and one an ε-strip with no formula, words by design; the tenth, a number line, v10 wrote in words, and in the container it wrote every number line so, every run, where it wrote a parabola, a mapping and a sequence as data. `prompts-v11.md` — rule 6 asks first whether a drawing is one of the kinds, «[схема: …]» only for one that is none, a set with no ends written where it stands — wrote them all as data on every run, and production reads it from the same evening. The runs settle a chart at its place: one the chosen run described in words is drawn as two other runs read it alike. The log says every page's charts by run. `FINDINGS.md` → "Record 105, and the prompt that wrote no chart" | the CEO's own |
 | 2026-10-11 | the CEO, with Claude Code | Task 101 specified, taken and built overnight, the CEO's words «нужно рисовать их с оригинала» and «продолжай искать лучшее решение для отрисовки»: a sketch — a set, a ball, a neighbourhood, a graph with no formula — drawn again from its page. The model gives only where each drawing is and what its labels say: three calls a page that describes one (`sketches.py`, `prompts-sketch-v1.md`, 147 words), a frame counted where two runs frame it alike, a label where two read it alike at one place; asked for the lines themselves it drew circles of the wrong size and a grid never drawn, each run its own. The lines are the photograph's (`strokes.py`): the paper's light divided out, the notebook's grid found off the spectrum and taken off line by line, the strokes by an oriented filter, joined, kept once, straight where drawn straight; the labels set in type where the handwriting stood. A drawing that comes out in pieces is refused by code and stays its words. Kept in `note_figures` as before, its resolution in the PNG so the document sets it at its size (`pdf._picture`); no migration. Every call in `ai_calls` as `kind="sketch"`; `note_processed` gains `sketched`; the album's ceiling counts the calls. `figures.cut` and v8's frames stay asleep. "What the model is not trusted with" gains its geometry, a rule shared, the CEO's word enough and the CPO told. Production on from the same night: `SKETCHES_ENABLED=true`. `FINDINGS.md` → "Sketches drawn from the page" | the CEO's own |
 | 2026-10-11 | the CEO, with Claude Code | Task 102 specified, taken and built, the CEO's words «перед тем как я отправлю новые листы, уменьши порог качества фото на всех параметрах»: every threshold of `photoguard` lowered — sharpness 90 → 15, contrast 20 → 10, the sheet's share of the frame 0.18 → 0.14, the line's pitch 16 → 14 px — each where record 106's three pages, defocused, dimmed, washed out and taken from further away on purpose, still read by eye, with a margin before a formula's indices are guessed rather than read; the old thresholds refused pages that read whole. The fifth edit to the ready-made `photoguard`, the first on the CEO's word with no page refused; `CLAUDE.md` → "Ready-made modules" says so, and what the thresholds still cannot see; "Known risks" on the line height brought up to it. The frame check is the CPO's area | the CEO's own, by the rule of 2026-10-01 |
+| 2026-10-11 | the CEO, with Claude Code | Task 101's sketches switched off in production, the CEO's words after record 107: «проблем с обработкой больше нет. есть с рисунками. давай пока уберем их из прода и еще подумаем, как можно улучшить». Record 107 is record 106's three pages again — by their strokes, the same photographs — and drew five of six sketches as the night had, every one broken, with strokes the author never drew: the grid's stubs along the edges, a hatch made a tangle, a scatter of ticks round the arcs. The gate passed them, and the night's report had called them drawn. `SKETCHES_ENABLED=false` on Railway; the code stays, off by default, while a better way is looked for. `CLAUDE.md` → "Where it stands" and "Drawings taken from the page" brought up to it | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -6237,7 +6239,8 @@ came out faint, the grid over a light hand's strokes, and read as worse.
    the drawing as a greyscale PNG, its resolution written in so the document
    sets it at its size on the page (`pdf._picture`); `figures.place` sets it
    at its line after composing. No migration.
-6. **Switched**: `SKETCHES_ENABLED`, off in the code, on in production; the
+6. **Switched**: `SKETCHES_ENABLED`, off in the code; on in production the
+   night of 2026-10-11 and off since its morning, after record 107. The
    startup log's `Sketches:` line says which. Both photo paths; every call
    in `ai_calls` as `kind="sketch"`; `note_processed` counts `sketched`;
    the album's ceiling counts the three calls a page more.

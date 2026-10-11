@@ -2471,6 +2471,22 @@ in the words, and was set three times over; the words confirm one run's
 label only where no other run read something else there, and one place
 holds one label.
 
+**Record 107, and what the night's report did not say.** On the morning of
+2026-10-11 the CEO sent record 106's three pages again — by their strokes,
+the same photographs — and production drew five of six sketches, as the
+night had; the plane stayed words, 0.34 in square pieces. The CEO: «есть
+[проблемы] с рисунками», and the switch went off. Laid beside their
+photographs, the five read worse than their words would: every closed curve
+broken in two to six places, where the light hand barely touched the paper
+or crossed a grid line; the grid's stubs standing at the drawing's edges —
+two upright lines left of the four balls, short level ones under them; the
+hatched neighbourhoods a tangle in which the hatch and the curves cannot be
+told apart; the line covered by arcs ringed with ticks and dots; a letter
+«x» of the page a knot of short strokes. The gate passed all five: it counts
+short open pieces, and a curve broken into long pieces passes it. It
+measures pieces, not whether the drawing reads as its photograph does, and
+the night's report called the five drawn on its word.
+
 ## Moved from CLAUDE.md, 2026-10-10
 
 When `CLAUDE.md` was cut back to its rules a second time, its records'
