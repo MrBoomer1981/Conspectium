@@ -557,7 +557,7 @@ def week_summary(
     return "\n".join(
         [f"Итоги недели, {_span(first, last)}", f"{_records(records)}, {_ratings(ratings)}", ""]
         + _people(people, more)
-        + ["", "Отзыв — «Хорошо» или «Плохо» под конспектом."]
+        + ["", "Отзыв — «Хорошо» или «Плохо» под конспектом и каждый комментарий к нему."]
     )
 
 
@@ -586,9 +586,39 @@ def _chat_week(chat: "rating.ChatWeek") -> str:
     return f"{name} — " + ", ".join(parts + [_usd(chat.spent)])
 
 
+def _comments(n: int) -> str:
+    return f"{n} {_plural(n, 'комментарий', 'комментария', 'комментариев')}"
+
+
+def _everyone(people: list[tuple[str, int, int, int, int]], more: int) -> list[str]:
+    """The bot's people with their week and all their time (task 103) —
+    «byAVEN — 4 конспекта · всего 49 конспектов, 4 отзыва» — and one quiet
+    this week with their all time alone: a new week's zeros are no loss."""
+    lines = []
+    for place, (name, records, ratings, all_records, all_ratings) in enumerate(people, 1):
+        week = ", ".join(
+            part
+            for count, part in ((records, _records(records)), (ratings, _ratings(ratings)))
+            if count
+        )
+        total = ", ".join(
+            part
+            for count, part in (
+                (all_records, _records(all_records)),
+                (all_ratings, _ratings(all_ratings)),
+            )
+            if count
+        )
+        said = f"{week} · всего {total}" if week else f"всего {total}"
+        lines.append(f"{place}. {name} — {said}")
+    if more:
+        lines.append(f"и ещё {more} {_plural(more, 'человек', 'человека', 'человек')}")
+    return lines
+
+
 def bot_week(week: "rating.BotWeek") -> str:
-    """The week so far and all time, every chat active in the week, and the
-    week's people across every chat."""
+    """The week so far and all time, every chat active in the week, and
+    everyone with their week and their all time."""
     lines = [
         f"SUM · неделя с {week.since.day} {_MONTHS[week.since.month - 1]}",
         f"{_records(week.records)}, "
@@ -597,7 +627,10 @@ def bot_week(week: "rating.BotWeek") -> str:
         # The verb first, so that it agrees with any number: "прислали 1".
         f"Люди: прислали {week.senders}, оценили {week.raters}"
         f" · всего {week.users}, новых {week.new_users}",
-        f"Отзывы: {week.good} «Хорошо», {week.bad} «Плохо» · всего {week.all_ratings}",
+        # An отзыв is a rating and every comment (task 103): the week's of
+        # each kind, then all the отзывы ever.
+        f"Отзывы: {week.good} «Хорошо», {week.bad} «Плохо», {_comments(week.comments)}"
+        f" · всего {week.all_ratings}",
         f"Расход: сегодня {_usd(week.spent_today)}, неделя {_usd(week.spent_week)}, "
         f"всего {_usd(week.spent_all)}",
     ]
@@ -610,9 +643,9 @@ def bot_week(week: "rating.BotWeek") -> str:
             )
         lines += [_chat_week(chat) for chat in week.private]
     if week.people:
-        lines += ["", "Люди:"] + _people(week.people, week.more_people)
+        lines += ["", "Люди:"] + _everyone(week.people, week.more_people)
     else:
-        lines += ["", "На этой неделе ещё ни конспектов, ни отзывов."]
+        lines += ["", "Ещё ни конспектов, ни отзывов."]
     return "\n".join(lines)
 
 
@@ -695,21 +728,29 @@ def group_welcome(sees_photos: bool) -> str:
 
 
 # ── What a reader says of a record — app/bot/feedback.py ─────────────────────
-# Two buttons under every document, and after «Плохо» a question whose reply
-# is the reader's account of the error (task 70). Words, no emoji: the chat
+# Two buttons under every document, and after either a question whose reply
+# is the reader's comment — after «Плохо», their account of the error (task
+# 70), after «Хорошо», what was good (task 103). Words, no emoji: the chat
 # stays plain text. The question is asked of one person, by name in a group.
 
 RATE_GOOD = "Хорошо"
 RATE_BAD = "Плохо"
-RATED_GOOD = "Спасибо!"
+RATED_GOOD = "Спасибо! Если хочешь, напиши, что понравилось, — ответом на моё сообщение."
 RATED_BAD = "Спасибо! Напиши, что не так, — ответом на моё сообщение."
 # What the reply field shows before anything is typed; Telegram allows 64.
 FEEDBACK_PLACEHOLDER = "Где ошибка и как должно быть"
+PRAISE_PLACEHOLDER = "Что понравилось"
 FEEDBACK_THANKS = "Спасибо, записал."
 
 
-def feedback_question(title: str) -> str:
-    """After «Плохо»: where the error is."""
+def feedback_question(title: str, rating: str) -> str:
+    """After «Плохо», where the error is; after «Хорошо», what was good — a
+    comment the reader may leave or not."""
+    if rating == "good":
+        return (
+            f"Что понравилось в конспекте «{title}»? Ответь на это сообщение, "
+            "если хочешь что-то добавить."
+        )
     return (
         f"Что не так в конспекте «{title}»? Ответь на это сообщение: "
         "страница, строка или формула — и как должно быть. Можно скриншот."
@@ -728,9 +769,13 @@ def feedback_report(
     return f"Отзыв «{verdict}»: конспект #{note_id} «{title}», {where}, {who}."
 
 
-def feedback_answer_report(note_id: int, title: str, where: str, who: str) -> str:
-    """To FEEDBACK_CHAT_ID, over the reader's message copied after it."""
-    return f"Что не так — конспект #{note_id} «{title}», {where}, {who}:"
+def feedback_answer_report(
+    note_id: int, title: str, rating: str, where: str, who: str
+) -> str:
+    """To FEEDBACK_CHAT_ID, over the reader's message copied after it: a
+    comment, under the rating its reader holds now."""
+    verdict = "плохо" if rating == "bad" else "хорошо"
+    return f"Комментарий к «{verdict}»: конспект #{note_id} «{title}», {where}, {who}:"
 
 
 # ── A lecture's study version — app/bot/corpus.py on_study (task 80) ────────

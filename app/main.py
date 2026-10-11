@@ -35,8 +35,8 @@ dp.my_chat_member.outer_middleware(DbSessionMiddleware())
 dp.callback_query.outer_middleware(DbSessionMiddleware())
 # Order matters: handlers.router ends with a filterless catch-all that
 # matches every message, so a router included after it gets nothing. The
-# feedback router comes first of all: a reply to the bot's question «что не
-# так» is feedback whatever it says, a "#word" included.
+# feedback router comes first of all: a reply to the bot's question under a
+# press is feedback whatever it says, a "#word" included.
 dp.include_router(feedback.router)
 # «Учебная версия» under a document (task 80): a button press, like a rating.
 dp.include_router(study_version.router)

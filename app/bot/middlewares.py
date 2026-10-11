@@ -64,8 +64,8 @@ def is_summon(message: Message) -> bool:
 
 
 def replies_to_bot(message: Message, bot_username: str | None) -> bool:
-    """A reply to one of the bot's own messages — how a reader answers its
-    question «что не так» under a document (task 70)."""
+    """A reply to one of the bot's own messages — how a reader answers the
+    question a press under a document asks (tasks 70 and 103)."""
     asked = message.reply_to_message
     author = asked.from_user if asked is not None else None
     return bool(

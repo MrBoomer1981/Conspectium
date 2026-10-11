@@ -564,7 +564,8 @@ from 12a, once.
   not a `Command`. A "#word" in reply to a page in a group is refused there
   (`middlewares.is_summon`) and reaches `handlers.handle_summon`, before the
   catch-all. `feedback.router` goes first of all: a reply to the bot's
-  question «что не так» is feedback whatever it says, a "#word" included.
+  question under a press — «что не так», «что понравилось» — is feedback
+  whatever it says, a "#word" included.
 
 ### Stage two: composing
 
@@ -937,7 +938,7 @@ lecture is wrong where it is not. → "An equality that does not hold",
   that is one "#word" and nothing else (`tags.is_bare` — "#дз на завтра" is
   for the classmates), a photo or a file with a tagged caption, a reply
   that calls or names the bot, a reply to the bot's own message
-  (`middlewares.replies_to_bot` — how its question «что не так» is
+  (`middlewares.replies_to_bot` — how its question under a press is
   answered), every album page (judged whole in `_process_album`), and the
   migration notice. The rest is dropped with no session, no user row, no
   event. What gets through and is not the bot's gets no answer in a group —
@@ -985,18 +986,30 @@ lecture is wrong where it is not. → "An equality that does not hold",
   fixed before was found by the CEO reading a record against its
   photographs; the groups read every record and said nothing.
 - **One row a person a record** (`feedback`): a second press changes the
-  rating. «Хорошо» is thanked in the button's own notice; «Плохо» asks in
-  the chat where the error is — in a group naming the reader, so Telegram's
-  reply field opens for them alone (`ForceReply`, selective).
-- **The answer is a reply to the question, found by its message**
-  (`feedback.prompt_message_id`), from the reader it was asked of: no state in
-  the process, so a restart between the two loses nothing. A caption counts;
-  a screenshot is copied on as it is.
-- **`FEEDBACK_CHAT_ID`**: every «Плохо» and every answer is sent there at
-  once — which record, which chat, who — with the document copied, or the
-  reader's message. A chat that cannot be written to is a warning in the
-  log, never the reader's problem. Events `note_rated` and `note_feedback`;
-  the reader's words stay in `feedback.text`, never in an event.
+  rating, never counts twice, and never moves the row to another chat's
+  count — it keeps the group it was first given in.
+- **Every press asks, either button** (task 103, the CEO, 2026-10-11):
+  «Плохо» where the error is, «Хорошо» what was good — in a group naming the
+  reader, so Telegram's reply field opens for them alone (`ForceReply`,
+  selective). A press is how a reader adds a comment: record 97's author
+  pressed «Плохо» before each of nine. **Every comment is an отзыв**, the
+  rating one more ("A group's week"). → "Record 97's отзывы, counted as
+  one"
+- **The answer is a reply to a question, found by its message**, from the
+  reader it was asked of: the row's newest (`feedback.prompt_message_id`),
+  or an earlier one through the press that asked it, whose `note_rated`
+  names it (`feedback._asked_before`). No state in the process, so a
+  restart between the two loses nothing. A caption counts; a screenshot is
+  copied on as it is.
+- **`FEEDBACK_CHAT_ID`**: a record's «Плохо» is sent there with the
+  document copied once — and again only when its reader comes back to it
+  from «Хорошо»: once a press, one PDF went there eight times — and every
+  comment at once, the reader's message copied; each names the record, the
+  chat and who. A chat that cannot be written to is a warning in the log,
+  never the reader's problem. A press whose notice Telegram refuses — an
+  update that waited too long — is kept. Events `note_rated` and
+  `note_feedback`; the reader's words stay in `feedback.text`, never in an
+  event.
 
 ### A lecture's study version
 
@@ -1080,8 +1093,11 @@ lecture is wrong where it is not. → "An equality that does not hold",
   reply's "#word" under a classmate's photographs is paid for by the replier
   and counted for the photographer, registered on the spot if the bot never
   saw them (`middlewares.registered`); a bot, an anonymous admin or a channel
-  counts for the replier. `NULL` is the record's user. An отзыв is a
-  `feedback` row, one a person a record.
+  counts for the replier. `NULL` is the record's user. **An отзыв is a
+  rating and every comment** (task 103, the CEO's of 2026-10-11): a
+  `feedback` row, one a person a record, in the week it was first given,
+  and every `note_feedback` event in the week it was written — so no count
+  ever falls. Counted as one a record, nine comments had been one отзыв.
 - **A person is their username**, the CEO's choice, without the @ that would
   notify them every time the week is shown; their first name when they have
   none. The middleware keeps both current, as it keeps a group's title.
@@ -1102,10 +1118,13 @@ lecture is wrong where it is not. → "An equality that does not hold",
 - **The bot's week, in the feedback chat** (task 74, the CEO's,
   2026-10-07): `/stats` in the chat `FEEDBACK_CHAT_ID` names — the CEO's
   own — answers with every chat's week and all time: records and pages, who
-  sent and who rated, everyone the bot knows and the new, «Хорошо» and
-  «Плохо», spend today, this week and all time; then each chat active in the
-  week — a record, an отзыв or a call — with its spend, private chats as
-  one line, and the week's people across every chat (`rating.bot_stats`).
+  sent and who rated, everyone the bot knows and the new, «Хорошо»,
+  «Плохо» and comments, spend today, this week and all time; then each chat
+  active in the week — a record, an отзыв or a call — with its spend,
+  private chats as one line, and everyone with their week and all their
+  time, the week's busiest first (`rating.bot_stats`, task 103): named for
+  the week alone, the list emptied every Saturday morning, read as отзывы
+  lost.
   Spend is in dollars there and nowhere a student reads; a group's is
   `ai_calls.group_id`, written since 2026-10-07. One read-only message, the
   only exception to "no admin panel"; `stats_viewed` marks it

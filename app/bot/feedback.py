@@ -1,15 +1,18 @@
 """What a reader says of a record (task 70): «Хорошо» and «Плохо» under every
-document the bot sends, and after «Плохо» the reader's own words on where the
-error is.
+document the bot sends, and after either the reader's own words — a comment,
+which after «Плохо» says where the error is (task 103).
 
 The CEO's reason, 2026-10-06: every fault fixed so far was found by the CEO
 reading a record against its photographs, one record at a time, while the
 groups read every record and said nothing. A press is a row of `feedback`,
-one a person a record. The question «что не так» is a message in the chat,
-and the reply to it finds its row by that message: nothing is kept in the
+one a person a record: pressed again it changes the rating and never counts
+twice. Every press asks a question in the chat, and every reply to one is a
+comment, counted one by one (rating.py): the button is how a reader adds a
+comment — the first to write nine pressed «Плохо» before each (task 103).
+The reply finds its row by the question's message: nothing is kept in the
 process, so a restart between the question and the answer loses nothing.
-With FEEDBACK_CHAT_ID set, every «Плохо» and every answer goes there at once,
-with the document — the CEO sees where the error is the moment it is said.
+With FEEDBACK_CHAT_ID set, a record's «Плохо» goes there with the document
+once, not once a press, and every comment the moment it is written.
 
 The router stands before the corpus's in app/main.py: a reply to the bot's
 question is feedback whatever it says, a "#word" included.
@@ -21,6 +24,7 @@ from aiogram import Bot, F, Router
 from aiogram.types import (
     CallbackQuery,
     ForceReply,
+    InaccessibleMessage,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
@@ -34,7 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import texts
 from app.core.config import settings
 from app.core.events import log_event
-from app.db.models import Feedback, Group, Note, User
+from app.db.models import Event, Feedback, Group, Note, User
 from app.services import pdf
 
 logger = logging.getLogger(__name__)
@@ -43,6 +47,10 @@ router = Router()
 
 _PREFIX = "rate"
 _RATINGS = ("good", "bad")
+# The event of a press, which carries the question it asked (task 103), and
+# of a comment, which rating.py counts: one an отзыв.
+RATED = "note_rated"
+COMMENTED = "note_feedback"
 # The study version's button (task 80), answered in corpus.on_study.
 STUDY_PREFIX = "study"
 
@@ -98,10 +106,15 @@ async def _rated(
     group: Group | None,
     chat_id: int,
     rating: str,
-) -> tuple[Feedback, bool]:
-    """The person's row for the record with its rating set, and whether it
-    changed one given before. Two presses landing at once make one row: the
-    loser fetches the winner's, as a user row is fetched in the middleware."""
+) -> tuple[Feedback, str | None]:
+    """The person's row for the record with its rating set, and the rating it
+    held before — None for the first press. Two presses landing at once make
+    one row: the loser fetches the winner's, as a user row is fetched in the
+    middleware.
+
+    The row keeps the group it was first given in, and its `created_at` the
+    week: an отзыв counts where and when it was given, and no later press
+    moves it to another chat's count (task 103)."""
     lookup = select(Feedback).where(
         Feedback.note_id == note.id, Feedback.user_id == user.id
     )
@@ -120,13 +133,10 @@ async def _rated(
         except IntegrityError:
             row = (await session.execute(lookup)).scalar_one()
         else:
-            return row, False
-    changed = row.rating != rating
+            return row, None
+    before = row.rating
     row.rating = rating
-    # Where it was said last: the question, if one follows, is asked there.
-    row.chat_id = chat_id
-    row.group_id = group.id if group is not None else None
-    return row, changed
+    return row, before
 
 
 async def _report(bot: Bot, chat_id: int, line: str, message_id: int) -> None:
@@ -161,28 +171,80 @@ async def on_rate(
         await callback.answer()
         return
     rating = pressed[0]
-    row, changed = await _rated(session, note, user, group, message.chat.id, rating)
+    row, before = await _rated(session, note, user, group, message.chat.id, rating)
+    # The press is kept whether or not its notice can be shown: a callback
+    # answered too late — the update waited for a connection — is refused by
+    # Telegram, and the exception would roll the отзыв back.
+    try:
+        await callback.answer(texts.RATED_GOOD if rating == "good" else texts.RATED_BAD)
+    except Exception:
+        logger.warning(
+            "the notice of a press on note %s was refused", note.id, exc_info=True
+        )
+
+    # Every press asks, the same button twice included: it is how a reader
+    # adds a comment, and only the comments count again (task 103).
+    title = pdf.plain(note.title)
+    asked = await _ask(message, callback.from_user, group, title, rating, note.id)
+    if asked is not None:
+        row.chat_id = message.chat.id
+        row.prompt_message_id = asked
     await log_event(
         session,
         user.id,
-        "note_rated",
-        {"note_id": note.id, "rating": rating, "changed": changed},
+        RATED,
+        {
+            "note_id": note.id,
+            "rating": rating,
+            "changed": before is not None and before != rating,
+            "again": before == rating,
+            # What finds the row when an earlier question is answered.
+            "prompt": asked,
+        },
         group_id=group.id if group is not None else None,
     )
-    if rating == "good":
-        await callback.answer(texts.RATED_GOOD)
-        return
+    # A record's «Плохо» reaches the feedback chat once, with its document,
+    # and again only when the reader comes back to it from «Хорошо»: pressed
+    # before every comment, it had sent one PDF there eight times.
+    if rating == "bad" and before != "bad":
+        await _report(
+            bot,
+            message.chat.id,
+            texts.feedback_report(
+                note.id,
+                title,
+                rating,
+                texts.feedback_where(group.title if group is not None else None),
+                _who(callback.from_user),
+            ),
+            message.message_id,
+        )
 
-    await callback.answer(texts.RATED_BAD)
-    title = pdf.plain(note.title)
-    question = texts.feedback_question(title)
-    markup = ForceReply(selective=True, input_field_placeholder=texts.FEEDBACK_PLACEHOLDER)
+
+async def _ask(
+    message: Message | InaccessibleMessage,
+    tg_user: TgUser,
+    group: Group | None,
+    title: str,
+    rating: str,
+    note_id: int,
+) -> int | None:
+    """The question under a press — what is wrong after «Плохо», what was good
+    after «Хорошо» — and its message id, which the reply finds the row by;
+    None when it could not be sent, the press kept all the same."""
+    question = texts.feedback_question(title, rating)
+    markup = ForceReply(
+        selective=True,
+        input_field_placeholder=(
+            texts.FEEDBACK_PLACEHOLDER if rating == "bad" else texts.PRAISE_PLACEHOLDER
+        ),
+    )
     try:
         if group is not None:
             # Named, so that Telegram opens the reply field for this reader
             # alone and not for the whole chat.
             content = Text(
-                TextMention(callback.from_user.first_name, user=callback.from_user),
+                TextMention(tg_user.first_name, user=tg_user),
                 ", ",
                 question[0].lower() + question[1:],
             )
@@ -190,28 +252,21 @@ async def on_rate(
         else:
             asked = await message.answer(question, reply_markup=markup)
     except Exception:
-        logger.warning("could not ask what is wrong with note %s", note.id, exc_info=True)
-    else:
-        row.prompt_message_id = asked.message_id
-    await _report(
-        bot,
-        message.chat.id,
-        texts.feedback_report(
-            note.id,
-            title,
-            rating,
-            texts.feedback_where(group.title if group is not None else None),
-            _who(callback.from_user),
-        ),
-        message.message_id,
-    )
+        logger.warning("could not ask about note %s", note_id, exc_info=True)
+        return None
+    return asked.message_id
 
 
 async def _answering(
-    message: Message, session: AsyncSession, user: User, bot: Bot
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+    group: Group | None = None,
 ) -> dict | bool:
-    """Whether a message answers the bot's question «что не так» — a reply to
-    it, from the reader it was asked of — and if so, that reader's row."""
+    """Whether a message answers one of the bot's questions under a press — a
+    reply to it, from the reader it was asked of — and if so, that reader's
+    row."""
     asked = message.reply_to_message
     if asked is None or asked.from_user is None or asked.from_user.id != bot.id:
         return False
@@ -224,7 +279,42 @@ async def _answering(
             )
         )
     ).scalar_one_or_none()
+    if row is None:
+        row = await _asked_before(session, user, group, asked.message_id)
     return {"feedback": row} if row is not None else False
+
+
+async def _asked_before(
+    session: AsyncSession, user: User, group: Group | None, prompt: int
+) -> Feedback | None:
+    """The row an earlier question was asked for. The row holds its newest
+    question only, and every press asks anew (task 103), so a reply to the
+    one before is found through the press that asked it: its event names the
+    question, in this chat — the group's, or the reader's own with the bot —
+    where a message's id is unique."""
+    in_chat = (
+        Event.group_id == group.id if group is not None else Event.group_id.is_(None)
+    )
+    presses = (
+        await session.execute(
+            select(Event.payload)
+            .where(Event.type == RATED, Event.user_id == user.id, in_chat)
+            .order_by(Event.id.desc())
+        )
+    ).scalars().all()
+    for payload in presses:
+        if isinstance(payload, dict) and payload.get("prompt") == prompt:
+            note_id = payload.get("note_id")
+            if not isinstance(note_id, int):
+                return None
+            return (
+                await session.execute(
+                    select(Feedback).where(
+                        Feedback.note_id == note_id, Feedback.user_id == user.id
+                    )
+                )
+            ).scalar_one_or_none()
+    return None
 
 
 @router.message(_answering)
@@ -236,15 +326,16 @@ async def on_answer(
     feedback: Feedback,
     group: Group | None = None,
 ) -> None:
-    """The reader's account of the error, stored with their rating — a
-    caption counts, and a screenshot goes to FEEDBACK_CHAT_ID as it is."""
+    """A comment — the reader's words after either button, stored with their
+    rating and counted as an отзыв of its own (task 103). A caption counts,
+    and a screenshot goes to FEEDBACK_CHAT_ID as it is."""
     words = (message.text or message.caption or "").strip()
     if words:
         feedback.text = f"{feedback.text}\n{words}" if feedback.text else words
     await log_event(
         session,
         user.id,
-        "note_feedback",
+        COMMENTED,
         {"note_id": feedback.note_id, "chars": len(words), "photo": bool(message.photo)},
         group_id=group.id if group is not None else None,
     )
@@ -257,6 +348,7 @@ async def on_answer(
         texts.feedback_answer_report(
             feedback.note_id,
             title,
+            feedback.rating,
             texts.feedback_where(group.title if group is not None else None),
             _who(message.from_user),
         ),

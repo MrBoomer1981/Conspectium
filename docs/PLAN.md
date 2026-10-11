@@ -481,6 +481,17 @@ Specified on 2026-10-10, from record 106 — the CEO's: «я хочу взять
       качества фото на всех параметрах». Taken and built on 2026-10-11 on
       record 106's pages made worse on purpose; the next albums its check
 
+Specified on 2026-10-11, from the отзывы of record 97 — the CEO's: «фикс
+комментариев: их можно оставлять при любом ответе и хорошо и плохо, +
+если нажат несколько раз на комментарий он засчитывается только 1 раз +
+упал счетчик комментариев»:
+
+- [ ] 103. A comment after either button, every comment an отзыв:
+      «Хорошо» asks too, every press asks, a record's document goes to the
+      feedback chat once; an отзыв is a rating and every comment, so no
+      count falls; the bot's week names everyone with their week and all
+      their time — the CEO's. Taken and built on 2026-10-11
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -527,7 +538,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72, 77-79, 83, 86, 92, 97-99
-CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 102, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 102, 103, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: none
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -629,6 +640,7 @@ since 2026-10-01.
 | 2026-10-11 | the CEO, with Claude Code | Task 102 specified, taken and built, the CEO's words «перед тем как я отправлю новые листы, уменьши порог качества фото на всех параметрах»: every threshold of `photoguard` lowered — sharpness 90 → 15, contrast 20 → 10, the sheet's share of the frame 0.18 → 0.14, the line's pitch 16 → 14 px — each where record 106's three pages, defocused, dimmed, washed out and taken from further away on purpose, still read by eye, with a margin before a formula's indices are guessed rather than read; the old thresholds refused pages that read whole. The fifth edit to the ready-made `photoguard`, the first on the CEO's word with no page refused; `CLAUDE.md` → "Ready-made modules" says so, and what the thresholds still cannot see; "Known risks" on the line height brought up to it. The frame check is the CPO's area | the CEO's own, by the rule of 2026-10-01 |
 | 2026-10-11 | the CEO, with Claude Code | Task 101's sketches switched off in production, the CEO's words after record 107: «проблем с обработкой больше нет. есть с рисунками. давай пока уберем их из прода и еще подумаем, как можно улучшить». Record 107 is record 106's three pages again — by their strokes, the same photographs — and drew five of six sketches as the night had, every one broken, with strokes the author never drew: the grid's stubs along the edges, a hatch made a tangle, a scatter of ticks round the arcs. The gate passed them, and the night's report had called them drawn. `SKETCHES_ENABLED=false` on Railway; the code stays, off by default, while a better way is looked for. `CLAUDE.md` → "Where it stands" and "Drawings taken from the page" brought up to it | the CEO's own |
 | 2026-10-11 | the CEO, with Claude Code | Tasks 101 and 54 archived, the CEO's words: «мы так уже делали в прошлых итерациях. ладной, давай пока оставим работу с рисунками. оставь только самые простые. … запиши эти попытки в архив». Offered after record 107: the drawing as the photograph's own ink, the grid taken off line by line — clean on record 106's six drawings, but task 54's cut-out once more. The document draws what code draws from data — graphs, functions, number lines, mappings (task 94) — and a sketch is its words; production already ran so, `SKETCHES_ENABLED=false`. The four attempts are one entry in the Backlog; the code stays, off. 101 leaves the CEO's current line, 54 leaves the asleep ones for the archived; `CLAUDE.md` → "Where it stands" and "Drawings taken from the page", `FINDINGS.md` and README say so | the CEO's own |
+| 2026-10-11 | the CEO, with Claude Code | Task 103 specified, taken and built, the CEO's words «фикс комментариев: их можно оставлять при любом ответе и хорошо и плохо, + если нажат несколько раз на комментарий он засчитывается только 1 раз + упал счетчик комментариев», and of the counter «в личном чате админа. у одного пользователя обнулился счетчик». Production's `feedback` and `events` read with the CEO's leave: record 97's author pressed «Плохо» eight times and wrote nine comments, counted as one отзыв, the PDF sent to the feedback chat eight times; no отзыв lost — the bot's week had turned on Saturday and named only the week's people. The CEO's choices: «Оценка + каждый коммент» — an отзыв is a rating, one a person a record, and every comment, each in the week it was made, so no count falls — and «Неделя и всего» — the bot's week names everyone with their week and all their time. Either button asks, every press asks, a record's document goes to the feedback chat once, a reply to an earlier question still counts (`note_rated` gains `again` and `prompt`), and a press is kept when its notice is refused. Task 70's «Don't ask «что не так» after «Хорошо»», task 72's «a second press counts nothing» as the only count and task 74's «the week's people» give way; "Contracts" → the two events and "A group's week" change with it, `CLAUDE.md` → "What a reader says of a record" and "A group's week". No migration | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -6339,6 +6351,94 @@ refused (tasks 43 and 75).
 
 ---
 
+# Task 103. A comment after either button, every comment an отзыв
+
+**Owner: the CEO.** Taken and built on 2026-10-11, the CEO's words: «фикс
+комментариев: их можно оставлять при любом ответе и хорошо и плохо, + если
+нажат несколько раз на комментарий он засчитывается только 1 раз + упал
+счетчик комментариев», and of the counter: «в личном чате админа. у одного
+пользователя обнулился счетчик». What the chat says and what `/stats`
+counts are the CEO's; nothing in the schema changes.
+
+## Why
+
+Production's `feedback` and `events`, read with the CEO's leave
+(`FINDINGS.md` → "Record 97's отзывы, counted as one"):
+
+- Record 97's author pressed «Плохо» eight times on the morning of
+  2026-10-09 and wrote nine comments, five with screenshots — a press
+  before each, the button being the way to have the question asked again.
+  `/stats` counted one отзыв, the row; the feedback chat got the record's
+  PDF eight times.
+- «Хорошо» asked nothing, so there was nothing to answer: the CEO pressed
+  it twice in seven seconds under record 82.
+- No отзыв was lost: six rows, none deleted, all of the week from 3
+  October. The bot's week named only the week's people, and the week
+  turned at Saturday 00:00 UTC: read at 09:17 Moscow time that Saturday,
+  every count was zero.
+
+## Do, as built
+
+1. **Either button asks** (`feedback._ask`): «Плохо» what is wrong, as
+   before; «Хорошо» «Что понравилось в конспекте «…»? Ответь на это
+   сообщение, если хочешь что-то добавить.», its reply field «Что
+   понравилось». In a group by name, the reply field opened for that reader
+   alone.
+2. **Every press asks**, the same button twice included: it is how a reader
+   adds a comment. The rating stays one a person a record, and a press never
+   moves its row to another chat's count — the row keeps the group it was
+   first given in (`feedback._rated`).
+3. **A record's «Плохо» reaches the feedback chat once**, with its
+   document, and again only when its reader comes back to it from
+   «Хорошо»; every comment goes there as it comes, under «Комментарий к
+   «плохо»» or «к «хорошо»».
+4. **A reply to an earlier question still counts.** The row holds its
+   newest question; every press names the question it asked in
+   `note_rated` (`prompt`), which finds the row when an earlier one is
+   answered (`feedback._asked_before`).
+5. **An отзыв is a rating and every comment** — the CEO's choice, «Оценка
+   + каждый коммент»: a `feedback` row in the week it was first given, and
+   every `note_feedback` event in the week it was written, so no count
+   falls. A group's `/stats` and its Saturday summary count so, the
+   summary's last line saying it, and a group with only a comment in its
+   week is summed up too.
+6. **The bot's week names everyone with their week and all their time** —
+   the CEO's choice, «Неделя и всего»: «anna_k — 4 конспекта · всего 49
+   конспектов, 7 отзывов», one quiet this week with their all time alone,
+   the week's busiest first, fifteen at most. Its «Отзывы:» line counts
+   the week's «Хорошо», «Плохо» and comments, then every отзыв ever;
+   «оценили» is whoever rated or commented in the week.
+7. **A press is kept when its notice is refused**: a callback answered too
+   late — the update having waited for a connection — is refused by
+   Telegram, and the exception rolled the press back.
+8. Checked by hand on in-memory SQLite — every press and reply above, a
+   classmate's reply, a reply to the document, the same question's id in
+   another chat, Saturday's summaries sent once — and read-only on
+   production's PostgreSQL: 18 отзывы in all, six ratings and twelve
+   comments; the author's ten, the CEO's seven, J3115's week of 3 October
+   five where its summary had said three.
+
+## Acceptance criterion
+
+- «Хорошо» asks what was good; the reply is stored, counted and sent to the
+  feedback chat.
+- «Плохо» pressed again sends the document to the feedback chat no second
+  time, and every comment arrives.
+- The bot's `/stats` on a Saturday morning still names everyone, with all
+  their time.
+- The suite is green.
+
+## Don't do
+
+- No migration: a comment is the event its reply already writes, and an
+  earlier question is found through the press that asked it.
+- No limit depends on the count: an отзыв worth pages would be worth
+  faking.
+- A group's own `/stats` and summary stay the week's: all time by person is
+  the feedback chat's.
+
+---
+
 # Contracts
 
 Everything that would otherwise have to be guessed lives here. **For any
@@ -6592,17 +6692,21 @@ the bot without a subject and got a hint.
 
 ## Events `note_rated` and `note_feedback`
 
-Task 70. `note_rated` is written on every press of «Хорошо» or «Плохо»
-under a document; `note_feedback` when a reply to the bot's question «что
-не так» comes in. The reader's words are in `feedback.text`, never in an
-event.
+Tasks 70 and 103. `note_rated` is written on every press of «Хорошо» or
+«Плохо» under a document; `note_feedback` when a reply to the question a
+press asked comes in — a comment, after either button since 2026-10-11,
+one event a message, and each an отзыв: what `rating.py` counts the
+comments by. The reader's words are in `feedback.text`, never in an event.
 
-    note_rated     {"note_id": 74, "rating": "bad", "changed": false}
+    note_rated     {"note_id": 74, "rating": "bad", "changed": false, "again": true, "prompt": 4584}
     note_feedback  {"note_id": 74, "chars": 58, "photo": false}
 
 `changed`: the person had rated the record before and pressed the other
-button. `chars`: the length of what they wrote, a caption included;
-`photo`: the reply carried a photo, a screenshot of the error.
+button. `again`: they had pressed this one before. `prompt`: the message id
+of the question the press asked, `null` when it could not be sent — what
+finds the row when an earlier question is answered; the presses before
+2026-10-11 carry neither. `chars`: the length of what they wrote, a caption
+included; `photo`: the reply carried a photo, a screenshot of the error.
 
 ## A group's week, and event `rating_posted`
 
@@ -6610,7 +6714,10 @@ Tasks 72 and 73. A week runs from Saturday 00:00 UTC to the next — from
 Monday under task 72, until 2026-10-07. A record counts for
 `coalesce(notes.sender_id, notes.user_id)` in the week of its `created_at`;
 an отзыв is a `feedback` row, counted for its `user_id` in the week it was
-created, however often its buttons are pressed again. `notes.sender_id` is
+created, however often its buttons are pressed again, and — since task 103
+— every `note_feedback` event, a comment, counted for its `user_id` in the
+week it was written, in the group it names: no count ever falls. `rating_posted`'s
+`feedback` counts both from 2026-10-11 on. `notes.sender_id` is
 set only when the pages' sender is not the record's `user_id` — a reply's
 call on somebody else's photographs. `groups.rating_week` is the Saturday the
 group's last summed-up week ended on, `NULL` before the first; a Monday

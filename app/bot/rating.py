@@ -5,20 +5,25 @@ Moscow time each group active in the week just ended gets it summed up in
 its chat, unasked. A week runs from Saturday 00:00 UTC to the next: the
 summary goes out on Saturday morning, and `/stats` counts the same week, so
 the two never show different numbers. A record counts for whoever sent its
-pages — `notes.sender_id`, else its user — and an отзыв is a `feedback` row,
-one a person a record. Two numbers a person, ordered by records, and nothing
-here touches a limit: an отзыв worth pages would be worth faking, and the
-отзывы are how a record's errors are found.
+pages — `notes.sender_id`, else its user. An отзыв is a rating, a `feedback`
+row — one a person a record, however often its buttons are pressed — and
+every comment, a `note_feedback` event, each in the week it was made (task
+103, the CEO's of 2026-10-11): a reader who wrote nine had counted one. So a
+count only grows. Two numbers a person, ordered by records, and nothing here
+touches a limit: an отзыв worth pages would be worth faking, and the отзывы
+are how a record's errors are found.
 
 The bot's week (task 74) is the same week across every chat, for whoever
-reads the отзывы: `/stats` in the feedback chat.
+reads the отзывы: `/stats` in the feedback chat, its people with their week
+and all their time, so that a week begun from nothing is not read as отзывы
+lost (task 103).
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
@@ -28,8 +33,9 @@ from sqlalchemy import ColumnElement, func, or_, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
+from app.bot.feedback import COMMENTED
 from app.core.events import log_event
-from app.db.models import AiCall, Feedback, Group, Note, User
+from app.db.models import AiCall, Event, Feedback, Group, Note, User
 from app.db.session import async_session_maker
 
 logger = logging.getLogger(__name__)
@@ -82,8 +88,72 @@ def _name(user: User) -> str:
 async def tally(session: AsyncSession, group_id: int, since: date, until: date) -> Week:
     """The group's records and отзывы from `since` up to `until`, by person."""
     return await _tally(
-        session, since, until, Note.group_id == group_id, Feedback.group_id == group_id
+        session,
+        since,
+        until,
+        Note.group_id == group_id,
+        Feedback.group_id == group_id,
+        Event.group_id == group_id,
     )
+
+
+def _comments(*where: ColumnElement[bool]) -> tuple[ColumnElement[bool], ...]:
+    """The events that are comments — a reply to the bot's question under a
+    press, one event a message (feedback.on_answer) — among those `where`
+    takes in."""
+    return (Event.type == COMMENTED, Event.user_id.is_not(None), *where)
+
+
+async def _records_by_person(
+    session: AsyncSession, *where: ColumnElement[bool]
+) -> dict[int, int]:
+    """Records by whoever sent their pages, of those `where` takes in."""
+    sender = func.coalesce(Note.sender_id, Note.user_id)
+    stmt = select(sender, func.count()).group_by(sender)
+    if where:
+        stmt = stmt.where(*where)
+    return dict((await session.execute(stmt)).all())
+
+
+async def _feedback_by_person(
+    session: AsyncSession,
+    feedback_in: ColumnElement[bool],
+    comments_in: ColumnElement[bool],
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> Counter[int]:
+    """Отзывы by person: their ratings, a `feedback` row each, and their
+    comments, an event each, made from `start` up to `end`, or ever. A rating
+    is counted in the week it was first given and a comment in the week it was
+    written, so no count ever falls."""
+    rated: list[ColumnElement[bool]] = [feedback_in]
+    commented = list(_comments(comments_in))
+    if start is not None and end is not None:
+        rated += [Feedback.created_at >= start, Feedback.created_at < end]
+        commented += [Event.created_at >= start, Event.created_at < end]
+    counts: Counter[int] = Counter(
+        dict(
+            (
+                await session.execute(
+                    select(Feedback.user_id, func.count())
+                    .where(*rated)
+                    .group_by(Feedback.user_id)
+                )
+            ).all()
+        )
+    )
+    counts.update(
+        dict(
+            (
+                await session.execute(
+                    select(Event.user_id, func.count())
+                    .where(*commented)
+                    .group_by(Event.user_id)
+                )
+            ).all()
+        )
+    )
+    return counts
 
 
 async def _tally(
@@ -92,32 +162,16 @@ async def _tally(
     until: date,
     notes_in: ColumnElement[bool],
     feedback_in: ColumnElement[bool],
+    comments_in: ColumnElement[bool],
 ) -> Week:
     """Records and отзывы from `since` up to `until`, by person, of the
-    records and the feedback the two conditions take in: one group's, or
-    every chat's for the bot's week."""
+    records, the ratings and the comments the three conditions take in: one
+    group's, or every chat's for the bot's week."""
     start, end = _midnight(since), _midnight(until)
-    sender = func.coalesce(Note.sender_id, Note.user_id)
-    records = dict(
-        (
-            await session.execute(
-                select(sender, func.count())
-                .where(notes_in, Note.created_at >= start, Note.created_at < end)
-                .group_by(sender)
-            )
-        ).all()
+    records = await _records_by_person(
+        session, notes_in, Note.created_at >= start, Note.created_at < end
     )
-    ratings = dict(
-        (
-            await session.execute(
-                select(Feedback.user_id, func.count())
-                .where(
-                    feedback_in, Feedback.created_at >= start, Feedback.created_at < end
-                )
-                .group_by(Feedback.user_id)
-            )
-        ).all()
-    )
+    ratings = await _feedback_by_person(session, feedback_in, comments_in, start, end)
     ids = set(records) | set(ratings)
     users = (
         (await session.execute(select(User).where(User.id.in_(ids)).order_by(User.id)))
@@ -141,11 +195,13 @@ async def stats(session: AsyncSession, group: Group) -> str | None:
             select(func.count()).select_from(Note).where(Note.group_id == group.id)
         )
     ).scalar_one()
-    all_ratings = (
-        await session.execute(
-            select(func.count()).select_from(Feedback).where(Feedback.group_id == group.id)
-        )
-    ).scalar_one()
+    all_ratings = sum(
+        (
+            await _feedback_by_person(
+                session, Feedback.group_id == group.id, Event.group_id == group.id
+            )
+        ).values()
+    )
     if not all_records and not all_ratings:
         return None
     since = week_start(datetime.now(timezone.utc).date())
@@ -193,7 +249,14 @@ async def post_due(bot: Bot, now: datetime | None = None) -> int:
                 Feedback.group_id.is_not(None),
                 Feedback.created_at >= start,
                 Feedback.created_at < end,
-            )
+            ),
+            select(Event.group_id).where(
+                *_comments(
+                    Event.group_id.is_not(None),
+                    Event.created_at >= start,
+                    Event.created_at < end,
+                )
+            ),
         )
     )
     async with async_session_maker() as session:
@@ -311,6 +374,7 @@ class BotWeek:
     new_users: int
     good: int
     bad: int
+    comments: int
     all_ratings: int
     spent_today: float
     spent_week: float
@@ -318,21 +382,24 @@ class BotWeek:
     groups: list[ChatWeek]
     more_groups: int
     private: list[ChatWeek]
-    people: list[tuple[str, int, int]]
+    # (name, the week's records, the week's отзывы, all their records, all
+    # their отзывы) for everyone with either, ever.
+    people: list[tuple[str, int, int, int, int]]
     more_people: int
 
 
 async def bot_stats(session: AsyncSession) -> str:
     """`/stats` in the feedback chat (task 74): the whole bot's week so far
     and all time — records, people, отзывы and spend — every chat active in
-    the week, and the week's people across every chat. Counted from what is
-    stored, as a group's week is; a group's spend from `ai_calls.group_id`,
-    which is written since task 41's deploy only."""
+    the week, and everyone with their week and their all time (task 103).
+    Counted from what is stored, as a group's week is; a group's spend from
+    `ai_calls.group_id`, which is written since task 41's deploy only."""
     now = datetime.now(timezone.utc)
     since = week_start(now.date())
     start, end = _midnight(since), _midnight(since + timedelta(days=7))
     notes_in = (Note.created_at >= start, Note.created_at < end)
     feedback_in = (Feedback.created_at >= start, Feedback.created_at < end)
+    comments_in = _comments(Event.created_at >= start, Event.created_at < end)
     calls_in = (AiCall.created_at >= start, AiCall.created_at < end)
     sender = func.coalesce(Note.sender_id, Note.user_id)
     spent = func.coalesce(func.sum(AiCall.cost_usd), 0.0)
@@ -358,8 +425,15 @@ async def bot_stats(session: AsyncSession) -> str:
             )
         ).all()
     )
-    groups, private = await _chats(session, notes_in, feedback_in, calls_in)
-    everyone = await _tally(session, since, since + timedelta(days=7), true(), true())
+    # Whoever rated a record or commented on one in the week.
+    raters = (
+        select(Feedback.user_id)
+        .where(*feedback_in)
+        .union(select(Event.user_id).where(*comments_in))
+        .subquery()
+    )
+    groups, private = await _chats(session, notes_in, feedback_in, comments_in, calls_in)
+    everyone = await _everyone(session, start, end)
     return texts.bot_week(
         BotWeek(
             since=since,
@@ -367,9 +441,7 @@ async def bot_stats(session: AsyncSession) -> str:
             pages=pages,
             all_records=await scalar(select(func.count()).select_from(Note)),
             senders=senders,
-            raters=await scalar(
-                select(func.count(func.distinct(Feedback.user_id))).where(*feedback_in)
-            ),
+            raters=await scalar(select(func.count()).select_from(raters)),
             users=await scalar(select(func.count()).select_from(User)),
             new_users=await scalar(
                 select(func.count())
@@ -378,7 +450,12 @@ async def bot_stats(session: AsyncSession) -> str:
             ),
             good=by_rating.get("good", 0),
             bad=by_rating.get("bad", 0),
-            all_ratings=await scalar(select(func.count()).select_from(Feedback)),
+            comments=await scalar(
+                select(func.count()).select_from(Event).where(*comments_in)
+            ),
+            all_ratings=sum(
+                (await _feedback_by_person(session, true(), true())).values()
+            ),
             spent_today=await scalar(
                 select(spent).where(AiCall.created_at >= _midnight(now.date()))
             ),
@@ -387,16 +464,60 @@ async def bot_stats(session: AsyncSession) -> str:
             groups=groups[:_GROUPS_SHOWN],
             more_groups=max(len(groups) - _GROUPS_SHOWN, 0),
             private=private,
-            people=everyone.people[:_PEOPLE_SHOWN],
-            more_people=max(len(everyone.people) - _PEOPLE_SHOWN, 0),
+            people=everyone[:_PEOPLE_SHOWN],
+            more_people=max(len(everyone) - _PEOPLE_SHOWN, 0),
         )
     )
+
+
+async def _everyone(
+    session: AsyncSession, start: datetime, end: datetime
+) -> list[tuple[str, int, int, int, int]]:
+    """Everyone with a record or an отзыв, ever, with their week and their all
+    time: on Saturday morning the week's numbers start again from nothing,
+    and a list of the week's people alone had emptied — read as отзывы lost
+    (task 103). The week's busiest first, then the rest by all their time."""
+    week_records = await _records_by_person(
+        session, Note.created_at >= start, Note.created_at < end
+    )
+    all_records = await _records_by_person(session)
+    week_ratings = await _feedback_by_person(session, true(), true(), start, end)
+    all_ratings = await _feedback_by_person(session, true(), true())
+    ids = set(all_records) | set(all_ratings)
+    users = (
+        (await session.execute(select(User).where(User.id.in_(ids)).order_by(User.id)))
+        .scalars()
+        .all()
+        if ids
+        else []
+    )
+    people = [
+        (
+            _name(user),
+            week_records.get(user.id, 0),
+            week_ratings.get(user.id, 0),
+            all_records.get(user.id, 0),
+            all_ratings.get(user.id, 0),
+        )
+        for user in users
+    ]
+    people.sort(
+        key=lambda person: (
+            -person[1],
+            -person[2],
+            -person[3],
+            -person[4],
+            person[0].lower(),
+        )
+    )
+    return people
 
 
 async def _chats(
     session: AsyncSession,
     notes_in: tuple[ColumnElement[bool], ...],
     feedback_in: tuple[ColumnElement[bool], ...],
+    comments_in: tuple[ColumnElement[bool], ...],
     calls_in: tuple[ColumnElement[bool], ...],
 ) -> tuple[list[ChatWeek], list[ChatWeek]]:
     """Every chat with a record, an отзыв or a call in the week: the groups by
@@ -417,14 +538,28 @@ async def _chats(
             )
         ).all()
     }
-    ratings = dict(
-        (
-            await session.execute(
-                select(Feedback.group_id, func.count())
-                .where(*feedback_in)
-                .group_by(Feedback.group_id)
-            )
-        ).all()
+    # A chat's отзывы: its ratings and its comments.
+    ratings: Counter[int | None] = Counter(
+        dict(
+            (
+                await session.execute(
+                    select(Feedback.group_id, func.count())
+                    .where(*feedback_in)
+                    .group_by(Feedback.group_id)
+                )
+            ).all()
+        )
+    )
+    ratings.update(
+        dict(
+            (
+                await session.execute(
+                    select(Event.group_id, func.count())
+                    .where(*comments_in)
+                    .group_by(Event.group_id)
+                )
+            ).all()
+        )
     )
     spent = dict(
         (
@@ -443,6 +578,12 @@ async def _chats(
     for group_id, person in (
         await session.execute(
             select(Feedback.group_id, Feedback.user_id).where(*feedback_in).distinct()
+        )
+    ).all():
+        people[group_id].add(person)
+    for group_id, person in (
+        await session.execute(
+            select(Event.group_id, Event.user_id).where(*comments_in).distinct()
         )
     ).all():
         people[group_id].add(person)

@@ -2509,6 +2509,38 @@ stubs of the grid at a frame's edge. The CEO: «мы так уже делали 
 archived; the document draws what code draws from data, and a sketch is its
 words. The prototype and the night's frames: `evidence/sketches/107/`.
 
+## Record 97's отзывы, counted as one
+
+**Nine comments, one отзыв.** On the morning of 2026-10-09 record 97's
+author — the reader the CEO had asked what was wrong (→ "Record 97") —
+pressed «Плохо» under it eight times between 06:35 and 08:33 UTC and
+answered the bot's question nine times, five of them with screenshots: a
+press before each comment, since the button was the way to have the
+question asked again. `/stats` counted one отзыв — a `feedback` row is one a
+person a record — and the feedback chat got the record's PDF eight times,
+once a press. Read off production's `feedback` and `events` on 2026-10-11,
+with the CEO's leave, no reader's words read.
+
+**The counter that fell.** The CEO saw a reader's отзывы at zero in the
+bot's week (task 74). None was lost: six rows, ids 1 to 6, none deleted,
+all made 6–9 October, in the week from 3 October. The bot's week named only
+the week's people, and the week turned at Saturday 00:00 UTC, 03:00 in
+Moscow: read at 01:16 Moscow time that night, it named eleven people; read
+at 09:17, nobody, every count zero.
+
+**After «Хорошо» there was nothing to answer.** The button thanked in its
+notice and asked nothing; the CEO pressed it twice in seven seconds under
+record 82.
+
+**What changed** (task 103): either button asks and every press asks; an
+отзыв is a rating, one a person a record, and every comment, each counted in
+the week it was made, so no count falls; the bot's week names everyone with
+their week and all their time; a record's document goes to the feedback
+chat once. Counted again by the new code over production's rows, read-only:
+18 отзывы in all, six ratings and twelve comments — the author's ten, the
+CEO's seven, and five in J3115's week of 3 October, where its Saturday
+summary had said three. The data: `evidence/feedback/`.
+
 ## Moved from CLAUDE.md, 2026-10-10
 
 When `CLAUDE.md` was cut back to its rules a second time, its records'
