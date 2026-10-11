@@ -141,8 +141,8 @@ In a session:
   `low`; the explaining stage on,
   `gemini-3.8-flash`, its searches at `low`, `prompts-explain-v3.md` since
   2026-10-08, the teacher's boxes since 2026-10-03; sketches drawn again from
-  the page the night of 2026-10-11 and off since its morning, the CEO's
-  word after record 107 (task 101); a call's ceiling 90 s. **The
+  the page the night of 2026-10-11 and archived the next morning with task
+  54's cut-outs, the CEO's word (task 101); a call's ceiling 90 s. **The
   code's defaults are not these** — `gemini-3.5-flash-lite`, `prompts-v3.md`,
   both stages and the sketches off, 30 s — so a deploy that lost its
   variables reads worse, and its startup log says so.
@@ -456,7 +456,8 @@ images.compress              in a worker thread (images.in_worker)
      sketches.read           where each sketch is, what its labels say:
                              three calls a page that describes one
      figures.redraw          its lines traced off the photo, while the
-                             image is here (v8: figures.cut)
+                             image is here (v8: figures.cut) — both off,
+                             archived on 2026-10-11
 12   vision.findings         mathcheck and graphcheck, each with its text
 12a  compose.compose         behind check_limits(pages=0)
      figures.place           the drawings back, after composing
@@ -716,6 +717,18 @@ from 12a, once.
 
 ### Drawings taken from the page
 
+- **Archived on 2026-10-11, the CEO's word** after record 107: «давай пока
+  оставим работу с рисунками. оставь только самые простые». The document
+  draws what code draws from data — a graph, a function, a number line, a
+  mapping (task 94, "The document") — and a sketch is its words,
+  `[схема: …]`. Every way of drawing a sketch from its photograph read worse
+  than its words: its ink cut out with the grid left faint (task 54), the
+  model's geometry, the pen's lines traced (task 101, production for one
+  night), and its ink again with the grid taken off line by line, which was
+  task 54's way once more. Their code stays, off — `SKETCHES_ENABLED`,
+  `prompts-v8.md` — and what follows is how it is built, for whoever takes
+  it up; taking it up is the CEO's. → `docs/PLAN.md` → Backlog, "Sketches
+  drawn from the page"
 - **A sketch is drawn again from its page, by its own lines** (task 101,
   the CEO's, 2026-10-11): a set, a ball, a neighbourhood, a graph with no
   formula — no data (task 94) — and a proof carried in them printed as

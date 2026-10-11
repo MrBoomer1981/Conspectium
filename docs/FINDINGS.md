@@ -2487,6 +2487,28 @@ short open pieces, and a curve broken into long pieces passes it. It
 measures pieces, not whether the drawing reads as its photograph does, and
 the night's report called the five drawn on its word.
 
+**The ink again, and the archive.** Offered next the same morning: nothing
+traced, the drawing kept as the photograph's own ink — the paper's light
+divided out, the lattice taken off line by line, the rest toned to ink and
+paper, the handwriting of the labels left as it is. It took three changes
+to the night's grid: each line followed where it actually runs, by the
+median of its neighbours' offsets, since the quadratic drifted a pixel or
+two at a window's edge and left a dark stub; a line held to its neighbours'
+depth only where it is darker than they are for three letters or more — a
+pen line drawn along it, as the axis under the arcs, which a plain
+subtraction turned to dashes; and of a window, a floor along every grid
+line erased the strokes crossing it, and was dropped. Pieces fainter than
+half the ink, smaller than a dozen pixels, mostly outside the frame or cut
+by it went. On record 106's six it drew every curve whole, the faint
+ellipse round the four balls included, the hatch as a hatch, the plane
+along the grid with the author's lines kept. What it did not do: a word of
+the line above stayed where the model's frame took it in, and two or three
+stubs of the grid at a frame's edge. The CEO: «мы так уже делали в прошлых
+итерациях» — it is task 54's cut-out with a better grid — «давай пока
+оставим работу с рисунками. оставь только самые простые». Tasks 54 and 101
+archived; the document draws what code draws from data, and a sketch is its
+words. The prototype and the night's frames: `evidence/sketches/107/`.
+
 ## Moved from CLAUDE.md, 2026-10-10
 
 When `CLAUDE.md` was cut back to its rules a second time, its records'

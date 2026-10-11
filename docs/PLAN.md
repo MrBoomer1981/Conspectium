@@ -220,7 +220,8 @@ descriptions of week 2; 41 is the one listed under phase C.
       frame, the code cuts it out of the photograph, keeps its ink and sets
       it in the document — the CEO's. Built, measured on record 59's album
       the same evening (record 60), read as worse and put to sleep:
-      production back on `prompts-v6.md`, the code waiting without frames
+      production back on `prompts-v6.md`, the code waiting without frames;
+      archived on 2026-10-11 with 101
 - [x] 55. What record 59 showed besides its drawings: a record with no
       headings, the margin line «фор · 21:27 (0, 1)», a forum among an
       explanation's sources — the CEO's
@@ -471,7 +472,9 @@ Specified on 2026-10-10, from record 106 — the CEO's: «я хочу взять
       album, «продолжай искать лучшее решение для отрисовки»; production
       switched on the same night (`SKETCHES_ENABLED`) and off the next
       morning after record 107, the CEO's: «есть [проблемы] с рисунками.
-      давай пока уберем их из прода и еще подумаем, как можно улучшить»
+      давай пока уберем их из прода и еще подумаем, как можно улучшить»;
+      archived the same morning with 54: «давай пока оставим работу с
+      рисунками. оставь только самые простые» — Backlog
 - [ ] 102. Every frame threshold lowered before the next albums: sharpness
       90 → 15, contrast 20 → 10, the sheet's share of the frame 0.18 →
       0.14, the line's pitch 16 → 14 px — the CEO's, «уменьши порог
@@ -524,9 +527,9 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72, 77-79, 83, 86, 92, 97-99
-CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 101, 102, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 102, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: none
-Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 asleep since its measurement on 2026-10-01; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
+Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
 
 ## Plan changes
@@ -625,6 +628,7 @@ since 2026-10-01.
 | 2026-10-11 | the CEO, with Claude Code | Task 101 specified, taken and built overnight, the CEO's words «нужно рисовать их с оригинала» and «продолжай искать лучшее решение для отрисовки»: a sketch — a set, a ball, a neighbourhood, a graph with no formula — drawn again from its page. The model gives only where each drawing is and what its labels say: three calls a page that describes one (`sketches.py`, `prompts-sketch-v1.md`, 147 words), a frame counted where two runs frame it alike, a label where two read it alike at one place; asked for the lines themselves it drew circles of the wrong size and a grid never drawn, each run its own. The lines are the photograph's (`strokes.py`): the paper's light divided out, the notebook's grid found off the spectrum and taken off line by line, the strokes by an oriented filter, joined, kept once, straight where drawn straight; the labels set in type where the handwriting stood. A drawing that comes out in pieces is refused by code and stays its words. Kept in `note_figures` as before, its resolution in the PNG so the document sets it at its size (`pdf._picture`); no migration. Every call in `ai_calls` as `kind="sketch"`; `note_processed` gains `sketched`; the album's ceiling counts the calls. `figures.cut` and v8's frames stay asleep. "What the model is not trusted with" gains its geometry, a rule shared, the CEO's word enough and the CPO told. Production on from the same night: `SKETCHES_ENABLED=true`. `FINDINGS.md` → "Sketches drawn from the page" | the CEO's own |
 | 2026-10-11 | the CEO, with Claude Code | Task 102 specified, taken and built, the CEO's words «перед тем как я отправлю новые листы, уменьши порог качества фото на всех параметрах»: every threshold of `photoguard` lowered — sharpness 90 → 15, contrast 20 → 10, the sheet's share of the frame 0.18 → 0.14, the line's pitch 16 → 14 px — each where record 106's three pages, defocused, dimmed, washed out and taken from further away on purpose, still read by eye, with a margin before a formula's indices are guessed rather than read; the old thresholds refused pages that read whole. The fifth edit to the ready-made `photoguard`, the first on the CEO's word with no page refused; `CLAUDE.md` → "Ready-made modules" says so, and what the thresholds still cannot see; "Known risks" on the line height brought up to it. The frame check is the CPO's area | the CEO's own, by the rule of 2026-10-01 |
 | 2026-10-11 | the CEO, with Claude Code | Task 101's sketches switched off in production, the CEO's words after record 107: «проблем с обработкой больше нет. есть с рисунками. давай пока уберем их из прода и еще подумаем, как можно улучшить». Record 107 is record 106's three pages again — by their strokes, the same photographs — and drew five of six sketches as the night had, every one broken, with strokes the author never drew: the grid's stubs along the edges, a hatch made a tangle, a scatter of ticks round the arcs. The gate passed them, and the night's report had called them drawn. `SKETCHES_ENABLED=false` on Railway; the code stays, off by default, while a better way is looked for. `CLAUDE.md` → "Where it stands" and "Drawings taken from the page" brought up to it | the CEO's own |
+| 2026-10-11 | the CEO, with Claude Code | Tasks 101 and 54 archived, the CEO's words: «мы так уже делали в прошлых итерациях. ладной, давай пока оставим работу с рисунками. оставь только самые простые. … запиши эти попытки в архив». Offered after record 107: the drawing as the photograph's own ink, the grid taken off line by line — clean on record 106's six drawings, but task 54's cut-out once more. The document draws what code draws from data — graphs, functions, number lines, mappings (task 94) — and a sketch is its words; production already ran so, `SKETCHES_ENABLED=false`. The four attempts are one entry in the Backlog; the code stays, off. 101 leaves the CEO's current line, 54 leaves the asleep ones for the archived; `CLAUDE.md` → "Where it stands" and "Drawings taken from the page", `FINDINGS.md` and README say so | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -6271,6 +6275,19 @@ was refused.
 - No label one run alone read.
 - No sketch drawn over the gate's refusal.
 
+## Archived, 2026-10-11
+
+Switched on the night it was built and off the next morning: record 107,
+record 106's three pages again, drew five sketches broken, with stubs of the
+grid and a hatch made a tangle, and the gate passed them. Offered next, the
+drawing as the photograph's own ink with the grid taken off line by line —
+clean on the six, and task 54's cut-out once more; the CEO: «мы так уже
+делали в прошлых итерациях … давай пока оставим работу с рисунками. оставь
+только самые простые». Archived with 54: the document draws what code draws
+from data (task 94), a sketch is its words. The code stays, off. What was
+tried and what each attempt showed: the Backlog, "Sketches drawn from the
+page", and `FINDINGS.md`.
+
 ---
 
 # Task 102. Every frame threshold lowered
@@ -6888,6 +6905,39 @@ under the three-character floor an explanation's anchor already had.
   with their arrangement by number and the bot's own texts under its label,
   code checking that every unit is placed once; stage three becoming that
   call, the arrangement stored with the record
+- Sketches drawn from the page — tasks 54 and 101, archived on 2026-10-11,
+  the CEO's: «давай пока оставим работу с рисунками. оставь только самые
+  простые». A set, a ball, a neighbourhood, a curve with no formula is no
+  data, and every way of drawing one from its photograph read worse than
+  its words. Four attempts, one notebook — light blue ballpoint on squared
+  paper, a hand's shadow — `FINDINGS.md` holding each one's evidence:
+  1. **The ink cut out** (task 54, 2026-10-01): the model's frame, the
+     paper's light divided out, the grid left faint — over a light hand it
+     could be told from the ink neither by colour nor by width, and record
+     60's drawings came out faint under it ("Drawings cut out of the page").
+  2. **The model's geometry** (task 101): asked for a sketch's lines with
+     coordinates, three runs drew circles of the wrong size, a ball
+     missing, a full grid where the author drew three lines, each its own.
+     Its frames and labels held; its lines are not to be drawn.
+  3. **The pen's lines traced** (task 101, `strokes.py`, production the
+     night of 2026-10-11): the grid found as a lattice off the spectrum and
+     taken off line by line, the strokes by an oriented filter, thinned,
+     joined, judged by a gate, the labels set in type. Record 107 drew five
+     sketches broken in two to six places, with stubs of the grid, a hatch
+     made a tangle and ticks round the arcs; the gate counted short pieces
+     and passed curves broken into long ones ("Sketches drawn from the
+     page").
+  4. **The ink again, the grid taken off line by line** (a prototype of
+     2026-10-11, never in production): 3's lattice taken off with each line
+     followed where it runs and never deeper than its neighbours — an axis
+     drawn along a grid line kept — the rest toned to ink, the text a frame
+     takes in cut away. Clean on record 106's six; the CEO: «мы так уже
+     делали в прошлых итерациях» — it is 1 with a better grid. Left: a word
+     of the next line inside a frame, a few stubs at a frame's edge.
+  The code stays, off: `SKETCHES_ENABLED`, `sketches.py`, `strokes.py`,
+  `figures.redraw`; `prompts-v8.md` and `figures.cut`; the prototype in
+  `evidence/sketches/107/`. Taking it up again is the CEO's, and starts
+  from more than one notebook
 - Detecting a page photographed rotated. Nothing corrects one today:
   `images.compress` honours EXIF and a physically turned page carries none.
   Suspected of costing time on the model, never reproduced
