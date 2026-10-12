@@ -54,10 +54,11 @@ class Group(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     tg_chat_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     title: Mapped[str | None] = mapped_column(String)
-    # The Monday of the week the group's last weekly summary went out in
-    # (task 72), NULL before the first. The summary is of the week before it,
-    # and it goes out with the first record of a week: this column is how the
-    # record that comes first says so, one record of two at once.
+    # The Saturday the group's last weekly summary went out on (task 73) —
+    # the day the week it summed up ended — NULL before the first. The
+    # Saturday timer claims a week by moving it forward in one conditional
+    # update, so two timers at once, a deploy's old process and its new one,
+    # send the summary once (rating._post).
     rating_week: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -308,13 +309,16 @@ class NoteFigure(Base):
 
 class Feedback(Base):
     """What a reader said of a record (task 70): «Хорошо» or «Плохо» under its
-    document, and after «Плохо», in their own words, where the error is.
+    document, and after either, in their own words, what was good or where
+    the error is (task 103).
 
     One row a person a record — a second press changes the rating rather
-    than counting twice. The bot's question «что не так» is a message in the
-    chat, and `prompt_message_id` is how the reply to it finds this row:
-    nothing about the question is kept in the process, so a restart between
-    the question and the answer loses nothing.
+    than counting twice; every comment is an отзыв of its own, counted from
+    its event (rating.py). The bot's question under a press is a message in
+    the chat, and `prompt_message_id`, the newest, is how the reply to it
+    finds this row — an earlier one through the press that asked it
+    (feedback._asked_before). Nothing about the question is kept in the
+    process, so a restart between the question and the answer loses nothing.
     """
 
     __tablename__ = "feedback"

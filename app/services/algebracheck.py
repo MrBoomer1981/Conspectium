@@ -131,6 +131,11 @@ _SMALL = (2, 3, 5, 7, 11, 13)
 _MAX_DEPTH = 6
 # Whole powers up to this are counted exactly.
 _MAX_POWER = 64
+# A formula longer than this is not read: four times the longest of the 102
+# records read on 2026-10-12, 252. Read, a sum of some 600 terms nested its
+# sides past Python's recursion and twenty thousand letters took 15 s — no
+# equality a lecture writes, and the document is drawn after it.
+_MAX_TOKENS = 1000
 
 
 class _Unread(Exception):
@@ -172,20 +177,23 @@ def _tokens(latex: str) -> list[_Token]:
             continue
         found.append(_Token(kind, match.group(), match.start(), match.end()))
     # A run of letters written together that opens with a function's name is
-    # that function, not a product: «arg z». Not «2ch», which is 2·c·h.
+    # that function, not a product: «arg z». Not «2ch», which is 2·c·h. The
+    # name is looked for in the formula where the letter stands, and the run
+    # walked only when it is there: walked from every letter, a run of n
+    # letters took n² steps — twenty thousand of them, 15 s.
     index = 0
     while index < len(found):
-        end = index
-        while (
-            end + 1 < len(found)
-            and found[end].kind == found[end + 1].kind == "letter"
-            and found[end].end == found[end + 1].start
-        ):
-            end += 1
-        run = "".join(token.text for token in found[index : end + 1])
-        if found[index].kind == "letter" and run.startswith(_WORDS):
+        first = found[index]
+        if first.kind == "letter" and latex.startswith(_WORDS, first.start):
+            end = index
+            while (
+                end + 1 < len(found)
+                and found[end + 1].kind == "letter"
+                and found[end].end == found[end + 1].start
+            ):
+                end += 1
             found[index : end + 1] = [
-                _Token("word", run, found[index].start, found[end].end)
+                _Token("word", latex[first.start : found[end].end], first.start, found[end].end)
             ]
         index += 1
     return found
@@ -604,57 +612,73 @@ def failures(markdown: str) -> list[Failure]:
         quiet = bool(_CONTEXT_RE.search((previous_line + " " + line).lower()))
         previous_line = line
         tokens = _tokens(latex)
-        if any(token.text in _ANALYSIS for token in tokens):
+        if len(tokens) > _MAX_TOKENS or any(token.text in _ANALYSIS for token in tokens):
             continue
-        for chain in _statements(tokens):
-            sides = []
-            for relation, tokens in chain:
-                try:
-                    sides.append((relation, tokens, _read(tokens)))
-                except (_Unread, ValueError, ZeroDivisionError, IndexError):
-                    sides.append((relation, tokens, None))
-            for (_, before, left), (relation, after, right) in zip(sides, sides[1:]):
-                if relation not in ("=", ":="):
-                    continue
-                if left is not None and left[0] == "sym" and right is not None:
-                    # A letter alone on the left is defined, never checked —
-                    # but not by itself, by another letter alone, «то x = y»,
-                    # by the solution a quiet line finds, or at the head of a
-                    # working's chain, «y = b + (−a) = x» (task 96).
-                    if (
-                        not quiet
-                        and len(sides) == 2
-                        and right[0] != "sym"
-                        and left[1] not in _letters(right, {})
-                    ):
-                        definitions[left[1]] = right
-                    continue
-                if relation != "=" or quiet or left is None or right is None:
-                    continue
-                letters = _letters(left, definitions)
-                if not letters or letters != _letters(right, definitions):
-                    continue
-                if not _numbers_only(_letters(left, {}) | _letters(right, {}) | letters):
-                    continue
-                ordered = sorted(letters)
-                if _refuted(left, right, definitions, ordered) is None:
-                    continue
-                if limits and _grows_alike(left, right, definitions, ordered):
-                    continue
-                example = _example(left, right, definitions, ordered)
-                if example is None:
-                    continue
-                values, a, b = example
-                written = latex
-                out.append(
-                    Failure(
-                        left=written[before[0].start : before[-1].end].strip(),
-                        right=written[after[0].start : after[-1].end].strip(),
-                        point=_point(left, right, definitions, values),
-                        left_value=_shown(a),
-                        right_value=_shown(b),
-                    )
+        try:
+            out += _failed(latex, tokens, quiet, definitions, limits)
+        except RecursionError:
+            # Brackets nested past Python's recursion — two hundred deep: the
+            # page does not settle it, and the check stays quiet rather than
+            # sink the document it is drawn into (corpus._remarks).
+            continue
+    return out
+
+
+def _failed(
+    latex: str, tokens: list[_Token], quiet: bool, definitions: dict, limits: bool
+) -> list[Failure]:
+    """The equalities of one formula that do not hold; what it defines is
+    added to `definitions`, for the formulas after it."""
+    out: list[Failure] = []
+    for chain in _statements(tokens):
+        sides = []
+        for relation, tokens in chain:
+            try:
+                sides.append((relation, tokens, _read(tokens)))
+            except (_Unread, ValueError, ZeroDivisionError, IndexError):
+                sides.append((relation, tokens, None))
+        for (_, before, left), (relation, after, right) in zip(sides, sides[1:]):
+            if relation not in ("=", ":="):
+                continue
+            if left is not None and left[0] == "sym" and right is not None:
+                # A letter alone on the left is defined, never checked —
+                # but not by itself, by another letter alone, «то x = y»,
+                # by the solution a quiet line finds, or at the head of a
+                # working's chain, «y = b + (−a) = x» (task 96).
+                if (
+                    not quiet
+                    and len(sides) == 2
+                    and right[0] != "sym"
+                    and left[1] not in _letters(right, {})
+                ):
+                    definitions[left[1]] = right
+                continue
+            if relation != "=" or quiet or left is None or right is None:
+                continue
+            letters = _letters(left, definitions)
+            if not letters or letters != _letters(right, definitions):
+                continue
+            if not _numbers_only(_letters(left, {}) | _letters(right, {}) | letters):
+                continue
+            ordered = sorted(letters)
+            if _refuted(left, right, definitions, ordered) is None:
+                continue
+            if limits and _grows_alike(left, right, definitions, ordered):
+                continue
+            example = _example(left, right, definitions, ordered)
+            if example is None:
+                continue
+            values, a, b = example
+            written = latex
+            out.append(
+                Failure(
+                    left=written[before[0].start : before[-1].end].strip(),
+                    right=written[after[0].start : after[-1].end].strip(),
+                    point=_point(left, right, definitions, values),
+                    left_value=_shown(a),
+                    right_value=_shown(b),
                 )
+            )
     return out
 
 

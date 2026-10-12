@@ -55,7 +55,16 @@ async def on_study(
 
     source = await corpus._source(session, note)
     kept = corpus._kept(source)
-    await callback.answer(texts.STUDY_SENDING if kept else texts.STUDY_BUILDING)
+    # The press is answered whether or not its notice can be shown: Telegram
+    # refuses the notice of a press that waited — a deploy's minutes — and
+    # the exception took the study version with it, as it took an отзыв
+    # (feedback.on_rate, task 103).
+    try:
+        await callback.answer(texts.STUDY_SENDING if kept else texts.STUDY_BUILDING)
+    except Exception:
+        logger.warning(
+            "the notice of a press on note %s was refused", note.id, exc_info=True
+        )
     await log_event(
         session,
         user.id,

@@ -361,7 +361,7 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
    exception; `notes`, `users` and `events` go through it. It serves messages,
    the bot's own membership updates and the presses of its buttons, and puts
    the group chat, if any, in `data["group"]` — for a press, the chat of the
-   message the button is on. Five deliberate exceptions:
+   message the button is on. Six deliberate exceptions:
    - a **new** user is committed *before* the handler: `log_ai_calls` inserts
      `ai_calls.user_id` from a session of its own and would fail the foreign
      key;
@@ -379,7 +379,11 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
      is twenty;
    - a group's record is committed before the pages it was read from are
      free for another reading (`corpus.reading`, task 41): a second call on
-     them finds the reading or the record, never neither.
+     them finds the reading or the record, never neither;
+   - every record is committed before it is delivered (`handlers._saved`,
+     task 104): a document Telegram refused, or a message after it, rolled
+     the update back with the record in it — its reading paid for, nothing
+     kept, the reader told to send the photo again.
 2. **`events` are transactional and vanish on rollback — deliberately**: an
    event describes something that in the end happened. `log_event` wraps its
    insert in a SAVEPOINT (`begin_nested`) so a failed insert cannot poison the
@@ -462,13 +466,15 @@ images.compress              in a worker thread (images.in_worker)
 12a  compose.compose         behind check_limits(pages=0)
      figures.place           the drawings back, after composing
      subjects.joining        the lecture this notebook joins, if any
-12b  explain.explain         its captions beside it, behind check_limits(pages=0)
+12b  explain.explain         its captions beside it, and the study version for
+                             a record that joins no lecture (task 104), behind
+                             check_limits(pages=0)
 13   Note, subjects.file
 14   limits.consume
-15   note_processed
-16   corpus.deliver          the study version, kept or built (study.build),
-                             else the record's own document; pdf.render in a
-                             thread
+15   note_processed          and the record committed (handlers._saved)
+16   corpus.deliver          the study version, built at 12b, kept or built
+                             now (study.build), else the record's own
+                             document; pdf.render in a thread
 17   corpus.ask_for_tag      the subject asked, or where it was filed
 ```
 
@@ -835,8 +841,11 @@ grow in a lecture on limits, a line that solves, supposes or argues the
 contrary, a lecture on logic, or what it does not read — f(x), arg z, a set,
 an absolute value. The module's docstring gives each case with the record
 that taught it: an equality reported that holds tells the reader the
-lecture is wrong where it is not. → "An equality that does not hold",
-"Record 97"
+lecture is wrong where it is not. Nor does it read a formula of more than
+1000 tokens, four times the longest of 102 records, and brackets nested past
+Python's recursion keep it quiet (task 104): it runs in every delivery of
+its record, and what it raised sank them all. → "An equality that does not
+hold", "Record 97"
 
 ---
 
@@ -1072,7 +1081,12 @@ lecture is wrong where it is not. → "An equality that does not hold",
   `kind="study"`. An answer that does not parse is asked for once more, as
   recognition's is, and its row names the finish reason and the shape
   (task 87). While it runs, a second delivery of the record gets the
-  record's document — a set in this process ("Scale debt"). Events
+  record's document — a set in this process ("Scale debt"). For a record
+  that joins no lecture the call is made beside the explaining stage's
+  (`handlers._explained`, task 104) — from the text it is built from
+  anyway, the record waiting for the slower of the two rather than both —
+  and `deliver` sends it, or, refused, the record without asking twice;
+  a notebook that joins a lecture is studied whole at its delivery. Events
   `study_sent` (`via` delivery or button; `off_topic`, the units left out
   whole or in part), `study_requested`, `study_failed`.
 
@@ -1138,8 +1152,11 @@ lecture is wrong where it is not. → "An equality that does not hold",
 `corpus.deliver`, which sends the record's study version ("A lecture's study
 version") and, when there is none to be had, the record's own document
 (`corpus.send_record`), which renders in a thread and, if rendering fails
-for any reason, sends the record as plain text. A record is never lost over
-its presentation. What follows is the look of both: the study version is
+for any reason, sends the record as plain text. A document Telegram refuses
+is sent once more after its flood control of up to 30 s, a dropped
+connection or its own error, and refused falls back the same way
+(`corpus._sent_document`, task 104); the record is saved before it is sent.
+A record is never lost over its presentation. What follows is the look of both: the study version is
 the record's document set out by topic. `pdf.py` never raises on a record's content; it receives what
 to draw — `Callout`, `Remark`, `Explanation`, `Summary`, `Page`, built by
 `corpus` — and knows nothing about where a record came from.
@@ -1426,7 +1443,7 @@ number never leaves another quietly cutting the work short:
 | `EXPLAIN_CALL_TIMEOUT_S` | environment | 240 s, 30–600; the writing call, sized like composing; it takes a slot the same way, after `process_batch` |
 | `_SOURCE_TIMEOUT_S` | `services/explain.py` | 90 s — one search; up to eight at once, each on a slot |
 | compose's slot | `services/compose.py` | one of the `API_SLOTS`, held for the whole call; after `process_batch`, outside `_ALBUM_TIMEOUT_S` |
-| the study version's call | `services/study.py` | one of the `API_SLOTS`, on a press, `EXPLAIN_CALL_TIMEOUT_S` — a call over the whole record, as the explaining one is |
+| the study version's call | `services/study.py` | one of the `API_SLOTS`, beside the explaining stage's for a record that joins no lecture (task 104), else at delivery or on a press, `EXPLAIN_CALL_TIMEOUT_S` — a call over the whole record, as the explaining one is |
 | the sketches' calls | `services/sketches.py` | three on `API_SLOTS` for a page that describes a sketch, after its runs, at `VISION_CALL_TIMEOUT_S`, counted in `_ALBUM_TIMEOUT_S`'s waves (task 101) |
 | the captions' call | `services/explain.py` | one of the `API_SLOTS`, beside the explaining stage's first call, `EXPLAIN_CALL_TIMEOUT_S`; thinks `low` and answers in seconds (task 95) |
 | `RUN_WORST_CASE_S` | `services/vision.py` | `(pauses + 1) × call + sum(pauses)`, every attempt timing out — 93 s at the default |

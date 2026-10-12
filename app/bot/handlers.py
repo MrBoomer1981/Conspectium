@@ -35,6 +35,7 @@ from app.services import (
     mathcheck,
     photoguard,
     sketches,
+    study,
     vision,
 )
 
@@ -423,13 +424,14 @@ async def _read_photo(
     # up. Over the composed text and never the photograph, stored apart from
     # the author's text and printed as the bot's. Rule 6 again: a third call
     # is still a call, and the kill switch and the cost cap decide first.
-    explaining = explain.Explaining()
+    # Beside it the study version, for a record that joins no lecture
+    # (_explained, task 104).
+    explaining, early = explain.Explaining(), None
     if (
         not explain_skipped
         and await limits.check_limits(session, user, pages=0, group=group) is None
     ):
-        explaining = await explain.explain(markdown)
-        await vision.log_ai_calls(user.id, explaining.stats, group_id=group_id)
+        explaining, early = await _explained(user, group_id, markdown, joining is None)
 
     # Step 13: persist the record. "rejected" already exited at step 10, so the
     # verdict here is "clean" or "needs_review". Dataclasses are flattened to
@@ -529,7 +531,8 @@ async def _read_photo(
     # 2026-09-25; in a group chat that message was noise for everyone.
     await session.flush()  # note.id, for the file name, the caption, the drawings
     await _keep_figures(session, note, placed)
-    await corpus.deliver(message, session, note, user, group)
+    await _saved(session)
+    await corpus.deliver(message, session, note, user, group, early)
 
     # Step 17: which subject does this belong to. Last, so the question is
     # what the user is looking at when they reply.
@@ -579,7 +582,9 @@ async def handle_document(
 
     started = time.monotonic()  # note_processed.latency_ms for docx: extraction
     try:
-        markdown = docx.extract_markdown(data)
+        # In a thread: a file of many paragraphs parses for seconds, and on
+        # the event loop every other chat would wait them out.
+        markdown = await asyncio.to_thread(docx.extract_markdown, data)
     except Exception:
         logger.exception("docx extraction failed")
         await message.answer(texts.ERROR_GENERIC)
@@ -635,6 +640,7 @@ async def handle_document(
     )
 
     await session.flush()  # note.id, for the file name and the caption
+    await _saved(session)
     await corpus.deliver(message, session, note, user, group)
     await corpus.ask_for_tag(message, session, user, note, group, filing)
 
@@ -715,6 +721,48 @@ async def _read_pdf(
             message, session, user, pages, group, bot=bot, tag=tag,
             source_key=source_key, source_type="pdf",
         )
+
+
+async def _explained(
+    user: User, group_id: int | None, markdown: str, alone: bool
+) -> tuple[explain.Explaining, study.Study | None]:
+    """Stage three, and beside it the record's study version (task 104):
+    the record waits for the slower of the two calls, not for both — the
+    study call's twenty-odd seconds of every delivery. Only for a record
+    that joins no lecture (`alone`): one that does is studied whole, from
+    the lecture's text once it is filed, at its delivery. The version comes
+    back refused or not, and corpus.deliver sends it or the record.
+
+    Neither call touches the database, as nothing that calls the model
+    does; both are written down here whichever of them failed (rule 4),
+    and what one raised is raised after."""
+
+    async def nothing() -> None:
+        return None
+
+    studies = alone and settings.EXPLAIN_ENABLED
+    explaining, early = await asyncio.gather(
+        explain.explain(markdown),
+        study.build(markdown) if studies else nothing(),
+        return_exceptions=True,
+    )
+    for done in (explaining, early):
+        if done is not None and not isinstance(done, BaseException):
+            await vision.log_ai_calls(user.id, done.stats, group_id=group_id)
+    for done in (explaining, early):
+        if isinstance(done, BaseException):
+            raise done
+    return explaining, early
+
+
+async def _saved(session: AsyncSession) -> None:
+    """The record committed before it is sent (task 104). Its reading is
+    paid for, and a document Telegram refused — a chat that takes none,
+    flood control, a dropped connection — or a message after it rolled the
+    update back with the record in it: the money spent, nothing kept, and
+    the reader told to send the photo again. What delivery writes after
+    this, the study version kept and its event, commits with the update."""
+    await session.commit()
 
 
 async def _keep_figures(
@@ -995,14 +1043,14 @@ async def _process_album(
         )
     explain_skipped = joining is not None and not joining.leads
 
-    # Stage three once over the whole record too, for the same reason.
-    explaining = explain.Explaining()
+    # Stage three once over the whole record too, for the same reason, and
+    # the study version beside it, as for a photo.
+    explaining, early = explain.Explaining(), None
     if (
         not explain_skipped
         and await limits.check_limits(session, user, pages=0, group=group) is None
     ):
-        explaining = await explain.explain(markdown)
-        await vision.log_ai_calls(user.id, explaining.stats, group_id=group_id)
+        explaining, early = await _explained(user, group_id, markdown, joining is None)
 
     note = Note(
         user_id=user.id,
@@ -1098,7 +1146,8 @@ async def _process_album(
 
     await session.flush()  # note.id, for the file name, the caption, the drawings
     await _keep_figures(session, note, placed)
-    await corpus.deliver(message, session, note, user, group)
+    await _saved(session)
+    await corpus.deliver(message, session, note, user, group, early)
 
     # What follows the document is what only the photographer can act on: the
     # pages it went out without. The rest is in the document or nowhere, as on

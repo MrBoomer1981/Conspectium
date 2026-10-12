@@ -492,6 +492,16 @@ Specified on 2026-10-11, from the отзывы of record 97 — the CEO's: «ф�
       count falls; the bot's week names everyone with their week and all
       their time — the CEO's. Taken and built on 2026-10-11
 
+Specified on the night of 2026-10-11, the CEO's: «я хочу чтобы ты в ночь
+взял очень важную задачу: оптимизацию кода и проверку на баги» — bugs
+first, then the time a record takes and the memory:
+
+- [ ] 104. The code read for bugs, its speed and its memory: a record
+      saved before it is sent, a document Telegram refuses sent once more
+      or as text, the study version's call beside the explaining stage,
+      the equality check bounded, a .docx parsed off the event loop — the
+      CEO's. Taken that night, built on 2026-10-12
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -538,7 +548,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72, 77-79, 83, 86, 92, 97-99
-CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 102, 103, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 102, 103, 104, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: none
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -641,6 +651,7 @@ since 2026-10-01.
 | 2026-10-11 | the CEO, with Claude Code | Task 101's sketches switched off in production, the CEO's words after record 107: «проблем с обработкой больше нет. есть с рисунками. давай пока уберем их из прода и еще подумаем, как можно улучшить». Record 107 is record 106's three pages again — by their strokes, the same photographs — and drew five of six sketches as the night had, every one broken, with strokes the author never drew: the grid's stubs along the edges, a hatch made a tangle, a scatter of ticks round the arcs. The gate passed them, and the night's report had called them drawn. `SKETCHES_ENABLED=false` on Railway; the code stays, off by default, while a better way is looked for. `CLAUDE.md` → "Where it stands" and "Drawings taken from the page" brought up to it | the CEO's own |
 | 2026-10-11 | the CEO, with Claude Code | Tasks 101 and 54 archived, the CEO's words: «мы так уже делали в прошлых итерациях. ладной, давай пока оставим работу с рисунками. оставь только самые простые. … запиши эти попытки в архив». Offered after record 107: the drawing as the photograph's own ink, the grid taken off line by line — clean on record 106's six drawings, but task 54's cut-out once more. The document draws what code draws from data — graphs, functions, number lines, mappings (task 94) — and a sketch is its words; production already ran so, `SKETCHES_ENABLED=false`. The four attempts are one entry in the Backlog; the code stays, off. 101 leaves the CEO's current line, 54 leaves the asleep ones for the archived; `CLAUDE.md` → "Where it stands" and "Drawings taken from the page", `FINDINGS.md` and README say so | the CEO's own |
 | 2026-10-11 | the CEO, with Claude Code | Task 103 specified, taken and built, the CEO's words «фикс комментариев: их можно оставлять при любом ответе и хорошо и плохо, + если нажат несколько раз на комментарий он засчитывается только 1 раз + упал счетчик комментариев», and of the counter «в личном чате админа. у одного пользователя обнулился счетчик». Production's `feedback` and `events` read with the CEO's leave: record 97's author pressed «Плохо» eight times and wrote nine comments, counted as one отзыв, the PDF sent to the feedback chat eight times; no отзыв lost — the bot's week had turned on Saturday and named only the week's people. The CEO's choices: «Оценка + каждый коммент» — an отзыв is a rating, one a person a record, and every comment, each in the week it was made, so no count falls — and «Неделя и всего» — the bot's week names everyone with their week and all their time. Either button asks, every press asks, a record's document goes to the feedback chat once, a reply to an earlier question still counts (`note_rated` gains `again` and `prompt`), and a press is kept when its notice is refused. Task 70's «Don't ask «что не так» after «Хорошо»», task 72's «a second press counts nothing» as the only count and task 74's «the week's people» give way; "Contracts" → the two events and "A group's week" change with it, `CLAUDE.md` → "What a reader says of a record" and "A group's week". No migration | the CEO's own |
+| 2026-10-12 | the CEO, with Claude Code | Task 104 specified on the night of 2026-10-11 and built the next morning, the CEO's words «я хочу чтобы ты в ночь взял очень важную задачу: оптимизацию кода и проверку на баги», and the choices made before the night: one push, in the morning; production's logs and its database read only; Gemini only where strictly needed, up to $5 — none was; bugs first, then the time a record takes and the memory, nothing rewritten for its own sake. The nine agents the CEO allowed stopped at midnight on the session's limit, and the code was read by hand in the morning. A record is committed before it is delivered — `CLAUDE.md` → "Sessions and transactions" gains a sixth exception; a document Telegram refuses is sent once more after flood control or a dropped connection, else falls back as one not drawn — "The document"; a record that joins no lecture has its study version built beside the explaining stage — "A lecture's study version", the pipeline and the concurrency table; `algebracheck` reads no formula past 1000 tokens and stays quiet past Python's recursion — "An equality that does not hold"; a .docx is parsed in a thread; the study version's button keeps its press when its notice is refused. The transactions are the CPO's area, the CEO's word enough. No migration | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -6436,6 +6447,102 @@ Production's `feedback` and `events`, read with the CEO's leave
   faking.
 - A group's own `/stats` and summary stay the week's: all time by person is
   the feedback chat's.
+
+---
+
+# Task 104. The code read for bugs, its speed and its memory
+
+**Owner: the CEO.** Taken on the night of 2026-10-11 and built the next
+morning, the CEO's words: «я хочу чтобы ты в ночь взял очень важную
+задачу: оптимизацию кода и проверку на баги. мы давно не делали это». The
+choices made before the night: one push, in the morning; production's logs
+and its database read only; Gemini only where strictly needed, up to $5 —
+none was spent; bugs first, then how long a record takes and the memory;
+nothing rewritten for its own sake, nothing in the prompts, the models or
+the thresholds. The transactions are the CPO's area, the CEO's word enough.
+
+## Why
+
+The last audit was task 76's, on 2026-10-07, and tasks 77–103 came after
+it. What production said (`FINDINGS.md` → "The review of 2026-10-12"):
+
+- Its own records hold: 258 webhook answers all 200 and nothing pending at
+  Telegram, no record filed outside its chat, no pages read twice, the
+  album pages cleaned on time, a process at 393 MB with 23 files open.
+- A record of three pages took 219 s from its batch to its PDF: reading 42,
+  composing 6, the explaining stage 149, the study version 20, drawing and
+  sending 3. The study version waited for an explaining stage it does not
+  read.
+
+## Do, as built
+
+1. **A record is saved before it is sent** (`handlers._saved`), on the
+   photo, album, PDF and .docx paths: a document Telegram refused, or any
+   message after it, rolled the update back with the record in it — its
+   reading paid for, nothing kept, and the reader told «Не смог обработать
+   фото» and so to pay again.
+2. **A document is sent once more** after Telegram's flood control of up
+   to 30 s, a dropped connection or Telegram's own error
+   (`corpus._sent_document`); refused — a chat that takes no documents, the
+   bot removed — the study version falls back to the record's document and
+   that to its text, as for a document that could not be drawn.
+3. **The study version is built beside the explaining stage**
+   (`handlers._explained`) for a record that joins no lecture, from the
+   text it is built from anyway: the record waits for the slower call, not
+   for both — some twenty seconds of every delivery. One check of the
+   limits covers both calls, both are written down whichever failed, and a
+   refusal is not asked again at delivery, as it was not before; a notebook
+   that joins a lecture is studied whole at its delivery, as before.
+4. **The equality check is bounded** (`algebracheck`): a formula of more
+   than 1000 tokens is not read — four times the longest of 102 records —
+   brackets nested past Python's recursion keep it quiet, and a run of
+   letters is read in one pass. A sum of 600 terms raised past
+   `corpus._remarks` and sank every delivery of its record, and twenty
+   thousand letters held the event loop 15 s. The 5252 formulas of the 102
+   records read as before, and their 7 findings are the same — in
+   production too, over its 107.
+5. **A .docx is parsed in a thread**: 200 000 paragraphs held the event
+   loop 10.7 s.
+6. **The study version's button keeps its press** when Telegram refuses its
+   notice, as «Хорошо» and «Плохо» do since task 103.
+7. Checked: the suite; the delivery simulated on SQLite — the two calls
+   starting together, a refused study version not asked twice, documents
+   refused and the text sent with the record saved, flood control waited
+   out, a notebook leading a lecture studied at its delivery; the 102
+   records drawn, the document and the study version, nothing raised;
+   hostile input through the checks, the drawing, the composition's
+   guards, the explaining stage's parsers, images, PDFs and .docx files;
+   the new code in production's container over its database, read only.
+
+## Looked at, and left
+
+- **A box taller than a page** fails the drawing, and the document goes
+  out as text: a summary of 10 000 characters does it, the longest stored
+  is 715.
+- **Brackets nested 160 deep** crashed the process on a Mac, in V8's own
+  thread; in production's container V8 refuses them, and the formula is
+  printed as its source.
+- **A recognition call that timed out** is written with no cost, 59 in two
+  weeks: whether Google bills a call our side gave up on is the CPO's to
+  find out.
+- The album buffer, the webhook's tasks, the recognition's ceilings, the
+  merge of notebooks, the study version's units and the composition's
+  guards were read and tried, and hold.
+
+## Acceptance criterion
+
+- A record whose document Telegram refuses is in the database, and its
+  text reaches the chat.
+- A record that joins no lecture has its study call start with the
+  explaining stage's (`ai_calls`).
+- The suite is green.
+
+## Don't do
+
+- No new tests, no migration, nothing in the prompts, the models or the
+  thresholds.
+- No retry of a text message: when Telegram takes no text from the bot,
+  nothing reaches the chat, and the record is saved.
 
 ---
 

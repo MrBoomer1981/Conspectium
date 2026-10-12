@@ -2541,6 +2541,65 @@ chat once. Counted again by the new code over production's rows, read-only:
 CEO's seven, and five in J3115's week of 3 October, where its Saturday
 summary had said three. The data: `evidence/feedback/`.
 
+## The review of 2026-10-12
+
+Task 104, the CEO's «оптимизацию кода и проверку на баги». Production read
+on the night of 2026-10-11 — the logs of its last twenty deploys, its
+database read only, Telegram's view of the webhook — and the code read and
+tried locally on the 102 records of `evidence/task102/all.json`.
+
+**What production's own records said.** 258 webhook answers, every one 200;
+nothing pending at Telegram and no delivery error. No record filed into
+another chat's subject or lecture, no source key read twice, no
+`group_pages` older than eight days. The process at rest: 393 MB resident,
+its high-water mark, 39 threads — 35 of them V8's — and 23 open files. One
+person counted 20 pages on 2026-10-09 against a day of 12: the quota race
+"Known risks" names, soft by design. Failures in two weeks: recognition 59
+of 762 calls, nearly all `TimeoutError` at 90 s; searches 17 of 358; one
+study call, a 503. A timed-out call is written with no cost.
+
+**Where a record's time goes.** A three-page album of 2026-10-10, from its
+batch closed to its PDF in the chat, 219 s: recognition 42, composition 6,
+the explaining stage 149 — its writing call 30 s, then eight searches, three
+of which ran none at `low` and were made again at the default before being
+dropped — the study version 20, drawing and sending 3. Over two weeks,
+p50/p90: recognition 27/90 s, composition 9/34, the explaining call 33/69,
+a search 10/52, the study call 24/63. The study call read nothing the
+explaining stage wrote: it now runs beside it.
+
+**The drawing holds.** The 102 records drawn as `corpus` draws them, the
+record's document and the 13 study versions: nothing raised, no formula
+refused by both engines, 0.24 s a record at the median and 1.5 s at most,
+the sync work around it on the event loop a few milliseconds. Memory rose
+from 376 to 482 MB over the first 50 and not after. Hostile markdown —
+unclosed dollars and frames, a 20 000-character line, a graph of 300
+vertices, absurd chart ranges, control characters — drew; a box taller than
+a page did not, and the document then goes as text, a summary of 10 000
+characters where the longest stored is 715. Brackets nested 160 deep killed
+the process on a Mac, in V8's thread with its small stack; in production's
+container V8 refused them with "Maximum call stack size exceeded", mathtext
+with a RecursionError, and the formula printed as its source.
+
+**What raised.** `algebracheck.failures` raised a `RecursionError` on a sum
+of some 600 terms or 200 nested brackets, past `corpus._remarks`, which runs
+in every delivery of the record — none would have gone out — and took 15 s
+of the event loop on twenty thousand letters, its tokenizer walking every
+run of letters from every letter. Real formulas are far from it: 252 tokens
+at most. Bounded now, the same 7 findings over the 102 records and over
+production's 107. `Telegram`'s refusal of a document — a chat that takes
+none, flood control, a dropped connection — raised out of `deliver` after
+the record was paid for, and the update's rollback took the record with it.
+
+**What held under hostile input.** The composition's guards over 1938
+mangled compositions of the 102 records: nothing raised, 6 s at worst on
+text of random dollars and braces, 5 ms on real ones. The explaining
+stage's parsers over broken JSON; the study version's units, which lose
+only `---` lines; images truncated, CMYK, 16-bit, a 1-pixel strip, a
+decompression bomb; PDFs empty, broken and locked; .docx files broken,
+deep, entity-bombed — each refused with a message, nothing paid. A .docx of
+200 000 paragraphs parsed 10.7 s on the event loop; it parses in a thread
+now.
+
 ## Moved from CLAUDE.md, 2026-10-10
 
 When `CLAUDE.md` was cut back to its rules a second time, its records'

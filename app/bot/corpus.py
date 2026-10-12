@@ -30,6 +30,12 @@ from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta, timezone
 
 from aiogram import F, Router
+from aiogram.exceptions import (
+    TelegramAPIError,
+    TelegramNetworkError,
+    TelegramRetryAfter,
+    TelegramServerError,
+)
 from aiogram.filters import Command
 from aiogram.types import (
     BufferedInputFile,
@@ -519,6 +525,56 @@ async def _source(session: AsyncSession, note: Note) -> _Source:
     return _Source(base, markdown, remarks, len(notes), lecture)
 
 
+# Telegram's flood control names the seconds to wait; a wait longer than this
+# is not sat out inside a delivery, which falls back instead.
+_FLOOD_WAIT_MAX_S = 30
+# A dropped connection or Telegram's own error, tried once more after this.
+_SEND_PAUSE_S = 3
+
+
+async def _sent_document(
+    message: Message,
+    data: bytes,
+    filename: str,
+    caption: str,
+    reply_markup: InlineKeyboardMarkup,
+) -> bool:
+    """A document sent to the chat, once more after Telegram's flood control
+    or a dropped connection; False when it could not be — the chat takes no
+    documents, the bot was removed — the reason in the log. The caller falls
+    back as for a document that could not be drawn: the record is saved
+    already (handlers), and a "#word" brings it back."""
+    refused: TelegramAPIError | None = None
+    for attempt in (1, 2):
+        try:
+            await message.answer_document(
+                BufferedInputFile(data, filename=filename),
+                caption=caption,
+                reply_markup=reply_markup,
+            )
+            return True
+        except TelegramRetryAfter as exc:
+            refused = exc
+            if attempt == 2 or exc.retry_after > _FLOOD_WAIT_MAX_S:
+                break
+            await asyncio.sleep(exc.retry_after)
+        except (TelegramNetworkError, TelegramServerError) as exc:
+            refused = exc
+            if attempt == 2:
+                break
+            await asyncio.sleep(_SEND_PAUSE_S)
+        except TelegramAPIError as exc:
+            refused = exc
+            break
+    logger.warning(
+        "a document could not be sent to chat %s: %s: %s",
+        message.chat.id,
+        type(refused).__name__,
+        refused,
+    )
+    return False
+
+
 async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -> bool:
     """Send one record as a PDF — or, when the record is one notebook of a
     lecture that has several, the lecture's document: the fullest notebook,
@@ -553,15 +609,16 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
     caption = texts.record_caption(base.id, base.page_count)
     if source.notebooks > 1:
         caption = texts.lecture_caption(caption, source.notebooks)
-    await message.answer_document(
-        BufferedInputFile(data, filename=pdf_filename(base.id, title)),
-        caption=caption,
+    return await _sent_document(
+        message,
+        data,
+        pdf_filename(base.id, title),
+        caption,
         # «Хорошо» and «Плохо» on the document itself (task 70), and the
         # study version to ask for: the record goes out only when it could
         # not be had (deliver).
-        reply_markup=feedback.keyboard(base.id, study=True),
+        feedback.keyboard(base.id, study=True),
     )
-    return True
 
 
 def _study_box(box: dict) -> pdf.Explanation:
@@ -617,14 +674,13 @@ async def send_study_pdf(
     caption = texts.study_caption(base.id, base.page_count, len(version.topics))
     if source.notebooks > 1:
         caption = texts.lecture_caption(caption, source.notebooks)
-    await message.answer_document(
-        BufferedInputFile(
-            data, filename=pdf_filename(base.id, title, texts.STUDY_FILE_WORD)
-        ),
-        caption=caption,
-        reply_markup=feedback.keyboard(base.id),
+    return await _sent_document(
+        message,
+        data,
+        pdf_filename(base.id, title, texts.STUDY_FILE_WORD),
+        caption,
+        feedback.keyboard(base.id),
     )
-    return True
 
 
 # The records whose study version is being built in this process: a second
@@ -696,7 +752,12 @@ async def study_sent(
 
 
 async def deliver(
-    message: Message, session: AsyncSession, note: Note, user: User, group: Group | None
+    message: Message,
+    session: AsyncSession,
+    note: Note,
+    user: User,
+    group: Group | None,
+    early: study.Study | None = None,
 ) -> None:
     """What a chat gets for a record: its study version, the CEO's of
     2026-10-08 — «мы не присылаем пользователю конспект, сразу отдаём ему
@@ -708,8 +769,30 @@ async def deliver(
     The record's document and the study version stay two documents, each
     drawn on its own; which goes out is decided here and nowhere else, so
     one can be sent and the other offered by a button — the CEO wants to be
-    able to split them."""
+    able to split them.
+
+    `early` is the study version asked for beside the explaining stage
+    (handlers._explained, task 104), refused or not. It stands when the
+    documents are drawn from the record's own text, which it was built
+    from, and a refusal is not asked again here, as it is not when this
+    asks: the button under the record does. A notebook that joined a
+    lecture meanwhile is studied with the lecture, as any other."""
     source = await _source(session, note)
+    if early is not None and source.markdown == note.markdown:
+        if early.refused is not None:
+            await log_event(
+                session, user.id, "study_failed",
+                {"note_id": note.id, "reason": early.refused}, group_id=_group_id(group),
+            )
+        else:
+            source.base.study = early.stored()
+            if await send_study_pdf(message, session, source, early):
+                await study_sent(
+                    session, user, group, source.base, early, False, via="delivery"
+                )
+                return
+        await send_record(message, session, note)
+        return
     kept = _kept(source)
     version, _ = await study_of(session, source, user, group)
     if version is not None and await send_study_pdf(message, session, source, version):
