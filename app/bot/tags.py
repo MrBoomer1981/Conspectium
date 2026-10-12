@@ -17,6 +17,7 @@ the reply the user gets straight away.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 # A topic long enough to be unrecognisable is not a handle to find anything
 # by. The same 60 characters vision.py caps a title at.
@@ -38,21 +39,41 @@ _HEADING = re.compile(r"(?m)^(#{1,6})[ \t]+(.+?)[ \t]*$")
 _CAPTION_TAG = re.compile(r"(?<![\w#])#(\w+)")
 # One "#word" and nothing else around it.
 _BARE_TAG = re.compile(r"#\w+")
-# Everything that is not a letter, a digit or a gap. Markdown's own markers go
-# here too: "**Определение**" and "Определение" are one topic.
-_PUNCTUATION = re.compile(r"[^\w\s-]", re.UNICODE)
 _GAPS = re.compile(r"[\s_]+")
+
+
+def _in_hashtag(char: str) -> bool:
+    """What Telegram counts in a hashtag: a letter, a decimal digit, the
+    underscore. It ends one at anything else — «#ε-окрестность» was
+    highlighted as «#ε» (task 106) — and «²», a number but no decimal digit,
+    ends it too."""
+    return char.isalpha() or char.isdecimal() or char == "_"
 
 
 def normalize(text: str) -> str:
     """A heading, or whatever the user typed after the #, as a tag.
 
-    Lower case, no punctuation, gaps joined by underscores — because a hashtag
-    is the one thing that cannot contain a space, and «Квантовая механика» has
-    to survive as something typeable.
+    Lower case, and only what Telegram highlights in a hashtag: everything
+    else — a space, a hyphen, a dash, Markdown's own markers — is a gap, and
+    gaps are one underscore. «Квантовая механика» has to survive as something
+    typeable, and the bot's «#ф_ция» is a hashtag whole where «#ф-ция» was
+    «#ф» (task 106, the CEO's). A mark NFC cannot join to its letter — a
+    stress over «о» — is dropped rather than made a gap, which would cut the
+    word in two.
     """
-    cleaned = _PUNCTUATION.sub(" ", _MATH.sub(" ", text)).strip().lower()
-    return _GAPS.sub("_", cleaned)[:TAG_LIMIT].strip("_")
+    lowered = unicodedata.normalize("NFC", _MATH.sub(" ", text).lower())
+    kept = "".join(
+        char if _in_hashtag(char) else " "
+        for char in lowered
+        if not unicodedata.category(char).startswith("M")
+    )
+    return _GAPS.sub("_", kept)[:TAG_LIMIT].strip("_")
+
+
+def highlighted(tag: str) -> bool:
+    """Whether Telegram makes "#tag" a hashtag: it needs a letter. «#1», a
+    heading's number, is plain text, and finds every record numbered so."""
+    return any(char.isalpha() for char in tag)
 
 
 def parse(text: str | None) -> str | None:
@@ -149,7 +170,9 @@ def topics_of(title: str, markdown: str) -> list[str]:
     topics: list[str] = []
     for _, _, raw in ranked:
         topic = normalize(raw)
-        if topic and topic not in topics:
+        # A topic is shown as a hashtag to tap and type, and one with no
+        # letter is neither (task 106).
+        if highlighted(topic) and topic not in topics:
             topics.append(topic)
         if len(topics) == TOPIC_LIMIT:
             break

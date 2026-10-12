@@ -143,10 +143,11 @@ root.
       same pages sends the record already made (`notes.source_key`); naming
       the bot without a subject earns a hint. An image sent as a file is a
       page everywhere
-- [ ] 41. Limits and spend counted per group; the scale-debt rows that come due
-      with a second person in the chat — the CPO's, in phase D's order, until
-      the CEO took it on 2026-10-07: a group's day in pages, 20, and one
-      reading of the same pages at a time
+- [x] 41. Limits and spend counted per group; the scale-debt rows that
+      come due with a second person in the chat — the CPO's, in phase
+      D's order, until the CEO took it on 2026-10-07: a group's day in
+      pages, 20, and one reading of the same pages at a time, closed on
+      the CEO's word on 2026-10-12
 
 **Back to the record — what record 45 showed.** The author put the group on
 hold on 2026-09-25, after 39 shipped: every effort goes to the records first,
@@ -281,26 +282,31 @@ included. "Where this is going, decided 2026-10-02" says why.
       the reader's own words on where the error is — the CEO's. Taken on
       2026-10-06, so the records' quality is read off the groups rather than
       found one record at a time; closed on the CEO's word the next day
-- [ ] 71. A lecture dated by a day it could not have been given on: a
+- [x] 71. A lecture dated by a day it could not have been given on: a
       margin's day after the pages came no longer makes it last year's —
-      the CEO's. Taken on 2026-10-06 from record 79, headed 10.11.2025
+      the CEO's. Taken on 2026-10-06 from record 79, headed 10.11.2025,
+      closed on the CEO's word on 2026-10-12
 - [x] 72. A group's week: who sent its records and who rated them, in
       `/stats` and summed up in the chat once a week — the CEO's. Taken on
       2026-10-06, so a group sees what it brings and what it says of it;
       closed on the CEO's word the next day
-- [ ] 73. The week's summary on Saturday: at 10:00 Moscow time, in every
+- [x] 73. The week's summary on Saturday: at 10:00 Moscow time, in every
       group with a record or an отзыв that week, the week Saturday to
-      Friday in `/stats` too — the CEO's. Taken on 2026-10-07
-- [ ] 74. The bot's week for whoever reads the отзывы: `/stats` in the
+      Friday in `/stats` too — the CEO's. Taken on 2026-10-07, closed on
+      the CEO's word on 2026-10-12
+- [x] 74. The bot's week for whoever reads the отзывы: `/stats` in the
       feedback chat counts every chat — records, people, отзывы, spend,
-      every group and the week's people — the CEO's. Taken on 2026-10-07
-- [ ] 75. A page refused as dark that was not: `MIN_CONTRAST` 28 → 20 —
-      the CEO's. Taken on 2026-10-07 from an album whose page 2, sharp and
-      filling its frame, was refused three times at 26.1 to 27.8
-- [ ] 76. What the bot spends its time and memory on: a timeout repeated
+      every group and the week's people — the CEO's. Taken on
+      2026-10-07, closed on the CEO's word on 2026-10-12
+- [x] 75. A page refused as dark that was not: `MIN_CONTRAST` 28 → 20 —
+      the CEO's. Taken on 2026-10-07 from an album whose page 2, sharp
+      and filling its frame, was refused three times at 26.1 to 27.8,
+      closed on the CEO's word on 2026-10-12
+- [x] 76. What the bot spends its time and memory on: a timeout repeated
       once at twice the ceiling, one document drawn at a time, the day's
       pages counted by the database, image work on two threads — the
-      CEO's. Taken on 2026-10-07 from a week of production
+      CEO's. Taken on 2026-10-07 from a week of production, closed on
+      the CEO's word on 2026-10-12
 - [x] 77. Two formulas the document printed as their source: a term the
       author struck out, `\cancel{…}`, drawn struck, and an arrow with its
       condition under it, `\xrightarrow[k \to \infty]{}` — the CEO's. Taken
@@ -315,37 +321,40 @@ included. "Where this is going, decided 2026-10-02" says why.
       read as numbers the composer lost, and three cases in a column begun
       on a line of text — the CEO's. Taken on 2026-10-08 from record 87,
       closed on the CEO's word on 2026-10-10
-- [ ] 81. A lecture sent at once is one record: the albums of ten that
-      Telegram cuts a send of more pages into are read as one album — the
-      CEO's. Taken on 2026-10-08 from twelve pages that came back as two
-      records
-- [ ] 82. Records 88 and 89: compositions refused for an item's number
+- [x] 81. A lecture sent at once is one record: the albums of ten that
+      Telegram cuts a send of more pages into are read as one album —
+      the CEO's. Taken on 2026-10-08 from twelve pages that came back as
+      two records, closed on the CEO's word on 2026-10-12
+- [x] 82. Records 88 and 89: compositions refused for an item's number
       after a bullet, a number the author struck out and a formula the
       composer corrected — the CEO's. Taken on 2026-10-08 from the two
-      records of task 81's twelve pages
+      records of task 81's twelve pages, closed on the CEO's word on
+      2026-10-12
 - [x] 83. What the CEO read in records 88 and 89: the bot's boxes set
       inside a sentence, a word carried over with a hyphen, struck
       words printed, ⩽ beside ≤, a short formula alone on its ground, a
       ringed sign printed as words — the CEO's. Taken on 2026-10-08,
       closed on the CEO's word on 2026-10-10
-- [ ] 84. An equality that does not hold, found by code: both sides
+- [x] 84. An equality that does not hold, found by code: both sides
       counted at random numbers, with what the lecture defined — the
-      CEO's. Taken on 2026-10-08, after 83
-- [ ] 85. Thirty-two pages sent at once: an album of ten waits a minute
+      CEO's. Taken on 2026-10-08, after 83, closed on the CEO's word on
+      2026-10-12
+- [x] 85. Thirty-two pages sent at once: an album of ten waits a minute
       for the rest of its send, the ceiling following the send — the
       CEO's. Taken on 2026-10-09 from a lecture that came back as three
-      records
+      records, closed on the CEO's word on 2026-10-12
 - [x] 86. What records 90, 91 and 92 showed in the document: a box
       between a sentence and its formula, «Идея» pages before its proof, a
       comma opening a line, a ringed sign and struck lines printed, a
       margin's page numbers under the title — the CEO's. Taken on
       2026-10-09, closed on the CEO's word on 2026-10-10
-- [ ] 87. A study version asked again when its answer does not parse,
-      its row saying why — the CEO's. Taken on 2026-10-09 from record 91
-- [ ] 88. Numbered items in lower case: a run of numbers 1, 2, 3 opening
+- [x] 87. A study version asked again when its answer does not parse,
+      its row saying why — the CEO's. Taken on 2026-10-09 from record
+      91, closed on the CEO's word on 2026-10-12
+- [x] 88. Numbered items in lower case: a run of numbers 1, 2, 3 opening
       lines is a list to the numbers guard, whatever follows each — the
-      CEO's. Taken on 2026-10-09 from records 91 and 92, measured on them
-      before it ships
+      CEO's. Taken on 2026-10-09 from records 91 and 92, measured on
+      them before it ships, closed on the CEO's word on 2026-10-12
 - [ ] 63. The subject's base: every lecture at the date it was given, the
       earlier ones added, the teacher's materials with them, and one
       lecture from several notebooks, what one lacks set in from another —
@@ -392,10 +401,11 @@ Specified on 2026-10-08, when the CEO asked whether the bot should make
 study materials rather than records — the CEO's, approved the same day and
 taken next:
 
-- [ ] 80. A lecture's study version: what a chat gets for a record, in
+- [x] 80. A lecture's study version: what a chat gets for a record, in
       place of the record's own document — the lecture set out by topic,
-      the author's text moved whole, the bot's sections marked, questions
-      to check oneself at the end — the CEO's
+      the author's text moved whole, the bot's sections marked,
+      questions to check oneself at the end — the CEO's, closed on the
+      CEO's word on 2026-10-12
 
 Specified on 2026-10-09, from records 90, 91 and 92 and a model's list of
 their errors — the CEO's, not yet scheduled:
@@ -405,9 +415,10 @@ their errors — the CEO's, not yet scheduled:
       stands under — the CEO's. Not taken, the CEO's word of 2026-10-09:
       «лекцию можно поправлять» — a box of the bot's may correct the
       lecture, and the CEO reads them
-- [ ] 90. The reading against the photographs: the places in records 90,
+- [x] 90. The reading against the photographs: the places in records 90,
       91 and 92 where a stroke decides between the author's text and a
-      misreading — the CEO's own check, no code, said on 2026-10-09
+      misreading — the CEO's own check, no code, said on 2026-10-09,
+      closed on the CEO's word on 2026-10-12
 - [ ] 91. What the lecture uses without defining: whether the bot recalls,
       under its own label, a definition the lecture relies on and does
       not give — not needed, the CEO's word of 2026-10-09
@@ -418,24 +429,26 @@ it — the CEO's, not yet scheduled:
 - [x] 92. What the reading writes about the photograph is not printed:
       «[Левая страница]», «[Правая страница]» — the CEO's. Taken on
       2026-10-09, closed on the CEO's word on 2026-10-10
-- [ ] 93. What does not belong to the subject is left out: the course's
+- [x] 93. What does not belong to the subject is left out: the course's
       organisation — contacts, points, dates of tests — out of the study
-      version, chosen by its model and guarded by code — the CEO's. Taken
-      on 2026-10-09, measured on record 97 before it ships
-- [ ] 94. A drawing that is data, drawn by code: a function's graph by its
-      formula, a number line with its points and sets, a mapping of two
-      sets with its arrows — the CEO's, measured on an album sent again.
-      Taken and built on 2026-10-10, and production switched the same
-      day on the CEO's word — to `prompts-v11.md` after record 105 showed
-      v10 writing a number line in words; record 97's album sent again is
-      its check
-- [ ] 95. A formula or a drawing with no word about it gets the bot's
-      caption — the CEO's, measured first. Taken on 2026-10-09; a call of
-      its own beside the explaining stage's first, measured on seven
-      lectures before it ships
-- [ ] 96. Three equalities that hold, found not to: a definition read off
-      a working, and a formula the author struck out — the CEO's,
-      measured over the database before it ships. Taken on 2026-10-09
+      version, chosen by its model and guarded by code — the CEO's.
+      Taken on 2026-10-09, measured on record 97 before it ships, closed
+      on the CEO's word on 2026-10-12
+- [x] 94. A drawing that is data, drawn by code: a function's graph by
+      its formula, a number line with its points and sets, a mapping of
+      two sets with its arrows — the CEO's, measured on an album sent
+      again. Taken and built on 2026-10-10, and production switched the
+      same day on the CEO's word — to `prompts-v11.md` after record 105
+      showed v10 writing a number line in words; record 97's album sent
+      again is its check, closed on the CEO's word on 2026-10-12
+- [x] 95. A formula or a drawing with no word about it gets the bot's
+      caption — the CEO's, measured first. Taken on 2026-10-09; a call
+      of its own beside the explaining stage's first, measured on seven
+      lectures before it ships, closed on the CEO's word on 2026-10-12
+- [x] 96. Three equalities that hold, found not to: a definition read
+      off a working, and a formula the author struck out — the CEO's,
+      measured over the database before it ships. Taken on 2026-10-09,
+      closed on the CEO's word on 2026-10-12
 - [x] 97. What record 97 showed in the document: a frame closed by «\}»,
       a frame with a blank line inside, an item's «|», a record titled
       «Лекция» — the CEO's. Taken on 2026-10-09 with 92 and 96,
@@ -459,9 +472,9 @@ CEO's:
 
 Specified on 2026-10-10 — the CEO's:
 
-- [ ] 100. A PDF of notes is a record: its every page drawn as a picture
+- [x] 100. A PDF of notes is a record: its every page drawn as a picture
       and read as an album's page, whatever the PDF holds — the CEO's.
-      Taken on 2026-10-10
+      Taken on 2026-10-10, closed on the CEO's word on 2026-10-12
 
 Specified on 2026-10-10, from record 106 — the CEO's: «я хочу взяться за
 отрисовку сложных графиков. нужно рисовать их с оригинала»:
@@ -475,41 +488,55 @@ Specified on 2026-10-10, from record 106 — the CEO's: «я хочу взять
       давай пока уберем их из прода и еще подумаем, как можно улучшить»;
       archived the same morning with 54: «давай пока оставим работу с
       рисунками. оставь только самые простые» — Backlog
-- [ ] 102. Every frame threshold lowered before the next albums: sharpness
-      90 → 15, contrast 20 → 10, the sheet's share of the frame 0.18 →
-      0.14, the line's pitch 16 → 14 px — the CEO's, «уменьши порог
-      качества фото на всех параметрах». Taken and built on 2026-10-11 on
-      record 106's pages made worse on purpose; the next albums its check
+- [x] 102. Every frame threshold lowered before the next albums:
+      sharpness 90 → 15, contrast 20 → 10, the sheet's share of the
+      frame 0.18 → 0.14, the line's pitch 16 → 14 px — the CEO's,
+      «уменьши порог качества фото на всех параметрах». Taken and built
+      on 2026-10-11 on record 106's pages made worse on purpose; the
+      next albums its check, closed on the CEO's word on 2026-10-12
 
 Specified on 2026-10-11, from the отзывы of record 97 — the CEO's: «фикс
 комментариев: их можно оставлять при любом ответе и хорошо и плохо, +
 если нажат несколько раз на комментарий он засчитывается только 1 раз +
 упал счетчик комментариев»:
 
-- [ ] 103. A comment after either button, every comment an отзыв:
-      «Хорошо» asks too, every press asks, a record's document goes to the
-      feedback chat once; an отзыв is a rating and every comment, so no
-      count falls; the bot's week names everyone with their week and all
-      their time — the CEO's. Taken and built on 2026-10-11
+- [x] 103. A comment after either button, every comment an отзыв:
+      «Хорошо» asks too, every press asks, a record's document goes to
+      the feedback chat once; an отзыв is a rating and every comment, so
+      no count falls; the bot's week names everyone with their week and
+      all their time — the CEO's. Taken and built on 2026-10-11, closed
+      on the CEO's word on 2026-10-12
 
 Specified on the night of 2026-10-11, the CEO's: «я хочу чтобы ты в ночь
 взял очень важную задачу: оптимизацию кода и проверку на баги» — bugs
 first, then the time a record takes and the memory:
 
-- [ ] 104. The code read for bugs, its speed and its memory: a record
-      saved before it is sent, a document Telegram refuses sent once more
-      or as text, the study version's call beside the explaining stage,
-      the equality check bounded, a .docx parsed off the event loop — the
-      CEO's. Taken that night, built on 2026-10-12
+- [x] 104. The code read for bugs, its speed and its memory: a record
+      saved before it is sent, a document Telegram refuses sent once
+      more or as text, the study version's call beside the explaining
+      stage, the equality check bounded, a .docx parsed off the event
+      loop — the CEO's. Taken that night, built on 2026-10-12, closed on
+      the CEO's word on 2026-10-12
 
 Specified on 2026-10-12, the CEO's: «давай поработаем с тем, как конспекты
 приходят пользователю»:
 
-- [ ] 105. One message, and a line while it is made: «Работаем…»,
-      «Считаю формулы…», «Учусь, чтобы вам не пришлось…» changed in place
-      while the chat waits and deleted when the record goes out; where it
-      was filed, or the question, and the pages it went without in the
-      document's caption — the CEO's. Taken and built on 2026-10-12
+- [x] 105. One message, and a line while it is made: «Работаем…»,
+      «Считаю формулы…», «Учусь, чтобы вам не пришлось…» changed in
+      place while the chat waits and deleted when the record goes out;
+      where it was filed, or the question, and the pages it went without
+      in the document's caption — the CEO's. Taken and built on
+      2026-10-12, closed on the CEO's word on 2026-10-12
+
+Specified on 2026-10-12, the CEO's: «пиши темы конспекта в сообщении в ТГ
+без тире, а только с нижними подчеркиваниями, иначе тг не выделяет их как
+#»:
+
+- [ ] 106. A "#word" Telegram highlights whole: a topic or a subject keeps
+      only letters, digits and underscores, every other character a gap;
+      a topic with no letter is none; what is stored written the same way
+      by migration `020_hashtags` — the CEO's. Taken and built on
+      2026-10-12
 
 ### Why the design comes before the explaining stage
 
@@ -556,10 +583,10 @@ was not what made those records read badly.
 Update strictly following this template, adding or removing nothing:
 
 ```
-Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72, 77-79, 83, 86, 92, 97-99
-CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 102, 103, 104, 105, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
+Done: 1-43, 45-47, 51, 55-56, 69-88, 90, 92-100, 102-105
+CEO — current: 106; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: none
-Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
+Blockers: 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
 
 ## Plan changes
@@ -662,6 +689,8 @@ since 2026-10-01.
 | 2026-10-11 | the CEO, with Claude Code | Task 103 specified, taken and built, the CEO's words «фикс комментариев: их можно оставлять при любом ответе и хорошо и плохо, + если нажат несколько раз на комментарий он засчитывается только 1 раз + упал счетчик комментариев», and of the counter «в личном чате админа. у одного пользователя обнулился счетчик». Production's `feedback` and `events` read with the CEO's leave: record 97's author pressed «Плохо» eight times and wrote nine comments, counted as one отзыв, the PDF sent to the feedback chat eight times; no отзыв lost — the bot's week had turned on Saturday and named only the week's people. The CEO's choices: «Оценка + каждый коммент» — an отзыв is a rating, one a person a record, and every comment, each in the week it was made, so no count falls — and «Неделя и всего» — the bot's week names everyone with their week and all their time. Either button asks, every press asks, a record's document goes to the feedback chat once, a reply to an earlier question still counts (`note_rated` gains `again` and `prompt`), and a press is kept when its notice is refused. Task 70's «Don't ask «что не так» after «Хорошо»», task 72's «a second press counts nothing» as the only count and task 74's «the week's people» give way; "Contracts" → the two events and "A group's week" change with it, `CLAUDE.md` → "What a reader says of a record" and "A group's week". No migration | the CEO's own |
 | 2026-10-12 | the CEO, with Claude Code | Task 104 specified on the night of 2026-10-11 and built the next morning, the CEO's words «я хочу чтобы ты в ночь взял очень важную задачу: оптимизацию кода и проверку на баги», and the choices made before the night: one push, in the morning; production's logs and its database read only; Gemini only where strictly needed, up to $5 — none was; bugs first, then the time a record takes and the memory, nothing rewritten for its own sake. The nine agents the CEO allowed stopped at midnight on the session's limit, and the code was read by hand in the morning. A record is committed before it is delivered — `CLAUDE.md` → "Sessions and transactions" gains a sixth exception; a document Telegram refuses is sent once more after flood control or a dropped connection, else falls back as one not drawn — "The document"; a record that joins no lecture has its study version built beside the explaining stage — "A lecture's study version", the pipeline and the concurrency table; `algebracheck` reads no formula past 1000 tokens and stays quiet past Python's recursion — "An equality that does not hold"; a .docx is parsed in a thread; the study version's button keeps its press when its notice is refused. The transactions are the CPO's area, the CEO's word enough. No migration | the CEO's own |
 | 2026-10-12 | the CEO, with Claude Code | Task 105 specified, taken and built, the CEO's words «пока пользователь ждет будет крутить какие нибудь надписи по типу, работаем, еще минуту, считаю формулы, учусь, чтобы вам не пришлось. когда меняем ее, старую удаляем + присылаем пользователю все в одном сообщении, а не делим на 2 как сейчас», and the choice «Менять текст на месте»: `PROCESSING` gives way to `WAITING`, one line turned round six phrases every 8 s and deleted on every way out (`app/bot/waiting.py`, new); `corpus.ask_for_tag` becomes `tag_line`, its words and `album_partial`'s in the document's caption, the rest after it where Telegram's 1024 characters do not hold them. `CLAUDE.md` → "The document", "The corpus", the pipeline and the structure; "Final processing order for a photo" and "All user-facing texts" here. No migration | the CEO's own |
+| 2026-10-12 | the CEO, with Claude Code | Tasks 41, 71, 73–76, 80–82, 84, 85, 87, 88, 93–96, 100 and 102–105 accepted and closed, the CEO's words «я принимаю все прошлые задачи. в базовой версии они работают хорошо», and 90 with them, the CEO's own check of records 90 to 92 against their photographs. 52's overview no longer waits on 41: what it costs a group's day is 52's to decide when it is taken | the CEO's own |
+| 2026-10-12 | the CEO, with Claude Code | Task 106 specified, taken and built, the CEO's words «пиши темы конспекта в сообщении в ТГ без тире, а только с нижними подчеркиваниями, иначе тг не выделяет их как #»: `tags.normalize` keeps only what Telegram counts in a hashtag — letters, decimal digits, the underscore — every other character a gap; a topic with no letter is none; migration `020_hashtags` writes the stored topics, subjects and records' tags the same way, two subjects of one chat that become one word made one. What is stored is the CPO's area, the CEO's word enough, and the migration is named to the CPO before it is pushed. Planned against production read only first: 31 of 257 topics rewritten, one dropped as a second of its record, no subject. `CLAUDE.md` → "The corpus" and "Development commands" | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -6614,6 +6643,71 @@ with the pages an album went out without.
   comes at once, or is built in some twenty seconds without the line — a
   task of its own, if it is wanted. The study version's button says
   «Собираю учебную версию» in its notice, as before.
+
+---
+
+# Task 106. A "#word" Telegram highlights whole
+
+**Owner: the CEO.** Taken and built on 2026-10-12, the CEO's words: «пиши
+темы конспекта в сообщении в ТГ без тире, а только с нижними
+подчеркиваниями, иначе тг не выделяет их как #». What is stored and its
+migration are the CPO's area, the CEO's word enough; `020_hashtags` is
+named to the CPO before it is pushed.
+
+## Why
+
+Telegram makes a hashtag of «#» and the letters, decimal digits and
+underscores after it, and none of a word without a letter — TDLib's
+`match_hashtags`, which the server's reading follows. A topic kept its
+hyphen, so «#ε-окрестность» under a record was highlighted as «#ε», and
+a tap on it searched for «ε». Read off production on 2026-10-12, read
+only: 32 of 257 stored topics were no whole hashtag, every one for a
+hyphen — the only character a topic carried that a hashtag does not
+hold. No subject had one.
+
+## Do, as built
+
+1. **`tags.normalize` keeps what a hashtag holds**: a letter, a decimal
+   digit, the underscore. Every other character — a hyphen, a dash, «²»,
+   Markdown's markers — is a gap, and gaps are one underscore; a mark NFC
+   cannot join to its letter goes, rather than cut the word in two. One
+   rule for a topic, a subject, a caption's "#word" and a search, so
+   «#ε-окрестность» typed finds «ε_окрестность».
+2. **A topic with no letter is none** (`tags.highlighted`): «#1», a
+   heading's number, is no hashtag, and it found every record numbered so.
+   A subject stays whatever its chat chose.
+3. **Migration `020_hashtags` writes what is stored the same way** —
+   `note_topics.topic`, `subjects.word`, `notes.tag`. A topic left with no
+   letter goes, and so does a record's topic that two of its rows have
+   become; two subjects of one chat that become one word become one
+   subject, the one already written so — else the oldest — keeping its
+   row and the other's lectures and records moving to it. The rule is
+   copied into the migration, and what it changes is decided by `plan`,
+   apart from the writing.
+4. **Made sure of before the push**: `plan` read against production in a
+   read-only transaction — 31 topics rewritten, one gone as a record's
+   «x-y» beside its «x_y», no subject or record's tag changed, and after
+   it every stored topic a whole hashtag; the migration run on a
+   PostgreSQL of its own, 001 to 020 from nothing, over made-up rows of
+   every hard case and down and up again, the search, the words in use
+   and a record's filing read back from it; the rule over 200 000 random
+   headings against `match_hashtags` — every topic highlighted whole in
+   each line the bot writes it in, typed back to itself, heard in a
+   group.
+
+## Acceptance criterion
+
+- A record's topics under its document are highlighted to their end.
+- «#ε-окрестность» and «#ε_окрестность» typed find the same records.
+- The suite is green.
+
+## Don't do
+
+- Not where a caption's or a group's "#word" ends: the bot reads it to
+  where Telegram ends it, «#мат-ан» as «#мат», as before.
+- Not a record's topics read again from its headings: a stored topic is
+  rewritten as it stands, and a record keeps the topics it was shown
+  with.
 
 ---
 

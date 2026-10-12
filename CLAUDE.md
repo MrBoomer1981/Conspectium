@@ -200,7 +200,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `019_note_study`, the head. The next is `020_`.
+  `020_hashtags`, the head. The next is `021_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -870,6 +870,14 @@ hold", "Record 97"
   *level*, since by position the slots went to `### Определение`, which
   matches everything. Stored when the record is made; `note_topics` is a
   table, an indexed join on PostgreSQL and the suite's SQLite alike.
+- **A "#word" is one Telegram highlights whole** (task 106, the CEO's): a
+  topic or a subject keeps letters, decimal digits and underscores, every
+  other character a gap and gaps one underscore (`tags.normalize`) —
+  Telegram ends a hashtag at anything else, and «#ε-окрестность» was
+  highlighted as «#ε». A topic with no letter is none (`tags.highlighted`):
+  Telegram makes no hashtag of «#1». What was stored before was written
+  the same way (`020_hashtags`), so either spelling typed finds the same
+  records.
 - **Before adding an interface to the corpus, check `events` for whether the
   last one was used.** `/notes`, `/note`, `/search`, `/retitle`, `/delete` and
   `/pdf` were built, tested, deployed, never used once, and deleted. `/stats`

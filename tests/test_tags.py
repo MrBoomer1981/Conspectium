@@ -30,11 +30,12 @@ def test_punctuation_is_dropped_rather_than_transliterated():
 
 def test_maths_inside_a_heading_does_not_become_part_of_the_tag():
     # "Волновая ф-ция ($\\Psi$)" would otherwise come back carrying "psi".
-    assert tags.normalize("Волновая ф-ция ($\\Psi$)") == "волновая_ф-ция"
+    assert tags.normalize("Волновая ф-ция ($\\Psi$)") == "волновая_ф_ция"
 
 
-def test_a_hyphen_survives_because_it_is_part_of_the_word():
-    assert tags.normalize("ф-ция") == "ф-ция"
+def test_a_hyphen_is_a_gap_because_telegram_ends_a_hashtag_at_it():
+    # «#ф-ция» was highlighted as «#ф» (task 106).
+    assert tags.normalize("ф-ция") == "ф_ция"
 
 
 def test_a_tag_is_capped_at_a_length_that_can_still_be_typed():
