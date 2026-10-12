@@ -881,6 +881,10 @@ async def send_record(
 # when its photo came with its subject, and a "#word" in a group only searches.
 
 _SEARCH_LIMIT = 10
+# Read past the answers listed: the copies of one album, or the notebooks
+# of one lecture, are one answer (_one_per_lecture), and one album of the
+# CEO's is two dozen records in production (task 63).
+_SEARCH_READ = 50
 
 
 async def known_tags(
@@ -939,7 +943,7 @@ async def _matching(
             or_(Note.tag == tag, Note.id.in_(by_topic)),
         )
         .order_by(Note.created_at.desc(), Note.id.desc())
-        .limit(_SEARCH_LIMIT)
+        .limit(_SEARCH_READ)
     )
     return list((await session.execute(stmt)).scalars().all())
 
@@ -1022,6 +1026,9 @@ async def on_tag(
     if group is None:
         newest = await _newest(session, user)
         if newest is not None and newest.tag is None:
+            # Its first page the last of the subject's album before (task
+            # 63): cut as it would have been had the subject come with it.
+            repeat = await subjects.trim(session, newest, tag)
             filing = await subjects.file(session, newest, tag)
             await log_event(
                 session,
@@ -1032,6 +1039,8 @@ async def on_tag(
                     "tag": tag,
                     "lecture_id": filing.lecture.id,
                     "lecture_joined": filing.joined,
+                    "repeat_cut": repeat.words if repeat is not None else 0,
+                    "repeat_of": repeat.note_id if repeat is not None else None,
                 },
             )
             if filing.joined:
@@ -1061,7 +1070,7 @@ async def on_tag(
             )
         return
     # Several notebooks of one lecture are one answer: its document.
-    found = _one_per_lecture(found)
+    found = (await _one_per_lecture(found))[:_SEARCH_LIMIT]
     if len(found) == 1:
         # One match is the answer itself, not a line about the answer.
         await deliver(message, session, found[0], user, group)
@@ -1069,16 +1078,53 @@ async def on_tag(
     await message.answer(texts.several_tagged(tag, await _listing(session, found)))
 
 
-def _one_per_lecture(notes: list[Note]) -> list[Note]:
-    seen: set[int] = set()
-    kept: list[Note] = []
-    for note in notes:
-        if note.lecture_id is not None:
-            if note.lecture_id in seen:
-                continue
-            seen.add(note.lecture_id)
-        kept.append(note)
-    return kept
+async def _one_per_lecture(notes: list[Note]) -> list[Note]:
+    """One answer for every lecture, and one for every set of records no
+    subject holds that read as one text — an album sent again before any
+    of it was filed, the CEO's «удаление повторов» (task 63): the fullest
+    of them stands for the rest, as a lecture's base does. The texts are
+    compared in a thread, off the event loop."""
+    answers = await asyncio.to_thread(
+        _answers,
+        [(note.lecture_id, note.tag is None, note.markdown or "") for note in notes],
+    )
+    return [
+        subjects.base_of([notes[index] for index in group])
+        if len(group) > 1 and notes[group[0]].lecture_id is None
+        else notes[group[0]]
+        for group in answers
+    ]
+
+
+def _answers(found: list[tuple[int | None, bool, str]]) -> list[list[int]]:
+    """The records of a search as its answers, each the indices of the
+    records it stands for, in the order the first of them was found: a
+    lecture's notebooks, the records of no subject that read as one text,
+    and every other record alone."""
+    answers: list[list[int]] = []
+    lectures: dict[int, list[int]] = {}
+    loose: list[tuple[set[str], list[int]]] = []
+    for index, (lecture_id, unfiled, markdown) in enumerate(found):
+        if lecture_id is not None:
+            if lecture_id in lectures:
+                lectures[lecture_id].append(index)
+            else:
+                lectures[lecture_id] = [index]
+                answers.append(lectures[lecture_id])
+            continue
+        if not unfiled:
+            answers.append([index])
+            continue
+        runs = merge.runs(markdown)
+        for first, group in loose:
+            if merge.overlap(first, runs) >= merge.SAME_LECTURE:
+                group.append(index)
+                break
+        else:
+            group = [index]
+            loose.append((runs, group))
+            answers.append(group)
+    return answers
 
 
 async def _listing(

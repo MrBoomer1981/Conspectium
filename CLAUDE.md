@@ -200,7 +200,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `020_hashtags`, the head. The next is `021_`.
+  `021_one_lecture`, the head. The next is `022_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -466,6 +466,8 @@ images.compress              in a worker thread (images.in_worker)
 12   vision.findings         mathcheck and graphcheck, each with its text
 12a  compose.compose         behind check_limits(pages=0)
      figures.place           the drawings back, after composing
+     subjects.repeated       the subject's album before's last page,
+                             photographed again, cut off the head
      subjects.joining        the lecture this notebook joins, if any
 12b  explain.explain         its captions beside it, and the study version for
                              a record that joins no lecture (task 104), behind
@@ -926,9 +928,31 @@ hold", "Record 97"
   explained (`subjects.joining`, before stage three): the document carries
   the base's explanations. `note_processed` and `note_tagged` say where a
   record went (`lecture_id`, `lecture_joined`, `explain_skipped`).
-- **Not yet built**: the page photographed twice at the edges of two albums,
-  and the earlier lectures added in bulk beyond what a caption's date already
-  allows — `docs/PLAN.md` → task 63.
+- **The page photographed twice is cut as a record is filed**
+  (`subjects.repeated`, the CEO's «удаление повторов» of 2026-10-12): a
+  record whose first page is its subject's album before's last page, read
+  again, loses that head before it is matched to a lecture, explained or
+  studied — the lecture before's end, which its own record has. Found by
+  its words in order (`merge.repeated_head`): the whole of that page at the
+  record's very first words, never a part of it, which is what a recap
+  is. Cut only where sure: the album before sent on a day before this
+  lecture's, and either this lecture's day written down or the page
+  written on past the repeat. A page photographed after the next lecture
+  began carries its first lines, and a line of the lecture before kept is
+  better than a line of this one lost. A record tagged after it was made
+  is trimmed when it is tagged (`subjects.trim`) — its title, findings,
+  boxes and topics with it. → "The page photographed twice"
+- **A search answers once a lecture** (`corpus._one_per_lecture`): a
+  lecture's notebooks are one answer, and so are the records of no subject
+  that read as one text — an album sent again before any of it was filed;
+  the fullest stands for them. Fifty records are read for the ten answers
+  a list shows. `021_one_lecture` joined the lectures that
+  `014_subjects_lectures` had made twice.
+- **Not yet built**, in the CEO's order of 2026-10-12 (`docs/PLAN.md` →
+  task 63): a lecture moved from the private chat into the group by a
+  button under it; a whole notebook sent at once and cut into its lectures
+  by their dates and headings; the semester as one document by its topics,
+  task 52's new form.
 
 ### A group chat
 

@@ -14,16 +14,18 @@ nothing else does. Nothing here calls the model.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Lecture, Note, Subject
-from app.services import merge
+from app.bot import tags
+from app.db.models import Lecture, Note, NoteTopic, Subject
+from app.services import merge, pdf
 
 # A notebook is sent within a week of its lecture, or with its date.
 _SAME_WEEK = timedelta(days=7)
@@ -277,3 +279,189 @@ async def file(
         )
     ).scalar_one()
     return Filing(lecture=lecture, joined=joined, materials=count)
+
+
+# ── The page photographed twice (task 63) ──────────────────────────────────
+# The CEO's of 2026-10-12, «удаление повторов»: a notebook's last page is
+# photographed again as the first of its next album when the next lecture
+# begins on it, and the record of that album opens on the end of the lecture
+# before — which that lecture's record has. The repeat is cut by code, as
+# the record is filed, before it is matched to a lecture, explained or
+# studied, so that each of them reads what stays.
+
+# How far back the album photographed before it may be: the lecture before,
+# or one further when a practice came between.
+_REPEAT_WITHIN = timedelta(days=21)
+_REPEAT_CANDIDATES = 12
+# What a box's anchor is when it names a formula by its number, "(3)".
+_NUMBER_ANCHOR_RE = re.compile(r"\(?\s*(\d{1,3})\s*\)?")
+_SQUASH_RE = re.compile(r"[\s$*]+")
+_LEADING_RULE_RE = re.compile(r"\A(?:-{3,}|\*{3,}|_{3,}|~{3,})[ \t]*(?:\n|\Z)")
+
+
+@dataclass
+class Repeat:
+    """A record's head that is the last page of an earlier notebook of its
+    subject, photographed again: what stays, what went, the notebook it
+    repeats and how many words it held."""
+
+    markdown: str
+    cut: str
+    note_id: int
+    words: int
+
+
+def _squash(text: str) -> str:
+    return _SQUASH_RE.sub("", text).lower()
+
+
+def _opening(text: str) -> str:
+    """What stays from its first words: the page seam the repeat ended on
+    goes with it."""
+    text = text.lstrip()
+    found = _LEADING_RULE_RE.match(text)
+    return text[found.end():].lstrip() if found else text
+
+
+async def repeated(
+    session: AsyncSession,
+    group_id: int | None,
+    user_id: int,
+    word: str,
+    markdown: str,
+    margin_notes: list,
+    caption: str | None,
+    pages: int,
+    sent: date | None = None,
+) -> Repeat | None:
+    """The head of a record filed under `word` that is the last page of an
+    earlier notebook of that subject photographed again, and what stays
+    without it.
+
+    Cut only where it is sure (`docs/PLAN.md` → task 63) — a line of the
+    lecture before kept is better than a line of this one lost: the earlier
+    album sent on a day before this lecture's, and either this lecture's day
+    written down, in the caption or the margin, or the page written on past
+    the repeat in this album — the earlier photograph held nothing of this
+    lecture then. The same page twice with nothing written between, and the
+    day only the day the pages came, says neither: a page photographed after
+    the next lecture began carries that lecture's first lines. Nothing here
+    calls the model."""
+    if not markdown:
+        return None
+    subject = await _subject(session, group_id, user_id, word, create=False)
+    if subject is None:
+        return None
+    day = day_of(caption, margin_notes, sent or datetime.now(timezone.utc).date())
+    stmt = (
+        select(Note)
+        .join(Lecture, Note.lecture_id == Lecture.id)
+        .where(
+            Lecture.subject_id == subject.id,
+            Lecture.given_on < day.value,
+            Lecture.given_on >= day.value - _REPEAT_WITHIN,
+        )
+        .order_by(Lecture.given_on.desc(), Note.id.desc())
+        .limit(_REPEAT_CANDIDATES)
+    )
+    earlier = [
+        (note.id, note.markdown or "")
+        for note in (await session.execute(stmt)).scalars().all()
+        if _sent(note) < day.value
+    ]
+
+    def compared() -> list[tuple[int, merge.Head | None]]:
+        return [(note_id, merge.repeated_head(text, markdown, pages)) for note_id, text in earlier]
+
+    best: tuple[merge.Head, int] | None = None
+    # Word by word over a page or two each, off the event loop.
+    for note_id, head in await asyncio.to_thread(compared):
+        if head is None or (not head.strict and day.source == "sent"):
+            continue
+        if best is None or head.end > best[0].end:
+            best = (head, note_id)
+    if best is None:
+        return None
+    head, note_id = best
+    return Repeat(
+        markdown=_opening(markdown[head.end:]),
+        cut=markdown[: head.end],
+        note_id=note_id,
+        words=head.words,
+    )
+
+
+def cut_only(anchor: str, repeat: Repeat) -> bool:
+    """Whether a box's or a finding's anchor stands only in what went: it is
+    the lecture before's, which its own record prints. A formula's number is
+    not text: trim moves it with the formulas that went."""
+    wanted = _squash(anchor)
+    return (
+        len(wanted) >= 3
+        and not _NUMBER_ANCHOR_RE.fullmatch(anchor.strip())
+        and wanted in _squash(repeat.cut)
+        and wanted not in _squash(repeat.markdown)
+    )
+
+
+def retitled(title: str, repeat: Repeat) -> str:
+    """The record's title once its head is cut: when it was read off what
+    went and stands nowhere in what stays, it was the lecture before's, and
+    the first heading of what stays names this one — as task 64 takes it."""
+    wanted = _squash(title)
+    if not wanted or wanted not in _squash(repeat.cut) or wanted in _squash(repeat.markdown):
+        return title
+    for line in repeat.markdown.split("\n"):
+        heading = line.lstrip("#").strip() if line.startswith("#") else ""
+        if heading:
+            return heading[:60]
+    return title
+
+
+async def trim(session: AsyncSession, note: Note, word: str) -> Repeat | None:
+    """A record filed after it was made — the answer to the question under
+    it — loses a repeated head as one filed as it is made does, and with it
+    what stood only there: its title read off it, the findings and the
+    bot's boxes anchored in it. The formulas it numbered go too, so a box
+    pointing at a formula by its number points at the same one after; the
+    topics are read again, and the study version is built again from what
+    stays."""
+    repeat = await repeated(
+        session,
+        note.group_id,
+        note.user_id,
+        word,
+        note.markdown or "",
+        note.margin_notes or [],
+        None,
+        (note.page_count or 1) + len(note.missing_pages or []),
+        _sent(note),
+    )
+    if repeat is None:
+        return None
+    gone = pdf.numbered_formulas(repeat.cut)
+    boxes = []
+    for box in note.explanations or []:
+        anchor = str(box.get("anchor", ""))
+        number = _NUMBER_ANCHOR_RE.fullmatch(anchor.strip())
+        if number and gone:
+            if int(number.group(1)) <= gone:
+                continue
+            box = {**box, "anchor": f"({int(number.group(1)) - gone})"}
+        elif cut_only(anchor, repeat):
+            continue
+        boxes.append(box)
+    note.explanations = boxes
+    note.issues = [
+        issue for issue in note.issues or [] if not cut_only(str(issue.get("anchor", "")), repeat)
+    ]
+    note.title = retitled(note.title, repeat)
+    note.markdown = repeat.markdown
+    note.study = None
+    await session.execute(delete(NoteTopic).where(NoteTopic.note_id == note.id))
+    session.add_all(
+        NoteTopic(note_id=note.id, topic=topic)
+        for topic in tags.topics_of(note.title, note.markdown)
+    )
+    await session.flush()
+    return repeat

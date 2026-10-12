@@ -241,7 +241,9 @@ descriptions of week 2; 41 is the one listed under phase C.
       there without being made an admin — the CEO's
 - [ ] 52. A subject's records as one document to study from — the course,
       opened by an overview the model writes over it, sent only when
-      somebody asks for it with a command — the CEO's
+      somebody asks for it with a command — the CEO's. Given a new form on
+      2026-10-12 and taken into 63: the semester's lectures set out by its
+      topics, asked for by a button under a subject's list of lectures
 - [ ] 48. A subject's materials: a PDF sent with its "#word" is kept as
       Telegram's reference and its text, its topics are read out of what is
       in it, and a "#word" finds it the way it finds a record — the CPO's.
@@ -360,8 +362,13 @@ included. "Where this is going, decided 2026-10-02" says why.
       lecture from several notebooks, what one lacks set in from another —
       the CEO's. Taken first on 2026-10-04: it needs no material the CEO
       does not have, and the board's photographs are still to be taken.
-      Its first part shipped the same day; the rest waits for a
-      classmate's notebook to measure on
+      Its first part shipped the same day. Taken up again on 2026-10-12
+      and widened by the CEO's answers: a whole notebook sent at once and
+      cut into its lectures, a lecture moved from the private chat into the
+      group by a button, the semester as one document by its topics (52's
+      new form), and the repeats gone. The repeats built the same day — a
+      lecture held twice joined (`021_one_lecture`), the copies of one
+      album one answer, the page photographed twice cut; the rest in parts
 - [ ] 60. A board photographed: a frame check and a reading of its own,
       measured on real boards — the CEO's
 - [ ] 61. A lecture recorded: the bot's notes from what was said, marked as
@@ -584,7 +591,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-43, 45-47, 51, 55-56, 69-88, 90, 92-100, 102-105
-CEO — current: 106; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 106, 63; next: 63's parts — a lecture moved into the group, a whole notebook, the semester by its topics (52) — then 65 once there is data for it, then 60
 CPO — current: none; next: none
 Blockers: 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -691,6 +698,8 @@ since 2026-10-01.
 | 2026-10-12 | the CEO, with Claude Code | Task 105 specified, taken and built, the CEO's words «пока пользователь ждет будет крутить какие нибудь надписи по типу, работаем, еще минуту, считаю формулы, учусь, чтобы вам не пришлось. когда меняем ее, старую удаляем + присылаем пользователю все в одном сообщении, а не делим на 2 как сейчас», and the choice «Менять текст на месте»: `PROCESSING` gives way to `WAITING`, one line turned round six phrases every 8 s and deleted on every way out (`app/bot/waiting.py`, new); `corpus.ask_for_tag` becomes `tag_line`, its words and `album_partial`'s in the document's caption, the rest after it where Telegram's 1024 characters do not hold them. `CLAUDE.md` → "The document", "The corpus", the pipeline and the structure; "Final processing order for a photo" and "All user-facing texts" here. No migration | the CEO's own |
 | 2026-10-12 | the CEO, with Claude Code | Tasks 41, 71, 73–76, 80–82, 84, 85, 87, 88, 93–96, 100 and 102–105 accepted and closed, the CEO's words «я принимаю все прошлые задачи. в базовой версии они работают хорошо», and 90 with them, the CEO's own check of records 90 to 92 against their photographs. 52's overview no longer waits on 41: what it costs a group's day is 52's to decide when it is taken | the CEO's own |
 | 2026-10-12 | the CEO, with Claude Code | Task 106 specified, taken and built, the CEO's words «пиши темы конспекта в сообщении в ТГ без тире, а только с нижними подчеркиваниями, иначе тг не выделяет их как #»: `tags.normalize` keeps only what Telegram counts in a hashtag — letters, decimal digits, the underscore — every other character a gap; a topic with no letter is none; migration `020_hashtags` writes the stored topics, subjects and records' tags the same way, two subjects of one chat that become one word made one. What is stored is the CPO's area, the CEO's word enough, and the migration is named to the CPO before it is pushed. Planned against production read only first: 31 of 257 topics rewritten, one dropped as a second of its record, no subject. `CLAUDE.md` → "The corpus" and "Development commands" | the CEO's own |
+| 2026-10-12 | the CEO, with Claude Code | Task 63 taken up again and widened by the CEO's answers: two notebooks of one lecture one document, as built, and a subject's lectures as one document by the semester's topics — task 52 in a new form, asked for by a button under a subject's list of lectures, «Весь семестр одним PDF», rather than a command; the earlier lectures sent as a whole notebook at once, in the private chat, cut into lectures where every run names one's start — the CEO's notebooks open a lecture with its date and a heading — each lecture its record, moved into the group by a button under it and the group shown one line; a notebook up to 100 pages, one a day beyond a person's 30, the bot's day raised from $5 to $15; and the repeats gone — a lecture held twice, the copies of one album, the page photographed twice. In parts, each its commit: the repeats, the move into the group, the notebook, the semester. Production read the same day, read only, on the CEO's word: 108 records, 87 of the 96 made in private chats in no subject, most of them the CEO's albums sent again; 18 lectures, one held twice; none with two people's notebooks; no page photographed twice | the CEO's own |
+| 2026-10-12 | the CEO, with Claude Code | Task 63's repeats built: the lectures a subject held twice joined by the rule a record is filed by (migration `021_one_lecture`, data and no schema: one pair in production, planned there read only), a search's records of no subject that read as one text one answer, the fullest, of fifty read, and the head of a record that is its subject's album before's last page, photographed again, cut as it is filed — only where sure: the earlier album sent on an earlier day, and this lecture's day written down or the page written on past the repeat. Measured on production's second readings of one page: 409 of 423 found, every cut at the next lecture's first word, nothing found on 3 110 that hold no repeat. `note_processed` and `note_tagged` gain `repeat_cut` and `repeat_of`; `topic_searched`'s `found` counts up to fifty ("Contracts"). `CLAUDE.md` → "The corpus", the pipeline; `FINDINGS.md` → "The page photographed twice" | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -2917,6 +2926,13 @@ only once that record is saved.
 **Owner: the CEO.** The overview's call — its prompt, model and guard — is in
 the CPO's area: written by the CPO or agreed with the CPO, and after 41.
 
+**A new form, the CEO's of 2026-10-12**, taken into task 63 as its last
+part: not the records one after another but the semester's lectures set
+out by its topics, the author's text unchanged and each piece with its
+lecture's day, asked for by a button under the list a subject's "#word"
+answers with — «Весь семестр одним PDF» — rather than a command. What
+follows is the specification of 2026-09-30, rewritten when it is built.
+
 ## Why
 
 A group builds a subject up lecture by lecture, and before an exam it wants
@@ -3919,9 +3935,97 @@ the group's two records, 54 and 61, one page sent twice three days apart.
   place from the other, and nothing twice.
 - The suite is green.
 
+## Decided on 2026-10-12, the CEO's answers
+
+Taken up again with «давай займемся 63 задачей. думаю в нее входит
+согласование тем и материала между собой, добавление старых материалов,
+удаление повторов». What each means, as the CEO chose it:
+
+- **The topics and the material agreed**: two people's notebooks of one
+  lecture one document, as built on 2026-10-04 — and the subject's
+  lectures as one large document by the semester's topics. That is task
+  52 in a new form: not the records one after another but every lecture's
+  text set out by the semester's topics, the author's text unchanged and
+  each piece carrying its lecture's day, asked for by a button under the
+  list a subject's "#word" answers with — «Весь семестр одним PDF».
+- **The earlier lectures**: a whole notebook sent at once, which the bot
+  cuts into its lectures. The CEO's notebooks open a lecture with its date
+  and a heading — what task 64's reading did not find on pages without
+  them. Sent in the private chat, where every lecture comes back as its
+  document; a button under it moves the lecture into the group's subject,
+  and the group is shown one line. A notebook is up to 100 pages, one a
+  day beyond a person's 30, and the bot's day goes from $5 to $15: a
+  notebook costs $3.5–7 now and twice that from 2027-01-01.
+- **The repeats**: a lecture a subject holds twice, and the page
+  photographed twice at the edges of two albums. Deleting the repeated
+  records was offered and not chosen: they are joined, and nothing is lost.
+
+Done in parts, each its commit and its push, in this order: the repeats;
+the move into the group; the notebook; the semester. Production read on
+the same day, read only, on the CEO's word — numbers, never a word of a
+record: 108 records, 96 of them made in private chats and 87 of those in
+no subject, most of them the CEO's albums sent again; 13 subjects and 18
+lectures, one of them held twice — the page the group sent twice, records
+54 and 61; no lecture with two people's notebooks; no page photographed
+twice among the four pairs of one sender's lectures one after another. A
+margin's day was read on 18 records of 107.
+
+## Built on 2026-10-12: the repeats
+
+- **A lecture held twice is one** (`021_one_lecture`): every lecture filed
+  again by the rule a record is filed by, in the order they were made — in
+  production lecture 5 into 4, record 61 beside 54.
+- **The copies of one album are one answer** (`corpus._one_per_lecture`):
+  the records of no subject that read as one text, as a lecture's
+  notebooks are; the fullest stands for them. Fifty records are read for
+  the ten answers a list shows.
+- **The page photographed twice is cut as the record is filed**
+  (`subjects.repeated`, `merge.repeated_head`): the head of a record that
+  is its subject's album before's last page, read again — the whole of that
+  page at the record's first words — goes before the record is matched to a
+  lecture, explained or studied. Sure only, as item 6 asks: the album
+  before sent on a day before this lecture's, and either this lecture's day
+  written down or the page written on past the repeat. The other case —
+  the album before photographed after this lecture began, the page the
+  same in both — is not cut: nothing in the text says where on it the
+  lecture begins, and the notebook's lecture starts are the next part's to
+  read. A record tagged after it was made is trimmed when it is tagged.
+- **Measured** on production's records, read only: a real second reading
+  of one album's last page standing for the repeat, another album's first
+  page for the lecture begun under it — 409 of 423 found, every cut at that
+  lecture's first word; the 14 missed, records of September read under
+  prompts since changed, whose page ends differ by more than three words,
+  are not cut. Nothing found on 3 110 that hold no repeat: none, a recap of
+  the page's last lines, the page with nothing after it, the earlier
+  record's first page, and 1 500 records of two different albums.
+  `FINDINGS.md` → "The page photographed twice".
+
+## The parts left
+
+- **A lecture moved into the group**: under the document of a private
+  record that has its subject, a button for each group the person and the
+  bot are both in, «В группу «…»». It moves the lecture's private
+  notebooks into the group's subject of the same word, where a lecture a
+  classmate sent joins it by the rule — the two notebooks' document is the
+  check of item 4 the CEO waits for. The group is shown one line; a lecture
+  moved is the group's, not the private chat's, and counts in no day's
+  pages. Its migration is named to the CPO before the push.
+- **A whole notebook**: a private send of more than a send's pages, or
+  one whose caption says «тетрадь», with its "#word", up to 100 pages,
+  one a day beyond a person's 30. Read with a prompt that names the first
+  line of every lecture begun on a page (`prompts-v12.md`: v11 with v9's
+  rule), cut where every run names it, each lecture dated by its page's
+  margin and made a record of its own — composed, explained, studied, sent
+  with the group's button — and a last message summing the notebook up
+  with «Все в группу». Two albums of ten sent one after the other with
+  different days in their captions stop being one send. Measured on the
+  CEO's notebook once deployed.
+- **The semester by its topics** — task 52's new form, above.
+
 ## Don't do
 
-- No new way into the corpus from the chat beyond the "#word".
+- No new way into the corpus from the chat beyond the "#word" — the
+  semester's button stands under the list a "#word" answers with.
 - No export.
 - Don't let a model merge notebooks: the text of a lecture is what its
   authors wrote.
@@ -6877,6 +6981,7 @@ change, in the main session. On any normal rejection (steps 4, 5, 9, 10,
 | `lecture_head_cut`, `lecture_tail_cut` | — | lines cut off the first page and off the last (task 64) | — |
 | `lecture_id`, `lecture_joined` | the lecture the record was filed into, and whether it had a notebook already — `None`, `false` with no subject (task 63) | the same | the same |
 | `explain_skipped` | stage three not asked: the record joined a lecture whose base is fuller (task 63) | the same | `false` |
+| `repeat_cut`, `repeat_of` | the words cut off the record's head as its subject's album before's last page, photographed again, and the record that page was read in — `0`, `None` when nothing was (task 63) | the same | `0`, `None` |
 | `runs_added`, `read_further` | runs asked for beyond the three because one read a block the chosen did not, and whether a second run read it and the page was read further (task 65) | summed over the pages; `read_further` the pages read further | — |
 | `album_parts` | — | the albums, and photos sent apart, that one send arrived as (task 81); `1` for an album that came whole | — |
 
@@ -6918,15 +7023,19 @@ it is being used at all — which is the question the five deleted commands
 could not answer until someone thought to ask the event table.
 
 `note_tagged`: `{"note_id": int, "tag": str, "lecture_id": int,
-"lecture_joined": bool}` — the subject the user answered with, stored without
-its "#", and the lecture the record was filed into: `lecture_joined` when it
-had a notebook already (task 63).
+"lecture_joined": bool, "repeat_cut": int, "repeat_of": int | null}` — the
+subject the user answered with, stored without its "#", and the lecture the
+record was filed into: `lecture_joined` when it had a notebook already, and
+the words cut off its head as the subject's album before's last page,
+photographed again, with the record that page was read in (task 63).
 
 `topic_searched`: `{"tag": str, "found": int}`. The tag is stored for the same
 reason the search query used to be: what a person looks for is the most direct
 signal of what the corpus is for. `found: 0` is the interesting row — a search
 that missed is either a topic the bot never wrote or a subject spelled a
-second way.
+second way. `found` counts the records matched, up to fifty since
+2026-10-12 (ten before), before a lecture's notebooks and the copies of one
+album are made one answer (task 63).
 
 ## Event `album_retake_requested`
 

@@ -1393,6 +1393,66 @@ beside the cut hides.
 **What is left to measure.** A pair of notebooks by two people — the CEO's
 and a classmate's — for the threshold of one lecture and for what is set in.
 
+## The page photographed twice
+
+**What was asked for** (the CEO, 2026-10-12, «удаление повторов»): a
+notebook's last page photographed again as the first of its next album,
+the next lecture begun under the end of the one before, comes into the
+next record as that lecture's head — and the record before has it. Task 63,
+item 6.
+
+**What production held**, read only on the CEO's word the same day: 108
+records — 96 made in private chats, 87 of those in no subject, most of them
+the CEO's albums sent again, one of them two dozen times; 13 subjects and 18
+lectures, one held twice (the page the group sent three days apart, records
+54 and 61, which `014_subjects_lectures` had made two lectures); no lecture
+with two people's notebooks; and among the four pairs of one sender's
+lectures one after another, no page photographed twice. Nothing to measure
+on as it stands — so it was built from what production does hold: albums
+read again, two readings of one page as real as a repeat's.
+
+**How it is found** (`merge.repeated_head`): the earlier record's last
+page, from the last page seam (`albums` joins pages with "---", the
+composer keeps it), aligned word by word with the next record's first page,
+as a passage is (`_passages`). A repeat is the whole of that page at the
+record's first words: its first words within three of the page's first,
+its end within three of the page's end, a dozen words or more, and four
+words in five of both found in order. A recap the next lecture writes is
+written again rather than photographed again: it is a part of the page,
+not the whole, and never at the earlier record's end. Cut at a line's end;
+what stays must be a dozen words or more.
+
+**When it is cut** (`subjects.repeated`): the album before sent on a day
+before this lecture's, and either this lecture's day written down — the
+caption or the margin — or the page written on past the repeat, which says
+the earlier photograph held none of this lecture. The same page twice with
+nothing written between, and the day only the day the pages came, is not
+cut: a page photographed after the next lecture began carries its first
+lines, and nothing in the text says where on the page it begins.
+
+**Measured** on production's records, read only, with the local code: one
+album's two readings of its last page — up to twenty pairs an album read
+again, the two pages within a 1.4 ratio of words and three fifths of each
+found in the other — the first standing for the record before, the second
+for the repeat, with another album's first page as the lecture begun under
+it:
+
+| | cases | found | cut exactly before the next lecture |
+|---|---|---|---|
+| the next lecture begun on the page | 423 | 409 | 409 |
+| the same page, the next lecture on the next page | 423 | 409, none taken as written on | — |
+
+The 14 missed are records of September read under prompts since changed,
+whose two readings of the page end more than three words apart, or find
+less than four words in five of each other: not cut, which is the safe
+side. Nothing was found on 3 110 that hold no repeat — the other album's
+record alone, a recap of the page's last 25 words before it, the page with
+nothing after it, the earlier record's first page in place of its last
+(423, 423, 423 and 341), and 1 500 pairs of records of two different
+albums. A first run counted ten cases of «the first page» as found: the
+earlier record was the page alone, one page, so its last page was that
+first page — found rightly.
+
 ## Record 67, half a page
 
 **What the CEO saw** (2026-10-04): one photograph sent twice to the test

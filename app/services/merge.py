@@ -114,14 +114,24 @@ def _words(text: str) -> list[str]:
     return _WORD_RE.findall(text.lower())
 
 
-def same_lecture(a: str, b: str) -> float:
-    """How much of one text is found in the other, the larger of the two
-    ways: a notebook of half the lecture is still that lecture."""
-    runs_a, runs_b = _runs(a), _runs(b)
+def runs(text: str) -> set[str]:
+    """A text's runs of five letters, taken once to compare it with many
+    texts (corpus._one_per_lecture)."""
+    return _runs(text)
+
+
+def overlap(runs_a: set[str], runs_b: set[str]) -> float:
+    """same_lecture over runs already taken."""
     if not runs_a or not runs_b:
         return 0.0
     shared = len(runs_a & runs_b)
     return max(shared / len(runs_a), shared / len(runs_b))
+
+
+def same_lecture(a: str, b: str) -> float:
+    """How much of one text is found in the other, the larger of the two
+    ways: a notebook of half the lecture is still that lecture."""
+    return overlap(_runs(a), _runs(b))
 
 
 def completeness(markdown: str, missing_pages: int = 0) -> int:
@@ -350,6 +360,116 @@ def found_in(text: str, block: str) -> float:
 
 def word_count(text: str) -> int:
     return len(_words(text))
+
+
+# ── The page photographed twice ──────────────────────────────────────────────
+# A notebook's last page photographed again as the first of its next album
+# (task 63): the end of the lecture before, read a second time at the head of
+# the next one. Two readings of one page agree word for word in the main —
+# the same album read again agreed at 0.70 to 1.00 — so the page is found by
+# its words in order, the way a passage is (_passages).
+
+# The words of a page that a rule line ends: a page seam (albums joins pages
+# with "---", and the composer keeps it) or a line the author drew.
+_RULE_LINE_RE = re.compile(r"^[ \t]*(?:-{3,}|\*{3,}|_{3,}|~{3,})[ \t]*$", re.MULTILINE)
+_WORD_ANY_CASE_RE = re.compile(_WORD_RE.pattern, re.IGNORECASE)
+# A repeat is a block of a dozen words or more, as task 65's is...
+_REPEAT_WORDS = 12
+# ...holding this much of the earlier page and as much of its own span: a
+# reading puts a word differently here and there, never a fifth of a page.
+_REPEAT_FOUND = 0.8
+# Words a reading may put differently at either end of the page.
+_REPEAT_SLACK = 3
+# Words of its own on the page after the repeat: the page was written on
+# after the earlier photograph, so the repeat is what that photograph held.
+_GOES_ON = 8
+# More words than a page holds, for how far to look.
+_PAGE_WORDS = 800
+
+
+@dataclass
+class Head:
+    """The head of a record that repeats the last page of an earlier one:
+    where what stays begins in its text, how many of its words the repeat
+    holds, and whether the page goes on past it."""
+
+    end: int
+    words: int
+    strict: bool
+
+
+def _tokens(text: str) -> list[tuple[str, int, int]]:
+    """The words of a text as _words reads them, each with where it stands."""
+
+    def blank(found: re.Match) -> str:
+        return " " * len(found.group())
+
+    text = _INSERT_LINE_RE.sub(blank, text)
+    text = _DRAWING_RE.sub(blank, _UNREADABLE_RE.sub(blank, _LAYOUT_RE.sub(blank, text)))
+    return [
+        (found.group().lower(), found.start(), found.end())
+        for found in _WORD_ANY_CASE_RE.finditer(text)
+    ]
+
+
+def repeated_head(before: str, after: str, pages: int = 1) -> Head | None:
+    """Whether `after`, a record of `pages` pages, opens on a second reading
+    of `before`'s last page — the page photographed again with the next
+    album — and where what stays of `after` begins.
+
+    Only the whole of that page, from its first words to its last, at the
+    very first words of `after`: a passage the next lecture recalls is
+    written again rather than photographed again, and it neither stands at
+    the first words nor ends where the earlier record ends. Only up to the
+    end of a line, and only when what stays is something. `strict` says the
+    page goes on in `after` past the repeat — written on after the earlier
+    photograph — which the caller weighs with the days (subjects.repeated).
+    It is known only where the first page's end is: a record of one page,
+    or every page seam standing — a sentence run over a page edge joins two
+    pages without one (albums._continues).
+    """
+    seams = list(_RULE_LINE_RE.finditer(before))
+    page_start = seams[-1].end() if seams else 0
+    tail = [token for token in _tokens(before) if token[1] >= page_start][-_PAGE_WORDS:]
+    seams_after = list(_RULE_LINE_RE.finditer(after))
+    page_end = seams_after[0].start() if seams_after else len(after)
+    known = pages <= 1 or len(seams_after) >= pages - 1
+    words_after = _tokens(after)
+    head = [token for token in words_after if token[1] < page_end][:_PAGE_WORDS]
+    if len(tail) < _REPEAT_WORDS or len(head) < _REPEAT_WORDS:
+        return None
+
+    page = [token[0] for token in tail]
+    opening = [token[0] for token in head]
+    matcher = difflib.SequenceMatcher(None, page, opening, autojunk=False)
+    blocks = [m for m in matcher.get_matching_blocks() if m.size >= _MATCH_WORDS]
+    if not blocks:
+        return None
+    first, last = blocks[0], blocks[-1]
+    found = sum(block.size for block in blocks)
+    span = last.b + last.size
+    if (
+        first.a > _REPEAT_SLACK
+        or first.b > _REPEAT_SLACK
+        or last.a + last.size < len(page) - _REPEAT_SLACK
+        or found < _REPEAT_WORDS
+        or found < _REPEAT_FOUND * len(page)
+        or found < _REPEAT_FOUND * span
+    ):
+        return None
+
+    # What stays begins on the next line: the line the repeat ends on is cut
+    # whole, so it may hold no more than a word or two read past the page.
+    stop = head[span - 1][2]
+    line_end = after.find("\n", stop)
+    line_end = len(after) if line_end < 0 else line_end
+    on_the_line = [token for token in head[span:] if token[1] < line_end]
+    if len(on_the_line) > _REPEAT_SLACK:
+        return None
+    if sum(1 for token in words_after if token[1] >= line_end) < _REPEAT_WORDS:
+        return None
+    goes_on = len(head) - span - len(on_the_line)
+    return Head(end=line_end, words=span, strict=known and goes_on >= _GOES_ON)
 
 
 @dataclass

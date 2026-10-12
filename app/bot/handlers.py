@@ -411,6 +411,23 @@ async def _read_photo(
         # text stored are one text.
         markdown, placed = figures.place(composition.markdown, cutouts)
 
+        # The page photographed twice (task 63): this page may be the last of
+        # the subject's album before, the lecture before's end read again,
+        # with this lecture begun under it. That end is its own record's, and
+        # it goes before anything below reads the text.
+        title, issues = result.best.title, report.issues
+        repeat = None
+        if tag is not None:
+            repeat = await subjects.repeated(
+                session, group_id, user.id, tag, markdown,
+                result.best.margin_notes, caption, 1,
+            )
+        if repeat is not None:
+            markdown = repeat.markdown
+            title = subjects.retitled(title, repeat)
+            issues = [i for i in issues if not subjects.cut_only(i.anchor, repeat)]
+            placed = _still_placed(placed, markdown)
+
         # The lecture this page is a notebook of, if its subject has it already
         # (task 63): a notebook that will only add to another is not explained —
         # its lecture's document carries the base's explanations.
@@ -447,7 +464,7 @@ async def _read_photo(
             group_id=group_id,
             source_key=source_key,
             tag=tag,
-            title=result.best.title,
+            title=title,
             subject=result.best.subject,
             markdown=markdown,
             # The teacher's boxes and the captions stand in the same list, each
@@ -462,7 +479,7 @@ async def _read_photo(
             status="needs_review" if result.verdict == "needs_review" else "ready",
             margin_notes=result.best.margin_notes,
             uncertain=[asdict(u) for u in result.best.uncertain],
-            issues=[asdict(i) for i in report.issues],
+            issues=[asdict(i) for i in issues],
             numeric_divergences=[asdict(d) for d in result.numeric_divergences],
             unreadable_count=result.best.unreadable_count,
             unverified_pages=unverified,
@@ -518,7 +535,7 @@ async def _read_photo(
                 "charts": charts.count(markdown),
                 "runs_added": result.runs_added,
                 "read_further": int(result.read_further),
-                **_filing_payload(filing, explain_skipped),
+                **_filing_payload(filing, explain_skipped, repeat),
                 "latency_ms": int((time.monotonic() - started) * 1000),
                 "cost_usd": vision.total_cost(
                     stats + sketch_stats + composition.stats + explaining.stats
@@ -1043,6 +1060,24 @@ async def _process_album(
         # the record — after composing, which never saw them.
         markdown, placed = figures.place(composition.markdown, rec.cutouts)
 
+        # Its first page the last of the subject's album before, photographed
+        # again, as for a photo (task 63). The seams count the unread pages
+        # too: each stands in the text as its marker.
+        title, issues = rec.title, rec.issues
+        repeat = None
+        if tag is not None:
+            repeat = await subjects.repeated(
+                session, group_id, user.id, tag, markdown, rec.margin_notes, caption,
+                rec.page_count + len(rec.missing_pages),
+            )
+        if repeat is not None:
+            markdown = repeat.markdown
+            title = subjects.retitled(title, repeat)
+            issues = [
+                i for i in issues if not subjects.cut_only(str(i.get("anchor", "")), repeat)
+            ]
+            placed = _still_placed(placed, markdown)
+
         # The lecture this album is a notebook of, as for a photo (task 63).
         joining = None
         if tag is not None:
@@ -1069,7 +1104,7 @@ async def _process_album(
             group_id=group_id,
             source_key=source_key,
             tag=tag,
-            title=rec.title,
+            title=title,
             subject=rec.subject,
             markdown=markdown,
             # The teacher's boxes and the captions stand in the same list, each
@@ -1084,7 +1119,7 @@ async def _process_album(
             status=rec.status,
             margin_notes=rec.margin_notes,
             uncertain=rec.uncertain,
-            issues=rec.issues,
+            issues=issues,
             numeric_divergences=rec.numeric_divergences,
             unreadable_count=rec.unreadable_count,
             missing_pages=rec.missing_pages,
@@ -1146,7 +1181,7 @@ async def _process_album(
                 "album_parts": albums.parts_of(ordered),
                 "figures": len(placed),
                 "charts": charts.count(markdown),
-                **_filing_payload(filing, explain_skipped),
+                **_filing_payload(filing, explain_skipped, repeat),
                 "latency_ms": int((time.monotonic() - started) * 1000),
                 "cost_usd": vision.total_cost(
                     outcome.stats + composition.stats + explaining.stats
@@ -1172,15 +1207,30 @@ async def _process_album(
         )
 
 
-def _filing_payload(filing: subjects.Filing | None, explain_skipped: bool) -> dict:
+def _filing_payload(
+    filing: subjects.Filing | None,
+    explain_skipped: bool,
+    repeat: subjects.Repeat | None = None,
+) -> dict:
     """What `note_processed` says of where the record was filed (task 63):
-    its lecture, whether that lecture had a notebook already, and whether
-    explaining was skipped because this one only adds to it."""
+    its lecture, whether that lecture had a notebook already, whether
+    explaining was skipped because this one only adds to it, and the words
+    of the page photographed twice cut off its head, with the record whose
+    last page it was."""
     return {
         "lecture_id": filing.lecture.id if filing is not None else None,
         "lecture_joined": filing.joined if filing is not None else False,
         "explain_skipped": explain_skipped,
+        "repeat_cut": repeat.words if repeat is not None else 0,
+        "repeat_of": repeat.note_id if repeat is not None else None,
     }
+
+
+def _still_placed(
+    placed: list[tuple[int, bytes]], markdown: str
+) -> list[tuple[int, bytes]]:
+    """The drawings whose lines stayed when a repeated head was cut."""
+    return [(number, png) for number, png in placed if f"[рисунок {number}:" in markdown]
 
 
 @router.message(F.text, middlewares.is_summon)
