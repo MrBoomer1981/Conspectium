@@ -20,7 +20,18 @@ START = (
 # opens Telegram's own chat picker (task 47).
 ADD_TO_GROUP = "Добавить в чат группы"
 
-PROCESSING = "Обрабатываю..."
+# What a chat sees while its record is made (task 105): one line, changed in
+# place every few seconds round these, and deleted when the record arrives —
+# the CEO's «работаем, еще минуту, считаю формулы, учусь, чтобы вам не
+# пришлось» and two of the same kind, true of a photo and a .docx alike.
+WAITING = (
+    "Работаем…",
+    "Читаю конспект…",
+    "Считаю формулы…",
+    "Учусь, чтобы вам не пришлось…",
+    "Раскладываю по темам…",
+    "Ещё минуту…",
+)
 
 NO_TEXT_FOUND = "Не нашёл на странице текста. Попробуй снять крупнее и ровнее."
 

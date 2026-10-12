@@ -157,6 +157,8 @@ class _PhotoMessage:
         self.caption = caption
         self.chat = SimpleNamespace(id=5)
         self.replies: list[str] = []
+        # What went under the record's document (task 105).
+        self.captions: list[str] = []
 
     async def answer(self, text: str) -> None:
         self.replies.append(text)
@@ -202,12 +204,14 @@ class _AlbumMessage:
     def __init__(self):
         self.replies: list[str] = []
         self.documents: list = []
+        self.captions: list[str] = []
 
     async def answer(self, text: str) -> None:
         self.replies.append(text)
 
     async def answer_document(self, document, caption=None, reply_markup=None) -> None:
         self.documents.append(document)
+        self.captions.append(caption or "")
 
 
 def _input(message_id: int, tag: str | None = None) -> albums.PageInput:
@@ -370,9 +374,9 @@ async def test_the_reply_names_every_page_that_has_to_be_taken_again(
         pages_ok=[_ok_page(1), _ok_page(4)],
         record=_record(2, missing_pages=[2, 3]),
     )
-    # Not the last reply any more: the record goes out first, and the question
-    # about the subject comes after.
-    said = "\n".join(message.replies)
+    # Under the record's document, with the question about the subject: one
+    # message (task 105).
+    said = "\n".join(message.replies + message.captions)
 
     assert "Страница 2" in said and "Страница 3" in said
     assert texts.ALBUM_SEND_MISSING in said
@@ -647,8 +651,8 @@ async def _run_photo(
     async def no_spend(user_id, stats, group_id=None):
         return None
 
-    async def no_pdf(message, session, note):
-        return None
+    async def no_pdf(message, session, note, after=""):
+        message.captions.append(after)
 
     monkeypatch.setattr(handlers.photoguard, "check_photo_bytes", lambda data: _verdict_ok())
     monkeypatch.setattr(handlers.vision, "transcribe_consensus", fake_consensus)
@@ -739,9 +743,10 @@ async def test_a_photo_record_says_nothing_about_how_it_was_read(
     note = (await session.execute(select(Note))).scalars().one()
 
     assert note.status == "needs_review" and note.uncertain and note.numeric_divergences
-    # The progress line, and the question which subject the record belongs to.
-    assert len(message.replies) == 2
-    assert message.replies[0] == texts.PROCESSING
+    # The waiting line, and the question which subject the record belongs to
+    # under its document (task 105).
+    assert message.replies == [texts.WAITING[0]]
+    assert "Под каким тегом" in message.captions[-1]
 
 
 async def test_a_finding_on_a_photo_is_stored_with_the_text_it_is_about(
@@ -955,9 +960,10 @@ async def test_an_album_record_is_asked_which_subject_it_belongs_to(
     ).scalars().all()
 
     assert topics
-    # The question is last, so it is what the user is looking at when they
-    # reply — which is what makes the reply an answer and not a search.
-    assert "#" in message.replies[-1]
+    # The question is last, under the document, so it is what the user is
+    # looking at when they reply — which is what makes the reply an answer and
+    # not a search.
+    assert "Под каким тегом" in message.captions[-1]
 
 
 # ── a group chat ─────────────────────────────────────────────────────────────
@@ -1021,7 +1027,7 @@ async def test_a_tagged_album_in_a_group_is_the_groups_and_filed_at_once(
     note = (await session.execute(select(Note))).scalar_one()
     assert (note.group_id, note.tag) == (group.id, "матан")
     # Where it was filed, not the question: in a group nobody is asked.
-    assert message.replies[-1].startswith("Сохранил под #матан")
+    assert "Сохранил под #матан" in message.captions[-1]
     events = (await session.execute(select(Event))).scalars().all()
     assert events and all(e.group_id == group.id for e in events)
 
@@ -1034,7 +1040,7 @@ async def test_a_photo_sent_with_its_subject_is_filed_at_once(session, monkeypat
 
     note = (await session.execute(select(Note))).scalar_one()
     assert (note.group_id, note.tag) == (None, "матан")
-    assert message.replies[-1].startswith("Сохранил под #матан")
+    assert message.captions[-1].startswith("Сохранил под #матан")
 
 
 async def test_a_photo_taken_in_a_group_is_the_groups(session, monkeypatch):
@@ -1229,7 +1235,7 @@ async def test_an_album_with_a_refused_frame_is_asked_for_again_unread(
         texts.album_retake([(1, "Текст мелкий — снимите одну страницу крупным планом")])
     ]
     assert "Страница 1: текст мелкий" in message.replies[0]
-    assert texts.PROCESSING not in message.replies
+    assert texts.WAITING[0] not in message.replies
     assert user.pages_used_today == 0
     assert (await session.execute(select(Note))).first() is None
     event = (

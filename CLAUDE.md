@@ -450,7 +450,8 @@ images.compress              in a worker thread (images.in_worker)
  4   limits.check_limits     the kill switch, the cost cap, the group's day,
                              the person's
  5   photoguard              the frame, before any model call
- 6   texts.PROCESSING
+ 6   waiting.shown           one line changed in place every 8 s until the
+                             end, then deleted (task 105)
  7   vision.transcribe_consensus   three runs compared, two more where one
                              read further; a chart drawn only when two read
                              it alike (charts.agreed)
@@ -471,11 +472,13 @@ images.compress              in a worker thread (images.in_worker)
                              check_limits(pages=0)
 13   Note, subjects.file
 14   limits.consume
-15   note_processed          and the record committed (handlers._saved)
+15   note_processed
+17   corpus.tag_line         the subject asked, or where it was filed; then
+                             the record committed (handlers._saved)
 16   corpus.deliver          the study version, built at 12b, kept or built
                              now (study.build), else the record's own
-                             document; pdf.render in a thread
-17   corpus.ask_for_tag      the subject asked, or where it was filed
+                             document, step 17's words in its caption;
+                             pdf.render in a thread
 ```
 
 An album checks its limits before its pages are fetched
@@ -851,9 +854,10 @@ hold", "Record 97"
 
 ## The corpus
 
-- **A "#word" is the one way in and the one way back.** After a record is
-  delivered in a private chat, the bot asks its subject and shows the topics
-  read off its headings; the answer is stored on `Note.tag`. A later "#word"
+- **A "#word" is the one way in and the one way back.** Under a record's
+  document in a private chat — in its caption, one message (task 105) — the
+  bot asks its subject and shows the topics read off its headings; the
+  answer is stored on `Note.tag`. A later "#word"
   searches subjects and topics at once, and a single match comes back as the
   document itself — its study version, since 2026-10-08.
 - **Which of the two a "#word" means is decided by the corpus, not a state
@@ -1156,7 +1160,18 @@ for any reason, sends the record as plain text. A document Telegram refuses
 is sent once more after its flood control of up to 30 s, a dropped
 connection or its own error, and refused falls back the same way
 (`corpus._sent_document`, task 104); the record is saved before it is sent.
-A record is never lost over its presentation. What follows is the look of both: the study version is
+A record is never lost over its presentation.
+
+**A record comes as one message** (task 105, the CEO's «присылаем
+пользователю все в одном сообщении»): what used to follow its document —
+where it was filed or which subject it is, the pages it went out without —
+stands in its caption, and only what Telegram's 1024 characters do not hold
+goes after it (`corpus._captioned`). While it is made the chat sees one
+line, «Работаем…», «Считаю формулы…», «Учусь, чтобы вам не пришлось…»,
+changed in place every eight seconds — the CEO's choice over a new message
+each time, which would notify and jump in a group — and deleted on every
+way out, the record sent, a reason instead, an exception, a deploy
+(`waiting.shown`). A .docx shows it while its study version is built. What follows is the look of both: the study version is
 the record's document set out by topic. `pdf.py` never raises on a record's content; it receives what
 to draw — `Callout`, `Remark`, `Explanation`, `Summary`, `Page`, built by
 `corpus` — and knows nothing about where a record came from.
@@ -1595,6 +1610,7 @@ app/
     tags.py           what a #tag is, and a record's topics
     feedback.py       «Хорошо», «Плохо» and where the error is, under every document
     study_version.py  «Учебная версия»: a record's study version built on request
+    waiting.py        the line a chat sees while its record is made
     rating.py         a group's week: who sent its records and who rated them, Saturday's summary; the bot's week
   services/
     vision.py         recognition: the prompt, three runs, parsing, the agreements

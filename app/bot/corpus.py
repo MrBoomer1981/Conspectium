@@ -530,6 +530,22 @@ async def _source(session: AsyncSession, note: Note) -> _Source:
 _FLOOD_WAIT_MAX_S = 30
 # A dropped connection or Telegram's own error, tried once more after this.
 _SEND_PAUSE_S = 3
+# Telegram's longest caption, counted as it counts: in UTF-16 units.
+_CAPTION_MAX = 1024
+
+
+def _captioned(caption: str, after: str) -> tuple[str, str]:
+    """A document's caption with what follows it set under it (task 105) —
+    where the record was filed or which subject it is, the pages it went out
+    without — and whatever of that does not fit, to go after the document,
+    as it all used to: «присылаем пользователю все в одном сообщении», the
+    CEO's of 2026-10-12."""
+    if not after:
+        return caption, ""
+    whole = f"{caption}\n\n{after}"
+    if len(whole.encode("utf-16-le")) // 2 <= _CAPTION_MAX:
+        return whole, ""
+    return caption, after
 
 
 async def _sent_document(
@@ -538,12 +554,15 @@ async def _sent_document(
     filename: str,
     caption: str,
     reply_markup: InlineKeyboardMarkup,
+    after: str = "",
 ) -> bool:
     """A document sent to the chat, once more after Telegram's flood control
     or a dropped connection; False when it could not be — the chat takes no
     documents, the bot was removed — the reason in the log. The caller falls
     back as for a document that could not be drawn: the record is saved
-    already (handlers), and a "#word" brings it back."""
+    already (handlers), and a "#word" brings it back. `after` goes in the
+    caption where it fits, and in a message of its own after it where not."""
+    caption, rest = _captioned(caption, after)
     refused: TelegramAPIError | None = None
     for attempt in (1, 2):
         try:
@@ -552,7 +571,6 @@ async def _sent_document(
                 caption=caption,
                 reply_markup=reply_markup,
             )
-            return True
         except TelegramRetryAfter as exc:
             refused = exc
             if attempt == 2 or exc.retry_after > _FLOOD_WAIT_MAX_S:
@@ -566,6 +584,12 @@ async def _sent_document(
         except TelegramAPIError as exc:
             refused = exc
             break
+        else:
+            # Outside the attempts: the document is in the chat, and what
+            # did not fit under it is not worth sending it twice for.
+            if rest:
+                await message.answer(rest)
+            return True
     logger.warning(
         "a document could not be sent to chat %s: %s: %s",
         message.chat.id,
@@ -575,7 +599,9 @@ async def _sent_document(
     return False
 
 
-async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -> bool:
+async def send_record_pdf(
+    message: Message, session: AsyncSession, note: Note, after: str = ""
+) -> bool:
     """Send one record as a PDF — or, when the record is one notebook of a
     lecture that has several, the lecture's document: the fullest notebook,
     with what the others add set in at its place (task 63). Returns False if
@@ -618,6 +644,7 @@ async def send_record_pdf(message: Message, session: AsyncSession, note: Note) -
         # study version to ask for: the record goes out only when it could
         # not be had (deliver).
         feedback.keyboard(base.id, study=True),
+        after,
     )
 
 
@@ -634,7 +661,11 @@ def _study_box(box: dict) -> pdf.Explanation:
 
 
 async def send_study_pdf(
-    message: Message, session: AsyncSession, source: _Source, version: study.Study
+    message: Message,
+    session: AsyncSession,
+    source: _Source,
+    version: study.Study,
+    after: str = "",
 ) -> bool:
     """A record's study version as a PDF (task 80): the lecture set out by
     topic and drawn with all its document carries — the summary, the missing
@@ -680,6 +711,7 @@ async def send_study_pdf(
         pdf_filename(base.id, title, texts.STUDY_FILE_WORD),
         caption,
         feedback.keyboard(base.id),
+        after,
     )
 
 
@@ -758,6 +790,7 @@ async def deliver(
     user: User,
     group: Group | None,
     early: study.Study | None = None,
+    after: str = "",
 ) -> None:
     """What a chat gets for a record: its study version, the CEO's of
     2026-10-08 — «мы не присылаем пользователю конспект, сразу отдаём ему
@@ -776,7 +809,11 @@ async def deliver(
     documents are drawn from the record's own text, which it was built
     from, and a refusal is not asked again here, as it is not when this
     asks: the button under the record does. A notebook that joined a
-    lecture meanwhile is studied with the lecture, as any other."""
+    lecture meanwhile is studied with the lecture, as any other.
+
+    `after` is what the capture path says under the document — where the
+    record was filed, the pages it went out without — set in its caption,
+    so the chat gets one message (task 105)."""
     source = await _source(session, note)
     if early is not None and source.markdown == note.markdown:
         if early.refused is not None:
@@ -786,19 +823,21 @@ async def deliver(
             )
         else:
             source.base.study = early.stored()
-            if await send_study_pdf(message, session, source, early):
+            if await send_study_pdf(message, session, source, early, after):
                 await study_sent(
                     session, user, group, source.base, early, False, via="delivery"
                 )
                 return
-        await send_record(message, session, note)
+        await send_record(message, session, note, after)
         return
     kept = _kept(source)
     version, _ = await study_of(session, source, user, group)
-    if version is not None and await send_study_pdf(message, session, source, version):
+    if version is not None and await send_study_pdf(
+        message, session, source, version, after
+    ):
         await study_sent(session, user, group, source.base, version, kept, via="delivery")
         return
-    await send_record(message, session, note)
+    await send_record(message, session, note, after)
 
 
 def _kept(source: _Source) -> bool:
@@ -807,13 +846,18 @@ def _kept(source: _Source) -> bool:
     return kept is not None and kept.source == study.fingerprint(source.markdown)
 
 
-async def send_record(message: Message, session: AsyncSession, note: Note) -> None:
+async def send_record(
+    message: Message, session: AsyncSession, note: Note, after: str = ""
+) -> None:
     """A saved record delivered to the user: the PDF when it can be built, the
-    plain text when it cannot — its buttons under the last part of it."""
-    if await send_record_pdf(message, session, note):
+    plain text when it cannot — its buttons under the last part of it, which
+    is `after` when there is one."""
+    if await send_record_pdf(message, session, note, after):
         return
     await message.answer(texts.PDF_FAILED)
     chunks = texts.split_message(f"{note.title}\n\n{note.markdown}")
+    if after:
+        chunks.append(after)
     for index, chunk in enumerate(chunks):
         if index == len(chunks) - 1:
             await message.answer(chunk, reply_markup=feedback.keyboard(note.id, study=True))
@@ -1094,30 +1138,26 @@ async def joined_line(session: AsyncSession, note: Note, filing: subjects.Filing
     return texts.lecture_added(note.tag, filing.lecture.given_on, own)
 
 
-async def ask_for_tag(
-    message: Message,
+async def tag_line(
     session: AsyncSession,
     user: User,
     note: Note,
     group: Group | None = None,
     filing: subjects.Filing | None = None,
-) -> None:
-    """Store the record's topics and ask which subject it belongs to — unless
-    the photo came with it, and then say where it was filed.
+) -> str:
+    """Store the record's topics, and say where it was filed — or, when it
+    came without its subject, ask which it belongs to.
 
-    The last thing every capture path does, so the question is what the user
-    is looking at when they reply — and so a "#word" arriving next means the
-    answer rather than a search. A record made in a group always came with its
+    Said under the record's document, in its caption (task 105): the last
+    thing a capture path sends, so the question is what the user is looking
+    at when they reply — and so a "#word" arriving next means the answer
+    rather than a search. A record made in a group always came with its
     subject; the question is a private chat's.
     """
     topics = await save_topics(session, note)
     if note.tag is not None:
         if filing is not None and filing.joined:
-            await message.answer(await joined_line(session, note, filing))
-            return
+            return await joined_line(session, note, filing)
         given_on = filing.lecture.given_on if filing is not None else None
-        await message.answer(texts.filed(note.tag, topics, given_on))
-        return
-    await message.answer(
-        texts.ask_tag(topics, await known_tags(session, user, group))
-    )
+        return texts.filed(note.tag, topics, given_on)
+    return texts.ask_tag(topics, await known_tags(session, user, group))

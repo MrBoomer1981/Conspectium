@@ -20,7 +20,7 @@ from aiogram.types import ChatMemberUpdated, Message
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, middlewares, subjects, tags, texts
+from app.bot import albums, corpus, middlewares, subjects, tags, texts, waiting
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, GroupPage, Note, NoteFigure, User
@@ -314,229 +314,234 @@ async def _read_photo(
         await message.answer(photo_verdict.reason)
         return
 
-    await message.answer(texts.PROCESSING)
+    async with waiting.shown(message):
 
-    started = time.monotonic()  # note_processed.latency_ms: step 7 -> end of 15
-    result, stats = await vision.transcribe_consensus(compressed)
-    # Always — the tokens were spent.
-    await vision.log_ai_calls(user.id, stats, group_id=group_id)
+        started = time.monotonic()  # note_processed.latency_ms: step 7 -> end of 15
+        result, stats = await vision.transcribe_consensus(compressed)
+        # Always — the tokens were spent.
+        await vision.log_ai_calls(user.id, stats, group_id=group_id)
 
-    if result is None:
-        # Not one run came back readable: there is nothing to keep.
-        await message.answer(texts.ERROR_GENERIC)
-        return
-    if len(result.best.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
-        await message.answer(texts.NO_TEXT_FOUND)
-        return
+        if result is None:
+            # Not one run came back readable: there is nothing to keep.
+            await message.answer(texts.ERROR_GENERIC)
+            return
+        if len(result.best.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
+            await message.answer(texts.NO_TEXT_FOUND)
+            return
 
-    # The page's drawings, taken from the image while it is still here —
-    # rule 3 keeps nothing else of it. A sketch is drawn again from the page
-    # (task 101): three calls read where each is and what its labels say,
-    # part of reading the page as task 65's further runs are, and its lines
-    # are traced off the photograph. Under a prompt that frames drawings
-    # (v8) they are cut out instead. Pixels in a thread: CPU work the
-    # webhook must not stall on.
-    sketch_stats: list = []
-    sketched: list = []
-    if settings.SKETCHES_ENABLED and figures.count(result.best.markdown):
-        sketched, sketch_stats = await sketches.read(compressed, result.best.markdown)
-        await vision.log_ai_calls(user.id, sketch_stats, group_id=group_id)
-        cutouts = await images.in_worker(
-            figures.redraw, compressed, result.best.markdown, sketched
+        # The page's drawings, taken from the image while it is still here —
+        # rule 3 keeps nothing else of it. A sketch is drawn again from the page
+        # (task 101): three calls read where each is and what its labels say,
+        # part of reading the page as task 65's further runs are, and its lines
+        # are traced off the photograph. Under a prompt that frames drawings
+        # (v8) they are cut out instead. Pixels in a thread: CPU work the
+        # webhook must not stall on.
+        sketch_stats: list = []
+        sketched: list = []
+        if settings.SKETCHES_ENABLED and figures.count(result.best.markdown):
+            sketched, sketch_stats = await sketches.read(
+                compressed, result.best.markdown
+            )
+            await vision.log_ai_calls(user.id, sketch_stats, group_id=group_id)
+            cutouts = await images.in_worker(
+                figures.redraw, compressed, result.best.markdown, sketched
+            )
+        else:
+            cutouts = await images.in_worker(
+                figures.cut, compressed, result.best.markdown, result.best.drawings
+            )
+
+        # Disagreement between the runs used to end the photo here. It does not
+        # any more: the pages behind those refusals carried legible text, and what
+        # the disagreement measured was the shape the runs gave the page. The
+        # record is saved and says which page nobody could confirm.
+        unverified: list[dict] = []
+        if result.text_agreement is None:
+            unverified = [{"page": 1, "reason": texts.UNVERIFIED_ONE_RUN}]
+        elif result.verdict == "rejected":
+            unverified = [{"page": 1, "reason": texts.UNVERIFIED_DIVERGED}]
+            logger.warning(
+                "photo kept unverified: text_agreement %.3f", result.text_agreement
+            )
+        if unverified:
+            result.verdict = "needs_review"
+
+        # Step 12: deterministic arithmetic check, no model call. mathcheck compares
+        # physical constants against a reference table and checks that chains of
+        # equalities converge. Only a "critical" issue downgrades the verdict, and
+        # only clean -> needs_review, one way; warnings are shown but leave the
+        # status alone. From here result.verdict is the pipeline's final verdict.
+        # graphcheck is the same kind of check on a different subject: a matrix
+        # against the graph drawn beside it. Its findings join the same list, so
+        # they reach the same downgrade and the same event, and each is kept with
+        # the text it is about — the document sets it under that text.
+        report = mathcheck.Report(issues=vision.findings(result.best.markdown))
+        has_critical = any(i.severity == "critical" for i in report.issues)
+        if has_critical and result.verdict == "clean":
+            result.verdict = "needs_review"
+        if report.issues:
+            await log_event(
+                session,
+                user.id,
+                "math_issues_found",
+                {
+                    "count": len(report.issues),
+                    "kinds": [i.kind for i in report.issues],
+                },
+                group_id=group_id,
+            )
+
+        # Step 12a: stage two, formatting. It is given the text the three runs
+        # agreed on and never the photograph, so it has nothing to invent from,
+        # and what it returns is checked against what went in — by code, not by
+        # another model call. Refused for any reason, the record is the one we
+        # already had. It runs after the checks above deliberately: mathcheck and
+        # graphcheck judge what was *read*, and this stage is presentation.
+        composition = compose.Composition(result.best.markdown)
+        # Rule 6, limits before the model call. pages=0 because composition is one
+        # call per record rather than per page — the page budget is already
+        # debited for the recognition — but the kill switch and the daily cost cap
+        # still decide whether it may run at all.
+        if await limits.check_limits(session, user, pages=0, group=group) is None:
+            composition = await compose.compose(result.best.markdown)
+            await vision.log_ai_calls(user.id, composition.stats, group_id=group_id)
+
+        # The drawings go back where their lines stand: after composing, which
+        # never saw them, and before explaining, so the text explained and the
+        # text stored are one text.
+        markdown, placed = figures.place(composition.markdown, cutouts)
+
+        # The lecture this page is a notebook of, if its subject has it already
+        # (task 63): a notebook that will only add to another is not explained —
+        # its lecture's document carries the base's explanations.
+        joining = None
+        if tag is not None:
+            joining = await subjects.joining(
+                session, group_id, user.id, tag, markdown,
+                result.best.margin_notes, caption,
+            )
+        explain_skipped = joining is not None and not joining.leads
+
+        # Step 12b: stage three, what the bot adds of its own — hard places
+        # explained, each with the sources the search gave, and the record summed
+        # up. Over the composed text and never the photograph, stored apart from
+        # the author's text and printed as the bot's. Rule 6 again: a third call
+        # is still a call, and the kill switch and the cost cap decide first.
+        # Beside it the study version, for a record that joins no lecture
+        # (_explained, task 104).
+        explaining, early = explain.Explaining(), None
+        if (
+            not explain_skipped
+            and await limits.check_limits(session, user, pages=0, group=group) is None
+        ):
+            explaining, early = await _explained(
+                user, group_id, markdown, joining is None
+            )
+
+        # Step 13: persist the record. "rejected" already exited at step 10, so the
+        # verdict here is "clean" or "needs_review". Dataclasses are flattened to
+        # plain dicts — JSONB won't take them as they are.
+        note = Note(
+            user_id=user.id,
+            sender_id=sender.id if sender is not None else None,
+            group_id=group_id,
+            source_key=source_key,
+            tag=tag,
+            title=result.best.title,
+            subject=result.best.subject,
+            markdown=markdown,
+            # The teacher's boxes and the captions stand in the same list, each
+            # naming its kind; an explanation names none, as every one stored
+            # before them.
+            explanations=[asdict(item) for item in explaining.explanations]
+            + [asdict(item) for item in explaining.elements]
+            + [asdict(item) for item in explaining.captions],
+            summary=explaining.summary,
+            source_type="photo",
+            page_count=1,
+            status="needs_review" if result.verdict == "needs_review" else "ready",
+            margin_notes=result.best.margin_notes,
+            uncertain=[asdict(u) for u in result.best.uncertain],
+            issues=[asdict(i) for i in report.issues],
+            numeric_divergences=[asdict(d) for d in result.numeric_divergences],
+            unreadable_count=result.best.unreadable_count,
+            unverified_pages=unverified,
+            text_agreement=result.text_agreement,
+            numeric_agreement=result.numeric_agreement,
+            photo_sharpness=photo_verdict.sharpness,
+            photo_line_height=photo_verdict.line_height_px,
+            photo_paper_fraction=photo_verdict.paper_fraction,
+            photo_contrast=photo_verdict.contrast,
         )
-    else:
-        cutouts = await images.in_worker(
-            figures.cut, compressed, result.best.markdown, result.best.drawings
+        session.add(note)
+        filing = (
+            await subjects.file(
+                session, note, tag, caption, joining.lecture if joining else None
+            )
+            if tag is not None
+            else None
         )
 
-    # Disagreement between the runs used to end the photo here. It does not
-    # any more: the pages behind those refusals carried legible text, and what
-    # the disagreement measured was the shape the runs gave the page. The
-    # record is saved and says which page nobody could confirm.
-    unverified: list[dict] = []
-    if result.text_agreement is None:
-        unverified = [{"page": 1, "reason": texts.UNVERIFIED_ONE_RUN}]
-    elif result.verdict == "rejected":
-        unverified = [{"page": 1, "reason": texts.UNVERIFIED_DIVERGED}]
-        logger.warning(
-            "photo kept unverified: text_agreement %.3f", result.text_agreement
-        )
-    if unverified:
-        result.verdict = "needs_review"
+        # Step 14: debit the daily page quota, now that the record is saved.
+        await limits.consume(session, user, pages=1)
 
-    # Step 12: deterministic arithmetic check, no model call. mathcheck compares
-    # physical constants against a reference table and checks that chains of
-    # equalities converge. Only a "critical" issue downgrades the verdict, and
-    # only clean -> needs_review, one way; warnings are shown but leave the
-    # status alone. From here result.verdict is the pipeline's final verdict.
-    # graphcheck is the same kind of check on a different subject: a matrix
-    # against the graph drawn beside it. Its findings join the same list, so
-    # they reach the same downgrade and the same event, and each is kept with
-    # the text it is about — the document sets it under that text.
-    report = mathcheck.Report(issues=vision.findings(result.best.markdown))
-    has_critical = any(i.severity == "critical" for i in report.issues)
-    if has_critical and result.verdict == "clean":
-        result.verdict = "needs_review"
-    if report.issues:
+        # Step 15: processing finished end to end. Transactional — commits with the
+        # Note and the quota bump in the main session.
         await log_event(
             session,
             user.id,
-            "math_issues_found",
+            "note_processed",
             {
-                "count": len(report.issues),
-                "kinds": [i.kind for i in report.issues],
+                "verdict": result.verdict,
+                "page_count": 1,
+                "source_type": "photo",
+                "composed": composition.refused is None and bool(composition.stats),
+                "compose_refused": composition.refused,
+                "compose_drift": composition.drift,
+                "compose_demoted": composition.demoted,
+                "compose_unmarked": composition.unmarked,
+                "compose_restored": composition.restored,
+                "compose_retried": composition.retried,
+                "explained": len(explaining.explanations),
+                "explain_refused": explaining.refused,
+                "explain_unsourced": explaining.unsourced,
+                "explain_judged": explaining.judged,
+                "elements": len(explaining.elements),
+                "elements_dropped": explaining.elements_dropped,
+                "captions": len(explaining.captions),
+                "captions_dropped": explaining.captions_dropped,
+                "summary": explaining.summary is not None,
+                "summary_refused": explaining.summary_refused,
+                "drawings": figures.count(result.best.markdown),
+                "sketched": sum(sketch is not None for sketch in sketched),
+                "figures": len(placed),
+                "charts": charts.count(markdown),
+                "runs_added": result.runs_added,
+                "read_further": int(result.read_further),
+                **_filing_payload(filing, explain_skipped),
+                "latency_ms": int((time.monotonic() - started) * 1000),
+                "cost_usd": vision.total_cost(
+                    stats + sketch_stats + composition.stats + explaining.stats
+                ),
             },
             group_id=group_id,
         )
 
-    # Step 12a: stage two, formatting. It is given the text the three runs
-    # agreed on and never the photograph, so it has nothing to invent from,
-    # and what it returns is checked against what went in — by code, not by
-    # another model call. Refused for any reason, the record is the one we
-    # already had. It runs after the checks above deliberately: mathcheck and
-    # graphcheck judge what was *read*, and this stage is presentation.
-    composition = compose.Composition(result.best.markdown)
-    # Rule 6, limits before the model call. pages=0 because composition is one
-    # call per record rather than per page — the page budget is already
-    # debited for the recognition — but the kill switch and the daily cost cap
-    # still decide whether it may run at all.
-    if await limits.check_limits(session, user, pages=0, group=group) is None:
-        composition = await compose.compose(result.best.markdown)
-        await vision.log_ai_calls(user.id, composition.stats, group_id=group_id)
-
-    # The drawings go back where their lines stand: after composing, which
-    # never saw them, and before explaining, so the text explained and the
-    # text stored are one text.
-    markdown, placed = figures.place(composition.markdown, cutouts)
-
-    # The lecture this page is a notebook of, if its subject has it already
-    # (task 63): a notebook that will only add to another is not explained —
-    # its lecture's document carries the base's explanations.
-    joining = None
-    if tag is not None:
-        joining = await subjects.joining(
-            session, group_id, user.id, tag, markdown, result.best.margin_notes, caption
-        )
-    explain_skipped = joining is not None and not joining.leads
-
-    # Step 12b: stage three, what the bot adds of its own — hard places
-    # explained, each with the sources the search gave, and the record summed
-    # up. Over the composed text and never the photograph, stored apart from
-    # the author's text and printed as the bot's. Rule 6 again: a third call
-    # is still a call, and the kill switch and the cost cap decide first.
-    # Beside it the study version, for a record that joins no lecture
-    # (_explained, task 104).
-    explaining, early = explain.Explaining(), None
-    if (
-        not explain_skipped
-        and await limits.check_limits(session, user, pages=0, group=group) is None
-    ):
-        explaining, early = await _explained(user, group_id, markdown, joining is None)
-
-    # Step 13: persist the record. "rejected" already exited at step 10, so the
-    # verdict here is "clean" or "needs_review". Dataclasses are flattened to
-    # plain dicts — JSONB won't take them as they are.
-    note = Note(
-        user_id=user.id,
-        sender_id=sender.id if sender is not None else None,
-        group_id=group_id,
-        source_key=source_key,
-        tag=tag,
-        title=result.best.title,
-        subject=result.best.subject,
-        markdown=markdown,
-        # The teacher's boxes and the captions stand in the same list, each
-        # naming its kind; an explanation names none, as every one stored
-        # before them.
-        explanations=[asdict(item) for item in explaining.explanations]
-        + [asdict(item) for item in explaining.elements]
-        + [asdict(item) for item in explaining.captions],
-        summary=explaining.summary,
-        source_type="photo",
-        page_count=1,
-        status="needs_review" if result.verdict == "needs_review" else "ready",
-        margin_notes=result.best.margin_notes,
-        uncertain=[asdict(u) for u in result.best.uncertain],
-        issues=[asdict(i) for i in report.issues],
-        numeric_divergences=[asdict(d) for d in result.numeric_divergences],
-        unreadable_count=result.best.unreadable_count,
-        unverified_pages=unverified,
-        text_agreement=result.text_agreement,
-        numeric_agreement=result.numeric_agreement,
-        photo_sharpness=photo_verdict.sharpness,
-        photo_line_height=photo_verdict.line_height_px,
-        photo_paper_fraction=photo_verdict.paper_fraction,
-        photo_contrast=photo_verdict.contrast,
-    )
-    session.add(note)
-    filing = (
-        await subjects.file(
-            session, note, tag, caption, joining.lecture if joining else None
-        )
-        if tag is not None
-        else None
-    )
-
-    # Step 14: debit the daily page quota, now that the record is saved.
-    await limits.consume(session, user, pages=1)
-
-    # Step 15: processing finished end to end. Transactional — commits with the
-    # Note and the quota bump in the main session.
-    await log_event(
-        session,
-        user.id,
-        "note_processed",
-        {
-            "verdict": result.verdict,
-            "page_count": 1,
-            "source_type": "photo",
-            "composed": composition.refused is None and bool(composition.stats),
-            "compose_refused": composition.refused,
-            "compose_drift": composition.drift,
-            "compose_demoted": composition.demoted,
-            "compose_unmarked": composition.unmarked,
-            "compose_restored": composition.restored,
-            "compose_retried": composition.retried,
-            "explained": len(explaining.explanations),
-            "explain_refused": explaining.refused,
-            "explain_unsourced": explaining.unsourced,
-            "explain_judged": explaining.judged,
-            "elements": len(explaining.elements),
-            "elements_dropped": explaining.elements_dropped,
-            "captions": len(explaining.captions),
-            "captions_dropped": explaining.captions_dropped,
-            "summary": explaining.summary is not None,
-            "summary_refused": explaining.summary_refused,
-            "drawings": figures.count(result.best.markdown),
-            "sketched": sum(sketch is not None for sketch in sketched),
-            "figures": len(placed),
-            "charts": charts.count(markdown),
-            "runs_added": result.runs_added,
-            "read_further": int(result.read_further),
-            **_filing_payload(filing, explain_skipped),
-            "latency_ms": int((time.monotonic() - started) * 1000),
-            "cost_usd": vision.total_cost(
-                stats + sketch_stats + composition.stats + explaining.stats
-            ),
-        },
-        group_id=group_id,
-    )
-
-    # Step 16: the record itself goes out as a PDF — recognised notes are full
-    # of LaTeX, and a formula reads as noise until it is drawn. Nothing
-    # follows it: what the checks found stands in the document beside the
-    # line it is about, and how the page was read — the numbers the runs read
-    # differently, the spots that read two ways, a page no second reading
-    # confirmed — is not the group's business. The author's decision,
-    # 2026-09-25; in a group chat that message was noise for everyone.
-    await session.flush()  # note.id, for the file name, the caption, the drawings
-    await _keep_figures(session, note, placed)
-    await _saved(session)
-    await corpus.deliver(message, session, note, user, group, early)
-
-    # Step 17: which subject does this belong to. Last, so the question is
-    # what the user is looking at when they reply.
-    await corpus.ask_for_tag(message, session, user, note, group, filing)
+        # Step 16: the record itself goes out as a PDF — recognised notes are full
+        # of LaTeX, and a formula reads as noise until it is drawn. Nothing
+        # follows it: what the checks found stands in the document beside the
+        # line it is about, and how the page was read — the numbers the runs read
+        # differently, the spots that read two ways, a page no second reading
+        # confirmed — is not the group's business. The author's decision,
+        # 2026-09-25; in a group chat that message was noise for everyone.
+        await session.flush()  # note.id, for the file name, the caption, the drawings
+        await _keep_figures(session, note, placed)
+        # Step 17: which subject does this belong to — said under the document, in
+        # one message with it (task 105), so the question is what the user is
+        # looking at when they reply. The topics it shows are kept with the record.
+        after = await corpus.tag_line(session, user, note, group, filing)
+        await _saved(session)
+        await corpus.deliver(message, session, note, user, group, early, after)
 
 
 @router.message(F.document)
@@ -640,9 +645,12 @@ async def handle_document(
     )
 
     await session.flush()  # note.id, for the file name and the caption
+    after = await corpus.tag_line(session, user, note, group, filing)
     await _saved(session)
-    await corpus.deliver(message, session, note, user, group)
-    await corpus.ask_for_tag(message, session, user, note, group, filing)
+    # Its study version is a call of some twenty seconds: the chat waits for
+    # it as for a photo's reading.
+    async with waiting.shown(message):
+        await corpus.deliver(message, session, note, user, group, after=after)
 
 
 def _is_pdf(document) -> bool:
@@ -985,179 +993,183 @@ async def _process_album(
         )
         return
 
-    await message.answer(texts.PROCESSING)
+    async with waiting.shown(message):
 
-    started = time.monotonic()  # note_processed.latency_ms: gather -> end of save
-    outcome = await albums.process_batch(ordered)
-    # Once, every page's calls.
-    await vision.log_ai_calls(user.id, outcome.stats, group_id=group_id)
+        started = time.monotonic()  # note_processed.latency_ms: gather -> end of save
+        outcome = await albums.process_batch(ordered)
+        # Once, every page's calls.
+        await vision.log_ai_calls(user.id, outcome.stats, group_id=group_id)
 
-    if outcome.record is None:
-        # Not one page was read, so there is nothing to deliver and nothing to
-        # charge: `record is None` is exactly `pages_ok == []`. An album with
-        # *some* pages read is saved with the holes named in it — see
-        # albums._assemble for why that replaced "all its pages or none".
+        if outcome.record is None:
+            # Not one page was read, so there is nothing to deliver and nothing to
+            # charge: `record is None` is exactly `pages_ok == []`. An album with
+            # *some* pages read is saved with the holes named in it — see
+            # albums._assemble for why that replaced "all its pages or none".
+            await log_event(
+                session,
+                user.id,
+                "album_incomplete",
+                {
+                    "pages": len(ordered),
+                    "pages_ok": 0,
+                    # The metrics, not just the reasons. A page turned away by
+                    # the frame check has to be arguable after the fact rather
+                    # than from memory — "Текст мелкий" on a page written in a
+                    # large hand is a claim, and these four numbers are the
+                    # evidence.
+                    "skipped": _skip_payload(outcome.skips),
+                    "latency_ms": int((time.monotonic() - started) * 1000),
+                    "cost_usd": vision.total_cost(outcome.stats),
+                },
+                group_id=group_id,
+            )
+            await message.answer(
+                texts.album_incomplete(
+                    [(p.page, p.skip_reason) for p in outcome.skips],
+                    texts.PDF_RESEND if pdf else texts.ALBUM_RESEND,
+                )
+            )
+            return
+
+        rec = outcome.record
+        # Stage two runs once over the assembled record, not once per page: a
+        # document formatted page by page keeps the seams the assembly removed.
+        composition = compose.Composition(rec.markdown)
+        if await limits.check_limits(session, user, pages=0, group=group) is None:
+            composition = await compose.compose(rec.markdown)
+            await vision.log_ai_calls(user.id, composition.stats, group_id=group_id)
+
+        # Every page's drawings back where their lines stand, numbered through
+        # the record — after composing, which never saw them.
+        markdown, placed = figures.place(composition.markdown, rec.cutouts)
+
+        # The lecture this album is a notebook of, as for a photo (task 63).
+        joining = None
+        if tag is not None:
+            joining = await subjects.joining(
+                session, group_id, user.id, tag, markdown, rec.margin_notes, caption,
+                len(rec.missing_pages),
+            )
+        explain_skipped = joining is not None and not joining.leads
+
+        # Stage three once over the whole record too, for the same reason, and
+        # the study version beside it, as for a photo.
+        explaining, early = explain.Explaining(), None
+        if (
+            not explain_skipped
+            and await limits.check_limits(session, user, pages=0, group=group) is None
+        ):
+            explaining, early = await _explained(
+                user, group_id, markdown, joining is None
+            )
+
+        note = Note(
+            user_id=user.id,
+            sender_id=sender.id if sender is not None else None,
+            group_id=group_id,
+            source_key=source_key,
+            tag=tag,
+            title=rec.title,
+            subject=rec.subject,
+            markdown=markdown,
+            # The teacher's boxes and the captions stand in the same list, each
+            # naming its kind; an explanation names none, as every one stored
+            # before them.
+            explanations=[asdict(item) for item in explaining.explanations]
+            + [asdict(item) for item in explaining.elements]
+            + [asdict(item) for item in explaining.captions],
+            summary=explaining.summary,
+            source_type=source_type,
+            page_count=rec.page_count,
+            status=rec.status,
+            margin_notes=rec.margin_notes,
+            uncertain=rec.uncertain,
+            issues=rec.issues,
+            numeric_divergences=rec.numeric_divergences,
+            unreadable_count=rec.unreadable_count,
+            missing_pages=rec.missing_pages,
+            unverified_pages=rec.unverified_pages,
+            text_agreement=rec.text_agreement,
+            numeric_agreement=rec.numeric_agreement,
+            photo_sharpness=rec.photo_sharpness,
+            photo_line_height=rec.photo_line_height,
+            photo_paper_fraction=rec.photo_paper_fraction,
+            photo_contrast=rec.photo_contrast,
+        )
+        session.add(note)
+        filing = (
+            await subjects.file(
+                session, note, tag, caption, joining.lecture if joining else None
+            )
+            if tag is not None
+            else None
+        )
+
+        await limits.consume(session, user, pages=rec.page_count)
+
         await log_event(
             session,
             user.id,
-            "album_incomplete",
+            "note_processed",
             {
-                "pages": len(ordered),
-                "pages_ok": 0,
-                # The metrics, not just the reasons. A page turned away by the
-                # frame check has to be arguable after the fact rather than
-                # from memory — "Текст мелкий" on a page written in a large
-                # hand is a claim, and these four numbers are the evidence.
+                "verdict": rec.verdict,
+                "page_count": rec.page_count,
+                "source_type": source_type,
+                "pages_skipped": len(outcome.skips),
+                # The same four numbers as in album_incomplete, and for the same
+                # reason: a page is turned away on these, and now that the record
+                # is saved anyway this is the only place they would be kept.
                 "skipped": _skip_payload(outcome.skips),
+                "composed": composition.refused is None and bool(composition.stats),
+                "compose_refused": composition.refused,
+                "compose_drift": composition.drift,
+                "compose_demoted": composition.demoted,
+                "compose_unmarked": composition.unmarked,
+                "compose_restored": composition.restored,
+                "compose_retried": composition.retried,
+                "explained": len(explaining.explanations),
+                "explain_refused": explaining.refused,
+                "explain_unsourced": explaining.unsourced,
+                "explain_judged": explaining.judged,
+                "elements": len(explaining.elements),
+                "elements_dropped": explaining.elements_dropped,
+                "captions": len(explaining.captions),
+                "captions_dropped": explaining.captions_dropped,
+                "summary": explaining.summary is not None,
+                "summary_refused": explaining.summary_refused,
+                "drawings": rec.drawings,
+                "sketched": rec.sketched,
+                "lecture_head_cut": rec.lecture_head_cut,
+                "lecture_tail_cut": rec.lecture_tail_cut,
+                "runs_added": rec.runs_added,
+                "read_further": rec.read_further,
+                "album_parts": albums.parts_of(ordered),
+                "figures": len(placed),
+                "charts": charts.count(markdown),
+                **_filing_payload(filing, explain_skipped),
                 "latency_ms": int((time.monotonic() - started) * 1000),
-                "cost_usd": vision.total_cost(outcome.stats),
+                "cost_usd": vision.total_cost(
+                    outcome.stats + composition.stats + explaining.stats
+                ),
             },
             group_id=group_id,
         )
-        await message.answer(
-            texts.album_incomplete(
-                [(p.page, p.skip_reason) for p in outcome.skips],
-                texts.PDF_RESEND if pdf else texts.ALBUM_RESEND,
+
+        await session.flush()  # note.id, for the file name, the caption, the drawings
+        await _keep_figures(session, note, placed)
+        # Under the document, in one message with it (task 105): what only the
+        # photographer can act on — the pages it went out without — and which
+        # subject it is. The rest is in the document or nowhere, as on the photo
+        # path.
+        after = [await corpus.tag_line(session, user, note, group, filing)]
+        if outcome.skips:
+            after.insert(
+                0, texts.album_partial([(p.page, p.skip_reason) for p in outcome.skips])
             )
+        await _saved(session)
+        await corpus.deliver(
+            message, session, note, user, group, early, "\n\n".join(after)
         )
-        return
-
-    rec = outcome.record
-    # Stage two runs once over the assembled record, not once per page: a
-    # document formatted page by page keeps the seams the assembly removed.
-    composition = compose.Composition(rec.markdown)
-    if await limits.check_limits(session, user, pages=0, group=group) is None:
-        composition = await compose.compose(rec.markdown)
-        await vision.log_ai_calls(user.id, composition.stats, group_id=group_id)
-
-    # Every page's drawings back where their lines stand, numbered through
-    # the record — after composing, which never saw them.
-    markdown, placed = figures.place(composition.markdown, rec.cutouts)
-
-    # The lecture this album is a notebook of, as for a photo (task 63).
-    joining = None
-    if tag is not None:
-        joining = await subjects.joining(
-            session, group_id, user.id, tag, markdown, rec.margin_notes, caption,
-            len(rec.missing_pages),
-        )
-    explain_skipped = joining is not None and not joining.leads
-
-    # Stage three once over the whole record too, for the same reason, and
-    # the study version beside it, as for a photo.
-    explaining, early = explain.Explaining(), None
-    if (
-        not explain_skipped
-        and await limits.check_limits(session, user, pages=0, group=group) is None
-    ):
-        explaining, early = await _explained(user, group_id, markdown, joining is None)
-
-    note = Note(
-        user_id=user.id,
-        sender_id=sender.id if sender is not None else None,
-        group_id=group_id,
-        source_key=source_key,
-        tag=tag,
-        title=rec.title,
-        subject=rec.subject,
-        markdown=markdown,
-        # The teacher's boxes and the captions stand in the same list, each
-        # naming its kind; an explanation names none, as every one stored
-        # before them.
-        explanations=[asdict(item) for item in explaining.explanations]
-        + [asdict(item) for item in explaining.elements]
-        + [asdict(item) for item in explaining.captions],
-        summary=explaining.summary,
-        source_type=source_type,
-        page_count=rec.page_count,
-        status=rec.status,
-        margin_notes=rec.margin_notes,
-        uncertain=rec.uncertain,
-        issues=rec.issues,
-        numeric_divergences=rec.numeric_divergences,
-        unreadable_count=rec.unreadable_count,
-        missing_pages=rec.missing_pages,
-        unverified_pages=rec.unverified_pages,
-        text_agreement=rec.text_agreement,
-        numeric_agreement=rec.numeric_agreement,
-        photo_sharpness=rec.photo_sharpness,
-        photo_line_height=rec.photo_line_height,
-        photo_paper_fraction=rec.photo_paper_fraction,
-        photo_contrast=rec.photo_contrast,
-    )
-    session.add(note)
-    filing = (
-        await subjects.file(
-            session, note, tag, caption, joining.lecture if joining else None
-        )
-        if tag is not None
-        else None
-    )
-
-    await limits.consume(session, user, pages=rec.page_count)
-
-    await log_event(
-        session,
-        user.id,
-        "note_processed",
-        {
-            "verdict": rec.verdict,
-            "page_count": rec.page_count,
-            "source_type": source_type,
-            "pages_skipped": len(outcome.skips),
-            # The same four numbers as in album_incomplete, and for the same
-            # reason: a page is turned away on these, and now that the record
-            # is saved anyway this is the only place they would be kept.
-            "skipped": _skip_payload(outcome.skips),
-            "composed": composition.refused is None and bool(composition.stats),
-            "compose_refused": composition.refused,
-            "compose_drift": composition.drift,
-            "compose_demoted": composition.demoted,
-            "compose_unmarked": composition.unmarked,
-            "compose_restored": composition.restored,
-            "compose_retried": composition.retried,
-            "explained": len(explaining.explanations),
-            "explain_refused": explaining.refused,
-            "explain_unsourced": explaining.unsourced,
-            "explain_judged": explaining.judged,
-            "elements": len(explaining.elements),
-            "elements_dropped": explaining.elements_dropped,
-            "captions": len(explaining.captions),
-            "captions_dropped": explaining.captions_dropped,
-            "summary": explaining.summary is not None,
-            "summary_refused": explaining.summary_refused,
-            "drawings": rec.drawings,
-            "sketched": rec.sketched,
-            "lecture_head_cut": rec.lecture_head_cut,
-            "lecture_tail_cut": rec.lecture_tail_cut,
-            "runs_added": rec.runs_added,
-            "read_further": rec.read_further,
-            "album_parts": albums.parts_of(ordered),
-            "figures": len(placed),
-            "charts": charts.count(markdown),
-            **_filing_payload(filing, explain_skipped),
-            "latency_ms": int((time.monotonic() - started) * 1000),
-            "cost_usd": vision.total_cost(
-                outcome.stats + composition.stats + explaining.stats
-            ),
-        },
-        group_id=group_id,
-    )
-
-    await session.flush()  # note.id, for the file name, the caption, the drawings
-    await _keep_figures(session, note, placed)
-    await _saved(session)
-    await corpus.deliver(message, session, note, user, group, early)
-
-    # What follows the document is what only the photographer can act on: the
-    # pages it went out without. The rest is in the document or nowhere, as on
-    # the photo path.
-    if outcome.skips:
-        await message.answer(
-            texts.album_partial([(p.page, p.skip_reason) for p in outcome.skips])
-        )
-
-    await corpus.ask_for_tag(message, session, user, note, group, filing)
 
 
 def _filing_payload(filing: subjects.Filing | None, explain_skipped: bool) -> dict:

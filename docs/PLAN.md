@@ -502,6 +502,15 @@ first, then the time a record takes and the memory:
       the equality check bounded, a .docx parsed off the event loop — the
       CEO's. Taken that night, built on 2026-10-12
 
+Specified on 2026-10-12, the CEO's: «давай поработаем с тем, как конспекты
+приходят пользователю»:
+
+- [ ] 105. One message, and a line while it is made: «Работаем…»,
+      «Считаю формулы…», «Учусь, чтобы вам не пришлось…» changed in place
+      while the chat waits and deleted when the record goes out; where it
+      was filed, or the question, and the pages it went without in the
+      document's caption — the CEO's. Taken and built on 2026-10-12
+
 ### Why the design comes before the explaining stage
 
 The author asked for it as a mandatory item, and it goes first in phase B for
@@ -548,7 +557,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-40, 42-43, 45-47, 51, 55-56, 69-70, 72, 77-79, 83, 86, 92, 97-99
-CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 102, 103, 104, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 73, 71, 41, 74, 75, 76, 80, 81, 82, 84, 85, 87, 88, 96, 93, 95, 100, 94, 102, 103, 104, 105, 90's check of the photographs; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: none
 Blockers: 52's overview waits on 41, and so does the day's cost cap, shared since 2026-10-04 with the first big group; 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -652,6 +661,7 @@ since 2026-10-01.
 | 2026-10-11 | the CEO, with Claude Code | Tasks 101 and 54 archived, the CEO's words: «мы так уже делали в прошлых итерациях. ладной, давай пока оставим работу с рисунками. оставь только самые простые. … запиши эти попытки в архив». Offered after record 107: the drawing as the photograph's own ink, the grid taken off line by line — clean on record 106's six drawings, but task 54's cut-out once more. The document draws what code draws from data — graphs, functions, number lines, mappings (task 94) — and a sketch is its words; production already ran so, `SKETCHES_ENABLED=false`. The four attempts are one entry in the Backlog; the code stays, off. 101 leaves the CEO's current line, 54 leaves the asleep ones for the archived; `CLAUDE.md` → "Where it stands" and "Drawings taken from the page", `FINDINGS.md` and README say so | the CEO's own |
 | 2026-10-11 | the CEO, with Claude Code | Task 103 specified, taken and built, the CEO's words «фикс комментариев: их можно оставлять при любом ответе и хорошо и плохо, + если нажат несколько раз на комментарий он засчитывается только 1 раз + упал счетчик комментариев», and of the counter «в личном чате админа. у одного пользователя обнулился счетчик». Production's `feedback` and `events` read with the CEO's leave: record 97's author pressed «Плохо» eight times and wrote nine comments, counted as one отзыв, the PDF sent to the feedback chat eight times; no отзыв lost — the bot's week had turned on Saturday and named only the week's people. The CEO's choices: «Оценка + каждый коммент» — an отзыв is a rating, one a person a record, and every comment, each in the week it was made, so no count falls — and «Неделя и всего» — the bot's week names everyone with their week and all their time. Either button asks, every press asks, a record's document goes to the feedback chat once, a reply to an earlier question still counts (`note_rated` gains `again` and `prompt`), and a press is kept when its notice is refused. Task 70's «Don't ask «что не так» after «Хорошо»», task 72's «a second press counts nothing» as the only count and task 74's «the week's people» give way; "Contracts" → the two events and "A group's week" change with it, `CLAUDE.md` → "What a reader says of a record" and "A group's week". No migration | the CEO's own |
 | 2026-10-12 | the CEO, with Claude Code | Task 104 specified on the night of 2026-10-11 and built the next morning, the CEO's words «я хочу чтобы ты в ночь взял очень важную задачу: оптимизацию кода и проверку на баги», and the choices made before the night: one push, in the morning; production's logs and its database read only; Gemini only where strictly needed, up to $5 — none was; bugs first, then the time a record takes and the memory, nothing rewritten for its own sake. The nine agents the CEO allowed stopped at midnight on the session's limit, and the code was read by hand in the morning. A record is committed before it is delivered — `CLAUDE.md` → "Sessions and transactions" gains a sixth exception; a document Telegram refuses is sent once more after flood control or a dropped connection, else falls back as one not drawn — "The document"; a record that joins no lecture has its study version built beside the explaining stage — "A lecture's study version", the pipeline and the concurrency table; `algebracheck` reads no formula past 1000 tokens and stays quiet past Python's recursion — "An equality that does not hold"; a .docx is parsed in a thread; the study version's button keeps its press when its notice is refused. The transactions are the CPO's area, the CEO's word enough. No migration | the CEO's own |
+| 2026-10-12 | the CEO, with Claude Code | Task 105 specified, taken and built, the CEO's words «пока пользователь ждет будет крутить какие нибудь надписи по типу, работаем, еще минуту, считаю формулы, учусь, чтобы вам не пришлось. когда меняем ее, старую удаляем + присылаем пользователю все в одном сообщении, а не делим на 2 как сейчас», and the choice «Менять текст на месте»: `PROCESSING` gives way to `WAITING`, one line turned round six phrases every 8 s and deleted on every way out (`app/bot/waiting.py`, new); `corpus.ask_for_tag` becomes `tag_line`, its words and `album_partial`'s in the document's caption, the rest after it where Telegram's 1024 characters do not hold them. `CLAUDE.md` → "The document", "The corpus", the pipeline and the structure; "Final processing order for a photo" and "All user-facing texts" here. No migration | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -1347,7 +1357,7 @@ question comes up while working on a task, the answer is here.
  3. compress (images.compress, on its own thread)
  4. check limits (limits.check_limits, pages=1)       ← rejection: exit
  5. check the frame (photoguard.check_photo_bytes)    ← rejection: exit
- 6. reply with texts.PROCESSING
+ 6. the waiting line (waiting.shown): «Работаем…» and on, changed in place, deleted at the end (task 105)
  7. three recognition runs (vision.transcribe_consensus), two more where one read further
  ·  a chart no other run read alike written as its words (charts.agreed)
  8. record spend (vision.log_ai_calls)                ← always, own session
@@ -1361,13 +1371,15 @@ question comes up while working on a task, the answer is here.
 12a. limits again (pages=0), then stage two (compose.compose)  ← refused: the text from step 7
  ·  the drawings back where their lines stand (figures.place)
  ·  the lecture the notebook joins, if its subject has it (subjects.joining)
-12b. limits again (pages=0), then stage three (explain.explain, its captions beside it)
+12b. limits again (pages=0), then stage three (explain.explain, its captions beside it,
+    and the study version for a record that joins no lecture, task 104)
                                                       ← a notebook joining a fuller one: skipped
 13. save the Note, filed under its subject and lecture (subjects.file)
 14. debit the quota (limits.consume, pages=1)
 15. log the note_processed event
-16. deliver the record (corpus.deliver): its study version, else its own document
-17. ask its subject, or say where it was filed (corpus.ask_for_tag)
+17. its subject asked, or where it was filed (corpus.tag_line); the record committed (task 104)
+16. deliver the record (corpus.deliver): its study version, else its own document, with
+    step 17's words in its caption — one message (task 105)
 ```
 
 Step 0 runs right after step 1, before anything is downloaded: an album's
@@ -1433,9 +1445,9 @@ only sent to the user: the `notes` table doesn't exist yet. Don't create a
 **Limits before the frame check:** with `AI_ENABLED=false` or an exhausted
 cap, there's no point asking the user to retake the photo.
 
-**`PROCESSING` after the frame check:** before it, processing takes a
+**The waiting line after the frame check:** before it, processing takes a
 fraction of a second, and an instant rejection after "processing..." would
-look silly.
+look silly. (`PROCESSING`, «Обрабатываю...», until task 105.)
 
 **Spend as a separate step in a separate session:** see "Transaction
 model."
@@ -1469,7 +1481,7 @@ Live in `app/bot/texts.py`, in Russian.
 | Constant | When it's sent |
 |---|---|
 | `START` | the `/start` command |
-| `PROCESSING` | step 6: frame accepted, recognition starting |
+| `WAITING` | step 6: frame accepted, recognition starting — one line turned round these in place, deleted when the record goes out (task 105) |
 | `NO_TEXT_FOUND` | markdown shorter than `MIN_MARKDOWN_LEN` |
 | `ALBUM_INCOMPLETE` | an album where not one page was read |
 | `LIMIT_PAGES` | daily page limit exhausted |
@@ -6543,6 +6555,65 @@ it. What production said (`FINDINGS.md` → "The review of 2026-10-12"):
   thresholds.
 - No retry of a text message: when Telegram takes no text from the bot,
   nothing reaches the chat, and the record is saved.
+
+---
+
+# Task 105. One message, and a line while it is made
+
+**Owner: the CEO.** Taken and built on 2026-10-12, the CEO's words: «давай
+поработаем с тем, как конспекты приходят пользователю. давай пока
+пользователь ждет будет крутить какие нибудь надписи по типу, работаем,
+еще минуту, считаю формулы, учусь, чтобы вам не пришлось. когда меняем ее,
+старую удаляем + присылаем пользователю все в одном сообщении, а не делим
+на 2 как сейчас», and of how the line changes: «Менять текст на месте».
+
+## Why
+
+A record took 40 to 465 s from its pages to its document (task 104), and
+the chat saw «Обрабатываю...» the whole time. Then two messages came, the
+document and, under it, where it was filed or which subject it is — three
+with the pages an album went out without.
+
+## Do, as built
+
+1. **The waiting line** (`waiting.shown`), where «Обрабатываю...» was sent
+   — after the limits and the frame check, so a refusal is said at once —
+   and on a .docx while its study version is built: «Работаем…», «Читаю
+   конспект…», «Считаю формулы…», «Учусь, чтобы вам не пришлось…»,
+   «Раскладываю по темам…», «Ещё минуту…», one every 8 s, round again,
+   never the same twice in a row. Changed in place, the CEO's choice: no
+   notification, and in a group no line jumping to the foot of the chat.
+2. **Deleted on every way out** — the record sent, a reason sent instead,
+   an exception on its way to the error handler, a deploy's cancellation —
+   after the last message, so the chat never sees nothing. A line the reader
+   deleted stops turning; flood control on a change is waited out; a line
+   Telegram will not change or delete is a line in the log, never the
+   record's problem.
+3. **One message**: where the record was filed, or the question which
+   subject it is, and the pages an album went out without stand in the
+   document's caption (`corpus.tag_line`, `corpus._captioned`); what
+   Telegram's 1024 characters do not hold goes after the document, as it
+   all did. The record's text, when no document could be sent, ends with
+   them.
+4. The topics are stored with the record, before it is committed, where
+   they were stored after it was sent.
+
+## Acceptance criterion
+
+- A photo, an album, a PDF and a .docx each end in one message, the line
+  gone.
+- The question under a private chat's record is answered by a "#word" as
+  before.
+- The suite is green.
+
+## Don't do
+
+- Not the stages: the line does not say which call is running, and no
+  stage reports to it.
+- Not a "#word" that brings a record back: its study version is kept and
+  comes at once, or is built in some twenty seconds without the line — a
+  task of its own, if it is wanted. The study version's button says
+  «Собираю учебную версию» in its notice, as before.
 
 ---
 

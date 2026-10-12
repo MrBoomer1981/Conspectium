@@ -823,10 +823,7 @@ async def test_the_question_shows_the_topics_and_the_subjects_in_use(session):
         session, user, title="Квантовая механика", markdown="## Модель Бора\n"
     )
 
-    message = _Message()
-    await corpus.ask_for_tag(message, session, user, note)
-
-    reply = message.replies[0]
+    reply = await corpus.tag_line(session, user, note)
     assert "#квантовая_механика" in reply and "#модель_бора" in reply
     assert "#матан" in reply  # so a second spelling of it never gets created
 
@@ -999,9 +996,6 @@ async def test_a_record_that_came_with_its_subject_is_not_asked_about(session):
         session, user, tag="матан", title="Комплексные числа", markdown="## Модуль\n"
     )
 
-    message = _Message()
-    await corpus.ask_for_tag(message, session, user, note)
-
-    reply = message.replies[0]
+    reply = await corpus.tag_line(session, user, note)
     assert reply == texts.filed("матан", ["комплексные_числа", "модуль"])
     assert "Под каким тегом" not in reply
