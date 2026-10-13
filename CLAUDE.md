@@ -1087,7 +1087,9 @@ hold", "Record 97"
 - **«Хорошо» and «Плохо» under every document** (task 70, the CEO,
   2026-10-06): on the PDF itself, or on the last message of the plain text it
   falls back to, a record a "#word" brings back included; each button names
-  the record the document is drawn from (`feedback.keyboard`). Every fault
+  the record the document is drawn from (`feedback.keyboard`). The one
+  document without them is the semester's (task 63, the CEO's «не нужны» of
+  2026-10-13): a rating names a record, and the semester is none. Every fault
   fixed before was found by the CEO reading a record against its
   photographs; the groups read every record and said nothing.
 - **One row a person a record** (`feedback`): a second press changes the

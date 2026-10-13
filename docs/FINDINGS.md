@@ -1462,8 +1462,8 @@ new date, «Лекция N», a lecture's title under a line; a section is no
 start — 408 words. It reads a notebook's pages only; an album keeps v11.
 
 **Tried before it was deployed**, in production's container on
-`gemini-3.8-flash`, three runs, on the three pages of the CEO's in the
-repository root — a lecture on compactness, its middle: two titled
+`gemini-3.8-flash`, three runs, on the three pages of record 106
+(`evidence/sketches/106/`) — a lecture on compactness, its middle: two titled
 sections, «Теорема Больцано-Вейерштрасса» and «Понятие компактности», and
 no date. All nine answers parsed with the new key. No run named a start on
 any page: the sections were read as sections, as v9 read record 66's.
