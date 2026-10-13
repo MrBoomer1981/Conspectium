@@ -252,6 +252,18 @@ async def lifespan(app: FastAPI):
         settings.DAILY_PAGES_PER_GROUP,
         settings.DAILY_COST_LIMIT_USD,
     )
+    # A whole notebook (task 63): its own prompt, which a record does not
+    # name, and its own ceiling.
+    logger.info(
+        "Notebook: up to %d pages in a private chat, one a person a day, %s, "
+        "%d words, lectures %s, %d pages read at a time, ceiling %ds",
+        settings.NOTEBOOK_MAX_PAGES,
+        settings.NOTEBOOK_PROMPT_FILE,
+        vision.NOTEBOOK_PROMPT_WORDS,
+        "marked" if vision.NOTEBOOK_MARKS_LECTURES else "not marked, cut by pages",
+        albums.NOTEBOOK_AT_ONCE,
+        albums.NOTEBOOK_TIMEOUT_S,
+    )
     # Allowed by ALLOW_UNPRICED_MODEL; said out loud on every deploy so it
     # cannot become the state nobody remembers choosing. Both models, from the
     # same list the validator refuses on — this used to name VISION_MODEL

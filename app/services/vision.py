@@ -66,6 +66,13 @@ PROMPT_MARKS_LECTURES = '"lecture_starts"' in TRANSCRIBE_PROMPT
 # Whether the prompt asks for a drawing that is data as its data — a graph by
 # its formula, a number line, a mapping (v10 on, task 94) — so code draws it.
 PROMPT_WRITES_CHARTS = "[график:" in TRANSCRIBE_PROMPT
+# A whole notebook's pages are read with a prompt of their own (task 63):
+# PROMPT_FILE's with where each lecture begins, which cuts the notebook into
+# its lectures. An album keeps PROMPT_FILE's, which marks none since task 64
+# was put to sleep.
+NOTEBOOK_PROMPT = load_prompt(settings.NOTEBOOK_PROMPT_FILE)
+NOTEBOOK_PROMPT_WORDS = len(NOTEBOOK_PROMPT.split())
+NOTEBOOK_MARKS_LECTURES = '"lecture_starts"' in NOTEBOOK_PROMPT
 
 # One client per process, not one per call.
 _client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -569,6 +576,7 @@ async def _one_attempt(
     image_bytes: bytes,
     model: str,
     timeout: float = _CALL_TIMEOUT_S,
+    prompt: str | None = None,
 ) -> tuple[Transcription | None, CallStats, bool]:
     """A single Gemini call plus the parsing that follows it. The third element
     says whether a retry is worth it: a transient exception, or a 200 whose
@@ -587,7 +595,7 @@ async def _one_attempt(
                         types.Part.from_bytes(
                             data=image_bytes, mime_type="image/jpeg"
                         ),
-                        TRANSCRIBE_PROMPT,
+                        prompt or TRANSCRIBE_PROMPT,
                     ],
                     config=_generation_config(),
                 ),
@@ -634,18 +642,20 @@ async def _one_attempt(
 async def transcribe(
     image_bytes: bytes,
     model: str,
+    prompt: str | None = None,
 ) -> tuple[Transcription | None, list[CallStats]]:
     """Up to three attempts with 1 s then 2 s pauses, stopping at the first
     success or the first non-retryable failure — and after a first attempt
     that timed out, one attempt twice as long and no more (_AFTER_TIMEOUT).
     Never touches the database. Every attempt is recorded in the returned
-    list, which is always non-empty."""
+    list, which is always non-empty. `prompt` is PROMPT_FILE's unless a
+    notebook's page is read (NOTEBOOK_PROMPT, task 63)."""
     all_stats: list[CallStats] = []
     last = len(_RETRY_PAUSES_S)
     timeout = _CALL_TIMEOUT_S
     attempt = 0
     while True:
-        result, stats, retryable = await _one_attempt(image_bytes, model, timeout)
+        result, stats, retryable = await _one_attempt(image_bytes, model, timeout, prompt)
         all_stats.append(stats)
         if result is not None:
             return result, all_stats
@@ -966,8 +976,14 @@ def _verdict(text_agreement: float, numbers_vouched: bool) -> str:
     return "needs_review" if numbers_vouched else "rejected"
 
 
+def _asked(prompt: str | None) -> dict:
+    """The prompt a run is asked with, only when it is not PROMPT_FILE's:
+    every run of an ordinary page is the call it always was."""
+    return {} if prompt is None else {"prompt": prompt}
+
+
 async def _runs(
-    image_bytes: bytes, count: int
+    image_bytes: bytes, count: int, prompt: str | None = None
 ) -> tuple[list[Transcription], list[CallStats]]:
     """`count` independent transcribe() calls in parallel: the readable runs,
     and the stats of every run that finished.
@@ -976,7 +992,7 @@ async def _runs(
     asyncio.wait, not wait_for: cancelling the whole gather would throw away the
     CallStats of runs that already finished, and those calls were still billed."""
     tasks = [
-        asyncio.create_task(transcribe(image_bytes, settings.VISION_MODEL))
+        asyncio.create_task(transcribe(image_bytes, settings.VISION_MODEL, **_asked(prompt)))
         for _ in range(count)
     ]
     try:
@@ -1044,7 +1060,7 @@ def _further(runs: list[Transcription], chosen: int) -> list[str]:
 
 
 async def _read_whole(
-    image_bytes: bytes, runs: list[Transcription]
+    image_bytes: bytes, runs: list[Transcription], prompt: str | None = None
 ) -> tuple[list[Transcription], int, bool, list[CallStats]]:
     """The runs to compare, with how many were added and whether the page was
     read further for them (task 65).
@@ -1058,7 +1074,7 @@ async def _read_whole(
     blocks = _further(runs, chosen)
     if not blocks:
         return runs, 0, False, []
-    more, stats = await _runs(image_bytes, MORE_RUNS)
+    more, stats = await _runs(image_bytes, MORE_RUNS, prompt)
     every = runs + more
 
     def carries(run: Transcription, block: str) -> bool:
@@ -1085,14 +1101,16 @@ async def _read_whole(
 
 async def transcribe_consensus(
     image_bytes: bytes,
+    prompt: str | None = None,
 ) -> tuple[TranscriptionResult | None, list[CallStats]]:
     """settings.VISION_RUNS independent transcribe() calls in parallel, then
     compared by code — and MORE_RUNS more when one run read a block the
     chosen one did not (_read_whole). Never touches the database: the
     returned list carries the stats of every run that finished. No readable
     run → first element None (the list is then empty only if the ceiling
-    fired before any run returned)."""
-    ok_runs, all_stats = await _runs(image_bytes, settings.VISION_RUNS)
+    fired before any run returned). `prompt` is PROMPT_FILE's unless a
+    notebook's page is read (task 63)."""
+    ok_runs, all_stats = await _runs(image_bytes, settings.VISION_RUNS, prompt)
     if not ok_runs:
         return None, all_stats
 
@@ -1127,7 +1145,7 @@ async def transcribe_consensus(
         )
 
     ok_runs, runs_added, read_further, more_stats = await _read_whole(
-        image_bytes, ok_runs
+        image_bytes, ok_runs, prompt
     )
     all_stats.extend(more_stats)
 

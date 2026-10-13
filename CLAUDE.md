@@ -200,7 +200,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `022_lecture_moved`, the head. The next is `023_`.
+  `023_notebook`, the head. The next is `024_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -361,7 +361,7 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
    exception; `notes`, `users` and `events` go through it. It serves messages,
    the bot's own membership updates and the presses of its buttons, and puts
    the group chat, if any, in `data["group"]` — for a press, the chat of the
-   message the button is on. Seven deliberate exceptions:
+   message the button is on. Eight deliberate exceptions:
    - a **new** user is committed *before* the handler: `log_ai_calls` inserts
      `ai_calls.user_id` from a session of its own and would fail the foreign
      key;
@@ -386,7 +386,11 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
      kept, the reader told to send the photo again;
    - a lecture moved into a group is committed before the group is told
      (`to_group.on_move`, task 63): a line that could not be sent leaves
-     it moved, and a move that could not be kept tells nobody anything.
+     it moved, and a move that could not be kept tells nobody anything;
+   - a whole notebook's update commits before its pages are read, and
+     again after each of its lectures is sent (`handlers._read_notebook`,
+     task 63): a hundred pages take twenty minutes to read, and a lecture
+     that fails rolls back only itself.
 2. **`events` are transactional and vanish on rollback — deliberately**: an
    event describes something that in the end happened. `log_event` wraps its
    insert in a SAVEPOINT (`begin_nested`) so a failed insert cannot poison the
@@ -433,7 +437,12 @@ its text layer is no way in, since a typed PDF's formulas come out of it
 flattened and a scanner lays a junk reading of its own over handwriting. A
 blank page is left out without a word, the others keeping their number in
 the PDF (`PageInput.number`); more pages than an album may hold refuse the
-PDF before a page is read. **`.docx` is never read by a model**: no page
+PDF before a page is read. **A whole notebook** (task 63,
+`handlers._read_notebook`): in a private chat, a send or a PDF of more
+pages than an album may hold, or one whose caption says «тетрадь», up to
+`NOTEBOOK_MAX_PAGES` — read a few pages at a time with a prompt of its own
+and cut into its lectures, each made as an album's record is ("The
+corpus"). **`.docx` is never read by a model**: no page
 limit, no quota, neither stage, and it works with `AI_ENABLED=false`; only
 `MIN_MARKDOWN_LEN` applies. Its delivery is the one call it can make — the
 study version, as on every path, inside the day's cost cap (`pages=0`); off
@@ -819,6 +828,11 @@ from 12a, once.
   start on two pages where the CEO knew one lecture ended — nothing on them
   told a lecture from a section. The way left is the page photographed
   twice, which task 63 takes up. → "One lecture, one record"
+- **Woken for a whole notebook** (task 63, 2026-10-13): its pages are read
+  with `prompts-v12.md`, v11 with v9's rule, and the notebook is cut at
+  every start all runs named (`lectures.cut`) — the CEO's notebooks open a
+  lecture with its date and a heading. An album keeps v11 and is not cut.
+  → "A whole notebook's prompt"
 
 ### The matrix against the graph
 
@@ -963,10 +977,25 @@ hold", "Record 97"
   group's, found there and no longer in the private chat, and counts in no
   day's pages (`notes.moved_at`): it was read and paid for where it was
   made.
+- **A whole notebook is cut into its lectures** (`notebook.py`, the CEO's
+  of 2026-10-12): from every start all runs named to the next, across
+  pages, the author's line before a start dropped; a stretch of more than
+  an album's pages with no start kept in near equal parts of an album's,
+  and the person told. Each lecture is dated by the margin of the page it
+  begins on — the page's days in order are its lectures' in order when it
+  names as many as begin there — keeps only its own day in its margin
+  notes (`subjects.margin_for`), and is made, kept and sent as an album's
+  record is, two at a time and in order; its record carries the notebook
+  (`notes.notebook`). A last message sums the notebook up with «Все в
+  группу «…»», or asks its subject once, the answer filing every lecture of
+  it (`corpus._file_notebook`). One a person a day, beyond their pages:
+  counted once a notebook has come out whole (`notebook_read`), so one a
+  deploy cut short is sent again; its pages are never in the person's
+  day. A caption's day is the notebook's, never a lecture's; two albums
+  whose captions name different days are two sends.
 - **Not yet built**, in the CEO's order of 2026-10-12 (`docs/PLAN.md` →
-  task 63): a whole notebook sent at once and cut into its lectures by
-  their dates and headings; the semester as one document by its topics,
-  task 52's new form.
+  task 63): the semester as one document by its topics, task 52's new
+  form.
 
 ### A group chat
 
@@ -1514,6 +1543,11 @@ number never leaves another quietly cutting the work short:
 | `_QUIET_SECONDS` | `bot/albums.py` | 3 s of silence since the last `announce` closes an album, once every announced page is in |
 | `_CONTINUE_S` | `bot/albums.py` | 60 s of silence closes a send that ends on an album of exactly ten, which the rest of the send may follow (task 81) — three times the 19 s a phone took to upload the next album of a send (task 85) |
 | `_COLLECT_MAX_S` | `bot/albums.py` | (⌈`MAX_ALBUM_PAGES` ÷ 10⌉ + 1) × `_CONTINUE_S` from the send's first page — 240 s at thirty pages — so a stream that never goes quiet is not waited on for ever, and a send that keeps coming is not cut |
+| `_NOTEBOOK_COLLECT_MAX_S` | `bot/albums.py` | the same for a private chat's send, which may be a whole notebook of `NOTEBOOK_MAX_PAGES` — 660 s at a hundred pages (task 63) |
+| `NOTEBOOK_AT_ONCE` | `bot/albums.py` | `4` — a notebook's pages read at a time: twelve runs keep the ten slots full, and another chat's album waits behind one window of them rather than a hundred pages |
+| `NOTEBOOK_TIMEOUT_S` | `bot/albums.py` | the album's ceiling for `NOTEBOOK_MAX_PAGES`' waves of runs — raised with it, never lowered |
+| `_FETCH_AT_ONCE` | `bot/handlers.py` | `10` — a notebook's photographs downloaded at a time: a hundred fetched at once held a hundred originals in memory |
+| `_LECTURES_AT_ONCE` | `bot/handlers.py` | `2` — a notebook's lectures made at a time, each begun when the one two before it is sent, so the first is sent while the rest are made |
 | `max_overflow` | `db/session.py` | 15 — every page of an album arrives at once with a session, the winner holding a connection for the whole album; the others commit before they wait (task 81) |
 
 - `TIMEOUT_MARGIN = 1.3` is the ratio the old hand-written 120 s held to 93 s.
@@ -1574,6 +1608,8 @@ the machinery before the point arrives — record what you find here instead.
 | `_API_SLOTS` is a per-process `Semaphore(10)` | **tens of active chats** | the queue to Gemini grows into timeouts |
 | Stage three searches up to eight explanations at once | **two records finishing together** | the searches hold most of the ten slots for ~20 s, and another chat's pages queue behind them |
 | Photos are held whole in memory | **many parallel downloads** | container memory |
+| A whole notebook is read and made in one background task, twenty to forty minutes for a hundred pages | **any deploy meanwhile** | its lectures not yet sent are lost and their reading paid for; the notebook does not use the person's day up, and is sent again |
+| A notebook's reading keeps the ten API slots full, four pages at a time | **a group's album sent meanwhile** | it waits behind one window of the notebook's pages, a minute or so; two notebooks at once halve each other |
 | A private document of a record with its subject asks Telegram about every group the bot is in (`to_group.targets`) — four in production | **hundreds of groups** | every such delivery waits on as many calls, and a few at once reach Telegram's thirty requests a second: ask only the groups the person is known in, and offer the rest by a button |
 
 **One replica is a requirement, not a default.** Scaling the service
@@ -1657,6 +1693,7 @@ app/
     tags.py           what a #tag is, and a record's topics
     feedback.py       «Хорошо», «Плохо» and where the error is, under every document
     study_version.py  «Учебная версия»: a record's study version built on request
+    notebook.py       a whole notebook sent at once: what it is, its lectures, dated
     to_group.py       «В группу «…»»: a private lecture moved into a group
     waiting.py        the line a chat sees while its record is made
     rating.py         a group's week: who sent its records and who rated them, Saturday's summary; the bot's week
@@ -1693,14 +1730,15 @@ evidence/             local only, never in git: records, reference notes, Railwa
 CLAUDE.md, README.md  in the root, where Claude Code and GitHub read them
 ```
 
-**The prompts**: recognition `prompts-v3.md` to `prompts-v9.md` — v5
+**The prompts**: recognition `prompts-v3.md` to `prompts-v12.md` — v5
 extraction only, v6 (production) v5 with the author's frames written as
 `\boxed{…}`, v7 without the list of numbers, tried and rolled back, v8 v6
 with each drawing's frame, measured and asleep (task 54), v9 v6 with where a
 lecture begins, measured and asleep (task 64), v10 v6 with a drawing
 that is data written as data (task 94), which wrote a number line in
 words, v11 (production since 2026-10-10) v10 asking first whether a
-drawing is one of the kinds; composing
+drawing is one of the kinds, v12 v11 with v9's lecture starts, a whole
+notebook's alone (task 63, `NOTEBOOK_PROMPT_FILE`); composing
 `prompts-compose-v1.md` to `v4`, v3 framing a section's main formula, v4
 (production since 2026-10-06) v3 with the author's shorthand spelled out
 (task 69);
@@ -1763,6 +1801,8 @@ IMAGE_QUALITY=85
 ALLOW_UNPRICED_MODEL=false
 MIN_MARKDOWN_LEN=40
 MAX_ALBUM_PAGES=30       the pages of one send, its albums of ten read as one (task 81)
+NOTEBOOK_MAX_PAGES=100   a whole notebook in a private chat, one a person a day (task 63)
+NOTEBOOK_PROMPT_FILE=prompts-v12.md   a notebook's pages read with where each lecture begins
 LOG_LEVEL=INFO
 FEEDBACK_CHAT_ID=        unset: feedback is stored only
 ```
@@ -1823,7 +1863,7 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
   compression, both stages, the captions' prompt, the study version's
   prompt, whether a sketch is drawn again from its page, the call knobs,
   the formulas' engine (from the warm-up), the
-  five timeouts and the repeat after one, the pages of one send and the day's limits, where a reader's «Плохо» is sent, when a
+  five timeouts and the repeat after one, the pages of one send and the day's limits, a notebook's pages, prompt and ceiling, where a reader's «Плохо» is sent, when a
   group's week is summed up, and whether the bot sees a group's photos. What
   a **record** does not say is which prompt made it —
   `docs/PLAN.md` → "Where the quality work stands", gap 3.

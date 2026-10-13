@@ -1453,6 +1453,28 @@ albums. A first run counted ten cases of «the first page» as found: the
 earlier record was the page alone, one page, so its last page was that
 first page — found rightly.
 
+## A whole notebook's prompt
+
+**The arm (task 63, 2026-10-13).** A notebook sent whole is cut where its
+lectures begin, and only the page says where: `prompts-v12.md` is v11 with
+v9's rule and key — the first line of every lecture begun on the page, a
+new date, «Лекция N», a lecture's title under a line; a section is no
+start — 408 words. It reads a notebook's pages only; an album keeps v11.
+
+**Tried before it was deployed**, in production's container on
+`gemini-3.8-flash`, three runs, on the three pages of the CEO's in the
+repository root — a lecture on compactness, its middle: two titled
+sections, «Теорема Больцано-Вейерштрасса» and «Понятие компактности», and
+no date. All nine answers parsed with the new key. No run named a start on
+any page: the sections were read as sections, as v9 read record 66's.
+Agreements 0.99, 0.81 and 0.93 by text, 0.77–0.80 by numbers, as v11's
+pages run; $0.068 for the three, 15–21 s a page.
+
+**What it did not settle.** Whether a start is named where one is — a date
+and a heading, as the CEO's notebooks open a lecture. That is the CEO's
+notebook to show once the code is deployed, as task 63 says: v9 was put to
+sleep on pages that had no date to name.
+
 ## Record 67, half a page
 
 **What the CEO saw** (2026-10-04): one photograph sent twice to the test

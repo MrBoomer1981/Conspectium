@@ -262,6 +262,11 @@ class Note(Base):
     # chat. Its pages were read and paid for where it was made, so the
     # group's day does not count them (limits.group_pages_left).
     moved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The whole notebook a record was cut from (task 63), the same for every
+    # lecture of it: "notebook:<chat>:<first page's message>". The subject
+    # asked once files them all, and «Все в группу» moves them all. NULL for
+    # a record of an album, a photo or a file.
+    notebook: Mapped[str | None] = mapped_column(String, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )

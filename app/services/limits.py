@@ -17,7 +17,7 @@ from sqlalchemy.orm.attributes import set_committed_value
 
 from app.bot import texts
 from app.core.config import settings
-from app.db.models import AiCall, Group, Note, User
+from app.db.models import AiCall, Event, Group, Note, User
 
 
 async def check_limits(
@@ -114,6 +114,29 @@ async def group_pages_left(
     )
     used = int((await session.execute(stmt)).scalar_one())
     return max(settings.DAILY_PAGES_PER_GROUP - used, 0)
+
+
+# The event a whole notebook leaves once it has been read and cut (task 63).
+NOTEBOOK_READ = "notebook_read"
+
+
+async def notebook_read_today(session: AsyncSession, user: User) -> bool:
+    """Whether the person's notebook of the day has been read: one a day,
+    beyond their pages (task 63, the CEO's of 2026-10-12). Counted from the
+    notebook that came out whole, not from one begun: a notebook a deploy
+    cut short does not use the day up, and is sent again. Soft, as every
+    limit here: two notebooks sent at once both pass."""
+    today = datetime.now(timezone.utc).date()
+    stmt = (
+        select(func.count())
+        .select_from(Event)
+        .where(
+            Event.user_id == user.id,
+            Event.type == NOTEBOOK_READ,
+            Event.created_at >= _day_start(today),
+        )
+    )
+    return bool((await session.execute(stmt)).scalar_one())
 
 
 async def _spent_today_usd(session: AsyncSession, today: date) -> float:

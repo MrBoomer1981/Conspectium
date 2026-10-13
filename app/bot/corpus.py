@@ -1031,6 +1031,12 @@ async def on_tag(
 
     if group is None:
         newest = await _newest(session, user)
+        if newest is not None and newest.tag is None and newest.notebook is not None:
+            # A whole notebook sent without its "#word" (task 63): the one
+            # question its last message asked, the answer filing every
+            # lecture of it, each by its own day.
+            await _file_notebook(message, session, user, newest, tag)
+            return
         if newest is not None and newest.tag is None:
             # Its first page the last of the subject's album before (task
             # 63): cut as it would have been had the subject come with it.
@@ -1087,6 +1093,46 @@ async def on_tag(
         await deliver(message, session, found[0], user, group)
         return
     await message.answer(texts.several_tagged(tag, await _listing(session, found)))
+
+
+async def _file_notebook(
+    message: Message, session: AsyncSession, user: User, newest: Note, tag: str
+) -> None:
+    """Every lecture of a notebook that came without its subject filed under
+    the answer — each into its own lecture of the subject, by its own day —
+    and the person told how many, with «Все в группу» under it."""
+    lectures = (
+        await session.execute(
+            select(Note)
+            .where(
+                Note.notebook == newest.notebook,
+                Note.user_id == user.id,
+                Note.group_id.is_(None),
+                Note.tag.is_(None),
+            )
+            .order_by(Note.id)
+        )
+    ).scalars().all()
+    for note in lectures:
+        filing = await subjects.file(session, note, tag)
+        await log_event(
+            session,
+            user.id,
+            "note_tagged",
+            {
+                "note_id": note.id,
+                "tag": tag,
+                "lecture_id": filing.lecture.id,
+                "lecture_joined": filing.joined,
+                "repeat_cut": 0,
+                "repeat_of": None,
+                "notebook": newest.notebook,
+            },
+        )
+    await message.answer(
+        texts.notebook_tagged(tag, len(lectures)),
+        reply_markup=await to_group.all_markup(message, session, newest),
+    )
 
 
 async def _one_per_lecture(notes: list[Note]) -> list[Note]:

@@ -369,8 +369,9 @@ included. "Where this is going, decided 2026-10-02" says why.
       new form), and the repeats gone. The repeats built the same day — a
       lecture held twice joined (`021_one_lecture`), the copies of one
       album one answer, the page photographed twice cut. The move into the
-      group built on 2026-10-13 (`022_lecture_moved`); the notebook and the
-      semester left, in parts
+      group built on 2026-10-13 (`022_lecture_moved`), and the whole
+      notebook (`023_notebook`, `prompts-v12.md`), to be measured on the
+      CEO's notebook once deployed; the semester left
 - [ ] 60. A board photographed: a frame check and a reading of its own,
       measured on real boards — the CEO's
 - [ ] 61. A lecture recorded: the bot's notes from what was said, marked as
@@ -593,7 +594,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-43, 45-47, 51, 55-56, 69-88, 90, 92-100, 102-105
-CEO — current: 106, 63; next: 63's parts — a whole notebook, the semester by its topics (52) — then 65 once there is data for it, then 60
+CEO — current: 106, 63; next: 63's last part — the semester by its topics (52) — and the notebook measured on the CEO's notebook; then 65 once there is data for it, then 60
 CPO — current: none; next: none
 Blockers: 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -703,6 +704,7 @@ since 2026-10-01.
 | 2026-10-12 | the CEO, with Claude Code | Task 63 taken up again and widened by the CEO's answers: two notebooks of one lecture one document, as built, and a subject's lectures as one document by the semester's topics — task 52 in a new form, asked for by a button under a subject's list of lectures, «Весь семестр одним PDF», rather than a command; the earlier lectures sent as a whole notebook at once, in the private chat, cut into lectures where every run names one's start — the CEO's notebooks open a lecture with its date and a heading — each lecture its record, moved into the group by a button under it and the group shown one line; a notebook up to 100 pages, one a day beyond a person's 30, the bot's day raised from $5 to $15; and the repeats gone — a lecture held twice, the copies of one album, the page photographed twice. In parts, each its commit: the repeats, the move into the group, the notebook, the semester. Production read the same day, read only, on the CEO's word: 108 records, 87 of the 96 made in private chats in no subject, most of them the CEO's albums sent again; 18 lectures, one held twice; none with two people's notebooks; no page photographed twice | the CEO's own |
 | 2026-10-12 | the CEO, with Claude Code | Task 63's repeats built: the lectures a subject held twice joined by the rule a record is filed by (migration `021_one_lecture`, data and no schema: one pair in production, planned there read only), a search's records of no subject that read as one text one answer, the fullest, of fifty read, and the head of a record that is its subject's album before's last page, photographed again, cut as it is filed — only where sure: the earlier album sent on an earlier day, and this lecture's day written down or the page written on past the repeat. Measured on production's second readings of one page: 409 of 423 found, every cut at the next lecture's first word, nothing found on 3 110 that hold no repeat. `note_processed` and `note_tagged` gain `repeat_cut` and `repeat_of`; `topic_searched`'s `found` counts up to fifty ("Contracts"). `CLAUDE.md` → "The corpus", the pipeline; `FINDINGS.md` → "The page photographed twice" | the CEO's own |
 | 2026-10-13 | the CEO, with Claude Code | Task 63's move into the group built: under a private record's document with its subject, «В группу «…»» for every group the person and the bot are both in, Telegram asked at the delivery; a press moves the lecture's notebooks into the group's subject of the word, into a classmate's lecture of it by the rule a record is filed by, the private lecture's day kept, and the group is shown one line. A lecture moved counts in no day's pages: migration `022_lecture_moved` adds `notes.moved_at` (schema, named to the CPO before the push), which the group's day leaves out. Event `lecture_moved` ("Contracts"). The notebook's two open questions answered by the CEO the same night: a stretch with no lecture start cut into parts of thirty pages at most, the person told; a notebook without its "#word" read, and its subject asked once at the end. `CLAUDE.md` → "The corpus", a seventh early commit in "Sessions and transactions", a row in "Scale debt", "Structure" | the CEO's own |
+| 2026-10-13 | the CEO, with Claude Code | Task 63's whole notebook built: a private send of more pages than `MAX_ALBUM_PAGES`, or one whose caption says «тетрадь», up to `NOTEBOOK_MAX_PAGES` (100), read with `prompts-v12.md` (v11 with v9's lecture starts) four pages at a time, cut where every run named a start, each lecture dated by the margin of the page it begins on and made, kept and sent as an album's record is, two at a time and in order; a last message sums it up with «Все в группу», or asks the subject once. One a person a day beyond their pages, counted once a notebook has come out whole (event `notebook_read`); its pages not in the person's day. Migration `023_notebook` adds `notes.notebook` (schema, named to the CPO before the push). A private chat's send may run to a notebook's pages, and two albums whose captions name different days are two sends. The night's answer «частями до 30 страниц» corrected to a send's pages, `MAX_ALBUM_PAGES` — 20 in production: the question had taken a send for thirty. v12 tried in production's container on three pages of the CEO's: nothing named where nothing begins, $0.068. "Contracts" → `notebook_read`, and `notebook` in `note_processed`, `note_captured`, `note_tagged`, `album_retake_requested`, `album_incomplete`. `CLAUDE.md` → the pipeline, "The corpus", "Sessions and transactions", "Concurrency ceilings", "Scale debt", the variables; `FINDINGS.md` → "A whole notebook's prompt" | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -1270,6 +1272,8 @@ VISION_RUNS=3
 VISION_MODEL=gemini-3.5-flash-lite
 MIN_MARKDOWN_LEN=40
 MAX_ALBUM_PAGES=30
+NOTEBOOK_MAX_PAGES=100
+NOTEBOOK_PROMPT_FILE=prompts-v12.md
 LOG_LEVEL=INFO
 ```
 
@@ -4038,24 +4042,62 @@ margin's day was read on 18 records of 107.
   record, a press in a group, a forged button, two presses at once — one
   move, one lecture. Production has four groups, the bot gone from two.
 
+## Built on 2026-10-13: the whole notebook
+
+- **What is a notebook** (`notebook.wanted`): a private chat's send of
+  more pages than `MAX_ALBUM_PAGES`, or one whose caption says «тетрадь»,
+  a photographed send or a PDF, up to `NOTEBOOK_MAX_PAGES`, 100. A
+  private chat's send may run to it (`albums._most`), and two albums
+  whose captions name different days are two sends (`albums._follows`).
+  A group's send is as it was.
+- **One a day, beyond the person's pages** (`limits.notebook_read_today`):
+  counted once a notebook has come out whole, from its `notebook_read`
+  event — a notebook a deploy cut short does not use the day up — and its
+  pages never in the person's day. The bot's day goes to $15 on Railway
+  with the push, the CEO's of 2026-10-12.
+- **Read** with `prompts-v12.md` (`NOTEBOOK_PROMPT_FILE`), v11 with v9's
+  rule and key, four pages at a time (`albums.NOTEBOOK_AT_ONCE`): twelve
+  runs keep the bot's slots full, and another chat's album waits behind
+  one window, not a hundred pages. A frame refused stops the notebook
+  before anything is read, as an album's does.
+- **Cut** where every run named a start (`lectures.cut`), from each to
+  the next across pages, the author's line before a start dropped; what
+  stands before the first start is a lecture of its own. A stretch of more
+  than `MAX_ALBUM_PAGES` with no start is kept in near equal parts of it,
+  each a record, and the person told. The CEO's answer of the night was
+  «частями до 30 страниц», asked as «как обычная присылка» when a send was
+  taken for thirty pages: production's is twenty, and the parts are a
+  send's.
+- **Dated** by the margin of the page a lecture begins on
+  (`notebook._day`): its days in order are its lectures' in order when it
+  names as many as begin there. Each lecture keeps only its own day in its
+  margin notes (`subjects.margin_for`), so it is filed on it and its
+  document names it. A caption's day is the notebook's, never a lecture's.
+- **Made** as an album's record is (`handlers._notebook_lectures`):
+  composed, joined to its subject's lecture of it, explained and studied,
+  kept, sent with «В группу «…»» — two lectures at a time, each begun when
+  the one two before it is sent, and sent in order. A lecture that fails
+  is left out and named; the rest go on.
+- **Summed up** in one last message (`texts.notebook_done`): the lectures
+  by day, the parts, the pages unread, the lectures not made — and «Все в
+  группу «…»» (`to_group.on_move_all`), or, sent without its "#word", the
+  one question whose answer files every lecture of it, each on its day
+  (`corpus._file_notebook`) — the CEO's answer of the night.
+- **Checked** with the model faked, on SQLite and on a local PostgreSQL
+  through the chain to `023_notebook`, down and up again: five lectures
+  dated by their margins, a page two lectures share, an unread page, the
+  notebook in order whatever order its lectures were done in, the day's
+  second refused, all moved into a group in one line, the subject asked
+  once and filed, forty-five pages with no start in three parts, a
+  lecture broken in composing and one in sending, a hundred and one pages
+  refused, an album of fifteen still an album; the cut on 3 000 notebooks
+  made at random, no line lost or doubled; the sends of a private chat and
+  a group; a PDF of each size. v12 tried in production's container:
+  `FINDINGS.md` → "A whole notebook's prompt". Measured on the CEO's
+  notebook once deployed.
+
 ## The parts left
 
-- **A whole notebook**: a private send of more than a send's pages, or
-  one whose caption says «тетрадь», with its "#word", up to 100 pages,
-  one a day beyond a person's 30. Read with a prompt that names the first
-  line of every lecture begun on a page (`prompts-v12.md`: v11 with v9's
-  rule), cut where every run names it, each lecture dated by its page's
-  margin and made a record of its own — composed, explained, studied, sent
-  with the group's button — and a last message summing the notebook up
-  with «Все в группу». Two albums of ten sent one after the other with
-  different days in their captions stop being one send. Measured on the
-  CEO's notebook once deployed. The CEO's answers of the night of
-  2026-10-13: a stretch where no lecture start was found is cut by its
-  pages into parts of thirty pages at most, as near equal as they come,
-  each a record, and the person told the lectures' starts were not found
-  there; a notebook sent without its "#word" is read and cut all the
-  same, and the last message asks its subject once, the answer filing
-  every lecture of it.
 - **The semester by its topics** — task 52's new form, above.
 
 ## Don't do
@@ -7085,6 +7127,24 @@ the notebooks moved, the private lecture they were, the group's lecture
 they are in now and whether it had a notebook before, whether they are its
 base now or how many passages they add to its document, and their pages,
 which the group's day does not count.
+
+## Event `notebook_read`
+
+A whole notebook read and cut into its lectures (task 63), once every lecture
+of it has been made or has failed. It is what counts a person's notebook of
+the day (`limits.notebook_read_today`).
+
+payload: `{"notebook": str, "source_type": str, "pages": int, "pages_ok":
+int, "pages_skipped": int, "lectures": int, "lectures_failed": int,
+"starts": int, "parts": int, "dated": int, "tagged": bool, "latency_ms":
+int, "cost_usd": float | null}` — `notebook` the key its records carry
+(`notes.notebook`); `starts` the lectures that open on a start every run
+named, `parts` the shares of stretches with none, `dated` the lectures a
+margin dated; `cost_usd` the reading's, each lecture's own in its
+`note_processed`. Every lecture's `note_processed` and `note_tagged`, and
+the notebook's `note_captured`, `album_retake_requested` and
+`album_incomplete`, carry `notebook` too: the key, or `true` before there
+is one.
 
 ## Event `album_retake_requested`
 

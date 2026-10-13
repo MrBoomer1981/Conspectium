@@ -154,6 +154,13 @@ class Settings(BaseSettings):
     # send of its own. Production's value since 2026-10-08; at Telegram's ten
     # no album would ever join another.
     MAX_ALBUM_PAGES: int = 30
+    # A whole notebook sent at once in a private chat (task 63, the CEO's of
+    # 2026-10-12): a send of more pages than MAX_ALBUM_PAGES, or one whose
+    # caption says «тетрадь», cut into its lectures — up to this many pages,
+    # one notebook a person a day beyond their DAILY_PAGES_PER_USER. Read
+    # with a prompt of its own, PROMPT_FILE's with where each lecture begins.
+    NOTEBOOK_MAX_PAGES: int = 100
+    NOTEBOOK_PROMPT_FILE: str = "prompts-v12.md"
     LOG_LEVEL: str = "INFO"
     # The chat every «Плохо» under a document and every reader's account of
     # an error is sent to at once, with the document (task 70) — the CEO's
@@ -268,6 +275,14 @@ class Settings(BaseSettings):
         if not 30 <= v <= 600:
             raise ValueError("EXPLAIN_CALL_TIMEOUT_S must be between 30 and 600")
         return v
+
+    @model_validator(mode="after")
+    def _a_notebook_holds_a_send(self) -> "Settings":
+        """A notebook is a send of more pages than MAX_ALBUM_PAGES: a smaller
+        notebook would be no send the bot ever reads whole."""
+        if self.NOTEBOOK_MAX_PAGES < self.MAX_ALBUM_PAGES:
+            raise ValueError("NOTEBOOK_MAX_PAGES must be >= MAX_ALBUM_PAGES")
+        return self
 
     @field_validator("VISION_CALL_TIMEOUT_S")
     @classmethod

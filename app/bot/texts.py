@@ -408,6 +408,91 @@ def several_tagged(tag: str, rows: list[tuple[str, list[str]]]) -> str:
     return "\n".join(lines).strip()
 
 
+# ── A whole notebook — app/bot/notebook.py, handlers._read_notebook ───────────
+
+# A lecture's title when nothing in its text could be one.
+NOTEBOOK_TITLE = "Конспект из тетради"
+NOTEBOOK_ONE_A_DAY = (
+    "Целая тетрадь — одна в день, сегодняшняя уже прочитана. Пришли эту завтра."
+)
+
+
+def notebook_too_long(limit: int) -> str:
+    """A notebook of more pages than one may hold, refused before a page is
+    read."""
+    pages = _plural(limit, "страницы", "страниц", "страниц")
+    return (
+        f"В тетради больше {limit} {pages} — столько за раз не читаю. "
+        "Пришли её двумя частями: сегодня первую, завтра вторую."
+    )
+
+
+def _page_span(pages: tuple[int, int]) -> str:
+    return f"{pages[0]}–{pages[1]}" if pages[0] != pages[1] else f"{pages[0]}"
+
+
+def _page_spans(runs: list[tuple[int, int]]) -> str:
+    spans = [_page_span(run) for run in runs]
+    return ", ".join(spans[:-1]) + f" и {spans[-1]}" if len(spans) > 1 else spans[0]
+
+
+def _lectures(n: int) -> str:
+    return f"{n} {_plural(n, 'лекция', 'лекции', 'лекций')}"
+
+
+def notebook_done(
+    lectures: list[tuple[str, date | None]],
+    parts: list[tuple[int, int]],
+    missing: list[tuple[int, int]],
+    failed: list[tuple[int, int]],
+    tag: str | None,
+    known: list[str],
+) -> str:
+    """The last message of a notebook (task 63): the lectures it was cut
+    into, by their days; the pages where no lecture's start was found, and
+    the parts they were kept in (`parts`, each its first and last page);
+    the pages it could not read, and the lectures that could not be made;
+    then where they all are — or, sent without its "#word", the one
+    question which subject they are, its answer filing every one."""
+    lines = [f"Тетрадь разобрана: {_lectures(len(lectures))}.", ""]
+    lines += [listed(title, day) for title, day in lectures]
+    if parts:
+        stretch = []
+        for first, last in parts:
+            if stretch and first == stretch[-1][1] + 1:
+                stretch[-1] = (stretch[-1][0], last)
+            else:
+                stretch.append((first, last))
+        lines += [
+            "",
+            f"Стр. {_page_spans(stretch)}: где там начинаются лекции, не нашлось — "
+            f"сохранил частями: {_page_spans(parts)}.",
+        ]
+    if missing:
+        lines += ["", f"Не прочитаны страницы {_page_spans(missing)} — в документах на их месте пометка."]
+    if failed:
+        lines += [
+            "",
+            f"Не вышли лекции со страниц {_page_spans(failed)} — пришли эти страницы ещё раз альбомом.",
+        ]
+    lines.append("")
+    if tag is not None:
+        lines.append(f"Все — под #{tag}. Найти: #{tag} или тема лекции.")
+    else:
+        lines.append(
+            "Под каким тегом сохранить все лекции тетради? Ответь одним словом "
+            "с решёткой: #физика"
+        )
+        if known:
+            lines.append("Уже в ходу: " + " ".join("#" + t for t in known))
+    return "\n".join(lines)
+
+
+def notebook_tagged(tag: str, count: int) -> str:
+    """The answer to a notebook's question: every lecture of it filed."""
+    return f"Сохранил под #{tag} {_lectures(count)} тетради. Найти — пришли #{tag} или название темы."
+
+
 # ── A lecture moved into a group — app/bot/to_group.py ──────────────────────
 
 
@@ -423,7 +508,14 @@ def move_button(group_title: str | None) -> str:
     return f"В группу «{name}»" if name else "В группу"
 
 
+def move_all_button(group_title: str | None) -> str:
+    """Under a notebook's last message: all its lectures into a group."""
+    name = _shortened(group_title or "", 24)
+    return f"Все в группу «{name}»" if name else "Все в группу"
+
+
 MOVE_ALREADY = "Эта лекция уже в группе."
+MOVE_ALL_ALREADY = "Лекции этой тетради уже в группе."
 MOVE_NOT_MEMBER = "Не вижу тебя в этой группе — перенести туда не могу."
 
 
@@ -434,6 +526,23 @@ def moved_notice(group_title: str | None, tag: str) -> str:
     name = _shortened(group_title or "", 60)
     where = f"в группе «{name}»" if name else "в группе"
     return f"Лекция теперь {where} — там её найдёт #{tag}."
+
+
+def moved_all_notice(group_title: str | None, tag: str, count: int) -> str:
+    name = _shortened(group_title or "", 60)
+    where = f"в группе «{name}»" if name else "в группе"
+    return f"{_lectures(count).capitalize()} теперь {where} — там их найдёт #{tag}."
+
+
+def moved_all_line(name: str, tag: str, count: int, first: date, last: date) -> str:
+    """The one line a group is shown when a whole notebook's lectures are
+    moved into it (task 63), its verb in the present as `moved_line`'s."""
+    days = (
+        f"от {_lecture_day(first)}"
+        if first == last
+        else f"с {_lecture_day(first)} по {_lecture_day(last)}"
+    )
+    return f"{name} добавляет в #{tag} {_lectures(count)} своей тетради — {days}."
 
 
 def moved_line(
@@ -750,6 +859,10 @@ HELP = "\n".join(
         "",
         "PDF конспекта тоже приму — прочитаю каждую страницу, как фото. "
         "И .docx — его распознавать не нужно.",
+        "",
+        "Целую тетрадь можно прислать разом — фото или PDF, со словом "
+        "«тетрадь» в подписи: разрежу её на лекции по датам и заголовкам. "
+        "Одну в день.",
         "",
         "Добавь меня в чат своей группы: там я беру фото с тегом предмета "
         "в подписи и присылаю PDF всем.",

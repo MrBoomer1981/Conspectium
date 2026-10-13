@@ -126,6 +126,46 @@ def day_of(caption: str | None, margin_notes: list, sent: date) -> Day:
     return Day(sent, "sent")
 
 
+def today() -> date:
+    return datetime.now(timezone.utc).date()
+
+
+def _margin_days(note: object, sent: date) -> list[tuple[str, date | None]]:
+    """A margin note's parts, each with the day it names alone — as day_of
+    reads them — or None."""
+    parts = []
+    for part in _MARGIN_SEPARATOR_RE.split(str(note).strip()):
+        found = _DAY_ALONE_RE.match(part)
+        parts.append((part, _day(found, sent, page=True) if found else None))
+    return parts
+
+
+def days_in(margin_notes: list, sent: date) -> list[date]:
+    """The days a page's margin names, earliest first — one for every
+    lecture whose date it carries (task 63)."""
+    return sorted(
+        {day for note in margin_notes or [] for _, day in _margin_days(note, sent) if day}
+    )
+
+
+def margin_for(margin_notes: list, day: date | None, sent: date) -> list[str]:
+    """The margin notes of a notebook's pages as one of its lectures keeps
+    them (task 63): every day that is not this lecture's taken out — a page
+    that ends one lecture and begins the next carries both — so that the
+    lecture is dated by its own and its document's line under the title
+    names it alone."""
+    kept = []
+    for note in margin_notes or []:
+        parts = [
+            part
+            for part, named in _margin_days(note, sent)
+            if part and (named is None or named == day)
+        ]
+        if parts:
+            kept.append(" · ".join(parts))
+    return kept
+
+
 def _sent(note: Note) -> date:
     stamp = note.created_at
     if not isinstance(stamp, datetime):

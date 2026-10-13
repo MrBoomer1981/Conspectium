@@ -21,7 +21,7 @@ import logging
 from dataclasses import dataclass
 
 from aiogram import Bot, F, Router
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -99,6 +99,23 @@ async def markup(message: Message, session: AsyncSession, note: Note) -> InlineK
     """The buttons alone, for the line that files a record after its
     document went out without them — its subject came with the answer."""
     rows = feedback.move_rows(note.id, await targets(message, session, note))
+    return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
+
+
+async def all_markup(
+    message: Message, session: AsyncSession, note: Note
+) -> InlineKeyboardMarkup | None:
+    """«Все в группу «…»» under a notebook's last message (task 63): every
+    lecture of the notebook `note` was cut from, into a group at once."""
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=texts.move_all_button(group.title),
+                callback_data=f"{feedback.MOVE_ALL_PREFIX}:{note.id}:{group.id}",
+            )
+        ]
+        for group in await targets(message, session, note)
+    ]
     return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
 
 
@@ -184,12 +201,12 @@ async def move(session: AsyncSession, user: User, note: Note, target: Group) -> 
     return Moved(notes, filing.lecture, filing.joined, leads, added)
 
 
-def _pressed(data: str | None) -> tuple[int, int] | None:
+def _pressed(data: str | None, prefix: str = feedback.MOVE_PREFIX) -> tuple[int, int] | None:
     """(74, 3) for "move:74:3", None for anything else."""
     parts = (data or "").split(":")
     if (
         len(parts) != 3
-        or parts[0] != feedback.MOVE_PREFIX
+        or parts[0] != prefix
         or not parts[1].isdigit()
         or not parts[2].isdigit()
     ):
@@ -207,19 +224,17 @@ async def _notice(callback: CallbackQuery, text: str | None = None) -> None:
         logger.warning("the notice of a press was refused", exc_info=True)
 
 
-async def _unbuttoned(message: Message) -> None:
-    """The group buttons taken off the document the lecture was moved from:
-    the lecture is not the private chat's to move any more. The rest stay."""
+async def _unbuttoned(message: Message, prefix: str = feedback.MOVE_PREFIX) -> None:
+    """The group buttons taken off the document the lecture was moved from,
+    or a notebook's off its last message: the lectures are not the private
+    chat's to move any more. The rest stay."""
     current = getattr(message, "reply_markup", None)
     if current is None:
         return
     rows = [
         row
         for row in current.inline_keyboard
-        if not any(
-            (button.callback_data or "").startswith(f"{feedback.MOVE_PREFIX}:")
-            for button in row
-        )
+        if not any((button.callback_data or "").startswith(f"{prefix}:") for button in row)
     ]
     try:
         await message.edit_reply_markup(reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
@@ -306,3 +321,91 @@ async def on_move(
             target.id,
             exc_info=True,
         )
+
+
+@router.callback_query(F.data.startswith(f"{feedback.MOVE_ALL_PREFIX}:"))
+async def on_move_all(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+    group: Group | None = None,
+) -> None:
+    """«Все в группу «…»» under a notebook's last message (task 63): every
+    lecture of it still the private chat's moved, each as its own button
+    would move it, and the group shown one line for them all."""
+    pressed = _pressed(callback.data, feedback.MOVE_ALL_PREFIX)
+    message = callback.message
+    note = await session.get(Note, pressed[0]) if pressed is not None else None
+    target = await session.get(Group, pressed[1]) if pressed is not None else None
+    if (
+        note is None
+        or target is None
+        or message is None
+        or group is not None
+        or note.user_id != user.id
+        or note.notebook is None
+        or note.tag is None
+    ):
+        await _notice(callback)
+        return
+    if not await _member(bot, target, callback.from_user.id):
+        await _notice(callback, texts.MOVE_NOT_MEMBER)
+        return
+
+    shelf = note.notebook
+    left = (
+        await session.execute(
+            select(Note)
+            .where(Note.notebook == shelf, Note.user_id == user.id, Note.group_id.is_(None))
+            .order_by(Note.id)
+        )
+    ).scalars().all()
+    # One move a lecture: its notebooks go together.
+    lectures: dict[int | None, Note] = {}
+    for record in left:
+        lectures.setdefault(record.lecture_id if record.lecture_id is not None else -record.id, record)
+    moved: list[Moved] = []
+    for record in lectures.values():
+        from_lecture = record.lecture_id
+        done = await move(session, user, record, target)
+        if done is None:
+            continue
+        moved.append(done)
+        await log_event(
+            session,
+            user.id,
+            "lecture_moved",
+            {
+                "note_ids": [moved_note.id for moved_note in done.notes],
+                "from_lecture": from_lecture,
+                "lecture_id": done.lecture.id,
+                "lecture_joined": done.joined,
+                "leads": done.leads,
+                "added": done.added,
+                "pages": sum(moved_note.page_count or 0 for moved_note in done.notes),
+                "notebook": shelf,
+            },
+            group_id=target.id,
+        )
+    if not moved:
+        await _notice(callback, texts.MOVE_ALL_ALREADY)
+        await _unbuttoned(message, feedback.MOVE_ALL_PREFIX)
+        return
+    await session.commit()
+    days = sorted(done.lecture.given_on for done in moved)
+    tag = moved[0].notes[0].tag
+    await _notice(callback, texts.moved_all_notice(target.title, tag, len(moved)))
+    await _unbuttoned(message, feedback.MOVE_ALL_PREFIX)
+    try:
+        await bot.send_message(
+            target.tg_chat_id,
+            texts.moved_all_line(rating._name(user), tag, len(moved), days[0], days[-1]),
+        )
+    except Exception:
+        logger.warning(
+            "the line about a notebook moved into group %s could not be sent",
+            target.id,
+            exc_info=True,
+        )
+

@@ -19,7 +19,7 @@ import re
 import time
 from dataclasses import asdict, dataclass, field, replace
 
-from app.bot import texts
+from app.bot import subjects, texts
 from app.core.config import settings
 from app.services import figures, images, lectures, mathcheck, photoguard, sketches, vision
 from app.services.vision import CallStats, Transcription
@@ -65,6 +65,11 @@ _CONTINUE_S = 60.0
 _COLLECT_MAX_S = (
     math.ceil(settings.MAX_ALBUM_PAGES / TELEGRAM_ALBUM_MAX) + 1
 ) * _CONTINUE_S
+# The same for a send into a private chat, which may be a whole notebook of
+# NOTEBOOK_MAX_PAGES (task 63) — 660 s at a hundred pages.
+_NOTEBOOK_COLLECT_MAX_S = (
+    math.ceil(settings.NOTEBOOK_MAX_PAGES / TELEGRAM_ALBUM_MAX) + 1
+) * _CONTINUE_S
 
 # Ten pages at three runs each under Semaphore(10) is three waves of one run's
 # worst case — five since a page may ask for two runs more to read itself
@@ -91,6 +96,23 @@ _WAVES = _waves(
     vision.API_SLOTS,
 )
 _ALBUM_TIMEOUT_S = int(_WAVES * vision.RUN_WORST_CASE_S * vision.TIMEOUT_MARGIN)
+
+# A notebook's pages are read this many at a time (task 63): its runs keep
+# the bot's API_SLOTS full — four pages are twelve runs — while another
+# chat's album, asked for meanwhile, waits behind one window of them rather
+# than behind a hundred pages ("Scale debt").
+NOTEBOOK_AT_ONCE = 4
+# Its ceiling, as the album's: every wave of NOTEBOOK_MAX_PAGES' runs.
+_NOTEBOOK_WAVES = _waves(
+    settings.NOTEBOOK_MAX_PAGES,
+    settings.VISION_RUNS
+    + vision.MORE_RUNS
+    + (sketches.RUNS if settings.SKETCHES_ENABLED else 0),
+    vision.API_SLOTS,
+)
+NOTEBOOK_TIMEOUT_S = int(
+    _NOTEBOOK_WAVES * vision.RUN_WORST_CASE_S * vision.TIMEOUT_MARGIN
+)
 
 
 @dataclass
@@ -234,7 +256,7 @@ def reset() -> None:
 def _prune_claimed(now: float) -> None:
     """A claimed group is only remembered long enough to catch stragglers."""
     for group, when in list(_claimed.items()):
-        if now - when > _COLLECT_MAX_S:
+        if now - when > max(_COLLECT_MAX_S, _NOTEBOOK_COLLECT_MAX_S):
             del _claimed[group]
 
 
@@ -246,20 +268,46 @@ def _tag(send: list[str]) -> str | None:
     return tag_of([page for group in send for page in _buffer.get(group, ())])
 
 
+def _day(send: list[str]):
+    """The day the send's caption names, "#матан 12.09" — None without one."""
+    caption = caption_of([page for group in send for page in _buffer.get(group, ())])
+    if not caption:
+        return None
+    day = subjects.day_of(caption, [], subjects.today())
+    return day.value if day.source == "caption" else None
+
+
+def private(group: str) -> bool:
+    """Whether an album was sent into a private chat: Telegram gives a
+    private chat its person's own id."""
+    sender = _sender.get(group)
+    return sender is not None and sender[0] == sender[1]
+
+
+def _most(send: list[str]) -> int:
+    """The pages a send may hold: a private chat's may be a whole notebook
+    (task 63), a group's an album's."""
+    return settings.NOTEBOOK_MAX_PAGES if private(send[0]) else settings.MAX_ALBUM_PAGES
+
+
 def _follows(send: list[str], group: str) -> bool:
     """Whether an album is the rest of the send before it. Telegram fills
     every album of a send but the last, so a send that ends on fewer than
-    ten pages has ended. So has one the album would take past
-    MAX_ALBUM_PAGES: the album begins a send of its own, and thirty-five
+    ten pages has ended. So has one the album would take past the pages a
+    send may hold: the album begins a send of its own, and thirty-five
     pages are two records rather than one refused. And an album whose
     "#word" is not the send's is a send of its own — two subjects sent in a
-    breath are two lectures."""
+    breath are two lectures — and so is one whose caption names another
+    day than the send's: two lectures, each dated (task 63)."""
     if len(_announced[send[-1]]) < TELEGRAM_ALBUM_MAX:
         return False
-    if _pages(send) + len(_announced[group]) > settings.MAX_ALBUM_PAGES:
+    if _pages(send) + len(_announced[group]) > _most(send):
         return False
     ours, its = _tag(send), _tag([group])
-    return ours is None or its is None or ours == its
+    if ours is not None and its is not None and ours != its:
+        return False
+    day, its_day = _day(send), _day([group])
+    return day is None or its_day is None or day == its_day
 
 
 def _send_of(media_group_id: str) -> list[str]:
@@ -294,8 +342,12 @@ def _open(send: list[str]) -> bool:
     return (
         send[-1] in _sender
         and len(_announced[send[-1]]) >= TELEGRAM_ALBUM_MAX
-        and _pages(send) < settings.MAX_ALBUM_PAGES
+        and _pages(send) < _most(send)
     )
+
+
+def _collect_max(send: list[str]) -> float:
+    return _NOTEBOOK_COLLECT_MAX_S if private(send[0]) else _COLLECT_MAX_S
 
 
 def _forget(send: list[str]) -> list[PageInput] | None:
@@ -338,13 +390,14 @@ async def collect(media_group_id: str) -> list[PageInput] | None:
         )
         if quiet_for >= window and handed_in:
             break
-        if now - min(_first_page_at[group] for group in send) >= _COLLECT_MAX_S:
+        ceiling = _collect_max(send)
+        if now - min(_first_page_at[group] for group in send) >= ceiling:
             logger.warning(
                 "album %s: %d of %d pages ready after %ds, assembling anyway",
                 send[0],
                 sum(len(_buffer.get(group, ())) for group in send),
                 _pages(send),
-                _COLLECT_MAX_S,
+                ceiling,
             )
             break
         # Never overshoot the moment the quiet window expires.
@@ -504,12 +557,15 @@ async def refused_frames(ordered: list[PageInput]) -> list[PageResult]:
     return [result for result in checked if result is not None]
 
 
-async def process_page(page_input: PageInput, page: int) -> PageResult:
+async def process_page(
+    page_input: PageInput, page: int, prompt: str | None = None
+) -> PageResult:
     """One album page through the pipeline minus the database and minus any
     reply: frame check, three recognition runs, the result gates, then the
     arithmetic check. Returns either a skip reason or the data for the record.
     The CallStats list is returned in every case — empty only when the frame
-    was rejected before any model call."""
+    was rejected before any model call. `prompt` is a notebook's (task 63);
+    an album's page is read with PROMPT_FILE's."""
     frame = photoguard.check_photo_bytes(page_input.data)
 
     def refused(reason: str, stats: list[CallStats]) -> PageResult:
@@ -521,7 +577,9 @@ async def process_page(page_input: PageInput, page: int) -> PageResult:
         _log_refusal(page, frame)
         return refused(frame.reason, [])
 
-    result, stats = await vision.transcribe_consensus(page_input.data)
+    result, stats = await vision.transcribe_consensus(
+        page_input.data, **({"prompt": prompt} if prompt else {})
+    )
     if result is None:
         # Not one run came back readable: there is no text to keep.
         return refused(texts.SKIP_UNRECOGNIZED, stats)
@@ -643,29 +701,45 @@ class AlbumOutcome:
     record: AssembledRecord | None  # None => not a single page passed
 
 
-async def process_batch(pages: list[PageInput]) -> AlbumOutcome:
+async def process_batch(
+    pages: list[PageInput],
+    prompt: str | None = None,
+    at_once: int | None = None,
+    timeout: float = _ALBUM_TIMEOUT_S,
+    assemble: bool = True,
+) -> AlbumOutcome:
     """Run every page in parallel and combine the survivors. `pages` is already
     sorted; a page's position + 1 is its number — a PDF's page keeps its own —
     used in every per-page field and message. One page failing never cancels
-    the others, and a page still unfinished at the 300 s ceiling becomes a
-    skip — asyncio.wait rather than wait_for so the stats of finished pages
-    are not lost with the cancellation."""
+    the others, and a page still unfinished at the ceiling becomes a skip —
+    asyncio.wait rather than wait_for so the stats of finished pages are not
+    lost with the cancellation.
+
+    A notebook's pages (task 63) come with its `prompt`, `at_once` pages
+    read at a time under its own `timeout`, and are not assembled into one
+    record: the notebook is cut into its lectures (notebook.py)."""
+    window = asyncio.Semaphore(at_once) if at_once else None
+
+    async def read(page: PageInput, number: int) -> PageResult:
+        if prompt is None:
+            return await process_page(page, number)
+        async with window:
+            return await process_page(page, number, prompt)
+
     tasks = {
-        number: asyncio.create_task(process_page(page, number))
+        number: asyncio.create_task(read(page, number))
         for number, page in (
             (page.number or place, page) for place, page in enumerate(pages, 1)
         )
     }
     try:
-        done, pending = await asyncio.wait(
-            tasks.values(), timeout=_ALBUM_TIMEOUT_S
-        )
+        done, pending = await asyncio.wait(tasks.values(), timeout=timeout)
         if pending:
             logger.warning(
                 "album: %d/%d pages unfinished in %ds",
                 len(pending),
                 len(pages),
-                _ALBUM_TIMEOUT_S,
+                timeout,
             )
     finally:
         # asyncio.wait leaves its tasks running; cancel any straggler so a
@@ -694,7 +768,7 @@ async def process_batch(pages: list[PageInput]) -> AlbumOutcome:
     results.sort(key=lambda r: r.page)
     pages_ok = [r for r in results if r.ok]
     skips = [r for r in results if not r.ok]
-    record = _assemble(pages_ok, skips) if pages_ok else None
+    record = _assemble(pages_ok, skips) if pages_ok and assemble else None
     return AlbumOutcome(stats=stats, skips=skips, pages_ok=pages_ok, record=record)
 
 
@@ -892,8 +966,14 @@ def _markdown_with_holes(
     """
     blocks = [(p.page, p.transcription.markdown) for p in pages_ok]
     blocks += [(p.page, texts.page_missing_marker(p.page)) for p in skips]
-    blocks.sort(key=lambda block: block[0])
+    return joined(blocks)
 
+
+def joined(blocks: list[tuple[int, str]]) -> str:
+    """Pages' texts, by their numbers, as one record: a rule between two
+    pages, or the sentence one page began put back together with its end
+    on the next (_continues)."""
+    blocks = sorted(blocks, key=lambda block: block[0])
     out = ""
     for index, (_, markdown) in enumerate(blocks):
         if index == 0:

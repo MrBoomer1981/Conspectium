@@ -54,8 +54,10 @@ COMMENTED = "note_feedback"
 # The study version's button (task 80), answered in study_version.on_study.
 STUDY_PREFIX = "study"
 # A private lecture's button into a group (task 63), answered in
-# to_group.on_move.
+# to_group.on_move, and a notebook's for all its lectures, in
+# to_group.on_move_all.
 MOVE_PREFIX = "move"
+MOVE_ALL_PREFIX = "moveall"
 
 
 def keyboard(

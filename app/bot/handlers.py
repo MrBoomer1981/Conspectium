@@ -20,7 +20,7 @@ from aiogram.types import ChatMemberUpdated, Message
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, middlewares, subjects, tags, texts, waiting
+from app.bot import albums, corpus, middlewares, notebook, subjects, tags, texts, to_group, waiting
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, GroupPage, Note, NoteFigure, User
@@ -38,6 +38,7 @@ from app.services import (
     study,
     vision,
 )
+from app.services.pdf import plain
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,14 @@ _PDF_DRAWN_ALBUMS = 2
 # How long a page of a group's album can still be called on by a reply. A
 # lecture is reached for within days of it — the author's choice, 2026-09-29.
 _PAGES_KEPT = timedelta(days=7)
+
+# A notebook's pages downloaded this many at a time (task 63): a hundred
+# photographs fetched at once held a hundred originals in memory at once.
+_FETCH_AT_ONCE = 10
+# A notebook's lectures made this many at a time, in its order: a lecture
+# begins once the one this many before it has been sent, so the first comes
+# while the rest are made, and the bot's API_SLOTS stay every chat's.
+_LECTURES_AT_ONCE = 2
 
 
 @router.message(CommandStart())
@@ -701,7 +710,10 @@ async def _read_pdf(
         if not ours:
             return
         data = (await bot.download(document)).read()
-        limit = settings.MAX_ALBUM_PAGES
+        # A private chat's PDF may be a whole notebook (task 63).
+        limit = (
+            settings.MAX_ALBUM_PAGES if group is not None else settings.NOTEBOOK_MAX_PAGES
+        )
         try:
             count = await images.in_worker(images.pdf_page_count, data)
             drawn = (
@@ -723,7 +735,11 @@ async def _read_pdf(
             await message.answer(texts.PDF_BLANK)
             return
         if drawn is None or len(drawn) > limit:
-            await message.answer(texts.pdf_too_many_pages(limit))
+            await message.answer(
+                texts.pdf_too_many_pages(limit)
+                if group is not None
+                else texts.notebook_too_long(limit)
+            )
             return
         logger.info("pdf: %d pages, %d blank left out", count, count - len(drawn))
         pages = [
@@ -870,17 +886,23 @@ async def _remembered_album(
 
 
 async def _fetch_pages(
-    bot: Bot | None, pages: list[albums.PageInput]
+    bot: Bot | None, pages: list[albums.PageInput], at_once: int | None = None
 ) -> list[albums.PageInput]:
-    """Download and compress the pages still held as references, all at once.
+    """Download and compress the pages still held as references, all at once
+    — a notebook's `at_once` at a time.
 
     A page that cannot be fetched stays empty, and the recognition reports it
     as a page that could not be opened: the record is delivered with the hole
     named in it rather than the album lost."""
+    window = asyncio.Semaphore(at_once or max(len(pages), 1))
 
     async def fetch(page: albums.PageInput) -> albums.PageInput:
         if page.data or page.file_id is None:
             return page
+        async with window:
+            return await fetched(page)
+
+    async def fetched(page: albums.PageInput) -> albums.PageInput:
         try:
             original = (await bot.download(page.file_id)).read()
             compressed = await images.in_worker(
@@ -951,6 +973,12 @@ async def _process_album(
         return
     group_id = group.id if group is not None else None
     caption = albums.caption_of(pages)
+
+    # A whole notebook, sent in a private chat (task 63): cut into its
+    # lectures rather than read as one record.
+    if group is None and notebook.wanted(len(pages), caption):
+        await _read_notebook(message, session, user, bot, pages, tag, caption, source_type)
+        return
 
     if len(pages) > settings.MAX_ALBUM_PAGES:
         # A shape-of-request check, so it comes before the spend check: an
@@ -1098,38 +1126,18 @@ async def _process_album(
                 user, group_id, markdown, joining is None
             )
 
-        note = Note(
-            user_id=user.id,
-            sender_id=sender.id if sender is not None else None,
+        note = _album_note(
+            rec,
+            user=user,
+            sender=sender,
             group_id=group_id,
             source_key=source_key,
             tag=tag,
             title=title,
-            subject=rec.subject,
             markdown=markdown,
-            # The teacher's boxes and the captions stand in the same list, each
-            # naming its kind; an explanation names none, as every one stored
-            # before them.
-            explanations=[asdict(item) for item in explaining.explanations]
-            + [asdict(item) for item in explaining.elements]
-            + [asdict(item) for item in explaining.captions],
-            summary=explaining.summary,
-            source_type=source_type,
-            page_count=rec.page_count,
-            status=rec.status,
-            margin_notes=rec.margin_notes,
-            uncertain=rec.uncertain,
             issues=issues,
-            numeric_divergences=rec.numeric_divergences,
-            unreadable_count=rec.unreadable_count,
-            missing_pages=rec.missing_pages,
-            unverified_pages=rec.unverified_pages,
-            text_agreement=rec.text_agreement,
-            numeric_agreement=rec.numeric_agreement,
-            photo_sharpness=rec.photo_sharpness,
-            photo_line_height=rec.photo_line_height,
-            photo_paper_fraction=rec.photo_paper_fraction,
-            photo_contrast=rec.photo_contrast,
+            explaining=explaining,
+            source_type=source_type,
         )
         session.add(note)
         filing = (
@@ -1146,47 +1154,21 @@ async def _process_album(
             session,
             user.id,
             "note_processed",
-            {
-                "verdict": rec.verdict,
-                "page_count": rec.page_count,
-                "source_type": source_type,
-                "pages_skipped": len(outcome.skips),
-                # The same four numbers as in album_incomplete, and for the same
-                # reason: a page is turned away on these, and now that the record
-                # is saved anyway this is the only place they would be kept.
-                "skipped": _skip_payload(outcome.skips),
-                "composed": composition.refused is None and bool(composition.stats),
-                "compose_refused": composition.refused,
-                "compose_drift": composition.drift,
-                "compose_demoted": composition.demoted,
-                "compose_unmarked": composition.unmarked,
-                "compose_restored": composition.restored,
-                "compose_retried": composition.retried,
-                "explained": len(explaining.explanations),
-                "explain_refused": explaining.refused,
-                "explain_unsourced": explaining.unsourced,
-                "explain_judged": explaining.judged,
-                "elements": len(explaining.elements),
-                "elements_dropped": explaining.elements_dropped,
-                "captions": len(explaining.captions),
-                "captions_dropped": explaining.captions_dropped,
-                "summary": explaining.summary is not None,
-                "summary_refused": explaining.summary_refused,
-                "drawings": rec.drawings,
-                "sketched": rec.sketched,
-                "lecture_head_cut": rec.lecture_head_cut,
-                "lecture_tail_cut": rec.lecture_tail_cut,
-                "runs_added": rec.runs_added,
-                "read_further": rec.read_further,
-                "album_parts": albums.parts_of(ordered),
-                "figures": len(placed),
-                "charts": charts.count(markdown),
-                **_filing_payload(filing, explain_skipped, repeat),
-                "latency_ms": int((time.monotonic() - started) * 1000),
-                "cost_usd": vision.total_cost(
-                    outcome.stats + composition.stats + explaining.stats
-                ),
-            },
+            _album_processed(
+                rec,
+                source_type=source_type,
+                skips=outcome.skips,
+                composition=composition,
+                explaining=explaining,
+                parts=albums.parts_of(ordered),
+                placed=placed,
+                markdown=markdown,
+                filing=filing,
+                explain_skipped=explain_skipped,
+                repeat=repeat,
+                started=started,
+                stats=outcome.stats,
+            ),
             group_id=group_id,
         )
 
@@ -1205,6 +1187,423 @@ async def _process_album(
         await corpus.deliver(
             message, session, note, user, group, early, "\n\n".join(after)
         )
+
+
+async def _read_notebook(
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    bot: Bot | None,
+    pages: list[albums.PageInput],
+    tag: str | None,
+    caption: str | None,
+    source_type: str,
+) -> None:
+    """A whole notebook sent in a private chat (task 63, the CEO's of
+    2026-10-12): read with its own prompt, cut into its lectures where every
+    run named a start, and every lecture made, kept and sent as an album's
+    record is, in order as each is done; then one message sums it up.
+
+    One a person a day, beyond their pages — counted once a notebook has
+    come out whole (limits.notebook_read_today), and its pages not counted
+    in the person's day. A frame refused stops it before anything is read,
+    as an album's does. The pages are read a few at a time
+    (albums.NOTEBOOK_AT_ONCE) and the lectures made two at a time, so that
+    the bot's calls are still every chat's while a notebook is read."""
+    pdf = source_type == "pdf"
+    ordered = sorted(pages, key=lambda p: p.message_id)
+    if len(ordered) > settings.NOTEBOOK_MAX_PAGES:
+        await message.answer(texts.notebook_too_long(settings.NOTEBOOK_MAX_PAGES))
+        return
+    # The kill switch and the bot's day; the person's pages are not asked:
+    # a notebook is one a day beyond them.
+    limit_message = await limits.check_limits(session, user, pages=0)
+    if limit_message is not None:
+        await message.answer(limit_message)
+        return
+    if await limits.notebook_read_today(session, user):
+        await message.answer(texts.NOTEBOOK_ONE_A_DAY)
+        return
+
+    ordered = await _fetch_pages(bot, ordered, at_once=_FETCH_AT_ONCE)
+    for number, page in enumerate(ordered, 1):
+        await log_event(
+            session,
+            user.id,
+            "note_captured",
+            {
+                "bytes_before": page.bytes_before,
+                "bytes_after": page.bytes_after,
+                "width": page.width,
+                "height": page.height,
+                "source_type": source_type,
+                "page": page.number or number,
+                "media_group_id": page.media_group_id,
+                "notebook": True,
+            },
+        )
+    refused = await albums.refused_frames(ordered)
+    if refused:
+        await log_event(
+            session,
+            user.id,
+            "album_retake_requested",
+            {"pages": len(ordered), "refused": _skip_payload(refused), "notebook": True},
+        )
+        retake = [(p.page, p.skip_reason) for p in refused]
+        await message.answer(
+            texts.pdf_retake(retake) if pdf else texts.album_retake(retake)
+        )
+        return
+    shelf = notebook.key(message.chat.id, ordered[0].message_id)
+    # Nothing of the update's is held while a hundred pages are read.
+    await session.commit()
+
+    async with waiting.shown(message):
+        started = time.monotonic()
+        outcome = await albums.process_batch(
+            ordered,
+            prompt=vision.NOTEBOOK_PROMPT,
+            at_once=albums.NOTEBOOK_AT_ONCE,
+            timeout=albums.NOTEBOOK_TIMEOUT_S,
+            assemble=False,
+        )
+        await vision.log_ai_calls(user.id, outcome.stats)
+        if not outcome.pages_ok:
+            await log_event(
+                session,
+                user.id,
+                "album_incomplete",
+                {
+                    "pages": len(ordered),
+                    "pages_ok": 0,
+                    "skipped": _skip_payload(outcome.skips),
+                    "latency_ms": int((time.monotonic() - started) * 1000),
+                    "cost_usd": vision.total_cost(outcome.stats),
+                    "notebook": True,
+                },
+            )
+            await message.answer(
+                texts.album_incomplete(
+                    [(p.page, p.skip_reason) for p in outcome.skips],
+                    texts.PDF_RESEND if pdf else texts.ALBUM_RESEND,
+                )
+            )
+            return
+
+        cut = notebook.lectures_of(
+            outcome.pages_ok, outcome.skips, settings.MAX_ALBUM_PAGES, subjects.today()
+        )
+        made, failed = await _notebook_lectures(
+            message, session, user, cut, outcome.skips, tag, shelf, source_type,
+            albums.parts_of(ordered),
+        )
+        await log_event(
+            session,
+            user.id,
+            limits.NOTEBOOK_READ,
+            {
+                "notebook": shelf,
+                "source_type": source_type,
+                "pages": len(ordered),
+                "pages_ok": len(outcome.pages_ok),
+                "pages_skipped": len(outcome.skips),
+                "lectures": len(made),
+                "lectures_failed": len(failed),
+                "starts": sum(1 for lecture in cut if lecture.started),
+                "parts": sum(1 for lecture in cut if lecture.part),
+                "dated": sum(1 for lecture in cut if lecture.day is not None),
+                "tagged": tag is not None,
+                "latency_ms": int((time.monotonic() - started) * 1000),
+                "cost_usd": vision.total_cost(outcome.stats),
+            },
+        )
+        # Counted as the person's notebook of the day once it is kept.
+        await session.commit()
+        await _notebook_said(message, session, user, made, failed, cut, outcome.skips, tag)
+
+
+async def _notebook_lectures(
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    cut: list[notebook.Lecture],
+    skips: list[albums.PageResult],
+    tag: str | None,
+    shelf: str,
+    source_type: str,
+    parts: int,
+) -> tuple[list[tuple[Note, notebook.Lecture]], list[notebook.Lecture]]:
+    """Every lecture of a notebook made as an album's record is — composed,
+    its drawings placed, joined to its subject's lecture of it, explained
+    and studied, kept, sent — `_LECTURES_AT_ONCE` at a time, and sent in the
+    notebook's order as each is done: a lecture begins once the one that
+    many before it is sent, and waits for the one before it to be sent
+    before it is. The model is called outside the session, and the session
+    used by one lecture at a time: one session cannot be used by two
+    coroutines at once.
+
+    A lecture that fails is left out and named in the last message; the
+    rest go on. What it wrote is rolled back, and the lectures before it
+    are kept already: each is committed before it is sent."""
+    lock = asyncio.Lock()
+    turns = [asyncio.Event() for _ in cut]
+    made: dict[int, Note] = {}
+    holes = {page.page: page for page in skips}
+
+    async def make(index: int, lecture: notebook.Lecture) -> None:
+        rec = lecture.record
+        try:
+            if index >= _LECTURES_AT_ONCE:
+                await turns[index - _LECTURES_AT_ONCE].wait()
+            started = time.monotonic()
+            async with lock:
+                may_compose = await limits.check_limits(session, user, pages=0) is None
+            composition = compose.Composition(rec.markdown)
+            if may_compose:
+                composition = await compose.compose(rec.markdown)
+                await vision.log_ai_calls(user.id, composition.stats)
+            markdown, placed = figures.place(composition.markdown, rec.cutouts)
+
+            async with lock:
+                joining = (
+                    await subjects.joining(
+                        session, None, user.id, tag, markdown, rec.margin_notes, None,
+                        len(rec.missing_pages),
+                    )
+                    if tag is not None
+                    else None
+                )
+                may_explain = await limits.check_limits(session, user, pages=0) is None
+            explain_skipped = joining is not None and not joining.leads
+            explaining, early = explain.Explaining(), None
+            if not explain_skipped and may_explain:
+                explaining, early = await _explained(
+                    user, None, markdown, joining is None
+                )
+
+            if index:
+                await turns[index - 1].wait()
+            async with lock:
+                note = _album_note(
+                    rec,
+                    user=user,
+                    sender=None,
+                    group_id=None,
+                    source_key=None,
+                    tag=tag,
+                    title=rec.title,
+                    markdown=markdown,
+                    issues=rec.issues,
+                    explaining=explaining,
+                    source_type=source_type,
+                    notebook_key=shelf,
+                )
+                session.add(note)
+                # Dated by its margin alone: a caption's day is the notebook's,
+                # not each lecture's.
+                filing = (
+                    await subjects.file(
+                        session, note, tag, None, joining.lecture if joining else None
+                    )
+                    if tag is not None
+                    else None
+                )
+                await log_event(
+                    session,
+                    user.id,
+                    "note_processed",
+                    _album_processed(
+                        rec,
+                        source_type=source_type,
+                        skips=[holes[page] for page in rec.missing_pages if page in holes],
+                        composition=composition,
+                        explaining=explaining,
+                        parts=parts,
+                        placed=placed,
+                        markdown=markdown,
+                        filing=filing,
+                        explain_skipped=explain_skipped,
+                        repeat=None,
+                        started=started,
+                        stats=lecture.stats,
+                        notebook_key=shelf,
+                    ),
+                )
+                await session.flush()
+                await _keep_figures(session, note, placed)
+                # Filed, the line says where; sent without its "#word", the
+                # notebook is asked its subject once, in its last message.
+                if tag is not None:
+                    after = await corpus.tag_line(session, user, note, None, filing)
+                else:
+                    await corpus.save_topics(session, note)
+                    after = ""
+                await _saved(session)
+                made[index] = note
+                await corpus.deliver(message, session, note, user, None, early, after)
+                # What delivery kept — the study version, its event — kept
+                # now: a later lecture's failure rolls back what is not.
+                await session.commit()
+        except Exception:
+            logger.exception("notebook %s: lecture %d could not be made", shelf, index + 1)
+            async with lock:
+                await session.rollback()
+                await session.refresh(user)
+        finally:
+            turns[index].set()
+
+    await asyncio.gather(*(make(index, lecture) for index, lecture in enumerate(cut)))
+    return (
+        [(made[index], lecture) for index, lecture in enumerate(cut) if index in made],
+        [lecture for index, lecture in enumerate(cut) if index not in made],
+    )
+
+
+async def _notebook_said(
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    made: list[tuple[Note, notebook.Lecture]],
+    failed: list[notebook.Lecture],
+    cut: list[notebook.Lecture],
+    skips: list[albums.PageResult],
+    tag: str | None,
+) -> None:
+    """The notebook's last message: what it was cut into, by day; where no
+    lecture's start was found; what could not be read or made; then where
+    the lectures are — with «Все в группу» under it — or the one question
+    which subject they are."""
+    text = texts.notebook_done(
+        [(plain(note.title), lecture.day) for note, lecture in made],
+        [(lecture.pages[0], lecture.pages[-1]) for lecture in cut if lecture.part],
+        notebook.ranges([page.page for page in skips]),
+        notebook.ranges([page for lecture in failed for page in lecture.pages]),
+        tag,
+        await corpus.known_tags(session, user) if tag is None else [],
+    )
+    markup = None
+    if tag is not None and made:
+        markup = await to_group.all_markup(message, session, made[-1][0])
+    chunks = texts.split_message(text)
+    for index, chunk in enumerate(chunks):
+        await message.answer(chunk, reply_markup=markup if index == len(chunks) - 1 else None)
+
+
+def _album_note(
+    rec: albums.AssembledRecord,
+    *,
+    user: User,
+    sender: User | None,
+    group_id: int | None,
+    source_key: str | None,
+    tag: str | None,
+    title: str,
+    markdown: str,
+    issues: list[dict],
+    explaining: explain.Explaining,
+    source_type: str,
+    notebook_key: str | None = None,
+) -> Note:
+    """The record of an album, a PDF or one lecture of a notebook, as it is
+    kept: the assembled pages, composed and explained."""
+    return Note(
+        user_id=user.id,
+        sender_id=sender.id if sender is not None else None,
+        group_id=group_id,
+        source_key=source_key,
+        notebook=notebook_key,
+        tag=tag,
+        title=title,
+        subject=rec.subject,
+        markdown=markdown,
+        # The teacher's boxes and the captions stand in the same list, each
+        # naming its kind; an explanation names none, as every one stored
+        # before them.
+        explanations=[asdict(item) for item in explaining.explanations]
+        + [asdict(item) for item in explaining.elements]
+        + [asdict(item) for item in explaining.captions],
+        summary=explaining.summary,
+        source_type=source_type,
+        page_count=rec.page_count,
+        status=rec.status,
+        margin_notes=rec.margin_notes,
+        uncertain=rec.uncertain,
+        issues=issues,
+        numeric_divergences=rec.numeric_divergences,
+        unreadable_count=rec.unreadable_count,
+        missing_pages=rec.missing_pages,
+        unverified_pages=rec.unverified_pages,
+        text_agreement=rec.text_agreement,
+        numeric_agreement=rec.numeric_agreement,
+        photo_sharpness=rec.photo_sharpness,
+        photo_line_height=rec.photo_line_height,
+        photo_paper_fraction=rec.photo_paper_fraction,
+        photo_contrast=rec.photo_contrast,
+    )
+
+
+def _album_processed(
+    rec: albums.AssembledRecord,
+    *,
+    source_type: str,
+    skips: list[albums.PageResult],
+    composition: compose.Composition,
+    explaining: explain.Explaining,
+    parts: int,
+    placed: list[tuple[int, bytes]],
+    markdown: str,
+    filing: subjects.Filing | None,
+    explain_skipped: bool,
+    repeat: subjects.Repeat | None,
+    started: float,
+    stats: list,
+    notebook_key: str | None = None,
+) -> dict:
+    """`note_processed` of an album's record, or of a lecture of a notebook,
+    which names the notebook (task 63)."""
+    payload = {
+        "verdict": rec.verdict,
+        "page_count": rec.page_count,
+        "source_type": source_type,
+        "pages_skipped": len(skips),
+        # The same four numbers as in album_incomplete, and for the same
+        # reason: a page is turned away on these, and now that the record
+        # is saved anyway this is the only place they would be kept.
+        "skipped": _skip_payload(skips),
+        "composed": composition.refused is None and bool(composition.stats),
+        "compose_refused": composition.refused,
+        "compose_drift": composition.drift,
+        "compose_demoted": composition.demoted,
+        "compose_unmarked": composition.unmarked,
+        "compose_restored": composition.restored,
+        "compose_retried": composition.retried,
+        "explained": len(explaining.explanations),
+        "explain_refused": explaining.refused,
+        "explain_unsourced": explaining.unsourced,
+        "explain_judged": explaining.judged,
+        "elements": len(explaining.elements),
+        "elements_dropped": explaining.elements_dropped,
+        "captions": len(explaining.captions),
+        "captions_dropped": explaining.captions_dropped,
+        "summary": explaining.summary is not None,
+        "summary_refused": explaining.summary_refused,
+        "drawings": rec.drawings,
+        "sketched": rec.sketched,
+        "lecture_head_cut": rec.lecture_head_cut,
+        "lecture_tail_cut": rec.lecture_tail_cut,
+        "runs_added": rec.runs_added,
+        "read_further": rec.read_further,
+        "album_parts": parts,
+        "figures": len(placed),
+        "charts": charts.count(markdown),
+        **_filing_payload(filing, explain_skipped, repeat),
+        "latency_ms": int((time.monotonic() - started) * 1000),
+        "cost_usd": vision.total_cost(stats + composition.stats + explaining.stats),
+    }
+    if notebook_key is not None:
+        payload["notebook"] = notebook_key
+    return payload
 
 
 def _filing_payload(
