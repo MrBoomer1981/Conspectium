@@ -440,10 +440,21 @@ def _lectures(n: int) -> str:
     return f"{n} {_plural(n, 'лекция', 'лекции', 'лекций')}"
 
 
+def notebook_reading(done: int, total: int) -> str:
+    """The line a chat sees while a notebook's pages are read (task 63, the
+    CEO's of 2026-10-13)."""
+    return f"Читаю тетрадь: {done} из {total} {_plural(total, 'страницы', 'страниц', 'страниц')}"
+
+
+def notebook_making(done: int, total: int) -> str:
+    """The same line while its lectures are made and sent."""
+    return f"Собираю лекции: {done} из {total}"
+
+
 def notebook_done(
     lectures: list[tuple[str, date | None]],
     parts: list[tuple[int, int]],
-    missing: list[tuple[int, int]],
+    missing: list[tuple[int, str]],
     failed: list[tuple[int, int]],
     tag: str | None,
     known: list[str],
@@ -451,9 +462,10 @@ def notebook_done(
     """The last message of a notebook (task 63): the lectures it was cut
     into, by their days; the pages where no lecture's start was found, and
     the parts they were kept in (`parts`, each its first and last page);
-    the pages it could not read, and the lectures that could not be made;
-    then where they all are — or, sent without its "#word", the one
-    question which subject they are, its answer filing every one."""
+    the pages it could not read, each with why, to be sent again as a reply
+    to this message (the CEO's of 2026-10-13); the lectures that could not
+    be made; then where they all are — or, sent without its "#word", the
+    one question which subject they are, its answer filing every one."""
     lines = [f"Тетрадь разобрана: {_lectures(len(lectures))}.", ""]
     lines += [listed(title, day) for title, day in lectures]
     if parts:
@@ -468,8 +480,22 @@ def notebook_done(
             f"Стр. {_page_spans(stretch)}: где там начинаются лекции, не нашлось — "
             f"сохранил частями: {_page_spans(parts)}.",
         ]
-    if missing:
-        lines += ["", f"Не прочитаны страницы {_page_spans(missing)} — в документах на их месте пометка."]
+    if len(missing) == 1:
+        page, reason = missing[0]
+        lines += [
+            "",
+            f"Не прочитана страница {page}: {_cause(reason)}. В лекции на её месте "
+            "пометка — пересними её и пришли ответом на это сообщение, она встанет "
+            "в свою лекцию.",
+        ]
+    elif missing:
+        lines += ["", "Не прочитаны страницы:"]
+        lines += [f"{page} — {_cause(reason)}" for page, reason in missing]
+        lines.append(
+            "В лекциях на их месте пометки. Пересними их и пришли ответом на это "
+            "сообщение, по одной, с номером страницы в подписи, — каждая встанет "
+            "в свою лекцию."
+        )
     if failed:
         lines += [
             "",
@@ -486,6 +512,43 @@ def notebook_done(
         if known:
             lines.append("Уже в ходу: " + " ".join("#" + t for t in known))
     return "\n".join(lines)
+
+
+NOTEBOOK_WHOLE = "В этой тетради все страницы уже на месте."
+NOTEBOOK_PAGE_NOT_PLACED = (
+    "Не нашёл в лекции места этой страницы. Пришли её обычным фото — она станет "
+    "отдельной записью."
+)
+
+
+def notebook_page_which(missing: list[int]) -> str:
+    """A page sent again with no number, while more than one is missing."""
+    return (
+        "Какая это страница? Пришли её ещё раз ответом на сводку тетради, с "
+        f"номером в подписи: не прочитаны {_page_spans(_runs_of(missing))}."
+    )
+
+
+def notebook_page_not_missing(page: int, missing: list[int]) -> str:
+    return (
+        f"Страница {page} уже на месте. Не прочитаны "
+        f"{_page_spans(_runs_of(missing))}."
+    )
+
+
+def notebook_page_added(page: int, title: str) -> str:
+    """Under a lecture's document sent again with a page it was missing."""
+    return f"Страница {page} встала в лекцию «{_shortened(title, 80)}»."
+
+
+def _runs_of(pages: list[int]) -> list[tuple[int, int]]:
+    runs: list[tuple[int, int]] = []
+    for page in sorted(set(pages)):
+        if runs and page == runs[-1][1] + 1:
+            runs[-1] = (runs[-1][0], page)
+        else:
+            runs.append((page, page))
+    return runs
 
 
 def notebook_tagged(tag: str, count: int) -> str:

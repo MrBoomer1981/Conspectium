@@ -65,3 +65,55 @@ async def shown(message: Message) -> AsyncIterator[None]:
                 await line.delete()
             except TelegramAPIError as exc:
                 logger.info("the waiting line could not be deleted: %s", exc)
+
+
+class Progress:
+    """What a long piece of work says of how far it is, for the line that
+    shows it."""
+
+    def __init__(self, text: str):
+        self.text = text
+
+    def set(self, text: str) -> None:
+        self.text = text
+
+
+async def _follow(line: Message, state: Progress) -> None:
+    """The line changed to what the work says, every EVERY_S at most and
+    only when it says something new: Telegram refuses an edit that changes
+    nothing, and a line changed at every page would meet its flood control."""
+    shown = state.text
+    while True:
+        await asyncio.sleep(EVERY_S)
+        if state.text == shown:
+            continue
+        try:
+            await line.edit_text(state.text)
+            shown = state.text
+        except TelegramRetryAfter as exc:
+            await asyncio.sleep(exc.retry_after)
+        except TelegramAPIError as exc:
+            logger.info("the progress line stopped: %s", exc)
+            return
+
+
+@asynccontextmanager
+async def progress(message: Message, text: str) -> AsyncIterator[Progress]:
+    """A line that says how far a long piece of work is — a whole notebook,
+    «Читаю тетрадь: 34 из 100 страниц» (task 63, the CEO's of 2026-10-13) —
+    in place of the turning phrases, changed in place as the work goes and
+    deleted on every way out of it, as `shown`'s is."""
+    line = await message.answer(text)
+    state = Progress(text)
+    following = asyncio.create_task(_follow(line, state)) if line is not None else None
+    try:
+        yield state
+    finally:
+        if following is not None:
+            following.cancel()
+            await asyncio.gather(following, return_exceptions=True)
+            try:
+                await line.delete()
+            except TelegramAPIError as exc:
+                logger.info("the progress line could not be deleted: %s", exc)
+

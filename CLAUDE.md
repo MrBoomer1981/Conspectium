@@ -117,7 +117,10 @@ In a session:
 ## Where it stands
 
 - **Production** is one Railway service with PostgreSQL, serving the CEO's
-  private chat and one course chat. Railway deploys `main` on every push; the
+  private chat and one course chat. Task 63's parts — the repeats, the move
+  into a group, the whole notebook, the semester — are on branch `task-63`,
+  off production until the CEO debugs them (2026-10-13): what this file says
+  of them is the branch's. Railway deploys `main` on every push; the
   `Procfile` runs `alembic upgrade head`, then uvicorn. A deploy cancels
   whatever is being processed at that moment.
 - **Phases** A — reliability, a record has to exist; B — the ideal record,
@@ -988,7 +991,10 @@ hold", "Record 97"
   record is, two at a time and in order; its record carries the notebook
   (`notes.notebook`). A last message sums the notebook up with «Все в
   группу «…»», or asks its subject once, the answer filing every lecture of
-  it (`corpus._file_notebook`). One a person a day, beyond their pages:
+  it (`corpus._file_notebook`). A page the frame check refuses does not
+  stop it: the last message names it, and the page sent again in reply goes
+  where its marker stands (`handlers._notebook_page`). A line says how far
+  it is (`waiting.progress`). One a person a day, beyond their pages:
   counted once a notebook has come out whole (`notebook_read`), so one a
   deploy cut short is sent again; its pages are never in the person's
   day. A caption's day is the notebook's, never a lecture's; two albums

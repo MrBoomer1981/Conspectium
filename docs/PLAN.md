@@ -594,7 +594,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-43, 45-47, 51, 55-56, 69-88, 90, 92-100, 102-105
-CEO — current: 106, 63; next: 63's last part — the semester by its topics (52) — and the notebook measured on the CEO's notebook; then 65 once there is data for it, then 60
+CEO — current: 106, 63 — on branch task-63, off production until the CEO debugs it; next: 63's last part — the semester by its topics (52) — and the notebook measured on the CEO's notebook; then 65 once there is data for it, then 60
 CPO — current: none; next: none
 Blockers: 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -705,6 +705,7 @@ since 2026-10-01.
 | 2026-10-12 | the CEO, with Claude Code | Task 63's repeats built: the lectures a subject held twice joined by the rule a record is filed by (migration `021_one_lecture`, data and no schema: one pair in production, planned there read only), a search's records of no subject that read as one text one answer, the fullest, of fifty read, and the head of a record that is its subject's album before's last page, photographed again, cut as it is filed — only where sure: the earlier album sent on an earlier day, and this lecture's day written down or the page written on past the repeat. Measured on production's second readings of one page: 409 of 423 found, every cut at the next lecture's first word, nothing found on 3 110 that hold no repeat. `note_processed` and `note_tagged` gain `repeat_cut` and `repeat_of`; `topic_searched`'s `found` counts up to fifty ("Contracts"). `CLAUDE.md` → "The corpus", the pipeline; `FINDINGS.md` → "The page photographed twice" | the CEO's own |
 | 2026-10-13 | the CEO, with Claude Code | Task 63's move into the group built: under a private record's document with its subject, «В группу «…»» for every group the person and the bot are both in, Telegram asked at the delivery; a press moves the lecture's notebooks into the group's subject of the word, into a classmate's lecture of it by the rule a record is filed by, the private lecture's day kept, and the group is shown one line. A lecture moved counts in no day's pages: migration `022_lecture_moved` adds `notes.moved_at` (schema, named to the CPO before the push), which the group's day leaves out. Event `lecture_moved` ("Contracts"). The notebook's two open questions answered by the CEO the same night: a stretch with no lecture start cut into parts of thirty pages at most, the person told; a notebook without its "#word" read, and its subject asked once at the end. `CLAUDE.md` → "The corpus", a seventh early commit in "Sessions and transactions", a row in "Scale debt", "Structure" | the CEO's own |
 | 2026-10-13 | the CEO, with Claude Code | Task 63's whole notebook built: a private send of more pages than `MAX_ALBUM_PAGES`, or one whose caption says «тетрадь», up to `NOTEBOOK_MAX_PAGES` (100), read with `prompts-v12.md` (v11 with v9's lecture starts) four pages at a time, cut where every run named a start, each lecture dated by the margin of the page it begins on and made, kept and sent as an album's record is, two at a time and in order; a last message sums it up with «Все в группу», or asks the subject once. One a person a day beyond their pages, counted once a notebook has come out whole (event `notebook_read`); its pages not in the person's day. Migration `023_notebook` adds `notes.notebook` (schema, named to the CPO before the push). A private chat's send may run to a notebook's pages, and two albums whose captions name different days are two sends. The night's answer «частями до 30 страниц» corrected to a send's pages, `MAX_ALBUM_PAGES` — 20 in production: the question had taken a send for thirty. v12 tried in production's container on three pages of the CEO's: nothing named where nothing begins, $0.068. "Contracts" → `notebook_read`, and `notebook` in `note_processed`, `note_captured`, `note_tagged`, `album_retake_requested`, `album_incomplete`. `CLAUDE.md` → the pipeline, "The corpus", "Sessions and transactions", "Concurrency ceilings", "Scale debt", the variables; `FINDINGS.md` → "A whole notebook's prompt" | the CEO's own |
+| 2026-10-13 | the CEO, with Claude Code | The CEO's answers of the morning: «сейчас мы добавляем новые функции, но не вводим в продакшен, я хочу их впоследствии отладить» — task 63's parts live on branch `task-63`, pushed to GitHub and not merged into `main`, which Railway deploys; a notebook's page the frame check refuses no longer stops it — it is read without the page, and the page is sent again in reply to the notebook's last message and goes into its lecture (`handlers._notebook_page`); a progress line, «Читаю тетрадь: 34 из 100 страниц», «Собираю лекции: 3 из 7» (`waiting.progress`); the parts stay a send's pages until the debugging; «В группу» under the line that files a record stays. The semester decided: as a study version of the whole subject, no bot's boxes carried, paid as a study version is; whether its arrangement is kept left to Claude Code. "Contracts" → `notebook_read` gains `frames_refused` and `prompt`, `notebook_page_added` is new | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4058,8 +4059,20 @@ margin's day was read on 18 records of 107.
 - **Read** with `prompts-v12.md` (`NOTEBOOK_PROMPT_FILE`), v11 with v9's
   rule and key, four pages at a time (`albums.NOTEBOOK_AT_ONCE`): twelve
   runs keep the bot's slots full, and another chat's album waits behind
-  one window, not a hundred pages. A frame refused stops the notebook
-  before anything is read, as an album's does.
+  one window, not a hundred pages. A line says how far it is —
+  «Читаю тетрадь: 34 из 100 страниц», then «Собираю лекции: 3 из 7» —
+  changed in place (`waiting.progress`), the CEO's of the morning.
+- **A page the frame check refuses does not stop it** (the CEO's of the
+  morning): it is left out where it stands, a marker in its lecture, and
+  the last message names it with why and asks for it again as a reply.
+  A photo sent in reply to that message (`handlers._notebook_asked`,
+  found through the `notebook_read` event that names the message) is read
+  as a notebook's page and put where the marker stands, as read — the
+  lecture is not composed again, its explanations pointing at its text as
+  it was — and the lecture's document comes again
+  (`handlers._notebook_page`). A page is named by the number in its
+  caption, or is the one page missing. A page read as nothing by the model
+  is asked for the same way.
 - **Cut** where every run named a start (`lectures.cut`), from each to
   the next across pages, the author's line before a start dropped; what
   stands before the first start is a lecture of its own. A stretch of more
@@ -4098,7 +4111,16 @@ margin's day was read on 18 records of 107.
 
 ## The parts left
 
-- **The semester by its topics** — task 52's new form, above.
+- **The semester by its topics** — task 52's new form, above. Decided by
+  the CEO on the morning of 2026-10-13: a study version of the whole
+  subject — its lectures' units set out by the semester's topics, each
+  piece with its lecture's day, «О чём тема» under each, the questions at
+  the end; none of the bot's boxes the lectures carry; paid as a study
+  version is, by whoever presses, inside the bot's day and in no day's
+  pages; whether the arrangement is kept left to Claude Code. Measured on
+  2026-10-13 in production's container, read only: one call arranged 431
+  units of all 19 lectures into 9 topics, every unit once, the order kept,
+  in 64 s for $0.06; the largest subject, 60 units of 3 lectures, the same.
 
 ## Don't do
 
@@ -7144,7 +7166,17 @@ margin dated; `cost_usd` the reading's, each lecture's own in its
 `note_processed`. Every lecture's `note_processed` and `note_tagged`, and
 the notebook's `note_captured`, `album_retake_requested` and
 `album_incomplete`, carry `notebook` too: the key, or `true` before there
-is one.
+is one. `frames_refused` counts the pages the frame check refused, and
+`prompt` is the last message's id, which a page sent again replies to — or
+null when it could not be sent.
+
+## Event `notebook_page_added`
+
+A notebook's page it could not read, sent again in reply to its last message
+and put into its lecture (task 63). payload: `{"notebook": str, "note_id":
+int, "page": int, "words": int, "starts": int, "latency_ms": int,
+"cost_usd": float | null}` — `starts` the lecture starts every run named on
+the page, which are not cut: the page goes whole where its marker stood.
 
 ## Event `album_retake_requested`
 

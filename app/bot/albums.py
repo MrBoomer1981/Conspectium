@@ -17,6 +17,7 @@ import logging
 import math
 import re
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 
 from app.bot import subjects, texts
@@ -707,6 +708,7 @@ async def process_batch(
     at_once: int | None = None,
     timeout: float = _ALBUM_TIMEOUT_S,
     assemble: bool = True,
+    done_one: Callable[[], None] | None = None,
 ) -> AlbumOutcome:
     """Run every page in parallel and combine the survivors. `pages` is already
     sorted; a page's position + 1 is its number — a PDF's page keeps its own —
@@ -717,7 +719,9 @@ async def process_batch(
 
     A notebook's pages (task 63) come with its `prompt`, `at_once` pages
     read at a time under its own `timeout`, and are not assembled into one
-    record: the notebook is cut into its lectures (notebook.py)."""
+    record: the notebook is cut into its lectures (notebook.py), and
+    `done_one` is told of every page read, for the line that shows how far
+    the notebook is."""
     window = asyncio.Semaphore(at_once) if at_once else None
 
     async def read(page: PageInput, number: int) -> PageResult:
@@ -732,6 +736,9 @@ async def process_batch(
             (page.number or place, page) for place, page in enumerate(pages, 1)
         )
     }
+    if done_one is not None:
+        for task in tasks.values():
+            task.add_done_callback(lambda _: done_one())
     try:
         done, pending = await asyncio.wait(tasks.values(), timeout=timeout)
         if pending:

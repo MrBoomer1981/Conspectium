@@ -2,7 +2,9 @@
 
 import asyncio
 import logging
+import re
 import time
+from collections.abc import Callable
 from dataclasses import asdict, replace
 from datetime import datetime, timedelta, timezone
 
@@ -23,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import albums, corpus, middlewares, notebook, subjects, tags, texts, to_group, waiting
 from app.core.config import settings
 from app.core.events import log_event
-from app.db.models import Group, GroupPage, Note, NoteFigure, User
+from app.db.models import Event, Group, GroupPage, Lecture, Note, NoteFigure, NoteTopic, User
 from app.services import (
     charts,
     compose,
@@ -61,6 +63,11 @@ _PAGES_KEPT = timedelta(days=7)
 # A notebook's pages downloaded this many at a time (task 63): a hundred
 # photographs fetched at once held a hundred originals in memory at once.
 _FETCH_AT_ONCE = 10
+# Why a page is skipped when it is not its frame: what the notebook's event
+# counts the frames refused apart from.
+_NOT_FRAMES = (texts.SKIP_UNRECOGNIZED, texts.SKIP_NO_TEXT, texts.SKIP_ERROR)
+# The page a photo sent again names in its caption: «17», «стр. 17».
+_PAGE_NUMBER_RE = re.compile(r"(?<!\d)(\d{1,3})(?!\d)")
 # A notebook's lectures made this many at a time, in its order: a lecture
 # begins once the one this many before it has been sent, so the first comes
 # while the rest are made, and the bot's API_SLOTS stay every chat's.
@@ -165,6 +172,14 @@ async def handle_photo(
     group: Group | None = None,
 ) -> None:
     page = middlewares.page_file(message)
+    # A page of a whole notebook it could not read, sent again in reply to
+    # the notebook's last message (task 63): it goes into its lecture.
+    replied = getattr(message, "reply_to_message", None)
+    if group is None and replied is not None and not message.media_group_id:
+        shelf = await _notebook_asked(session, user, replied)
+        if shelf is not None:
+            await _notebook_page(message, session, user, bot, shelf, page)
+            return
     # The subject the photo was sent with; in a private chat it spares the
     # question afterwards. In a group it is what makes the photo the bot's at
     # all. middlewares.heard stops an untagged one before a session is even
@@ -1206,10 +1221,13 @@ async def _read_notebook(
 
     One a person a day, beyond their pages — counted once a notebook has
     come out whole (limits.notebook_read_today), and its pages not counted
-    in the person's day. A frame refused stops it before anything is read,
-    as an album's does. The pages are read a few at a time
-    (albums.NOTEBOOK_AT_ONCE) and the lectures made two at a time, so that
-    the bot's calls are still every chat's while a notebook is read."""
+    in the person's day. A page the frame check refuses does not stop it,
+    unlike an album: it is left out where it stands, and its last message
+    asks for it again, as a reply, to go into its lecture (_notebook_page,
+    the CEO's of 2026-10-13) — a hundred pages are not sent again for one.
+    The pages are read a few at a time (albums.NOTEBOOK_AT_ONCE) and the
+    lectures made two at a time, so that the bot's calls are still every
+    chat's while a notebook is read; a line says how far it is."""
     pdf = source_type == "pdf"
     ordered = sorted(pages, key=lambda p: p.message_id)
     if len(ordered) > settings.NOTEBOOK_MAX_PAGES:
@@ -1242,31 +1260,27 @@ async def _read_notebook(
                 "notebook": True,
             },
         )
-    refused = await albums.refused_frames(ordered)
-    if refused:
-        await log_event(
-            session,
-            user.id,
-            "album_retake_requested",
-            {"pages": len(ordered), "refused": _skip_payload(refused), "notebook": True},
-        )
-        retake = [(p.page, p.skip_reason) for p in refused]
-        await message.answer(
-            texts.pdf_retake(retake) if pdf else texts.album_retake(retake)
-        )
-        return
     shelf = notebook.key(message.chat.id, ordered[0].message_id)
     # Nothing of the update's is held while a hundred pages are read.
     await session.commit()
 
-    async with waiting.shown(message):
+    total = len(ordered)
+    async with waiting.progress(message, texts.notebook_reading(0, total)) as bar:
         started = time.monotonic()
+        read = 0
+
+        def page_read() -> None:
+            nonlocal read
+            read += 1
+            bar.set(texts.notebook_reading(read, total))
+
         outcome = await albums.process_batch(
             ordered,
             prompt=vision.NOTEBOOK_PROMPT,
             at_once=albums.NOTEBOOK_AT_ONCE,
             timeout=albums.NOTEBOOK_TIMEOUT_S,
             assemble=False,
+            done_one=page_read,
         )
         await vision.log_ai_calls(user.id, outcome.stats)
         if not outcome.pages_ok:
@@ -1294,9 +1308,21 @@ async def _read_notebook(
         cut = notebook.lectures_of(
             outcome.pages_ok, outcome.skips, settings.MAX_ALBUM_PAGES, subjects.today()
         )
+        bar.set(texts.notebook_making(0, len(cut)))
+        finished = 0
+
+        def lecture_done() -> None:
+            nonlocal finished
+            finished += 1
+            bar.set(texts.notebook_making(finished, len(cut)))
+
         made, failed = await _notebook_lectures(
             message, session, user, cut, outcome.skips, tag, shelf, source_type,
-            albums.parts_of(ordered),
+            albums.parts_of(ordered), lecture_done,
+        )
+        # The last message first: its id is what a page sent again replies to.
+        prompt = await _notebook_said(
+            message, session, user, made, failed, cut, outcome.skips, tag
         )
         await log_event(
             session,
@@ -1314,13 +1340,18 @@ async def _read_notebook(
                 "parts": sum(1 for lecture in cut if lecture.part),
                 "dated": sum(1 for lecture in cut if lecture.day is not None),
                 "tagged": tag is not None,
+                "frames_refused": sum(
+                    1 for page in outcome.skips if page.skip_reason not in _NOT_FRAMES
+                ),
+                # The last message, which the pages it could not read are sent
+                # again in reply to (_notebook_asked).
+                "prompt": prompt,
                 "latency_ms": int((time.monotonic() - started) * 1000),
                 "cost_usd": vision.total_cost(outcome.stats),
             },
         )
         # Counted as the person's notebook of the day once it is kept.
         await session.commit()
-        await _notebook_said(message, session, user, made, failed, cut, outcome.skips, tag)
 
 
 async def _notebook_lectures(
@@ -1333,6 +1364,7 @@ async def _notebook_lectures(
     shelf: str,
     source_type: str,
     parts: int,
+    lecture_done: Callable[[], None] | None = None,
 ) -> tuple[list[tuple[Note, notebook.Lecture]], list[notebook.Lecture]]:
     """Every lecture of a notebook made as an album's record is — composed,
     its drawings placed, joined to its subject's lecture of it, explained
@@ -1452,6 +1484,8 @@ async def _notebook_lectures(
                 await session.refresh(user)
         finally:
             turns[index].set()
+            if lecture_done is not None:
+                lecture_done()
 
     await asyncio.gather(*(make(index, lecture) for index, lecture in enumerate(cut)))
     return (
@@ -1469,15 +1503,17 @@ async def _notebook_said(
     cut: list[notebook.Lecture],
     skips: list[albums.PageResult],
     tag: str | None,
-) -> None:
+) -> int | None:
     """The notebook's last message: what it was cut into, by day; where no
-    lecture's start was found; what could not be read or made; then where
-    the lectures are — with «Все в группу» under it — or the one question
-    which subject they are."""
+    lecture's start was found; what could not be read, each page with why,
+    to be sent again in reply to it; what could not be made; then where the
+    lectures are — with «Все в группу» under it — or the one question which
+    subject they are. The id of the message a reply finds it by, None when
+    it could not be sent."""
     text = texts.notebook_done(
         [(plain(note.title), lecture.day) for note, lecture in made],
         [(lecture.pages[0], lecture.pages[-1]) for lecture in cut if lecture.part],
-        notebook.ranges([page.page for page in skips]),
+        [(page.page, page.skip_reason or texts.SKIP_ERROR) for page in skips],
         notebook.ranges([page for lecture in failed for page in lecture.pages]),
         tag,
         await corpus.known_tags(session, user) if tag is None else [],
@@ -1486,8 +1522,176 @@ async def _notebook_said(
     if tag is not None and made:
         markup = await to_group.all_markup(message, session, made[-1][0])
     chunks = texts.split_message(text)
+    sent = None
     for index, chunk in enumerate(chunks):
-        await message.answer(chunk, reply_markup=markup if index == len(chunks) - 1 else None)
+        try:
+            sent = await message.answer(
+                chunk, reply_markup=markup if index == len(chunks) - 1 else None
+            )
+        except Exception:
+            logger.warning("a notebook's last message could not be sent", exc_info=True)
+            return None
+    return getattr(sent, "message_id", None)
+
+
+async def _notebook_asked(
+    session: AsyncSession, user: User, replied: Message
+) -> str | None:
+    """The notebook whose last message a photo replies to, if it does: found
+    through the `notebook_read` event that names the message, as an earlier
+    question under a press is found (feedback._asked_before) — nothing kept
+    in the process."""
+    author = replied.from_user
+    if author is None or not author.is_bot:
+        return None
+    payloads = (
+        await session.execute(
+            select(Event.payload)
+            .where(Event.type == limits.NOTEBOOK_READ, Event.user_id == user.id)
+            .order_by(Event.id.desc())
+        )
+    ).scalars().all()
+    for payload in payloads:
+        if isinstance(payload, dict) and payload.get("prompt") == replied.message_id:
+            shelf = payload.get("notebook")
+            return shelf if isinstance(shelf, str) else None
+    return None
+
+
+async def _notebook_page(
+    message: Message,
+    session: AsyncSession,
+    user: User,
+    bot: Bot,
+    shelf: str,
+    page: middlewares.PageFile,
+) -> None:
+    """A page of a notebook it could not read, sent again in reply to its
+    last message (task 63, the CEO's of 2026-10-13): read as a notebook's
+    page is, put where its marker stands in its lecture, and the lecture's
+    document sent again. The page is named by the number in its caption, or
+    is the one page missing. Part of the notebook: its day and the person's
+    pages are not asked, the bot's day is."""
+    notes = (
+        await session.execute(
+            select(Note).where(Note.notebook == shelf, Note.user_id == user.id).order_by(Note.id)
+        )
+    ).scalars().all()
+    missing = sorted({number for note in notes for number in note.missing_pages or []})
+    if not missing:
+        await message.answer(texts.NOTEBOOK_WHOLE)
+        return
+    named = _PAGE_NUMBER_RE.search(message.caption or "")
+    if named is None and len(missing) > 1:
+        await message.answer(texts.notebook_page_which(missing))
+        return
+    number = int(named.group(1)) if named is not None else missing[0]
+    if number not in missing:
+        await message.answer(texts.notebook_page_not_missing(number, missing))
+        return
+    note = next(note for note in notes if number in (note.missing_pages or []))
+
+    limit_message = await limits.check_limits(session, user, pages=0)
+    if limit_message is not None:
+        await message.answer(limit_message)
+        return
+    if message.document is not None and (message.document.file_size or 0) > _MAX_IMAGE_BYTES:
+        await message.answer(texts.IMAGE_TOO_BIG)
+        return
+    original = (await bot.download(page.file_id)).read()
+    compressed = await images.in_worker(
+        images.compress, original, settings.IMAGE_MAX_SIDE, settings.IMAGE_QUALITY
+    )
+    frame = await images.in_worker(photoguard.check_photo_bytes, compressed)
+    if not frame.ok:
+        await message.answer(frame.reason)
+        return
+
+    async with waiting.shown(message):
+        started = time.monotonic()
+        result, stats = await vision.transcribe_consensus(
+            compressed, prompt=vision.NOTEBOOK_PROMPT
+        )
+        await vision.log_ai_calls(user.id, stats)
+        if result is None:
+            await message.answer(texts.ERROR_GENERIC)
+            return
+        if len(result.best.markdown.strip()) < settings.MIN_MARKDOWN_LEN:
+            await message.answer(texts.NO_TEXT_FOUND)
+            return
+        lecture = await session.get(Lecture, note.lecture_id) if note.lecture_id else None
+        day = lecture.given_on if lecture is not None and lecture.date_source != "sent" else None
+        if not _filled(note, number, result, day):
+            logger.warning("notebook %s: no marker for page %d in note %s", shelf, number, note.id)
+            await message.answer(texts.NOTEBOOK_PAGE_NOT_PLACED)
+            return
+        await session.execute(delete(NoteTopic).where(NoteTopic.note_id == note.id))
+        session.add_all(
+            NoteTopic(note_id=note.id, topic=topic)
+            for topic in tags.topics_of(note.title, note.markdown)
+        )
+        await log_event(
+            session,
+            user.id,
+            "notebook_page_added",
+            {
+                "notebook": shelf,
+                "note_id": note.id,
+                "page": number,
+                "words": len(result.best.markdown.split()),
+                # A start named on it is not cut: the page goes whole into the
+                # lecture whose hole it fills. Counted, for the measurement.
+                "starts": len(result.lecture_starts),
+                "latency_ms": int((time.monotonic() - started) * 1000),
+                "cost_usd": vision.total_cost(stats),
+            },
+        )
+        await _saved(session)
+        await corpus.deliver(
+            message, session, note, user, None,
+            after=texts.notebook_page_added(number, plain(note.title)),
+        )
+
+
+def _filled(
+    note: Note, number: int, result: vision.TranscriptionResult, day
+) -> bool:
+    """A notebook's lecture with the page it was missing put where the
+    page's marker stands, as read — the lecture is not composed again: its
+    explanations point at its text as it was. What the page carries comes
+    with it: its findings, what read two ways, its margin but another
+    lecture's day. The study version is built again from the new text.
+    False when the marker is not there to put the page in."""
+    marker = re.compile(rf"\**\[Страница {number} не прочитана\]\**")
+    page_markdown = result.best.markdown
+    if not marker.search(note.markdown or ""):
+        return False
+    note.markdown = marker.sub(lambda _: page_markdown, note.markdown, count=1)
+    note.missing_pages = [page for page in note.missing_pages or [] if page != number]
+    note.page_count = (note.page_count or 0) + 1
+    note.issues = list(note.issues or []) + [
+        {**asdict(found), "page": number} for found in vision.findings(page_markdown)
+    ]
+    note.uncertain = list(note.uncertain or []) + [
+        {**asdict(u), "page": number} for u in result.best.uncertain
+    ]
+    note.numeric_divergences = list(note.numeric_divergences or []) + [
+        {**asdict(d), "page": number} for d in result.numeric_divergences or []
+    ]
+    note.margin_notes = list(note.margin_notes or []) + subjects.margin_for(
+        result.best.margin_notes, day, subjects.today()
+    )
+    note.unreadable_count = (note.unreadable_count or 0) + page_markdown.count("[неразборчиво]")
+    note.text_agreement = _lower(note.text_agreement, result.text_agreement)
+    note.numeric_agreement = _lower(note.numeric_agreement, result.numeric_agreement)
+    note.study = None
+    return True
+
+
+def _lower(kept: float | None, new: float | None) -> float | None:
+    """A record's agreement is its worst page's."""
+    present = [value for value in (kept, new) if value is not None]
+    return min(present) if present else None
 
 
 def _album_note(
