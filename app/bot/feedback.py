@@ -58,6 +58,9 @@ STUDY_PREFIX = "study"
 # to_group.on_move_all.
 MOVE_PREFIX = "move"
 MOVE_ALL_PREFIX = "moveall"
+# «Весь семестр одним PDF» under a subject's list (task 63), answered in
+# semester_version.on_semester.
+SEMESTER_PREFIX = "semester"
 
 
 def keyboard(
@@ -89,6 +92,20 @@ def keyboard(
         )
     rows += move_rows(note_id, groups or [])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def semester_keyboard(subject_id: int) -> InlineKeyboardMarkup:
+    """The one button under the list a subject's "#word" answers with."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=texts.SEMESTER_BUTTON,
+                    callback_data=f"{SEMESTER_PREFIX}:{subject_id}",
+                )
+            ]
+        ]
+    )
 
 
 def move_rows(note_id: int, groups: list[Group]) -> list[list[InlineKeyboardButton]]:

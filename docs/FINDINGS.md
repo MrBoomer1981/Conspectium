@@ -1475,6 +1475,33 @@ and a heading, as the CEO's notebooks open a lecture. That is the CEO's
 notebook to show once the code is deployed, as task 63 says: v9 was put to
 sleep on pages that had no date to name.
 
+## The semester by its topics
+
+**The question (task 63, 2026-10-13).** Whether one call can set a whole
+subject's lectures out by its topics the way a study version sets out one
+lecture: every unit named once, in an order code can move them in.
+
+**First, the call alone**, in production's container, read only, on
+`gemini-3.8-flash`, with a first prompt — the study version's, for a
+semester: the largest subject, 60 units of 3 lectures, came back as 5
+topics with every unit once and none out of the author's order, 34 s,
+$0.021. Every lecture of the base at once, 19 lectures of several subjects
+and 431 units, 80 000 characters: 9 topics, every unit once, none out of
+order, 6 topics drawing on more than one lecture, 64 s, $0.061. A call is
+not the limit of a semester of fifteen lectures.
+
+**Then the whole way**, through the branch's code and
+`prompts-semester-v1.md`, the same subject: 5 topics, every unit once, 6
+questions and none dropped by the numbers' check, each topic's units under
+its lecture's day, 34 s and $0.022; drawn in 7 s, 10 pages, 1.2 MB. A
+made-up semester of fifteen lectures and 300 units drew in 2 s, 28 pages:
+its formulas were simple, and a real one holds the one document drawn at a
+time for longer.
+
+**What it did not settle.** How the topics read to a student before an
+exam — the CEO's to debug on branch `task-63`; and a semester of fifteen
+real lectures, which production does not hold yet.
+
 ## Record 67, half a page
 
 **What the CEO saw** (2026-10-04): one photograph sent twice to the test

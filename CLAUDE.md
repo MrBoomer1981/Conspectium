@@ -203,7 +203,8 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `023_notebook`, the head. The next is `024_`.
+  `024_semester`, the head on branch `task-63` — `020_hashtags` on `main`.
+  The next is `025_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -999,9 +1000,19 @@ hold", "Record 97"
   deploy cut short is sent again; its pages are never in the person's
   day. A caption's day is the notebook's, never a lecture's; two albums
   whose captions name different days are two sends.
-- **Not yet built**, in the CEO's order of 2026-10-12 (`docs/PLAN.md` →
-  task 63): the semester as one document by its topics, task 52's new
-  form.
+- **The semester by its topics** (`services/semester.py`,
+  `bot/semester_version.py`; task 52's new form, the CEO's of 2026-10-12
+  and 2026-10-13): «Весь семестр одним PDF» under the list a subject's
+  "#word" answers with, when two lectures or more hold its records. A study
+  version of the whole subject: every lecture's text as its document draws
+  it, its units numbered through the semester and set out by its topics in
+  one call — the study version's core (`study.arrange`, `study.layout_of`),
+  so not a word of the authors' changes and every unit stands once — each
+  run of a topic's units under its lecture's day, «О чём тема» under every
+  topic, the questions at the end. None of the lectures' boxes, the CEO's.
+  Its arrangement is kept on the subject by the lectures' fingerprint
+  (`subjects.semester`): a second press pays nothing, a lecture added builds
+  it anew. Paid as a study version is. → "The semester by its topics"
 
 ### A group chat
 
@@ -1539,6 +1550,7 @@ number never leaves another quietly cutting the work short:
 | `EXPLAIN_CALL_TIMEOUT_S` | environment | 240 s, 30–600; the writing call, sized like composing; it takes a slot the same way, after `process_batch` |
 | `_SOURCE_TIMEOUT_S` | `services/explain.py` | 90 s — one search; up to eight at once, each on a slot |
 | compose's slot | `services/compose.py` | one of the `API_SLOTS`, held for the whole call; after `process_batch`, outside `_ALBUM_TIMEOUT_S` |
+| the semester's call | `services/semester.py` | one of the `API_SLOTS` on a press, `EXPLAIN_CALL_TIMEOUT_S` — a call over every lecture of a subject, 34 s for three in production; its drawing holds the one document drawn at a time for as long as its pages take, 7 s for ten |
 | the study version's call | `services/study.py` | one of the `API_SLOTS`, beside the explaining stage's for a record that joins no lecture (task 104), else at delivery or on a press, `EXPLAIN_CALL_TIMEOUT_S` — a call over the whole record, as the explaining one is |
 | the sketches' calls | `services/sketches.py` | three on `API_SLOTS` for a page that describes a sketch, after its runs, at `VISION_CALL_TIMEOUT_S`, counted in `_ALBUM_TIMEOUT_S`'s waves (task 101) |
 | the captions' call | `services/explain.py` | one of the `API_SLOTS`, beside the explaining stage's first call, `EXPLAIN_CALL_TIMEOUT_S`; thinks `low` and answers in seconds (task 95) |
@@ -1603,7 +1615,7 @@ the machinery before the point arrives — record what you find here instead.
 
 | Shortcut | Breaks at | What happens |
 |---|---|---|
-| The album buffer is six module-level dicts in `bot/albums.py`, the pages being read a set in `bot/corpus.py`, and the study versions being built a set in `bot/study_version.py` | **a second replica** | pages of one album land in different processes and become separate records; two calls on one album in two processes read it twice; two presses of «Учебная версия» pay twice |
+| The album buffer is six module-level dicts in `bot/albums.py`, the pages being read a set in `bot/corpus.py`, and the study versions and semesters being built sets in `bot/study_version.py` and `bot/semester_version.py` | **a second replica** | pages of one album land in different processes and become separate records; two calls on one album in two processes read it twice; two presses of «Учебная версия» or «Весь семестр» pay twice |
 | An update is processed in a background task | **any deploy** | in-flight updates are cancelled; paid Gemini calls are wasted |
 | No deduplication on `update_id` | **a delivery timeout** | Telegram retries: a duplicate record and a second set of paid calls |
 | `DAILY_COST_LIMIT_USD` is one cap over every chat, above each group's day in pages | **about four groups at their full day** at today's prices, two once they double on 2027-01-01 | the chats that come later in the day find the bot stopped: the cap has to grow with the groups |
@@ -1700,6 +1712,7 @@ app/
     feedback.py       «Хорошо», «Плохо» and where the error is, under every document
     study_version.py  «Учебная версия»: a record's study version built on request
     notebook.py       a whole notebook sent at once: what it is, its lectures, dated
+    semester_version.py  «Весь семестр одним PDF»: the semester built, kept and sent
     to_group.py       «В группу «…»»: a private lecture moved into a group
     waiting.py        the line a chat sees while its record is made
     rating.py         a group's week: who sent its records and who rated them, Saturday's summary; the bot's week
@@ -1708,6 +1721,7 @@ app/
     compose.py        stage two: the trusted transcription, formatted
     explain.py        stage three: hard places explained with sources, a summary
     study.py          a lecture's study version: the record in units, arranged by topic
+    semester.py       a subject's semester as one study version, by its topics
     pdf.py            a record as a PDF
     mathjax.py        formulas drawn by MathJax 4 in V8, mathtext behind it
     figures.py        drawings taken from the page, placed back after composing
@@ -1748,7 +1762,8 @@ notebook's alone (task 63, `NOTEBOOK_PROMPT_FILE`); composing
 `prompts-compose-v1.md` to `v4`, v3 framing a section's main formula, v4
 (production since 2026-10-06) v3 with the author's shorthand spelled out
 (task 69);
-explaining `prompts-explain-v1.md` to `v4`, v2 (production 2026-10-03 to
+the semester `prompts-semester-v1.md` (task 63, a study version's prompt for a
+whole subject, read by name); explaining `prompts-explain-v1.md` to `v4`, v2 (production 2026-10-03 to
 10-08) adding the teacher's boxes, v3 (production since 2026-10-08) v2 with
 an example that is not the lecture's working with another number (task 78),
 kept on the CEO's word while the next records' examples are read, v4 v3
@@ -1867,7 +1882,7 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
   runs`, the prompt file, its word count, where `numeric_agreement` takes its
   numbers, whether drawings are cut out and lectures marked, the image
   compression, both stages, the captions' prompt, the study version's
-  prompt, whether a sketch is drawn again from its page, the call knobs,
+  prompt, the semester's, whether a sketch is drawn again from its page, the call knobs,
   the formulas' engine (from the warm-up), the
   five timeouts and the repeat after one, the pages of one send and the day's limits, a notebook's pages, prompt and ceiling, where a reader's «Плохо» is sent, when a
   group's week is summed up, and whether the bot sees a group's photos. What
@@ -1961,11 +1976,13 @@ Shared by both owners. Deliberately postponed — don't suggest or implement:
   week (`docs/PLAN.md` → task 74)
 - Export to Anki, and any bulk export of the corpus. A record comes back as one
   PDF when a tag matches it — presentation, not an exit door, and no licence
-  for "download everything". The one exception is the author's, 2026-09-30: a
-  subject's records as one document to study from, opened by an overview the
-  model writes over them and marks as the bot's, sent only when somebody asks
-  with a command (`docs/PLAN.md` → task 52). An overview, not a download — no
-  other format, no archive, no "everything at once"
+  for "download everything". The one exception is the author's, 2026-09-30,
+  in the form the CEO gave it on 2026-10-12: a subject's semester as one
+  document to study from — its lectures set out by its topics, a study
+  version of the subject — sent only when somebody presses «Весь семестр
+  одним PDF» under its list (`docs/PLAN.md` → tasks 52 and 63). A study
+  version, not a download — no other format, no archive, no "everything at
+  once"
 - A language trainer, text rewriting, or any second feature
 - Visual design and styling of **bot responses** — the chat stays plain text.
   This is not the document: the PDF is what the group receives, so its design

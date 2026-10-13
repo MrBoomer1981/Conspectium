@@ -10,12 +10,12 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, feedback, rating, study_version, texts, to_group
+from app.bot import albums, corpus, feedback, rating, semester_version, study_version, texts, to_group
 from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
 from app.core.events import log_event_standalone
-from app.services import compose, explain, pdf, sketches, study, vision
+from app.services import compose, explain, pdf, semester, sketches, study, vision
 from app.db.models import User
 from app.db.session import async_session_maker, get_session
 
@@ -42,6 +42,8 @@ dp.include_router(feedback.router)
 dp.include_router(study_version.router)
 # «В группу «…»» under a private lecture's document (task 63): a press too.
 dp.include_router(to_group.router)
+# «Весь семестр одним PDF» under a subject's list (task 63): a press too.
+dp.include_router(semester_version.router)
 dp.include_router(corpus.router)
 dp.include_router(router)
 
@@ -227,6 +229,15 @@ async def lifespan(app: FastAPI):
         settings.EXPLAIN_MODEL,
         study.STUDY_PROMPT_FILE,
         study.STUDY_PROMPT_WORDS,
+    )
+    # The whole semester by its topics (task 63), on the study version's
+    # model, its prompt read by name.
+    logger.info(
+        "Semester: %s, %s, %s, %d words",
+        "on" if settings.EXPLAIN_ENABLED else "off, with the explaining stage",
+        settings.EXPLAIN_MODEL,
+        semester.SEMESTER_PROMPT_FILE,
+        semester.SEMESTER_PROMPT_WORDS,
     )
     logger.info(
         "Model call: media_resolution=%s, thinking_level=%s",

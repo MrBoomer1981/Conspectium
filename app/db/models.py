@@ -115,6 +115,12 @@ class Subject(Base):
     # NULL for a group's subject: the group owns it, whoever filed first.
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     word: Mapped[str] = mapped_column(String)
+    # The whole semester's arrangement (task 63, semester.py), as a lecture's
+    # study version is kept on its base (`notes.study`): its topics, their
+    # units through the semester, its questions, and the fingerprint of the
+    # lectures it was built from. A lecture added, or a notebook joining
+    # one, and it is built again at the next press. NULL until the first.
+    semester: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

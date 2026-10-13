@@ -1092,7 +1092,29 @@ async def on_tag(
         # One match is the answer itself, not a line about the answer.
         await deliver(message, session, found[0], user, group)
         return
-    await message.answer(texts.several_tagged(tag, await _listing(session, found)))
+    await message.answer(
+        texts.several_tagged(tag, await _listing(session, found)),
+        reply_markup=await _semester_offered(session, user, group, tag),
+    )
+
+
+async def _semester_offered(
+    session: AsyncSession, user: User, group: Group | None, tag: str
+) -> InlineKeyboardMarkup | None:
+    """«Весь семестр одним PDF» under the list, when the "#word" is this
+    chat's subject and it has two lectures or more (task 63): a topic is no
+    subject, and one lecture is its own document."""
+    subject = await subjects._subject(session, _group_id(group), user.id, tag, create=False)
+    if subject is None:
+        return None
+    held = (
+        await session.execute(
+            select(func.count(func.distinct(Note.lecture_id))).where(
+                Note.subject_id == subject.id, Note.lecture_id.is_not(None)
+            )
+        )
+    ).scalar_one()
+    return feedback.semester_keyboard(subject.id) if held >= 2 else None
 
 
 async def _file_notebook(

@@ -243,7 +243,9 @@ descriptions of week 2; 41 is the one listed under phase C.
       opened by an overview the model writes over it, sent only when
       somebody asks for it with a command — the CEO's. Given a new form on
       2026-10-12 and taken into 63: the semester's lectures set out by its
-      topics, asked for by a button under a subject's list of lectures
+      topics, asked for by a button under a subject's list of lectures —
+      built in that form on 2026-10-13 on branch `task-63`, off production
+      until the CEO debugs it
 - [ ] 48. A subject's materials: a PDF sent with its "#word" is kept as
       Telegram's reference and its text, its topics are read out of what is
       in it, and a "#word" finds it the way it finds a record — the CPO's.
@@ -369,9 +371,11 @@ included. "Where this is going, decided 2026-10-02" says why.
       new form), and the repeats gone. The repeats built the same day — a
       lecture held twice joined (`021_one_lecture`), the copies of one
       album one answer, the page photographed twice cut. The move into the
-      group built on 2026-10-13 (`022_lecture_moved`), and the whole
-      notebook (`023_notebook`, `prompts-v12.md`), to be measured on the
-      CEO's notebook once deployed; the semester left
+      group built on 2026-10-13 (`022_lecture_moved`), the whole notebook
+      (`023_notebook`, `prompts-v12.md`) and the semester by its topics
+      (`024_semester`, `prompts-semester-v1.md`) — all on branch `task-63`,
+      off production until the CEO debugs them; the notebook to be measured
+      on the CEO's notebook
 - [ ] 60. A board photographed: a frame check and a reading of its own,
       measured on real boards — the CEO's
 - [ ] 61. A lecture recorded: the bot's notes from what was said, marked as
@@ -594,7 +598,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-43, 45-47, 51, 55-56, 69-88, 90, 92-100, 102-105
-CEO — current: 106, 63 — on branch task-63, off production until the CEO debugs it; next: 63's last part — the semester by its topics (52) — and the notebook measured on the CEO's notebook; then 65 once there is data for it, then 60
+CEO — current: 106, 63 — every part built, on branch task-63, off production until the CEO debugs them; next: 63 debugged and the notebook measured on the CEO's notebook; then 65 once there is data for it, then 60
 CPO — current: none; next: none
 Blockers: 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -706,6 +710,7 @@ since 2026-10-01.
 | 2026-10-13 | the CEO, with Claude Code | Task 63's move into the group built: under a private record's document with its subject, «В группу «…»» for every group the person and the bot are both in, Telegram asked at the delivery; a press moves the lecture's notebooks into the group's subject of the word, into a classmate's lecture of it by the rule a record is filed by, the private lecture's day kept, and the group is shown one line. A lecture moved counts in no day's pages: migration `022_lecture_moved` adds `notes.moved_at` (schema, named to the CPO before the push), which the group's day leaves out. Event `lecture_moved` ("Contracts"). The notebook's two open questions answered by the CEO the same night: a stretch with no lecture start cut into parts of thirty pages at most, the person told; a notebook without its "#word" read, and its subject asked once at the end. `CLAUDE.md` → "The corpus", a seventh early commit in "Sessions and transactions", a row in "Scale debt", "Structure" | the CEO's own |
 | 2026-10-13 | the CEO, with Claude Code | Task 63's whole notebook built: a private send of more pages than `MAX_ALBUM_PAGES`, or one whose caption says «тетрадь», up to `NOTEBOOK_MAX_PAGES` (100), read with `prompts-v12.md` (v11 with v9's lecture starts) four pages at a time, cut where every run named a start, each lecture dated by the margin of the page it begins on and made, kept and sent as an album's record is, two at a time and in order; a last message sums it up with «Все в группу», or asks the subject once. One a person a day beyond their pages, counted once a notebook has come out whole (event `notebook_read`); its pages not in the person's day. Migration `023_notebook` adds `notes.notebook` (schema, named to the CPO before the push). A private chat's send may run to a notebook's pages, and two albums whose captions name different days are two sends. The night's answer «частями до 30 страниц» corrected to a send's pages, `MAX_ALBUM_PAGES` — 20 in production: the question had taken a send for thirty. v12 tried in production's container on three pages of the CEO's: nothing named where nothing begins, $0.068. "Contracts" → `notebook_read`, and `notebook` in `note_processed`, `note_captured`, `note_tagged`, `album_retake_requested`, `album_incomplete`. `CLAUDE.md` → the pipeline, "The corpus", "Sessions and transactions", "Concurrency ceilings", "Scale debt", the variables; `FINDINGS.md` → "A whole notebook's prompt" | the CEO's own |
 | 2026-10-13 | the CEO, with Claude Code | The CEO's answers of the morning: «сейчас мы добавляем новые функции, но не вводим в продакшен, я хочу их впоследствии отладить» — task 63's parts live on branch `task-63`, pushed to GitHub and not merged into `main`, which Railway deploys; a notebook's page the frame check refuses no longer stops it — it is read without the page, and the page is sent again in reply to the notebook's last message and goes into its lecture (`handlers._notebook_page`); a progress line, «Читаю тетрадь: 34 из 100 страниц», «Собираю лекции: 3 из 7» (`waiting.progress`); the parts stay a send's pages until the debugging; «В группу» under the line that files a record stays. The semester decided: as a study version of the whole subject, no bot's boxes carried, paid as a study version is; whether its arrangement is kept left to Claude Code. "Contracts" → `notebook_read` gains `frames_refused` and `prompt`, `notebook_page_added` is new | the CEO's own |
+| 2026-10-13 | the CEO, with Claude Code | Task 63's last part built, task 52's new form: «Весь семестр одним PDF» under the list a subject's "#word" answers with, when it has two lectures or more — a study version of the whole subject (`services/semester.py`, `prompts-semester-v1.md`): every lecture's text, as its document draws it, set out by the semester's topics in one call, each run of a topic's units under its lecture's day, «О чём тема» and the key notions under every topic, the questions at the end; none of the lectures' boxes. The study version's core is shared (`study.arrange`, `study.layout_of`), its output unchanged on 300 lectures and 200 answers made up. Its arrangement kept on the subject by the lectures' fingerprint (`024_semester` adds `subjects.semester`, schema), Claude Code's choice the CEO left to it; paid as a study version is. Measured in production's container, read only: the largest subject, 60 units of 3 lectures, 5 topics, every unit once, 34 s and $0.022, drawn in 7 s, 10 pages. "Contracts" → `semester_requested`, `semester_sent`, `semester_failed`. `CLAUDE.md` → "The corpus", "What NOT to do", the prompts, "Concurrency ceilings", "Scale debt", "Structure"; `FINDINGS.md` → "The semester by its topics" | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4109,18 +4114,61 @@ margin's day was read on 18 records of 107.
   `FINDINGS.md` → "A whole notebook's prompt". Measured on the CEO's
   notebook once deployed.
 
-## The parts left
+## Built on 2026-10-13: the semester by its topics
 
-- **The semester by its topics** — task 52's new form, above. Decided by
-  the CEO on the morning of 2026-10-13: a study version of the whole
-  subject — its lectures' units set out by the semester's topics, each
-  piece with its lecture's day, «О чём тема» under each, the questions at
-  the end; none of the bot's boxes the lectures carry; paid as a study
-  version is, by whoever presses, inside the bot's day and in no day's
-  pages; whether the arrangement is kept left to Claude Code. Measured on
-  2026-10-13 in production's container, read only: one call arranged 431
-  units of all 19 lectures into 9 topics, every unit once, the order kept,
-  in 64 s for $0.06; the largest subject, 60 units of 3 lectures, the same.
+Task 52's new form, decided by the CEO on the morning of 2026-10-13: a
+study version of the whole subject; none of the bot's boxes the lectures
+carry; paid as a study version is; whether the arrangement is kept left to
+Claude Code.
+
+- **The button** «Весь семестр одним PDF» under the list a subject's
+  "#word" answers with (`corpus._semester_offered`), when the word is the
+  chat's subject and two lectures or more hold its records: a topic is no
+  subject, and one lecture is its own document. In a group the group's
+  subject, in a private chat the person's.
+- **The document** (`services/semester.py`): every lecture of the subject,
+  oldest first, as its document draws it — the fullest notebook with what
+  the others add, its drawings numbered through the semester — cut into
+  the study version's units, numbered through the semester, each
+  lecture's opened by its day for the model. One call
+  (`prompts-semester-v1.md`, three to twelve topics, five to ten
+  questions) answers with the topics and their units; code moves the
+  units as a study version's are (`study.arrange`, the core the two
+  share). Each topic numbered, «О чём тема · от бота» and its key notions
+  under it, each run of its units from one lecture under «Лекция от 12.09
+  — …», the authors' sections a level below; the questions at the end and
+  their answers on the last page; the semester's days at the head of
+  every page. No explanation, teacher's box, finding or summary of the
+  lectures: the CEO's.
+- **Kept** on the subject (`subjects.semester`, `024_semester`) with the
+  fingerprint of the lectures it was built from: a second press draws it
+  again and pays nothing, and a lecture added or a notebook joining one
+  builds it anew. The PDF is not kept. Built on the explaining stage's
+  model, inside the bot's day (`pages=0`), by whoever presses; one build
+  of a subject at a time in the process.
+- **Checked** with the model faked, on SQLite and on a local PostgreSQL
+  through the chain to `024_semester`, down and up again: the button under
+  a subject's list and not under one lecture's document, the first press
+  built and drawn, the second drawn again with no call, a lecture added
+  and built again, another person's subject and a private one pressed in a
+  group refused, the layout's lecture heads and every unit once; a made-up
+  semester of fifteen lectures and 300 units drawn in 2 s, 28 pages. The
+  study version's output unchanged on 300 lectures and 200 answers made
+  up. Measured in production's container, read only, through the branch's
+  code: the largest subject, 60 units of 3 lectures, 5 topics, every unit
+  once, 6 questions, 34 s and $0.022, drawn in 7 s, 10 pages; and with a
+  first prompt over every lecture of the base, 431 units of 19 lectures, 9
+  topics, every unit once, 64 s and $0.06. `FINDINGS.md` → "The semester
+  by its topics".
+
+## What is left
+
+- The CEO's debugging of the four parts, on branch `task-63`, before they
+  go into production with their migrations, named to the CPO then.
+- The notebook measured on the CEO's notebook; a classmate's notebook of a
+  lecture, for the two notebooks' document.
+- The semester's document carries no «Хорошо» and «Плохо»: a rating names a
+  record, and the semester is none — the CEO's to decide.
 
 ## Don't do
 
@@ -7169,6 +7217,20 @@ the notebook's `note_captured`, `album_retake_requested` and
 is one. `frames_refused` counts the pages the frame check refused, and
 `prompt` is the last message's id, which a page sent again replies to — or
 null when it could not be sent.
+
+## Events `semester_requested`, `semester_sent`, `semester_failed`
+
+«Весь семестр одним PDF» pressed under a subject's list (task 63), logged in
+the chat it was pressed in. `semester_requested`: `{"subject_id": int,
+"lectures": int, "kept": bool}` — `kept` when the arrangement on the subject
+was built from these lectures and nothing is asked of the model.
+`semester_sent`: `{"subject_id", "lectures", "kept", "topics", "units",
+"missing", "repeated", "off_topic", "questions", "bytes"}` — the units placed,
+those the model left out and code put back, those it named twice, those
+left out as the course's organisation, and the PDF's size.
+`semester_failed`: `{"subject_id": int, "reason": str}` — "off" with the
+explaining stage, a limit's words, "one lecture", "call failed",
+"unparseable", "units missing", "drawing", "sending".
 
 ## Event `notebook_page_added`
 

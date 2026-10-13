@@ -297,8 +297,11 @@ def _answer_of(response: object) -> dict | None:
     return explain._answer(vision._response_text(response))
 
 
-async def _call(text: str) -> tuple[object | None, CallStats, bool]:
-    """The one call: the arrangement and the bot's texts, as strict JSON."""
+async def _call(
+    text: str, prompt: str = STUDY_PROMPT, kind: str = "study"
+) -> tuple[object | None, CallStats, bool]:
+    """The one call: the arrangement and the bot's texts, as strict JSON —
+    a lecture's, or a whole semester's (semester.py)."""
     started = time.monotonic()
     model = settings.EXPLAIN_MODEL
     try:
@@ -306,7 +309,7 @@ async def _call(text: str) -> tuple[object | None, CallStats, bool]:
             response = await asyncio.wait_for(
                 vision._client.aio.models.generate_content(
                     model=model,
-                    contents=[STUDY_PROMPT, text],
+                    contents=[prompt, text],
                     config=types.GenerateContentConfig(
                         temperature=1.0,
                         max_output_tokens=vision.MAX_OUTPUT_TOKENS,
@@ -320,14 +323,14 @@ async def _call(text: str) -> tuple[object | None, CallStats, bool]:
         latency_ms = int((time.monotonic() - started) * 1000)
         retryable = vision._should_retry(exc) and not isinstance(exc, TimeoutError)
         return None, CallStats(
-            kind="study", model=model, tokens_in=None, tokens_out=None,
+            kind=kind, model=model, tokens_in=None, tokens_out=None,
             tokens_thought=None, cost_usd=None, latency_ms=latency_ms,
             success=False, error=vision._short_error(exc),
         ), retryable
     tokens_in, tokens_out, tokens_thought = vision._usage(response)
     answered = bool(vision._response_text(response).strip())
     return response, CallStats(
-        kind="study", model=model, tokens_in=tokens_in, tokens_out=tokens_out,
+        kind=kind, model=model, tokens_in=tokens_in, tokens_out=tokens_out,
         tokens_thought=tokens_thought,
         cost_usd=vision._cost_usd(model, tokens_in, tokens_out, tokens_thought),
         latency_ms=int((time.monotonic() - started) * 1000),
@@ -336,7 +339,11 @@ async def _call(text: str) -> tuple[object | None, CallStats, bool]:
 
 
 def _arranged(
-    topics: list[dict], count: int, named: list[int], aside: dict[int, str]
+    topics: list[dict],
+    count: int,
+    named: list[int],
+    aside: dict[int, str],
+    most: int = _MAX_TOPICS,
 ) -> tuple[list[Topic], int, int] | None:
     """The topics with every unit placed once — a unit named twice keeps its
     first place, one left out goes back after the unit before it — and how
@@ -350,7 +357,7 @@ def _arranged(
     seen: set[int] = set()
     arranged: list[Topic] = []
     repeated = 0
-    for item in topics[:_MAX_TOPICS]:
+    for item in topics[:most]:
         placed: list[int] = []
         for unit in item["units"]:
             if unit in seen:
@@ -449,14 +456,30 @@ async def build(markdown: str) -> Study:
     pieces = units(markdown)
     if len(pieces) < 2:
         return Study(refused="one unit")
+    return await arrange(pieces, _for_reading(pieces), fingerprint(markdown))
 
+
+async def arrange(
+    pieces: list[str],
+    text: str,
+    source: str,
+    prompt: str = STUDY_PROMPT,
+    kind: str = "study",
+    most_topics: int = _MAX_TOPICS,
+    most_questions: int = _MAX_QUESTIONS,
+) -> Study:
+    """`pieces` set out by one call over `text`, as the model reads them,
+    and checked by code: every unit placed once, what the bot writes
+    stating no number the units do not carry. A lecture's study version, or
+    a whole semester's (semester.py) under its own prompt and bounds;
+    `source` is the fingerprint it is kept by. Never touches the
+    database."""
     all_stats: list[CallStats] = []
     response = None
     data = None
-    text = _for_reading(pieces)
     for attempt in range(_ATTEMPTS):
         last = attempt == _ATTEMPTS - 1
-        response, stats, retryable = await _call(text)
+        response, stats, retryable = await _call(text, prompt, kind)
         all_stats.append(stats)  # rule 4: a call that failed was still a call
         if response is not None:
             data = _answer_of(response)
@@ -470,7 +493,8 @@ async def build(markdown: str) -> Study:
             stats.error = vision._unparseable(response)
             again = not last and vision._worth_asking_again(response)
             logger.warning(
-                "study attempt %d/%d did not parse as the JSON asked for, %s: %s",
+                "%s attempt %d/%d did not parse as the JSON asked for, %s: %s",
+                kind,
                 attempt + 1,
                 _ATTEMPTS,
                 "asking again" if again else "no retry",
@@ -480,7 +504,8 @@ async def build(markdown: str) -> Study:
                 break
             continue
         logger.warning(
-            "study attempt %d/%d failed, %s: %s",
+            "%s attempt %d/%d failed, %s: %s",
+            kind,
             attempt + 1,
             _ATTEMPTS,
             "retrying" if retryable and not last else "no retry",
@@ -495,13 +520,15 @@ async def build(markdown: str) -> Study:
         )
     named = _named_aside(data, len(pieces))
     aside, off_topic_kept = _aside(pieces, named)
-    arranged = _arranged(_topics_of(data, len(pieces)), len(pieces), named, aside)
+    arranged = _arranged(
+        _topics_of(data, len(pieces)), len(pieces), named, aside, most_topics
+    )
     if arranged is None:
-        logger.warning("study: the answer left out too much of the record")
+        logger.warning("%s: the answer left out too much of the record", kind)
         return Study(refused="units missing", stats=all_stats)
     topics, missing, repeated = arranged
 
-    carried = set(_NUMBER_RE.findall(markdown))
+    carried = set(_NUMBER_RE.findall("\n\n".join(pieces)))
     abouts_dropped = 0
     for number, topic in enumerate(topics, 1):
         if not topic.title or explain.judges_the_record(topic.title, ""):
@@ -512,7 +539,7 @@ async def build(markdown: str) -> Study:
 
     questions: list[dict] = []
     questions_dropped = 0
-    for item in (data.get("questions") or [])[:_MAX_QUESTIONS]:
+    for item in (data.get("questions") or [])[:most_questions]:
         if not isinstance(item, dict):
             continue
         question = str(item.get("question", "")).strip()
@@ -529,16 +556,16 @@ async def build(markdown: str) -> Study:
         questions.append({"question": question, "answer": answer})
 
     logger.info(
-        "study: %d topics over %d units, %d left out and put back, %d repeated, "
+        "%s: %d topics over %d units, %d left out and put back, %d repeated, "
         "%d the course's organisation left out, %d named so and kept whole, "
         "%d abouts dropped, %d questions kept, %d dropped, model %s",
-        len(topics), len(pieces), missing, repeated, len(aside), off_topic_kept,
+        kind, len(topics), len(pieces), missing, repeated, len(aside), off_topic_kept,
         abouts_dropped, len(questions), questions_dropped, settings.EXPLAIN_MODEL,
     )
     return Study(
         topics=topics,
         questions=questions,
-        source=fingerprint(markdown),
+        source=source,
         off_topic=sorted(aside),
         missing=missing,
         repeated=repeated,
@@ -582,22 +609,35 @@ class Layout:
     left_out: str = ""
 
 
-def _demoted(piece: str) -> str:
-    """A unit with its headings a level down: the topics are the document's
-    first level now, and the author's sections stand under them."""
-    return "\n".join(
-        f"#{line.lstrip()}"
-        if _HEADING_RE.match(line.strip()) and not line.lstrip().startswith("######")
-        else line
-        for line in piece.splitlines()
-    )
+def _demoted(piece: str, depth: int = 1) -> str:
+    """A unit with its headings `depth` levels down, the sixth the last: the
+    topics are the document's first level now, and the author's sections
+    stand under them — under a semester's lecture heads too."""
+    out = []
+    for line in piece.splitlines():
+        heading = _HEADING_RE.match(line.strip())
+        if heading:
+            level = min(len(heading.group(1)) + depth, 6)
+            line = "#" * level + line.lstrip()[len(heading.group(1)):]
+        out.append(line)
+    return "\n".join(out)
 
 
 def layout(markdown: str, version: Study) -> Layout:
     """The arranged record for render: each topic a first-level heading, the
     box of what it is about under it, its units in order; the questions at
     the end, their answers on a page of their own."""
-    pieces = units(markdown)
+    return layout_of(units(markdown), version)
+
+
+def layout_of(
+    pieces: list[str], version: Study, heads: dict[int, str] | None = None
+) -> Layout:
+    """`layout` over units already cut. `heads` names the lecture each unit
+    is from — a semester's (semester.py): a run of a topic's units from one
+    lecture stands under its name, a level below the topic, and the author's
+    sections a level below that."""
+    depth = 2 if heads else 1
     # The numbers the record's formulas carry, unit by unit, in the record's
     # order — kept, so an explanation's "(3)" still names its formula.
     counts = [pdf.numbered_formulas(piece) for piece in pieces]
@@ -620,10 +660,14 @@ def layout(markdown: str, version: Study) -> Layout:
         if topic.about or held:
             lines += [pdf.placed_mark(len(boxes)), ""]
             boxes.append({"kind": "about", "text": topic.about, "notions": held})
+        current = None
         for unit in topic.units:
             if not 0 < unit <= len(pieces) or not drawn[unit - 1]:
                 continue
-            lines += [_demoted(drawn[unit - 1]), ""]
+            if heads is not None and heads.get(unit) != current:
+                current = heads.get(unit)
+                lines += [f"## {current}", ""]
+            lines += [_demoted(drawn[unit - 1], depth), ""]
             count = pdf.numbered_formulas(drawn[unit - 1]) if unit in aside else counts[unit - 1]
             numbers += range(starts[unit - 1], starts[unit - 1] + count)
     lines += [pdf.TEXT_END, ""]

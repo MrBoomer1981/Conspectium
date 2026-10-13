@@ -556,6 +556,37 @@ def notebook_tagged(tag: str, count: int) -> str:
     return f"Сохранил под #{tag} {_lectures(count)} тетради. Найти — пришли #{tag} или название темы."
 
 
+# ── A subject's whole semester — app/bot/semester_version.py ─────────────────
+
+SEMESTER_BUTTON = "Весь семестр одним PDF"
+SEMESTER_BUILDING = "Собираю весь семестр по темам — пара минут."
+SEMESTER_SENDING = "Отправляю семестр."
+SEMESTER_BUSY = "Семестр уже собирается."
+SEMESTER_FEW = "В этом предмете пока одна лекция — семестр собирать не из чего."
+SEMESTER_FAILED = (
+    "Не получилось собрать семестр. Лекции по отдельности — по #слову предмета."
+)
+SEMESTER_SUBTITLE = "Весь семестр · по темам, собран ботом из конспектов лекций"
+SEMESTER_FILE_WORD = "semestr"
+
+
+def semester_title(word: str) -> str:
+    return f"{word[:1].upper()}{word[1:]} — весь семестр"
+
+
+def semester_dates(first: date, last: date) -> str:
+    """The semester's days at the head of every page."""
+    return f"{first:%d.%m} – {last:%d.%m.%Y}"
+
+
+def semester_caption(word: str, lectures: int, topics: int) -> str:
+    return (
+        f"#{word} · весь семестр: {_lectures(lectures)}, {topics} "
+        f"{_plural(topics, 'тема', 'темы', 'тем')}. Текст лекций — слова авторов; "
+        "всё, что добавил бот, — в рамках «от бота»."
+    )
+
+
 # ── A lecture moved into a group — app/bot/to_group.py ──────────────────────
 
 
