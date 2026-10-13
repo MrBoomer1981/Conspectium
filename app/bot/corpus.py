@@ -46,7 +46,7 @@ from aiogram.types import (
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import feedback, middlewares, rating, subjects, tags, texts
+from app.bot import feedback, middlewares, rating, subjects, tags, texts, to_group
 from app.core.config import settings
 from app.core.events import log_event
 from app.db.models import Group, Lecture, Note, NoteFigure, NoteTopic, User
@@ -642,8 +642,11 @@ async def send_record_pdf(
         caption,
         # «Хорошо» and «Плохо» on the document itself (task 70), and the
         # study version to ask for: the record goes out only when it could
-        # not be had (deliver).
-        feedback.keyboard(base.id, study=True),
+        # not be had (deliver). In a private chat, the groups it can be
+        # moved into (task 63).
+        feedback.keyboard(
+            base.id, study=True, groups=await to_group.targets(message, session, base)
+        ),
         after,
     )
 
@@ -710,7 +713,7 @@ async def send_study_pdf(
         data,
         pdf_filename(base.id, title, texts.STUDY_FILE_WORD),
         caption,
-        feedback.keyboard(base.id),
+        feedback.keyboard(base.id, groups=await to_group.targets(message, session, base)),
         after,
     )
 
@@ -858,9 +861,12 @@ async def send_record(
     chunks = texts.split_message(f"{note.title}\n\n{note.markdown}")
     if after:
         chunks.append(after)
+    buttons = feedback.keyboard(
+        note.id, study=True, groups=await to_group.targets(message, session, note)
+    )
     for index, chunk in enumerate(chunks):
         if index == len(chunks) - 1:
-            await message.answer(chunk, reply_markup=feedback.keyboard(note.id, study=True))
+            await message.answer(chunk, reply_markup=buttons)
         else:
             await message.answer(chunk)
 
@@ -1049,7 +1055,12 @@ async def on_tag(
                 await deliver(message, session, newest, user, group)
                 await message.answer(await joined_line(session, newest, filing))
                 return
-            await message.answer(texts.tagged(tag, filing.lecture.given_on))
+            # Its subject came with this answer, after its document: the
+            # groups it can be moved into stand under the line that files it.
+            await message.answer(
+                texts.tagged(tag, filing.lecture.given_on),
+                reply_markup=await to_group.markup(message, session, newest),
+            )
             return
 
     found = await _matching(session, user, group, tag)

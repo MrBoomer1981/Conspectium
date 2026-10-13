@@ -181,12 +181,15 @@ def base_of(notes: list[Note]) -> Note:
 
 
 async def _lecture_of(
-    session: AsyncSession, subject_id: int, markdown: str, day: Day
+    session: AsyncSession, subject_id: int, markdown: str | list[str], day: Day
 ) -> Lecture | None:
     """The lecture of this subject a text is a notebook of, if there is one:
     within a week of its day — never another day when both days were written
     down — and at least half of one text found in the other. Unsure, none:
-    two documents are better than one mixed."""
+    two documents are better than one mixed. Several texts — the notebooks
+    of one lecture moved together — are one lecture's: the best of any of
+    them decides."""
+    mine = [markdown] if isinstance(markdown, str) else markdown
     stmt = select(Lecture).where(
         Lecture.subject_id == subject_id,
         Lecture.given_on >= day.value - _SAME_WEEK,
@@ -205,8 +208,11 @@ async def _lecture_of(
             await session.execute(
                 select(Note.markdown).where(Note.lecture_id == lecture.id)
             )
-        ).scalars()
-        score = max((merge.same_lecture(text or "", markdown) for text in texts), default=0.0)
+        ).scalars().all()
+        score = max(
+            (merge.same_lecture(text or "", own) for text in texts for own in mine),
+            default=0.0,
+        )
         if score >= best_score:
             best, best_score = lecture, score
     return best
@@ -272,6 +278,42 @@ async def file(
     note.tag = word
     note.subject_id = subject.id
     note.lecture_id = lecture.id
+    await session.flush()
+    count = (
+        await session.execute(
+            select(func.count()).select_from(Note).where(Note.lecture_id == lecture.id)
+        )
+    ).scalar_one()
+    return Filing(lecture=lecture, joined=joined, materials=count)
+
+
+async def refile(
+    session: AsyncSession, notes: list[Note], word: str, day: Day | None
+) -> Filing:
+    """The notebooks of a lecture moved from a private chat into a group
+    (task 63), filed together: into the group's subject of their word, made
+    if it is new, and into the lecture of it they are notebooks of, as a
+    record is filed — else one made on `day`, the private lecture's, which
+    keeps a day its caption gave. One lecture they were, and one they stay:
+    a classmate's notebook joins them, never one of them another lecture.
+    `notes` already carry the group."""
+    first = notes[0]
+    subject = await _subject(session, first.group_id, first.user_id, word, create=True)
+    day = day or day_of(None, first.margin_notes or [], _sent(first))
+    lecture = await _lecture_of(
+        session, subject.id, [note.markdown or "" for note in notes], day
+    )
+    joined = lecture is not None
+    if lecture is None:
+        lecture = Lecture(subject_id=subject.id, given_on=day.value, date_source=day.source)
+        session.add(lecture)
+        await session.flush()
+    elif _SOURCES.index(day.source) > _SOURCES.index(lecture.date_source):
+        lecture.given_on, lecture.date_source = day.value, day.source
+    for note in notes:
+        note.tag = word
+        note.subject_id = subject.id
+        note.lecture_id = lecture.id
     await session.flush()
     count = (
         await session.execute(

@@ -51,16 +51,22 @@ _RATINGS = ("good", "bad")
 # of a comment, which rating.py counts: one an отзыв.
 RATED = "note_rated"
 COMMENTED = "note_feedback"
-# The study version's button (task 80), answered in corpus.on_study.
+# The study version's button (task 80), answered in study_version.on_study.
 STUDY_PREFIX = "study"
+# A private lecture's button into a group (task 63), answered in
+# to_group.on_move.
+MOVE_PREFIX = "move"
 
 
-def keyboard(note_id: int, study: bool = False) -> InlineKeyboardMarkup:
+def keyboard(
+    note_id: int, study: bool = False, groups: list[Group] | None = None
+) -> InlineKeyboardMarkup:
     """The buttons under a document: «Хорошо» and «Плохо», and under them,
     with `study`, «Учебная версия» — under the record's own document, which
-    goes out only when its study version could not be had (corpus.deliver).
-    Each names the record the document is drawn from — for a lecture of
-    several notebooks, its base."""
+    goes out only when its study version could not be had (corpus.deliver) —
+    and «В группу «…»» for each of `groups`, under a private lecture's
+    (to_group.targets). Each names the record the document is drawn from —
+    for a lecture of several notebooks, its base."""
     rows = [
         [
             InlineKeyboardButton(
@@ -79,7 +85,22 @@ def keyboard(note_id: int, study: bool = False) -> InlineKeyboardMarkup:
                 )
             ]
         )
+    rows += move_rows(note_id, groups or [])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def move_rows(note_id: int, groups: list[Group]) -> list[list[InlineKeyboardButton]]:
+    """«В группу «…»», a row for each group, the group named: a person may be
+    in several."""
+    return [
+        [
+            InlineKeyboardButton(
+                text=texts.move_button(group.title),
+                callback_data=f"{MOVE_PREFIX}:{note_id}:{group.id}",
+            )
+        ]
+        for group in groups
+    ]
 
 
 def _pressed(data: str | None) -> tuple[str, int] | None:

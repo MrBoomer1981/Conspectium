@@ -200,7 +200,7 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `021_one_lecture`, the head. The next is `022_`.
+  `022_lecture_moved`, the head. The next is `023_`.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -361,7 +361,7 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
    exception; `notes`, `users` and `events` go through it. It serves messages,
    the bot's own membership updates and the presses of its buttons, and puts
    the group chat, if any, in `data["group"]` — for a press, the chat of the
-   message the button is on. Six deliberate exceptions:
+   message the button is on. Seven deliberate exceptions:
    - a **new** user is committed *before* the handler: `log_ai_calls` inserts
      `ai_calls.user_id` from a session of its own and would fail the foreign
      key;
@@ -383,7 +383,10 @@ The reasoning and a worked example: `docs/PLAN.md` → "Transaction model".
    - every record is committed before it is delivered (`handlers._saved`,
      task 104): a document Telegram refused, or a message after it, rolled
      the update back with the record in it — its reading paid for, nothing
-     kept, the reader told to send the photo again.
+     kept, the reader told to send the photo again;
+   - a lecture moved into a group is committed before the group is told
+     (`to_group.on_move`, task 63): a line that could not be sent leaves
+     it moved, and a move that could not be kept tells nobody anything.
 2. **`events` are transactional and vanish on rollback — deliberately**: an
    event describes something that in the end happened. `log_event` wraps its
    insert in a SAVEPOINT (`begin_nested`) so a failed insert cannot poison the
@@ -948,10 +951,21 @@ hold", "Record 97"
   the fullest stands for them. Fifty records are read for the ten answers
   a list shows. `021_one_lecture` joined the lectures that
   `014_subjects_lectures` had made twice.
+- **A private lecture is moved into a group by a button** (`to_group.py`,
+  the CEO's of 2026-10-12): under every document of a private record with
+  its subject, and under the line that files one, «В группу «…»» for each
+  group the bot is in that Telegram says the person is a member of. A
+  press moves the lecture's notebooks, claimed by one conditional update
+  so a double tap moves them once, into the group's subject of their word
+  and the group's lecture they are notebooks of (`subjects.refile`), the
+  private lecture's day kept; the group is shown one line, its verb in the
+  present, which names nobody a man or a woman. A lecture moved is the
+  group's, found there and no longer in the private chat, and counts in no
+  day's pages (`notes.moved_at`): it was read and paid for where it was
+  made.
 - **Not yet built**, in the CEO's order of 2026-10-12 (`docs/PLAN.md` →
-  task 63): a lecture moved from the private chat into the group by a
-  button under it; a whole notebook sent at once and cut into its lectures
-  by their dates and headings; the semester as one document by its topics,
+  task 63): a whole notebook sent at once and cut into its lectures by
+  their dates and headings; the semester as one document by its topics,
   task 52's new form.
 
 ### A group chat
@@ -1560,6 +1574,7 @@ the machinery before the point arrives — record what you find here instead.
 | `_API_SLOTS` is a per-process `Semaphore(10)` | **tens of active chats** | the queue to Gemini grows into timeouts |
 | Stage three searches up to eight explanations at once | **two records finishing together** | the searches hold most of the ten slots for ~20 s, and another chat's pages queue behind them |
 | Photos are held whole in memory | **many parallel downloads** | container memory |
+| A private document of a record with its subject asks Telegram about every group the bot is in (`to_group.targets`) — four in production | **hundreds of groups** | every such delivery waits on as many calls, and a few at once reach Telegram's thirty requests a second: ask only the groups the person is known in, and offer the rest by a button |
 
 **One replica is a requirement, not a default.** Scaling the service
 horizontally will silently split albums again — the failure looks exactly like
@@ -1642,6 +1657,7 @@ app/
     tags.py           what a #tag is, and a record's topics
     feedback.py       «Хорошо», «Плохо» and where the error is, under every document
     study_version.py  «Учебная версия»: a record's study version built on request
+    to_group.py       «В группу «…»»: a private lecture moved into a group
     waiting.py        the line a chat sees while its record is made
     rating.py         a group's week: who sent its records and who rated them, Saturday's summary; the bot's week
   services/

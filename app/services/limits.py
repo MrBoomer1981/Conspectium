@@ -101,14 +101,16 @@ async def group_pages_left(
     of its records made since 00:00 UTC — what was read and charged. Counted
     from the records rather than kept on the group's row, so there is nothing
     to reset and two albums saved at once lose none of the count. A .docx
-    costs nothing and is not counted. Never below 0, though the group can go
-    past its day: two albums let in at once both pass (PLAN.md -> Known
-    risks)."""
+    costs nothing and is not counted, nor is a lecture moved in from a
+    private chat, read and charged there (task 63). Never below 0, though
+    the group can go past its day: two albums let in at once both pass
+    (PLAN.md -> Known risks)."""
     today = today or datetime.now(timezone.utc).date()
     stmt = select(func.coalesce(func.sum(Note.page_count), 0)).where(
         Note.group_id == group.id,
         Note.created_at >= _day_start(today),
         Note.source_type != "docx",
+        Note.moved_at.is_(None),
     )
     used = int((await session.execute(stmt)).scalar_one())
     return max(settings.DAILY_PAGES_PER_GROUP - used, 0)

@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot import albums, corpus, feedback, rating, study_version, texts
+from app.bot import albums, corpus, feedback, rating, study_version, texts, to_group
 from app.bot.handlers import router
 from app.bot.middlewares import DbSessionMiddleware
 from app.core.config import settings
@@ -40,6 +40,8 @@ dp.callback_query.outer_middleware(DbSessionMiddleware())
 dp.include_router(feedback.router)
 # «Учебная версия» under a document (task 80): a button press, like a rating.
 dp.include_router(study_version.router)
+# «В группу «…»» under a private lecture's document (task 63): a press too.
+dp.include_router(to_group.router)
 dp.include_router(corpus.router)
 dp.include_router(router)
 

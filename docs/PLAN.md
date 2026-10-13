@@ -368,7 +368,9 @@ included. "Where this is going, decided 2026-10-02" says why.
       group by a button, the semester as one document by its topics (52's
       new form), and the repeats gone. The repeats built the same day — a
       lecture held twice joined (`021_one_lecture`), the copies of one
-      album one answer, the page photographed twice cut; the rest in parts
+      album one answer, the page photographed twice cut. The move into the
+      group built on 2026-10-13 (`022_lecture_moved`); the notebook and the
+      semester left, in parts
 - [ ] 60. A board photographed: a frame check and a reading of its own,
       measured on real boards — the CEO's
 - [ ] 61. A lecture recorded: the bot's notes from what was said, marked as
@@ -591,7 +593,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-43, 45-47, 51, 55-56, 69-88, 90, 92-100, 102-105
-CEO — current: 106, 63; next: 63's parts — a lecture moved into the group, a whole notebook, the semester by its topics (52) — then 65 once there is data for it, then 60
+CEO — current: 106, 63; next: 63's parts — a whole notebook, the semester by its topics (52) — then 65 once there is data for it, then 60
 CPO — current: none; next: none
 Blockers: 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -700,6 +702,7 @@ since 2026-10-01.
 | 2026-10-12 | the CEO, with Claude Code | Task 106 specified, taken and built, the CEO's words «пиши темы конспекта в сообщении в ТГ без тире, а только с нижними подчеркиваниями, иначе тг не выделяет их как #»: `tags.normalize` keeps only what Telegram counts in a hashtag — letters, decimal digits, the underscore — every other character a gap; a topic with no letter is none; migration `020_hashtags` writes the stored topics, subjects and records' tags the same way, two subjects of one chat that become one word made one. What is stored is the CPO's area, the CEO's word enough, and the migration is named to the CPO before it is pushed. Planned against production read only first: 31 of 257 topics rewritten, one dropped as a second of its record, no subject. `CLAUDE.md` → "The corpus" and "Development commands" | the CEO's own |
 | 2026-10-12 | the CEO, with Claude Code | Task 63 taken up again and widened by the CEO's answers: two notebooks of one lecture one document, as built, and a subject's lectures as one document by the semester's topics — task 52 in a new form, asked for by a button under a subject's list of lectures, «Весь семестр одним PDF», rather than a command; the earlier lectures sent as a whole notebook at once, in the private chat, cut into lectures where every run names one's start — the CEO's notebooks open a lecture with its date and a heading — each lecture its record, moved into the group by a button under it and the group shown one line; a notebook up to 100 pages, one a day beyond a person's 30, the bot's day raised from $5 to $15; and the repeats gone — a lecture held twice, the copies of one album, the page photographed twice. In parts, each its commit: the repeats, the move into the group, the notebook, the semester. Production read the same day, read only, on the CEO's word: 108 records, 87 of the 96 made in private chats in no subject, most of them the CEO's albums sent again; 18 lectures, one held twice; none with two people's notebooks; no page photographed twice | the CEO's own |
 | 2026-10-12 | the CEO, with Claude Code | Task 63's repeats built: the lectures a subject held twice joined by the rule a record is filed by (migration `021_one_lecture`, data and no schema: one pair in production, planned there read only), a search's records of no subject that read as one text one answer, the fullest, of fifty read, and the head of a record that is its subject's album before's last page, photographed again, cut as it is filed — only where sure: the earlier album sent on an earlier day, and this lecture's day written down or the page written on past the repeat. Measured on production's second readings of one page: 409 of 423 found, every cut at the next lecture's first word, nothing found on 3 110 that hold no repeat. `note_processed` and `note_tagged` gain `repeat_cut` and `repeat_of`; `topic_searched`'s `found` counts up to fifty ("Contracts"). `CLAUDE.md` → "The corpus", the pipeline; `FINDINGS.md` → "The page photographed twice" | the CEO's own |
+| 2026-10-13 | the CEO, with Claude Code | Task 63's move into the group built: under a private record's document with its subject, «В группу «…»» for every group the person and the bot are both in, Telegram asked at the delivery; a press moves the lecture's notebooks into the group's subject of the word, into a classmate's lecture of it by the rule a record is filed by, the private lecture's day kept, and the group is shown one line. A lecture moved counts in no day's pages: migration `022_lecture_moved` adds `notes.moved_at` (schema, named to the CPO before the push), which the group's day leaves out. Event `lecture_moved` ("Contracts"). The notebook's two open questions answered by the CEO the same night: a stretch with no lecture start cut into parts of thirty pages at most, the person told; a notebook without its "#word" read, and its subject asked once at the end. `CLAUDE.md` → "The corpus", a seventh early commit in "Sessions and transactions", a row in "Scale debt", "Structure" | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -4000,16 +4003,43 @@ margin's day was read on 18 records of 107.
   record's first page, and 1 500 records of two different albums.
   `FINDINGS.md` → "The page photographed twice".
 
+## Built on 2026-10-13: the move into the group
+
+- **The button** (`to_group.targets`, `feedback.move_rows`): under every
+  document of a private record with its subject — the study version, the
+  record's own, the plain text it falls back to — and under the line that
+  files a record answered with its "#word" after its document went out,
+  «В группу «…»» for every group the bot is in that Telegram says the
+  person is a member of, asked of all of them at once. Every group rather
+  than those the person was seen in: a member who never wrote to the bot
+  there is a member all the same ("Scale debt"). The chat every «Плохо»
+  goes to is none.
+- **The press** (`to_group.on_move`, `to_group.move`): the person asked
+  about again — the button may be days old — and the lecture's notebooks
+  claimed by one conditional update, so a double tap moves it once; filed
+  together into the group's subject of their word and into the lecture of
+  it they are notebooks of, the best for any of them, else a new one on
+  the private lecture's day, which keeps a day the caption gave
+  (`subjects.refile`). The private lecture's row goes; its subject, the
+  person's word, stays. Committed before the group is told.
+- **What the group sees**: one line, the person by their username —
+  «grisha добавляет в #матан лекцию от 12.10 — «…»», or what the notebook
+  did to the group's lecture, as `lecture_added` and `lecture_led` say it;
+  the verb in the present, which names no one a man or a woman. The person
+  is told where the lecture is now and how it is found there, and the
+  group buttons come off the document.
+- **Paid nothing again**: a moved record's pages were read in the private
+  chat, and the group's day leaves them out (`notes.moved_at`, migration
+  `022_lecture_moved`).
+- **Checked** on SQLite and on a local PostgreSQL through the whole chain,
+  022 down and up again: both notebooks of a lecture moved into a
+  classmate's, a lecture the group did not have made new on its day, the
+  same button again, a person who left the group, another person's
+  record, a press in a group, a forged button, two presses at once — one
+  move, one lecture. Production has four groups, the bot gone from two.
+
 ## The parts left
 
-- **A lecture moved into the group**: under the document of a private
-  record that has its subject, a button for each group the person and the
-  bot are both in, «В группу «…»». It moves the lecture's private
-  notebooks into the group's subject of the same word, where a lecture a
-  classmate sent joins it by the rule — the two notebooks' document is the
-  check of item 4 the CEO waits for. The group is shown one line; a lecture
-  moved is the group's, not the private chat's, and counts in no day's
-  pages. Its migration is named to the CPO before the push.
 - **A whole notebook**: a private send of more than a send's pages, or
   one whose caption says «тетрадь», with its "#word", up to 100 pages,
   one a day beyond a person's 30. Read with a prompt that names the first
@@ -4019,7 +4049,13 @@ margin's day was read on 18 records of 107.
   with the group's button — and a last message summing the notebook up
   with «Все в группу». Two albums of ten sent one after the other with
   different days in their captions stop being one send. Measured on the
-  CEO's notebook once deployed.
+  CEO's notebook once deployed. The CEO's answers of the night of
+  2026-10-13: a stretch where no lecture start was found is cut by its
+  pages into parts of thirty pages at most, as near equal as they come,
+  each a record, and the person told the lectures' starts were not found
+  there; a notebook sent without its "#word" is read and cut all the
+  same, and the last message asks its subject once, the answer filing
+  every lecture of it.
 - **The semester by its topics** — task 52's new form, above.
 
 ## Don't do
@@ -7036,6 +7072,19 @@ that missed is either a topic the bot never wrote or a subject spelled a
 second way. `found` counts the records matched, up to fifty since
 2026-10-12 (ten before), before a lecture's notebooks and the copies of one
 album are made one answer (task 63).
+
+## Event `lecture_moved`
+
+A private lecture moved into a group by «В группу «…»» under its document
+(task 63). Logged with the group it went to: the group gained a lecture,
+and whether a group uses the bot week after week is the question.
+
+payload: `{"note_ids": [int], "from_lecture": int | null, "lecture_id":
+int, "lecture_joined": bool, "leads": bool, "added": int, "pages": int}` —
+the notebooks moved, the private lecture they were, the group's lecture
+they are in now and whether it had a notebook before, whether they are its
+base now or how many passages they add to its document, and their pages,
+which the group's day does not count.
 
 ## Event `album_retake_requested`
 

@@ -257,6 +257,11 @@ class Note(Base):
     photo_line_height: Mapped[float | None] = mapped_column(Float)
     photo_paper_fraction: Mapped[float | None] = mapped_column(Float)
     photo_contrast: Mapped[float | None] = mapped_column(Float)
+    # When a record made in a private chat was moved into a group by the
+    # button under its document (task 63); NULL for a record made in its
+    # chat. Its pages were read and paid for where it was made, so the
+    # group's day does not count them (limits.group_pages_left).
+    moved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )

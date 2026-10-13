@@ -408,6 +408,65 @@ def several_tagged(tag: str, rows: list[tuple[str, list[str]]]) -> str:
     return "\n".join(lines).strip()
 
 
+# ── A lecture moved into a group — app/bot/to_group.py ──────────────────────
+
+
+def _shortened(text: str, limit: int) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
+
+def move_button(group_title: str | None) -> str:
+    """Under a private lecture's document (task 63), a button a group: named,
+    since a person may be in several."""
+    name = _shortened(group_title or "", 28)
+    return f"В группу «{name}»" if name else "В группу"
+
+
+MOVE_ALREADY = "Эта лекция уже в группе."
+MOVE_NOT_MEMBER = "Не вижу тебя в этой группе — перенести туда не могу."
+
+
+def moved_notice(group_title: str | None, tag: str) -> str:
+    """What the person who pressed is shown: where the lecture is now, and
+    how it is found there — it is the group's, and the private chat's "#word"
+    no longer finds it."""
+    name = _shortened(group_title or "", 60)
+    where = f"в группе «{name}»" if name else "в группе"
+    return f"Лекция теперь {where} — там её найдёт #{tag}."
+
+
+def moved_line(
+    name: str,
+    tag: str,
+    given_on: date,
+    title: str,
+    joined: bool,
+    leads: bool,
+    added: int,
+) -> str:
+    """The one line a group is shown when a lecture is moved into it from a
+    private chat (task 63): who, under which "#word", which lecture — and,
+    when the group had that lecture, what the notebook did to its document,
+    as `lecture_added` and `lecture_led` say it to the person who sent it.
+    The verb in the present: Russian's past would name whoever moved it a
+    man or a woman."""
+    day = _lecture_day(given_on)
+    if not joined:
+        return f"{name} добавляет в #{tag} лекцию от {day} — «{_shortened(title, 80)}»."
+    if leads:
+        return (
+            f"{name} добавляет к лекции от {day} в #{tag} свой конспект — он полнее, "
+            "документ теперь собран по нему."
+        )
+    if added:
+        return f"{name} дополняет лекцию от {day} в #{tag} своим конспектом: {_passages(added)}."
+    return (
+        f"{name} добавляет к лекции от {day} в #{tag} свой конспект — "
+        "нового в нём не нашлось."
+    )
+
+
 # Telegram rejects messages over 4096 characters. Split on blank lines; hard-cut
 # only a single paragraph that is itself longer than the limit.
 MESSAGE_LIMIT = 4000
