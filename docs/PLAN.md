@@ -537,6 +537,11 @@ Specified on 2026-10-12, the CEO's: «пиши темы конспекта в с
       a topic with no letter is none; what is stored written the same way
       by migration `020_hashtags` — the CEO's. Taken and built on
       2026-10-12
+- [ ] 107. One search query an explanation: the source search asks for one
+      query (`prompts-explain-source-v3.md`), and a search that ran none is
+      made again at `low`, not at the model's default — Google billed 6 272
+      queries in October where the bot counted 423. The CEO's. Taken and
+      built on 2026-10-16
 
 ### Why the design comes before the explaining stage
 
@@ -584,7 +589,7 @@ Update strictly following this template, adding or removing nothing:
 
 ```
 Done: 1-43, 45-47, 51, 55-56, 69-88, 90, 92-100, 102-105
-CEO — current: 106; next: 65 once there is data for it, 63's rest, then 60
+CEO — current: 106, 107; next: 65 once there is data for it, 63's rest, then 60
 CPO — current: none; next: none
 Blockers: 44 paused on 2026-09-29, the CPO's to take up — Flex, or another provider measured on an album already read; 54 and 101 archived on 2026-10-11, a sketch is its words; 64 asleep since its measurement on 2026-10-03; 48 put off on 2026-10-10
 ```
@@ -691,6 +696,8 @@ since 2026-10-01.
 | 2026-10-12 | the CEO, with Claude Code | Task 105 specified, taken and built, the CEO's words «пока пользователь ждет будет крутить какие нибудь надписи по типу, работаем, еще минуту, считаю формулы, учусь, чтобы вам не пришлось. когда меняем ее, старую удаляем + присылаем пользователю все в одном сообщении, а не делим на 2 как сейчас», and the choice «Менять текст на месте»: `PROCESSING` gives way to `WAITING`, one line turned round six phrases every 8 s and deleted on every way out (`app/bot/waiting.py`, new); `corpus.ask_for_tag` becomes `tag_line`, its words and `album_partial`'s in the document's caption, the rest after it where Telegram's 1024 characters do not hold them. `CLAUDE.md` → "The document", "The corpus", the pipeline and the structure; "Final processing order for a photo" and "All user-facing texts" here. No migration | the CEO's own |
 | 2026-10-12 | the CEO, with Claude Code | Tasks 41, 71, 73–76, 80–82, 84, 85, 87, 88, 93–96, 100 and 102–105 accepted and closed, the CEO's words «я принимаю все прошлые задачи. в базовой версии они работают хорошо», and 90 with them, the CEO's own check of records 90 to 92 against their photographs. 52's overview no longer waits on 41: what it costs a group's day is 52's to decide when it is taken | the CEO's own |
 | 2026-10-12 | the CEO, with Claude Code | Task 106 specified, taken and built, the CEO's words «пиши темы конспекта в сообщении в ТГ без тире, а только с нижними подчеркиваниями, иначе тг не выделяет их как #»: `tags.normalize` keeps only what Telegram counts in a hashtag — letters, decimal digits, the underscore — every other character a gap; a topic with no letter is none; migration `020_hashtags` writes the stored topics, subjects and records' tags the same way, two subjects of one chat that become one word made one. What is stored is the CPO's area, the CEO's word enough, and the migration is named to the CPO before it is pushed. Planned against production read only first: 31 of 257 topics rewritten, one dropped as a second of its record, no subject. `CLAUDE.md` → "The corpus" and "Development commands" | the CEO's own |
+| 2026-10-16 | the CEO, with Claude Code | `CLAUDE.md` read against the code again (`/init`): every function, constant, setting and test it names is there, and the suite passes — 901 tests, one skipped without a Postgres. Put right: the next revision id — `021_` on `main` is also the first of branch `task-63`, whose `021_one_lecture` to `024_semester` follow the same `020_hashtags`, so a migration on `main` before the merge means renumbering the branch's four, `down_revision` and all; a bare `pytest` collected `evidence/`'s scratch checks and stopped on one that needs a local Postgres, now kept out by `testpaths` in `pyproject.toml`; the prompts' list ends at v11, v6 production until 2026-10-10, v8 archived with task 54; "Where it stands" checked against the running deploy's startup log, of 2026-10-12, and true but for its date; `.env.example` lists `SKETCHES_ENABLED`. No rule changed | the CEO's own |
+| 2026-10-16 | the CEO, with Claude Code | Task 107 specified, taken and built, the CEO's words «давай прямо сейчас уменьшим кол-во запросов», after Google Cloud charged the card twice in a day: October's bill counted 6 272 search queries — 5 692 free, 580 at €7.15 — where the bot's 405 searches listed 423, its tokens the bot's to within what a timeout cut off. The source search asks for one query (`prompts-explain-source-v3.md`), and one that ran none is made again at `low` instead of the model's default; measured in production's environment on eight stored explanations, seven found a source, 1.6 links an explanation against 2.4. `CLAUDE.md` → "Established experimentally" gains that the grounding metadata is not the search bill — a rule shared, the CEO's word enough and the CPO told — and "Stage three", "Environment variables", "Where it stands" and the structure change with it; `FINDINGS.md` → "Search queries, billed and listed". The searches are the CPO's area. No migration | the CEO's own |
 
 ## Where this is going, decided 2026-10-02
 
@@ -6708,6 +6715,68 @@ hold. No subject had one.
 - Not a record's topics read again from its headings: a stored topic is
   rewritten as it stands, and a record keeps the topics it was shown
   with.
+
+---
+
+# Task 107. One search query an explanation
+
+**Owner: the CEO.** Taken and built on 2026-10-16, the CEO's words «давай
+прямо сейчас уменьшим кол-во запросов», after Google Cloud charged the card
+twice in a day. The searches, their prompt and what they cost are the CPO's
+area, the CEO's word enough.
+
+## Why
+
+October's billing report against `ai_calls`, 1 to 16 October: the tokens
+are the bot's — 3.02 million in against 2.97, 5.93 million out against
+4.61, the difference about what the calls a timeout cut off would think —
+but the searches are not what the bot counts: 6 272 queries, 5 692 of them
+the month's free allowance and 580 billed, €7.15, against the 423 the
+grounding metadata listed in 405 searches. About fifteen a search, so the
+free 5 000 were gone about the 13th, and from that day the searches were
+most of a day's bill. `prompts-explain-source-v2.md` sent the model to
+universities first, then to encyclopedias — a round of queries — and a
+search at `low` that ran none was made again at the model's default, which
+thinks and searches the most: 124 of October's 412 searches were such
+second calls, 97 of them thinking, and still 83 of the 288 explanations
+searched were left with no source. `FINDINGS.md` → "Search queries, billed
+and listed".
+
+## Do, as built
+
+1. **`prompts-explain-source-v3.md`**: v2's request with one query and no
+   more; from its results a university's or a scientific publisher's site
+   first, then an encyclopedia — v2's order kept as a preference among
+   what one query returns. The tiers in code still rank the pages found.
+2. **A search that ran none is made again at `low`** (`explain._search`),
+   not at the model's default. With the level `unset` there is still no
+   second call.
+3. **The startup log names the sources' prompt**: `Explain: … sources
+   prompts-explain-source-v3.md thinking low`.
+4. **Made sure of before the push**: v3 at `low` in production's
+   environment, over eight explanations stored in records 123–125 — six
+   found a source at once, one more at `low` again; the first source a
+   university's in five of seven against v2's six of eight; 1.6 links an
+   explanation against 2.4; one query listed a search, 4–8 s. Ten calls,
+   in `ai_calls`.
+
+## Acceptance criterion
+
+- The bill's queries per search fall well under fifteen: the daily usage
+  of the two search SKUs against the searches `ai_calls` holds for the same
+  days, the first full day after the deploy.
+- No more explanations left without a source than in October, one in
+  four.
+- The suite is green.
+
+## Don't do
+
+- Not the explanations, nor how many are searched: eight at most, as
+  before.
+- Not the count `ai_calls` writes for a search: the metadata is all a call
+  returns, so the daily cap and `/stats` still see about a fifteenth of the
+  searches until the bill shows what a v3 search costs — then the count is
+  the next task.
 
 ---
 

@@ -64,7 +64,13 @@ EXPLAIN_PROMPT_WORDS = len(EXPLAIN_PROMPT.split())
 PROMPT_ASKS_ELEMENTS = '"elements"' in EXPLAIN_PROMPT
 # The question each explanation is searched with. Short on purpose: a short,
 # direct request to find something is what makes the model actually search.
-SOURCE_PROMPT = vision.load_prompt("prompts-explain-source-v2.md")
+# One query, not a round of them (task 107): Google bills every query a
+# search runs, the grounding metadata lists about one a call, and October's
+# bill counted 6 272 queries against the 405 searches of v2, which sent the
+# model to universities first and then encyclopedias. Read by name, and named
+# at startup.
+SOURCE_PROMPT_FILE = "prompts-explain-source-v3.md"
+SOURCE_PROMPT = vision.load_prompt(SOURCE_PROMPT_FILE)
 
 # The prompt asks for one or two a section and eight at most; this is where
 # "at most" is kept.
@@ -569,17 +575,19 @@ async def _search(item: dict) -> tuple[list[Source], list[CallStats]]:
 
     At a low thinking level the model sometimes answers without running a
     search at all, and the explanation is then dropped for having no source —
-    three of six in record 47, none at the model's own default in any call
-    measured. So a search that answered and found nothing is made once more
-    at the default. The cheap call is the usual one; the dear one only where
-    the cheap one did not look. A call that failed is not asked again: a
+    three of six in record 47. So a search that answered and found nothing
+    is made once more, at the same level (task 107). It was made at the
+    model's default until then: in October about a third of the searches were
+    such second calls, a hundred of them thinking, and still more than one
+    explanation in four was left without a source. At `low` again, one of two
+    came back with a source. A call that failed is not asked again: a
     timeout would only double the wait, and an error is not a search the
     model chose to skip.
     """
     sources, stats = await _search_once(item, settings.SOURCE_THINKING_LEVEL)
     if sources or not stats.success or settings.SOURCE_THINKING_LEVEL == "unset":
         return sources, [stats]
-    again, second = await _search_once(item, "unset")
+    again, second = await _search_once(item, settings.SOURCE_THINKING_LEVEL)
     return again, [stats, second]
 
 

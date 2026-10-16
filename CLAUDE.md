@@ -132,15 +132,17 @@ In a session:
   **F, the app**: a Telegram Mini App where a group studies from its
   records. Both after 56 and 47, the records' quality first — "Where this
   is going, decided 2026-10-02". What is under way is "State" there.
-- **What production runs**, as last read off the startup log, 2026-10-08 —
-  the log is the authority, and `docs/PLAN.md` → "What production says" the
-  record of the first readings: recognition on `gemini-3.8-flash`, three
+- **What production runs**, as last read off the startup log, 2026-10-16
+  (the deploy of 2026-10-12) — the log is the authority, and
+  `docs/PLAN.md` → "What production says" the record of the first readings:
+  recognition on `gemini-3.8-flash`, three
   runs, `prompts-v11.md` since 2026-10-10 — v6 with a drawing that is data
   written as data, the CEO's switch — thinking at the model's default; composition on,
   `gemini-3.8-flash`, `prompts-compose-v4.md` since 2026-10-06, thinking
   `low`; the explaining stage on,
   `gemini-3.8-flash`, its searches at `low`, `prompts-explain-v3.md` since
-  2026-10-08, the teacher's boxes since 2026-10-03; sketches drawn again from
+  2026-10-08, the teacher's boxes since 2026-10-03, one query a search
+  (`prompts-explain-source-v3.md`) since 2026-10-16; sketches drawn again from
   the page the night of 2026-10-11 and archived the next morning with task
   54's cut-outs, the CEO's word (task 101); a call's ceiling 90 s. **The
   code's defaults are not these** — `gemini-3.5-flash-lite`, `prompts-v3.md`,
@@ -200,7 +202,12 @@ user hasn't arrived; "Scale debt" says what that postpones.
   the path it was built at and fail with "bad interpreter" once the
   repository moves.
 - Revision ids are hand-written: `001_users_events` through
-  `020_hashtags`, the head. The next is `021_`.
+  `020_hashtags`, the head on `main`, where the next is `021_`. Branch
+  `task-63` — task 63 built whole and kept off production since
+  2026-10-13 — carries `021_one_lecture` through `024_semester` after the
+  same `020_hashtags`: a migration on `main` before the branch merges gives
+  Alembic two heads, and the deploy stops, unless the branch's four are
+  renumbered after it first, `down_revision` and all.
 - No linter is configured; don't add one without an explicit request.
 
 ---
@@ -287,6 +294,14 @@ arm.
 - **It blames the author for its own misreadings** — a semicolon read as a
   letter became "possibly a typo by the author". The prompt forbids that kind
   of interpretation.
+- **Its account of its own searches is not the bill** (task 107). The
+  grounding metadata listed 423 queries in October's 405 searches; Google
+  billed 6 272, while the tokens matched `ai_calls` to within the calls a
+  timeout cut off. What `ai_calls`, the daily cap and `/stats` count for a
+  search is the metadata's figure, about a fifteenth of it: how many
+  queries a search costs is read off the bill's daily usage against the
+  searches `ai_calls` holds for the same days. → "Search queries, billed and
+  listed"
 - **A bad shot is more dangerous than difficult text.** A spread
   photographed from a distance came back as a coherent textbook retelling of
   its heading's topic, with `unreadable_count: 0`. Nothing after the fact
@@ -653,8 +668,16 @@ from 12a, once.
   from memory. One call writes the explanations and the summary as strict
   JSON over the record numbered by `pdf.numbered_for_reading` — "(3)" in an
   answer is "(3)" on the page — and each explanation then gets a search call
-  of its own (`prompts-explain-source-v2.md`), in parallel. → "What the model
+  of its own (`prompts-explain-source-v3.md`), in parallel. → "What the model
   did with a search tool"
+- **One query a search** (task 107, the CEO's, 2026-10-16): Google bills
+  every query a search runs, $14 a thousand past the month's free 5 000,
+  and v2's request — universities first, then encyclopedias — ran about
+  fifteen a search, so October's free allowance was gone by the 13th. v3
+  asks for one query and keeps that order as a preference among its
+  results; a search that ran none is made once more at `low`, never at the
+  model's default, which thinks and searches the most. → "Search queries,
+  billed and listed"
 - **Three guards, all in code**: an explanation is printed only with the
   sources its own search returned, read from the grounding metadata, never
   from what the model writes — one with none is dropped
@@ -1653,14 +1676,14 @@ evidence/             local only, never in git: records, reference notes, Railwa
 CLAUDE.md, README.md  in the root, where Claude Code and GitHub read them
 ```
 
-**The prompts**: recognition `prompts-v3.md` to `prompts-v9.md` — v5
-extraction only, v6 (production) v5 with the author's frames written as
-`\boxed{…}`, v7 without the list of numbers, tried and rolled back, v8 v6
-with each drawing's frame, measured and asleep (task 54), v9 v6 with where a
-lecture begins, measured and asleep (task 64), v10 v6 with a drawing
-that is data written as data (task 94), which wrote a number line in
-words, v11 (production since 2026-10-10) v10 asking first whether a
-drawing is one of the kinds; composing
+**The prompts**: recognition `prompts-v3.md` to `prompts-v11.md` — v5
+extraction only, v6 (production until 2026-10-10) v5 with the author's
+frames written as `\boxed{…}`, v7 without the list of numbers, tried and
+rolled back, v8 v6 with each drawing's frame, measured and archived with
+task 54, v9 v6 with where a lecture begins, measured and asleep (task 64),
+v10 v6 with a drawing that is data written as data (task 94), which wrote a
+number line in words, v11 (production since 2026-10-10) v10 asking first
+whether a drawing is one of the kinds; composing
 `prompts-compose-v1.md` to `v4`, v3 framing a section's main formula, v4
 (production since 2026-10-06) v3 with the author's shorthand spelled out
 (task 69);
@@ -1670,8 +1693,9 @@ an example that is not the lecture's working with another number (task 78),
 kept on the CEO's word while the next records' examples are read, v4 v3
 with a caption to a formula or a drawing the record says nothing about,
 measured and set aside for the teacher's boxes it cost (task 95); with
-`prompts-explain-source-v2.md` for the searches — `v1` before it, kept as
-the records made with it were — and `prompts-explain-captions-v1.md` for
+`prompts-explain-source-v3.md` for the searches, one query each (task
+107) — `v1` and `v2` before it, kept as the records made with them were —
+and `prompts-explain-captions-v1.md` for
 the captions' call (task 95); the study version `prompts-study-v1.md`
 (task 80) and `v2`, v1 naming the course's organisation (task 93), read by
 name as the searches' prompt is; the sketches' frames and labels
@@ -1683,8 +1707,10 @@ startup, and editing it changes the prompt without touching Python.
 
 **`evidence/` is never tracked** — `.gitignore` covers it, `*.pdf` and
 `*.log`. It holds what `docs/FINDINGS.md` was read out of; nothing reads it at
-runtime or in the suite. A record is a user's page of notes, and the corpus
-lives in the database.
+runtime, and `testpaths` in `pyproject.toml` keeps the suite out of it: the
+scratch checks a task leaves there are named `test_*.py` too, and a bare
+`pytest` stopped on one that needs a local Postgres. A record is a user's
+page of notes, and the corpus lives in the database.
 
 ---
 
@@ -1765,8 +1791,8 @@ FEEDBACK_CHAT_ID=        unset: feedback is stored only
   there — turning it down is an arm, never a budget setting. Composition and
   the source searches think `low` (`COMPOSE_THINKING_LEVEL`,
   `SOURCE_THINKING_LEVEL`) — the same result at half the price in a third of
-  the time; a search at `low`
-  that ran none is made once more at the default (`explain._search`).
+  the time; a search at `low` that ran none is made once more at `low`
+  (`explain._search`, task 107) — at the default it searched the most.
   `gemini-3.8-flash` refuses `"minimal"` with a 400. → "What a record costs"
 - **`seed` is deliberately not a setting, and `temperature` stays at 1.0**:
   three identical runs would send `text_agreement` up without touching

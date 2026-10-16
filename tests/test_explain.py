@@ -431,16 +431,18 @@ async def test_a_search_thinks_low_and_the_writing_call_at_the_models_default(mo
 
 
 
-async def test_a_low_search_that_did_not_look_is_made_again_at_the_default(monkeypatch):
+async def test_a_low_search_that_did_not_look_is_made_again_at_low(monkeypatch):
     """Record 47: three of six searches at "low" answered without running a
-    search, and their explanations were dropped for having no source."""
+    search, and their explanations were dropped for having no source. The
+    second call thinks low too (task 107): at the default it ran the dearest
+    searches of all."""
     seen: list[dict] = []
 
     async def generate_content(**kwargs):
         seen.append(kwargs)
         if not kwargs["config"].tools:
             return _written(_answer())
-        if kwargs["config"].thinking_config is not None:
+        if len([kw for kw in seen if kw["config"].tools]) == 1:
             return _found()  # answered, looked nowhere
         return _found("https://ru.wikipedia.org/x")
 
@@ -452,7 +454,10 @@ async def test_a_low_search_that_did_not_look_is_made_again_at_the_default(monke
     assert [item.title for item in result.explanations] == ["Формула Эйлера"]
     assert result.unsourced == 0
     searches = [kw for kw in seen if kw["config"].tools]
-    assert [kw["config"].thinking_config is None for kw in searches] == [False, True]
+    assert [kw["config"].thinking_config.thinking_level for kw in searches] == [
+        types.ThinkingLevel.LOW,
+        types.ThinkingLevel.LOW,
+    ]
     assert [s.kind for s in result.stats] == ["explain", "caption", "source", "source"]
 
 

@@ -2600,6 +2600,71 @@ deep, entity-bombed — each refused with a message, nothing paid. A .docx of
 200 000 paragraphs parsed 10.7 s on the event loop; it parses in a thread
 now.
 
+## Search queries, billed and listed
+
+On 2026-10-16 the CEO's card was charged twice in a day by Google Cloud, and
+read against the bill, the bot's own accounting turned out right about its
+tokens and wrong about its searches by a factor of fifteen (task 107).
+
+**How the bill is paid.** The billing account is a prepaid one in euros: when
+its balance runs out, an automatic payment of €5.00 buys €3.98 of Google Cloud
+and €1.02 of VAT, 25.5%. Two such payments on one day, on top of one each on
+the 11th and the 13th, were the "receipts" — the bank converting each €5 at
+its own rate, $5.69 and $6.12. Hosting is another matter: Railway estimates
+$4.67 for the month to 2026-10-20, the whole workspace, four projects.
+
+**The tokens are the bot's.** October's billing report, read the same evening,
+against `ai_calls` from 1 to 16 October:
+
+| | Google | `ai_calls` |
+|---|---|---|
+| input tokens | 3 021 756 | 2 971 011 |
+| output and thinking | 5 931 436 | 4 606 686 |
+| search queries | 6 272 — 5 692 free, 580 at €7.15 | 423, in 405 searches |
+
+The input matches to 2%, and the output's 1.3 million more are about what
+the 79 calls a timeout cut off in October would think — written with no
+tokens and no cost, most of them recognition past 90 s, at 15 to 20 thousand
+thinking tokens a call. No other user of the key shows: one would bring
+tokens of its own.
+
+**The searches are not what the bot counts.** Google bills "each search query
+that the model decides to execute", $14 a thousand past 5 000 free a month,
+and the grounding metadata, which `explain._search_queries` counts, listed
+about one a search — 6 queries in the four searches of the CEO's test page
+that evening. The bill counted about fifteen a search. So the free 5 000 were
+gone about 2026-10-13, and the daily costs show the day: from 10 to 12 October
+Google's bill and the bot's were one figure; from the 13th Google's ran two to
+three times the bot's, and in the part of the day's bill not yet settled, the
+searches were €2.24 against €0.43 of tokens. 14 October, a day with no call,
+billed about €0.55, which nothing in `ai_calls` explains. The bot's daily cap
+and `/stats` saw a fifteenth of the searches.
+
+**Why so many.** `prompts-explain-source-v2.md` asked the search to look at
+universities and scientific publishers first and then at encyclopedias — a
+round of queries. And a search at `low` that ran none was made again at the
+model's default (record 47): in October 124 of the 412 searches were such
+second calls, 97 of them thinking, and still 83 of the 288 explanations
+searched were left with no source and dropped.
+
+**v3, measured before it shipped.** `prompts-explain-source-v3.md` asks for
+one query, and from its results for a university's or a scientific
+publisher's site first. Over eight explanations stored in records 123–125,
+at `low`, set against the sources v2 found for the same explanations:
+
+| | v2, stored | v3 |
+|---|---|---|
+| found a source | 8 of 8 (those with none were never stored) | 6 at once, 7 with a second call at `low` |
+| the first source a university's | 6 of 8 | 5 of 7 |
+| links an explanation | 2.4 | 1.6 |
+| queries listed a search that searched | about one | one |
+| a search | — | 4–8 s |
+
+Ten calls, $0.10 by the bot's count, in `ai_calls` with no user. Fewer links
+under an explanation and the same kind of first one; what a search costs is
+the bill's to say — the daily usage of the two search SKUs against the
+searches `ai_calls` holds for the same days.
+
 ## Moved from CLAUDE.md, 2026-10-10
 
 When `CLAUDE.md` was cut back to its rules a second time, its records'

@@ -1,3 +1,6 @@
 [tool.pytest.ini_options]
 # Async test functions and fixtures run without a per-item @pytest.mark.asyncio.
 asyncio_mode = "auto"
+# Only tests/: evidence/, local and never in git, keeps scratch checks named
+# test_*.py that need a local Postgres, and a bare pytest stopped on them.
+testpaths = ["tests"]
